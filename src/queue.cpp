@@ -183,6 +183,61 @@ void cvk_executor_thread::executor() {
     }
 }
 
+namespace {
+
+bool is_command_batchable(cvk_command* cmd) {
+    bool batchable_type = (cmd->type() == CL_COMMAND_NDRANGE_KERNEL) ||
+                          (cmd->type() == CL_COMMAND_TASK);
+    bool unresolved_user_event_dependencies = false;
+    bool unresolved_other_queue_dependencies = false;
+
+    for (auto ev : cmd->dependencies()) {
+        if (ev->is_user_event() && !ev->completed()) {
+            unresolved_user_event_dependencies = true;
+            break;
+        }
+
+        if ((ev->queue() != cmd->queue()) && !ev->completed()) {
+            unresolved_other_queue_dependencies = true;
+            break;
+        }
+    }
+
+    return batchable_type && !unresolved_user_event_dependencies &&
+           !unresolved_other_queue_dependencies;
+}
+
+static std::unique_ptr<cvk_command_group>
+batch_kernels(std::unique_ptr<cvk_command_group> group) {
+    std::unique_ptr<cvk_command_group> newgroup =
+        std::make_unique<cvk_command_group>();
+    cvk_command_kernel_group* kgroup = nullptr;
+
+    for (auto cmd : group->commands) {
+
+        if (is_command_batchable(cmd)) {
+            if (kgroup == nullptr) {
+                kgroup = new cvk_command_kernel_group(cmd->queue());
+            }
+            kgroup->add_kernel(static_cast<cvk_command_kernel*>(cmd));
+        } else {
+            if (kgroup != nullptr) {
+                newgroup->commands.push_back(kgroup);
+                kgroup = nullptr;
+            }
+            newgroup->commands.push_back(cmd);
+        }
+    }
+
+    if (kgroup != nullptr) {
+        newgroup->commands.push_back(kgroup);
+    }
+
+    return newgroup;
+}
+
+} // namespace
+
 cl_int cvk_command_queue::flush(cvk_event** event) {
 
     cvk_info_fn("queue = %p, event = %p", this, event);
@@ -211,6 +266,10 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
                 CL_PROFILING_COMMAND_SUBMIT);
         }
     }
+
+    // Batch kernels for submission
+    group = batch_kernels(std::move(group));
+    CVK_ASSERT(group->commands.size() > 0);
 
     // Create execution thread if it doesn't exist
     {
@@ -425,19 +484,24 @@ cl_int cvk_command_kernel::build() {
 
     vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
 
-    VkMemoryBarrier memoryBarrier = {
-        VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_MEMORY_WRITE_BIT,
-        VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
+    VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER, // sType
+                                     nullptr,                          // pNext
+                                     VK_ACCESS_SHADER_WRITE_BIT,
+                                     VK_ACCESS_MEMORY_READ_BIT |
+                                         VK_ACCESS_MEMORY_WRITE_BIT};
 
-    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                         VK_PIPELINE_STAGE_HOST_BIT,
-                         0, // dependencyFlags
-                         1, // memoryBarrierCount
-                         &memoryBarrier,
-                         0,        // bufferMemoryBarrierCount
-                         nullptr,  // pBufferMemoryBarriers
-                         0,        // imageMemoryBarrierCount
-                         nullptr); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(
+        m_command_buffer,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
+        VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // dstStageMask
+        0,                                        // dependencyFlags
+        1,                                        // memoryBarrierCount
+        &memoryBarrier,
+        0,        // bufferMemoryBarrierCount
+        nullptr,  // pBufferMemoryBarriers
+        0,        // imageMemoryBarrierCount
+        nullptr); // pImageMemoryBarriers
 
     if (profiling && !is_profiled_by_executor()) {
         vkCmdWriteTimestamp(m_command_buffer,
@@ -452,6 +516,38 @@ cl_int cvk_command_kernel::build() {
     return CL_SUCCESS;
 }
 
+cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
+    uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
+    auto dev = m_queue->device();
+    auto res = vkGetQueryPoolResults(
+        dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_KERNEL,
+        sizeof(timestamps), timestamps, sizeof(uint64_t),
+        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+    if (res != VK_SUCCESS) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    double nsPerTick = dev->vulkan_limits().timestampPeriod;
+
+    auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
+    auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
+    uint64_t ts_start, ts_end;
+
+    // Most implementations seem to use 1 ns = 1 tick, handle this as a
+    // special case to not lose precision.
+    if (nsPerTick == 1.0) {
+        ts_start = ts_start_raw;
+        ts_end = ts_end_raw;
+    } else {
+        ts_start = ts_start_raw * nsPerTick;
+        ts_end = ts_end_raw * nsPerTick;
+    }
+    m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
+    m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
+
+    return CL_COMPLETE;
+}
+
 cl_int cvk_command_kernel::do_action() {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
@@ -459,34 +555,82 @@ cl_int cvk_command_kernel::do_action() {
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
+    cl_int err = CL_COMPLETE;
+
     if (profiling && !is_profiled_by_executor()) {
-        uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
-        auto dev = m_queue->device();
-        vkGetQueryPoolResults(
-            dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_KERNEL,
-            sizeof(timestamps), timestamps, sizeof(uint64_t),
-            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+        err = set_profiling_info_from_query_results();
+    }
 
-        double nsPerTick = dev->vulkan_limits().timestampPeriod;
+    return err;
+}
 
-        auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
-        auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
-        uint64_t ts_start, ts_end;
+cl_int cvk_command_kernel_group::submit_and_wait() {
+    std::vector<VkCommandBuffer> buffers;
+    for (auto& kcmd : m_kernel_commands) {
+        auto& cmd_buf = kcmd->command_buffer();
+        VkCommandBuffer vkbuf = cmd_buf;
+        buffers.push_back(vkbuf);
+    }
 
-        // Most implementations seem to use 1 ns = 1 tick, handle this as a
-        // special case to not lose precision.
-        if (nsPerTick == 1.0) {
-            ts_start = ts_start_raw;
-            ts_end = ts_end_raw;
-        } else {
-            ts_start = ts_start_raw * nsPerTick;
-            ts_end = ts_end_raw * nsPerTick;
-        }
-        m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
-        m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
+    auto& queue = m_queue->vulkan_queue();
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    if (profiling && !gQueueProfilingUsesTimestampQueries) {
+        m_event->set_profiling_info_from_monotonic_clock(
+            CL_PROFILING_COMMAND_START);
+    }
+
+    VkResult res = queue.submit(buffers);
+
+    if (res != VK_SUCCESS) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    res = queue.wait_idle();
+
+    if (res != VK_SUCCESS) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    if (profiling && !gQueueProfilingUsesTimestampQueries) {
+        m_event->set_profiling_info_from_monotonic_clock(
+            CL_PROFILING_COMMAND_END);
     }
 
     return CL_COMPLETE;
+}
+
+cl_int cvk_command_kernel_group::do_action() {
+
+    cl_int status = submit_and_wait();
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    for (auto& kcmd : m_kernel_commands) {
+        auto ev = kcmd->event();
+        if (profiling) {
+            if (gQueueProfilingUsesTimestampQueries) {
+                auto perr = kcmd->set_profiling_info_from_query_results();
+                // Report the first error if no errors were present
+                // Keep going through the events
+                if (status == CL_COMPLETE) {
+                    status = perr;
+                }
+            } else {
+                auto ts_group_start =
+                    m_event->get_profiling_info(CL_PROFILING_COMMAND_START);
+                auto ts_group_end =
+                    m_event->get_profiling_info(CL_PROFILING_COMMAND_END);
+                ev->set_profiling_info(CL_PROFILING_COMMAND_START,
+                                       ts_group_start);
+                ev->set_profiling_info(CL_PROFILING_COMMAND_END, ts_group_end);
+            }
+        }
+        ev->set_status(status);
+    }
+
+    return status;
 }
 
 cl_int cvk_command_buffer_host_copy::do_action() {
