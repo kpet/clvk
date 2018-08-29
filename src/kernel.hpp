@@ -80,11 +80,11 @@ typedef struct _cl_kernel : public api_object {
     VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
     cvk_program* program() const { return m_program; }
 
-    cl_ulong local_mem_size() const {
-        cl_ulong ret = 0; // FIXME
-
-        return ret;
+    kernel_argument_kind arg_kind(int index) const {
+        return m_args[index].kind;
     }
+
+    cl_ulong local_mem_size() const;
 
 private:
 
@@ -116,12 +116,14 @@ struct cvk_kernel_argument_values {
     cvk_kernel_argument_values(cvk_kernel *kernel) :
         m_kernel(kernel),
         m_pod_buffer(nullptr),
-        m_kernel_resources(m_kernel->num_bindings()) {}
+        m_kernel_resources(m_kernel->num_bindings()),
+        m_local_args_size(m_kernel->num_args(), 0) {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values &other) :
         m_kernel(other.m_kernel),
         m_pod_buffer(nullptr),
-        m_kernel_resources(other.m_kernel_resources) {}
+        m_kernel_resources(other.m_kernel_resources),
+        m_local_args_size(other.m_local_args_size) {}
 
     static std::unique_ptr<cvk_kernel_argument_values> create(cvk_kernel *kernel) {
         auto val = std::make_unique<cvk_kernel_argument_values>(kernel);
@@ -178,6 +180,11 @@ struct cvk_kernel_argument_values {
             if (!m_pod_buffer->copy_from(value, arg.offset, size)) {
                 return CL_OUT_OF_RESOURCES;
             }
+        } else if (arg.kind == kernel_argument_kind::local) {
+            CVK_ASSERT(value == nullptr);
+            m_local_args_size[arg.pos] = size;
+            CVK_ASSERT(size % arg.local_elem_size == 0);
+            m_specialization_constants[arg.local_spec_id] = size / arg.local_elem_size;
         } else {
             // We only expect cl_mem or cl_sampler here
             if (size != sizeof(void*)) {
@@ -200,8 +207,16 @@ struct cvk_kernel_argument_values {
         return m_pod_buffer->vulkan_buffer();
     }
 
+    size_t local_arg_size(int pos) const { return m_local_args_size[pos]; }
+
+    const std::unordered_map<uint32_t, uint32_t>& specialization_constants() const {
+        return m_specialization_constants;
+    }
+
 private:
     cvk_kernel *m_kernel;
     std::unique_ptr<cvk_buffer> m_pod_buffer;
     std::vector<refcounted_holder<refcounted>> m_kernel_resources;
+    std::vector<size_t> m_local_args_size;
+    std::unordered_map<uint32_t, uint32_t> m_specialization_constants;
 };

@@ -1,8 +1,8 @@
 {
   "API": {
-    "duration": "00:00:07.672144",
-    "passed": 67,
-    "retcode": 5,
+    "duration": "00:00:07.251736",
+    "passed": 68,
+    "retcode": 4,
     "total": 72
   },
   "Allocations (single maximum)": {
@@ -24,9 +24,9 @@
     "total": 13
   },
   "Basic": {
-    "duration": "00:00:30.789454",
-    "passed": 62,
-    "retcode": 27,
+    "duration": "00:00:31.199633",
+    "passed": 63,
+    "retcode": 26,
     "total": 89
   },
   "Buffers": {
