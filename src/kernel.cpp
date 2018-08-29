@@ -82,6 +82,20 @@ std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer()
     return buffer;
 }
 
+cl_ulong cvk_kernel::local_mem_size() const
+{
+    cl_ulong ret = 0; // FIXME take the compile-time allocations into account
+
+    for (uint32_t i = 0; i < m_args.size(); i++) {
+        auto const &arg = m_args[i];
+        if (arg.kind == kernel_argument_kind::local) {
+            ret += m_argument_values->local_arg_size(i);
+        }
+    }
+
+    return ret;
+}
+
 cl_int cvk_kernel::init()
 {
     // Get a pointer to the arguments from the program
@@ -401,6 +415,8 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
         }
         case kernel_argument_kind::pod: // skip POD arguments
         case kernel_argument_kind::pod_ubo:
+            break;
+        case kernel_argument_kind::local: // nothing to do?
             break;
         default:
             cvk_error_fn("unsupported argument type");

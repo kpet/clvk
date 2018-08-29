@@ -1905,9 +1905,9 @@ clSetKernelArg(
         return CL_INVALID_ARG_INDEX;
     }
 
-    if (arg_value == nullptr) {
-        cvk_error_fn("passing a null pointer to clSetKernelArg is unsupported");
-        return CL_INVALID_VALUE;
+    if ((arg_value == nullptr) && (kernel->arg_kind(arg_index) != kernel_argument_kind::local)) {
+        cvk_error_fn("passing a null pointer to clSetKernelArg is only supported for local arguments");
+        return CL_INVALID_ARG_VALUE;
     }
 
     return kernel->set_arg(arg_index, arg_size, arg_value);
