@@ -1,0 +1,9 @@
+[submodule "clspv"]
+    path = external/clspv
+	url = https://github.com/google/clspv.git
+[submodule "opencl-headers"]
+    path = external/OpenCL-Headers
+	url = https://github.com/KhronosGroup/OpenCL-Headers.git
+[submodule "opencl-conformance-tests"]
+    path = external/OpenCL-CTS
+	url = https://github.com/KhronosGroup/OpenCL-CTS.git

@@ -1,0 +1,140 @@
+{
+  "API": {
+    "duration": "00:00:07.595190",
+    "passed": 67,
+    "retcode": 5,
+    "total": 72
+  },
+  "Allocations (single maximum)": {
+    "duration": "00:00:42.222763",
+    "passed": 0,
+    "retcode": 5,
+    "total": 1
+  },
+  "Allocations (total maximum)": {
+    "duration": "00:02:04.572192",
+    "passed": 0,
+    "retcode": 5,
+    "total": 1
+  },
+  "Atomics": {
+    "duration": "00:00:02.919352",
+    "passed": 0,
+    "retcode": 13,
+    "total": 13
+  },
+  "Basic": {
+    "duration": "00:00:58.567249",
+    "passed": 61,
+    "retcode": 29,
+    "total": 90
+  },
+  "Buffers": {
+    "duration": "00:03:06.476430",
+    "passed": 73,
+    "retcode": 17,
+    "total": 90
+  },
+  "Common Functions": {
+    "duration": "00:00:03.249545",
+    "passed": 1,
+    "retcode": 16,
+    "total": 17
+  },
+  "Compiler": {
+    "duration": "00:00:04.857170",
+    "passed": 23,
+    "retcode": 32,
+    "total": 55
+  },
+  "Compute Info": {
+    "duration": "00:00:00.232184",
+    "passed": 1,
+    "retcode": 0,
+    "total": 1
+  },
+  "Contractions": {
+    "duration": "00:00:00.523909",
+    "passed": 0,
+    "retcode": 255,
+    "total": 1
+  },
+  "Device Partitioning": {
+    "duration": "00:00:00.232521",
+    "passed": 9,
+    "retcode": 0,
+    "total": 9
+  },
+  "Events": {
+    "duration": "00:00:03.803707",
+    "passed": 28,
+    "retcode": 0,
+    "total": 28
+  },
+  "Geometric Functions": {
+    "duration": "00:00:02.478193",
+    "passed": 0,
+    "retcode": 8,
+    "total": 8
+  },
+  "Half Ops": {
+    "duration": "00:00:00.276479",
+    "passed": 0,
+    "retcode": 1,
+    "total": 1
+  },
+  "Math": {
+    "duration": "00:00:11.090892",
+    "passed": 0,
+    "retcode": 255,
+    "total": 98
+  },
+  "Mem (Host Flags)": {
+    "duration": "00:00:00.234785",
+    "passed": 9,
+    "retcode": 0,
+    "total": 9
+  },
+  "Multiple Device/Context": {
+    "duration": "00:00:00.929980",
+    "passed": 3,
+    "retcode": 4,
+    "total": 7
+  },
+  "Printf": {
+    "duration": "00:00:04.336299",
+    "passed": 0,
+    "retcode": 57,
+    "total": 57
+  },
+  "Profiling": {
+    "duration": "00:00:02.999030",
+    "passed": 27,
+    "retcode": 4,
+    "total": 31
+  },
+  "Select": {
+    "duration": "00:00:01.087073",
+    "passed": 0,
+    "retcode": 18,
+    "total": 1
+  },
+  "Thread Dimensions": {
+    "duration": "00:00:00.514463",
+    "passed": 0,
+    "retcode": 6,
+    "total": 6
+  },
+  "VecAlign": {
+    "duration": "00:00:00.508128",
+    "passed": 0,
+    "retcode": 5,
+    "total": 5
+  },
+  "VecStep": {
+    "duration": "00:00:00.646968",
+    "passed": 0,
+    "retcode": 4,
+    "total": 4
+  }
+}
