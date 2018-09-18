@@ -167,6 +167,10 @@ clGetDeviceIDs(
         *num_devices = num;
     }
 
+    if (num == 0) {
+        return CL_DEVICE_NOT_FOUND;
+    }
+
     return CL_SUCCESS;
 }
 
