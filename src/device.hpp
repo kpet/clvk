@@ -66,8 +66,8 @@ typedef struct _cl_device_id {
         return std::min(max_alloc_size() * 4, actual_memory_size());
     }
 
-    size_t max_alloc_size() const {
-        size_t max_buffer_size = m_properties.limits.maxStorageBufferRange;
+    uint64_t max_alloc_size() const {
+        uint64_t max_buffer_size = m_properties.limits.maxStorageBufferRange;
         return std::min(max_buffer_size, actual_memory_size());
     }
 
