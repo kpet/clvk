@@ -26,6 +26,7 @@ VkInstance gVkInstance;
 cvk_platform *gPlatform;
 loglevel gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
+bool gDebugReportEnabled = false;
 
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
 
@@ -73,21 +74,6 @@ static void init_vulkan()
 #endif
     };
 
-    const std::vector<const char*> enabledExtensions = {
-        "VK_EXT_debug_report",
-    };
-
-    VkInstanceCreateInfo info = {
-        VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
-        nullptr, // pApplicationInfo
-        static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
-        enabledLayers.data(), // ppEnabledLayerNames
-        static_cast<uint32_t>(enabledExtensions.size()), // enabledExtensionCount
-        enabledExtensions.data(), // ppEnabledExtensionNames
-    };
-
     VkResult res;
 
     // Print layer info
@@ -117,11 +103,29 @@ static void init_vulkan()
     res = vkEnumerateInstanceExtensionProperties(nullptr, &numExtensionProperties, extensionProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
 
+    std::vector<const char*> enabledExtensions;
+
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("Found extension %s, spec version %u",
                 extensionProperties[i].extensionName,
                 extensionProperties[i].specVersion);
+
+        if (!strcmp(extensionProperties[i].extensionName, "VK_EXT_debug_report")) {
+            enabledExtensions.push_back("VK_EXT_debug_report");
+            gDebugReportEnabled = true;
+        }
     }
+
+    VkInstanceCreateInfo info = {
+        VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // sType
+        nullptr, // pNext
+        0, // flags
+        nullptr, // pApplicationInfo
+        static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
+        enabledLayers.data(), // ppEnabledLayerNames
+        static_cast<uint32_t>(enabledExtensions.size()), // enabledExtensionCount
+        enabledExtensions.data(), // ppEnabledExtensionNames
+    };
 
     // Create the instance
     res = vkCreateInstance(&info, nullptr, &gVkInstance);
@@ -140,16 +144,24 @@ static void init_vulkan()
             NULL                                                        // pUserData
     };
 
-    CVK_VK_GET_INSTANCE_PROC(vkCreateDebugReportCallbackEXT);
 
-    res = fnvkCreateDebugReportCallbackEXT(gVkInstance, &callbackInfo, nullptr, &gVkDebugCallback);
-    CVK_VK_CHECK_FATAL(res, "Can't setup debug callback");
+    if (gDebugReportEnabled) {
+        CVK_VK_GET_INSTANCE_PROC(vkCreateDebugReportCallbackEXT);
+
+        res = fnvkCreateDebugReportCallbackEXT(gVkInstance, &callbackInfo, nullptr, &gVkDebugCallback);
+        CVK_VK_CHECK_FATAL(res, "Can't setup debug callback");
+    }
+    else {
+        cvk_warn("VK_EXT_debug_report not enabled");
+    }
 }
 
 static void term_vulkan()
 {
-    CVK_VK_GET_INSTANCE_PROC(vkDestroyDebugReportCallbackEXT);
-    fnvkDestroyDebugReportCallbackEXT(gVkInstance, gVkDebugCallback, nullptr);
+    if (gDebugReportEnabled) {
+        CVK_VK_GET_INSTANCE_PROC(vkDestroyDebugReportCallbackEXT);
+        fnvkDestroyDebugReportCallbackEXT(gVkInstance, gVkDebugCallback, nullptr);
+    }
     vkDestroyInstance(gVkInstance, nullptr);
 }
 
