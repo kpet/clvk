@@ -2897,7 +2897,7 @@ cl_mem clCreateImage(
 // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
 // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for image object.
 
-    std::unique_ptr<cvk_mem> mem(new cvk_image(context, flags, image_desc, host_ptr));
+    auto mem = std::make_unique<cvk_image>(context, flags, image_desc, image_format, host_ptr);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;
@@ -2917,7 +2917,96 @@ cl_int clGetImageInfo(
                  "param_value = %p, param_value_size_ret = %p",
                  image, param_name, param_value_size, param_value, param_value_size_ret);
 
-    return CL_INVALID_OPERATION;
+    cl_int ret = CL_SUCCESS;
+    size_t ret_size = 0;
+    const void *copy_ptr = nullptr;
+    cl_image_format val_image_format;
+    size_t val_sizet;
+    cl_mem val_mem;
+    cl_uint val_uint;
+
+    if (image == nullptr) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!image->is_image_type()) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto img = static_cast<cvk_image*>(image);
+
+    switch (param_name) {
+    case CL_IMAGE_FORMAT:
+        val_image_format = img->format();
+        copy_ptr = &val_image_format;
+        ret_size = sizeof(val_image_format);
+        break;
+    case CL_IMAGE_ELEMENT_SIZE:
+        val_sizet = img->element_size();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_ROW_PITCH:
+        val_sizet = img->row_pitch();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_SLICE_PITCH:
+        val_sizet = img->slice_pitch();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_WIDTH:
+        val_sizet = img->width();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_HEIGHT:
+        val_sizet = img->height();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_DEPTH:
+        val_sizet = img->depth();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_ARRAY_SIZE:
+        val_sizet = img->array_size();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_IMAGE_BUFFER:
+        val_mem = img->buffer();
+        copy_ptr = &val_mem;
+        ret_size = sizeof(val_mem);
+        break;
+    case CL_IMAGE_NUM_MIP_LEVELS:
+        val_uint = img->num_mip_levels();
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_IMAGE_NUM_SAMPLES:
+        val_uint = img->num_samples();
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    default:
+        ret = CL_INVALID_VALUE;
+    }
+
+    if (param_value != nullptr) {
+        if (param_value_size < ret_size) {
+            ret = CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = ret_size;
+    }
+
+    return ret;
 }
 
 std::unordered_map<VkFormat, cl_image_format> gFormatMaps = {
@@ -3017,12 +3106,7 @@ cl_int clGetSupportedImageFormats(
         return CL_INVALID_VALUE;
     }
 
-    if ((image_type != CL_MEM_OBJECT_IMAGE1D) &&
-        (image_type != CL_MEM_OBJECT_IMAGE1D_ARRAY) &&
-        (image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER) &&
-        (image_type != CL_MEM_OBJECT_IMAGE2D) &&
-        (image_type != CL_MEM_OBJECT_IMAGE2D_ARRAY) &&
-        (image_type != CL_MEM_OBJECT_IMAGE3D)) {
+    if (!cvk_mem::is_image_type(image_type)) {
         return CL_INVALID_VALUE;
     }
 

@@ -97,6 +97,19 @@ typedef struct _cl_mem : public api_object {
     cl_mem_object_type type() const { return m_type; }
     cl_mem_flags flags() const { return m_flags; }
 
+    static bool is_image_type(cl_mem_object_type type) {
+        return ((type == CL_MEM_OBJECT_IMAGE1D) ||
+                (type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+                (type == CL_MEM_OBJECT_IMAGE1D_BUFFER) ||
+                (type == CL_MEM_OBJECT_IMAGE2D) ||
+                (type == CL_MEM_OBJECT_IMAGE2D_ARRAY) ||
+                (type == CL_MEM_OBJECT_IMAGE3D));
+    }
+
+    bool is_image_type() const {
+        return is_image_type(type());
+    }
+
     bool has_flags(cl_mem_flags flags) {
         return (m_flags & flags) == flags;
     }
@@ -234,11 +247,81 @@ private:
 
 struct cvk_image : public cvk_mem {
 
-    cvk_image(cvk_context *ctx, cl_mem_flags flags, const cl_image_desc *desc, void *host_ptr)
+    cvk_image(cvk_context *ctx, cl_mem_flags flags, const cl_image_desc *desc,
+              const cl_image_format *format, void *host_ptr)
         : cvk_mem(ctx, flags, /* FIXME size */ 0,
                   host_ptr, /* FIXME parent */ nullptr,
-                  /* FIXME parent_offset */ 0, desc->image_type), m_desc(*desc) {
+                  /* FIXME parent_offset */ 0, desc->image_type),
+          m_desc(*desc),
+          m_format(*format)
+    {
     }
+
+    const cl_image_format& format() const { return m_format; }
+    size_t element_size() const {
+        return num_channels() * element_size_per_channel();
+    }
+    size_t row_pitch() const { return m_desc.image_row_pitch; }
+    size_t slice_pitch() const { return m_desc.image_slice_pitch; }
+    size_t width() const { return m_desc.image_width; }
+    size_t height() const { return m_desc.image_height; }
+    size_t depth() const { return m_desc.image_depth; }
+    size_t array_size() const { return m_desc.image_array_size; }
+    cvk_mem* buffer() const { return m_desc.buffer; }
+    cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
+    cl_uint num_samples() const { return m_desc.num_samples; }
+
 private:
+
+    size_t num_channels() const {
+        switch (m_format.image_channel_order) {
+        case CL_R:
+        case CL_Rx:
+        case CL_A:
+        case CL_INTENSITY:
+        case CL_LUMINANCE:
+            return 1;
+        case CL_RG:
+        case CL_RGx:
+        case CL_RA:
+            return 2;
+        case CL_RGB:
+        case CL_RGBx:
+            return 3;
+        case CL_RGBA:
+        case CL_ARGB:
+        case CL_BGRA:
+            return 4;
+        default:
+            return 0;
+        }
+    }
+
+    size_t element_size_per_channel() const {
+        switch (m_format.image_channel_data_type) {
+        case CL_SNORM_INT8:
+        case CL_UNORM_INT8:
+        case CL_SIGNED_INT8:
+        case CL_UNSIGNED_INT8:
+            return 1;
+        case CL_SNORM_INT16:
+        case CL_UNORM_INT16:
+        case CL_SIGNED_INT16:
+        case CL_UNSIGNED_INT16:
+        case CL_UNORM_SHORT_565:
+        case CL_UNORM_SHORT_555:
+        case CL_HALF_FLOAT:
+            return 2;
+        case CL_UNORM_INT_101010:
+        case CL_SIGNED_INT32:
+        case CL_UNSIGNED_INT32:
+        case CL_FLOAT:
+            return 4;
+        default:
+            return 0;
+        }
+    }
+
     cl_image_desc m_desc;
+    cl_image_format m_format;
 };
