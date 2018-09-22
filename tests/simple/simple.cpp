@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
 
     printf("Platform: %s\n", platform_name);
 
-    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr);
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &device, nullptr);
     CHECK_CL_ERRCODE(err);
 
     char device_name[128];
