@@ -67,6 +67,8 @@ typedef struct _cl_kernel : public api_object {
         m_name(name),
         m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
         m_pod_binding(INVALID_POD_BINDING),
+        m_pod_buffer_size(0u),
+        m_has_pod_arguments(false),
         m_descriptor_pool(VK_NULL_HANDLE),
         m_descriptor_set_layout(VK_NULL_HANDLE),
         m_pipeline_layout(VK_NULL_HANDLE),
@@ -106,27 +108,7 @@ typedef struct _cl_kernel : public api_object {
         return m_pipeline_cache.get_pipeline(x, y, z);
     }
 
-    bool has_pod_arguments() const {
-        for (auto &arg : m_args) {
-            if (arg.is_pod()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    size_t pod_size() const {
-        int max_offset = 0;
-
-        for (auto &arg : m_args) {
-            max_offset = std::max(max_offset, arg.offset);
-        }
-
-        max_offset += MAX_POD_ARGUMENT_SIZE;
-
-        return max_offset;
-    }
-
+    bool has_pod_arguments() const { return m_has_pod_arguments; }
     const std::string& name() const { return m_name; }
     uint32_t num_args() const { return m_args.size(); }
     uint32_t num_bindings() const { return m_layout_bindings.size(); }
@@ -142,7 +124,6 @@ typedef struct _cl_kernel : public api_object {
 private:
 
     const uint32_t INVALID_POD_BINDING = std::numeric_limits<uint32_t>::max();
-    const uint32_t MAX_POD_ARGUMENT_SIZE = 1024; // FIXME shouldn't need that
     void build_descriptor_sets_layout_bindings();
     std::unique_ptr<cvk_mem> allocate_pod_buffer();
     friend cvk_kernel_argument_values;
@@ -152,6 +133,8 @@ private:
     std::string m_name;
     VkDescriptorType m_pod_descriptor_type;
     uint32_t m_pod_binding;
+    uint32_t m_pod_buffer_size;
+    bool m_has_pod_arguments;
     std::vector<kernel_argument> m_args;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
     std::vector<VkDescriptorSetLayoutBinding> m_layout_bindings;
@@ -198,24 +181,34 @@ struct cvk_kernel_argument_values {
     }
 
     bool init() {
-        auto mem = m_kernel->allocate_pod_buffer();
-        if (mem == nullptr) {
-            return false;
-        }
+        if (m_kernel->has_pod_arguments()) {
+            auto mem = m_kernel->allocate_pod_buffer();
+            if (mem == nullptr) {
+                return false;
+            }
 
-        m_pod_buffer = std::move(mem);
+            m_pod_buffer = std::move(mem);
+        }
 
         return true;
     }
 
     bool init_copy(const cvk_kernel_argument_values &other) {
-        return other.m_pod_buffer->copy_to(m_pod_buffer.get(), 0, 0, m_pod_buffer->size());
+        if (m_kernel->has_pod_arguments()) {
+            return other.m_pod_buffer->copy_to(m_pod_buffer.get(), 0, 0, m_pod_buffer->size());
+        } else {
+            return true;
+        }
     }
 
     cl_int set_arg(const kernel_argument& arg, size_t size, const void *value) {
 
         if (arg.is_pod()) {
-            if (!m_pod_buffer->copy_from(value, arg.offset, size)) { // FIXME check size, this allows overwrites
+            if (size != arg.size) {
+                return CL_INVALID_ARG_SIZE;
+            }
+
+            if (!m_pod_buffer->copy_from(value, arg.offset, size)) {
                 return CL_OUT_OF_RESOURCES;
             }
         } else {

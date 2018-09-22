@@ -137,7 +137,7 @@ void cvk_kernel::build_descriptor_sets_layout_bindings()
 std::unique_ptr<cvk_mem> cvk_kernel::allocate_pod_buffer()
 {
     cl_int err;
-    auto mem = cvk_mem::create(m_context, 0, pod_size(), nullptr, &err);
+    auto mem = cvk_mem::create(m_context, 0, m_pod_buffer_size, nullptr, &err);
     if (err != CL_SUCCESS) {
         return nullptr;
     }
@@ -182,6 +182,13 @@ cl_int cvk_kernel::init()
         return CL_INVALID_VALUE;
     }
 
+    // Do we have POD arguments?
+    for (auto &arg : m_args) {
+        if (arg.is_pod()) {
+            m_has_pod_arguments = true;
+        }
+    }
+
     // Init POD arguments
     if (has_pod_arguments()) {
 
@@ -201,6 +208,19 @@ cl_int cvk_kernel::init()
         if (m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
             return CL_INVALID_PROGRAM;
         }
+
+        // Find how big the POD buffer should be
+        int max_offset = 0;
+        int max_offset_arg_size = 0;
+
+        for (auto &arg : m_args) {
+            if (arg.offset >= max_offset) {
+                max_offset = arg.offset;
+                max_offset_arg_size = arg.size;
+            }
+        }
+
+        m_pod_buffer_size = max_offset + max_offset_arg_size;
     }
 
     // Init argument values

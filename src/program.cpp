@@ -249,7 +249,8 @@ bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int
         return false;
     }
 
-    std::string akind{tokens[toknum]};
+    std::string akind{tokens[toknum++]};
+
     if (akind == "buffer") {
         arg.kind = kernel_argument_kind::buffer;
     } else if (akind == "pod") {
@@ -264,6 +265,14 @@ bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int
         arg.kind = kernel_argument_kind::sampler;
     } else {
         return false;
+    }
+
+    if (arg.is_pod()) {
+        if (tokens[toknum++] != "argSize") {
+            return false;
+        }
+
+        arg.size = atoi(tokens[toknum++].c_str());
     }
 
     return true;

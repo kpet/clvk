@@ -44,6 +44,7 @@ struct kernel_argument {
     uint32_t descriptorSet;
     uint32_t binding;
     int offset;
+    uint32_t size;
     kernel_argument_kind kind;
     uint32_t local_spec_id;
     uint32_t local_elem_size;
