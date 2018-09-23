@@ -66,14 +66,6 @@ VkBool32 debugCallback(
 
 static void init_vulkan()
 {
-    const std::vector<const char*> enabledLayers = {
-#if 0
-        "VK_LAYER_LUNARG_standard_validation",
-        "VK_LAYER_GOOGLE_threading",
-        "VK_LAYER_LUNARG_parameter_validation",
-#endif
-    };
-
     VkResult res;
 
     // Print layer info
@@ -116,6 +108,18 @@ static void init_vulkan()
         }
     }
 
+    // Handle validation layers
+    std::vector<const char*> enabledLayers;
+
+    char *enable_validation_layers = getenv("CVK_VALIDATION_LAYERS");
+    if (enable_validation_layers != nullptr) {
+        int value = atoi(enable_validation_layers);
+        if (value == 1) {
+            enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
+        }
+    }
+
+    // Create the instance
     VkInstanceCreateInfo info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // sType
         nullptr, // pNext
@@ -127,11 +131,11 @@ static void init_vulkan()
         enabledExtensions.data(), // ppEnabledExtensionNames
     };
 
-    // Create the instance
     res = vkCreateInstance(&info, nullptr, &gVkInstance);
     CVK_VK_CHECK_FATAL(res, "Could not create the instance");
     cvk_info("Created the VkInstance");
 
+    // Create debug callback
     VkDebugReportCallbackCreateInfoEXT callbackInfo = {
             VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,    // sType
             NULL,                                                       // pNext
@@ -143,7 +147,6 @@ static void init_vulkan()
             debugCallback,                                        // pfnCallback
             NULL                                                        // pUserData
     };
-
 
     if (gDebugReportEnabled) {
         CVK_VK_GET_INSTANCE_PROC(vkCreateDebugReportCallbackEXT);

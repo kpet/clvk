@@ -76,3 +76,8 @@ LD_LIBRARY_PATH=./build ./build/simple_test
 
 * `CVK_CLSPV_BIN` to provide a path to the clspv binary to use
 
+* `CVK_VALIDATION_LAYERS` allows to enable Vulkan validation layers
+
+   * 0: disabled (default)
+   * 1: enabled
+
