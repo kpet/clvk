@@ -37,8 +37,8 @@
   },
   "Common Functions": {
     "duration": "00:00:03.249545",
-    "passed": 1,
-    "retcode": 16,
+    "passed": 14,
+    "retcode": 3,
     "total": 17
   },
   "Compiler": {
@@ -73,8 +73,8 @@
   },
   "Geometric Functions": {
     "duration": "00:00:02.478193",
-    "passed": 0,
-    "retcode": 8,
+    "passed": 3,
+    "retcode": 5,
     "total": 8
   },
   "Half Ops": {
@@ -85,7 +85,7 @@
   },
   "Math": {
     "duration": "00:00:11.090892",
-    "passed": 0,
+    "passed": 31,
     "retcode": 255,
     "total": 98
   },
