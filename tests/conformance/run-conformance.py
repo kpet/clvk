@@ -28,34 +28,54 @@ TOP_DIR = os.path.realpath(os.path.join(THIS_DIR, '..', '..'))
 CONFORMANCE_DIR = os.path.join(TOP_DIR, 'build', 'external', 'OpenCL-CTS', 'test_conformance')
 
 # ('Name', 'binary', 'arg0', 'arg1', ...)
-TESTS_SUPPORTED = (
-    ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
-    ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
+TESTS_HEADERS = (
+    ('Headers (cl_typen)', 'headers/test_headers'),
+    ('Headers (cl.h standalone)', 'headers/test_cl_h'),
+    ('Headers (cl_platform.h standalone)', 'headers/test_cl_platform_h'),
+    ('Headers (cl_gl.h standalone)', 'headers/test_cl_gl_h'),
+    ('Headers (opencl.h standalone)', 'headers/test_opencl_h'),
+)
+
+TESTS_QUICK = TESTS_HEADERS + (
     ('API', 'api/test_api'),
     ('Atomics', 'atomics/test_atomics'),
-    ('Basic', 'basic/test_basic'),
-    ('Buffers', 'buffers/test_buffers'),
     ('Compute Info', 'computeinfo/computeinfo'),
-    ('Compiler', 'compiler/test_compiler'),
     ('Common Functions', 'commonfns/test_commonfns'),
+    ('Compiler', 'compiler/test_compiler'),
     ('Contractions', 'contractions/contractions'),
-#    ('Conversions', 'conversions/test_conversions'),
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
     ('Geometric Functions', 'geometrics/test_geometrics'),
     ('Half Ops', 'half/Test_half'),
-#    ('Integer Ops', 'integer_ops/test_integer_ops'),
-    ('Math', 'math_brute_force/bruteforce'),
     ('Mem (Host Flags)', 'mem_host_flags/test_mem_host_flags'),
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
     ('Profiling', 'profiling/test_profiling'),
-#    ('Relationals', 'relationals/test_relationals'),
     ('Select', 'select/test_select'),
     ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'full*'),
     ('VecAlign', 'vec_align/test_vecalign'),
     ('VecStep', 'vec_step/test_vecstep'),
 )
+
+TESTS_MODE_WIMPY = (
+    ('Math', 'math_brute_force/bruteforce', '-1', '-w'),
+)
+
+TESTS_MODE_NOT_WIMPY = (
+    ('Math', 'math_brute_force/bruteforce'),
+    ('Conversions', 'conversions/test_conversions'),
+    ('Integer Ops', 'integer_ops/test_integer_ops'),
+    ('Relationals', 'relationals/test_relationals'),
+)
+
+TESTS_FOR_WIMPY = TESTS_QUICK + (
+    ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
+    ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
+    ('Basic', 'basic/test_basic'),
+    ('Buffers', 'buffers/test_buffers'),
+)
+
+TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY
 
 TESTS_IMAGES = (
     ('Images (API Info)', 'images/clGetInfo/test_cl_get_info'),
@@ -76,15 +96,9 @@ TESTS_IMAGES = (
     ('Images (Samplerless max size)', 'images/samplerlessReads/test_samplerless_reads', 'max_images'),
 )
 
-TESTS_HEADERS = (
-    ('Headers (cl_typen)', 'headers/test_headers'),
-    ('Headers (cl.h standalone)', 'headers/test_cl_h'),
-    ('Headers (cl_platform.h standalone)', 'headers/test_cl_platform_h'),
-    ('Headers (cl_gl.h standalone)', 'headers/test_cl_gl_h'),
-    ('Headers (opencl.h standalone)', 'headers/test_opencl_h'),
-)
 
-TESTS_FULL_CONFORMANCE = TESTS_SUPPORTED + TESTS_IMAGES + TESTS_HEADERS + (
+
+TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
 #    ('Headers (cl.h standalone C99), headers/test_cl_h_c99
 #    ('Headers (cl_platform.h standalone C99), headers/test_cl_platform_h_c99
 #    ('Headers (cl_gl.h standalone C99), headers/test_cl_gl_h_c99
@@ -95,7 +109,11 @@ TESTS_FULL_CONFORMANCE = TESTS_SUPPORTED + TESTS_IMAGES + TESTS_HEADERS + (
 #    ('OpenCL-GL Sharing,gl/test_gl
 )
 
-TESTS = TESTS_FULL_CONFORMANCE
+TEST_SETS = {
+    'quick': TESTS_QUICK,
+    'wimpy': TESTS_WIMPY,
+    'full': TESTS_FULL_CONFORMANCE,
+}
 
 TIME_SERIALISATION_FORMAT = '%H:%M:%S.%f'
 
@@ -168,11 +186,11 @@ def run_conformance_binary(path, args):
         'duration': timedelta_to_string(duration),
     }
 
-def run_tests():
+def run_tests(test_set):
 
     results = {}
 
-    for test in TESTS:
+    for test in test_set:
         name = test[0]
         binary = test[1]
         args = test[2:]
@@ -296,10 +314,15 @@ def main():
         help='Check results against JSON reference',
     )
 
+    parser.add_argument(
+        '--test-set', choices=TEST_SETS.keys(), default='wimpy',
+        help='The set of tests to run',
+    )
+
     args = parser.parse_args()
 
     # Run tests
-    results = run_tests()
+    results = run_tests(TEST_SETS[args.test_set])
     if args.save_results:
         with open(args.save_results, 'w') as f:
             json.dump(results, f, indent=2, sort_keys=True, separators=(',', ': '))
