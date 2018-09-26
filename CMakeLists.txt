@@ -39,6 +39,41 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/external/clspv EXCLUDE_FROM_ALL)
 set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
 
+# Vulkan
+set(
+  VULKAN_IMPLEMENTATION "system"
+  CACHE STRING "Select the Vulkan implementation"
+)
+
+set(VULKAN_IMPLEMENTATION_OPTIONS
+    system # Use the system's Vulkan
+    talvos # Use talvos to provide Vulkan
+)
+set_property(CACHE VULKAN_IMPLEMENTATION PROPERTY STRINGS
+    ${VULKAN_IMPLEMENTATION_OPTIONS})
+
+message(STATUS "VULKAN_IMPLEMENTATION = ${VULKAN_IMPLEMENTATION}")
+
+if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
+  set(SPIRV_INCLUDE_DIR ${SPIRV_HEADERS_SOURCE_DIR}/include)
+  set(SPIRV_TOOLS_INCLUDE_DIR ${SPIRV_TOOLS_SOURCE_DIR}/include)
+  set(SPIRV_TOOLS_LIB "$<TARGET_FILE:SPIRV-Tools>")
+  add_subdirectory(${PROJECT_SOURCE_DIR}/external/talvos)
+  add_dependencies(talvos SPIRV-Tools)
+  set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
+  set(Vulkan_LIBRARIES talvos talvos-vulkan)
+elseif (${VULKAN_IMPLEMENTATION} STREQUAL system)
+  find_package(Vulkan)
+else ()
+  message(FATAL_ERROR "Unknown Vulkan implementation "
+                      "'${VULKAN_IMPLEMENTATION}', "
+                      "valid values are: "
+                      "'${VULKAN_IMPLEMENTATION_OPTIONS}'.")
+endif ()
+
+message(STATUS "Vulkan_INCLUDE_DIRS = '${Vulkan_INCLUDE_DIRS}'")
+message(STATUS "Vulkan_LIBRARIES = '${Vulkan_LIBRARIES}'")
+
 # libOpenCL
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 

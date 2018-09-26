@@ -39,8 +39,7 @@ set_target_properties(OpenCL PROPERTIES LIBRARY_OUTPUT_DIRECTORY
 find_package(Threads)
 target_link_libraries(OpenCL ${CMAKE_THREAD_LIBS_INIT})
 
-find_package(Vulkan)
-target_include_directories(OpenCL SYSTEM PRIVATE "${Vulkan_INCLUDE_DIRS}")
+target_include_directories(OpenCL SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
 target_link_libraries(OpenCL ${Vulkan_LIBRARIES})
 
 add_dependencies(OpenCL clspv)
