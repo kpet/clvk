@@ -7,3 +7,9 @@
 [submodule "opencl-conformance-tests"]
     path = external/OpenCL-CTS
 	url = https://github.com/KhronosGroup/OpenCL-CTS.git
+[submodule "spirv-headers"]
+	path = external/SPIRV-Headers
+	url = https://github.com/KhronosGroup/SPIRV-Headers.git
+[submodule "spirv-tools"]
+	path = external/SPIRV-Tools
+	url = https://github.com/KhronosGroup/SPIRV-Tools.git
