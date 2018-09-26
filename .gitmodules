@@ -13,3 +13,9 @@
 [submodule "spirv-tools"]
 	path = external/SPIRV-Tools
 	url = https://github.com/KhronosGroup/SPIRV-Tools.git
+[submodule "vulkan-headers"]
+	path = external/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "talvos"]
+	path = external/talvos
+	url = https://github.com/talvos/talvos.git
