@@ -73,8 +73,8 @@
   },
   "Geometric Functions": {
     "duration": "00:00:02.478193",
-    "passed": 3,
-    "retcode": 5,
+    "passed": 6,
+    "retcode": 2,
     "total": 8
   },
   "Half Ops": {

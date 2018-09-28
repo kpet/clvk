@@ -27,6 +27,7 @@ The following applications work at least partially:
 * [clinfo](https://github.com/Oblomov/clinfo)
 * [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS)
 * [SHOC](https://github.com/vetter/shoc)
+* [OCLToys](https://github.com/ignatenkobrain/ocltoys.git)
 * Let others know whether your favourite application works or not, send a PR :)
 
 TODO move to a separate doc file and list the status for all applications that
