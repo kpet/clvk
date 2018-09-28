@@ -144,10 +144,10 @@ bool cvk_mem::init_subbuffer() {
         cvk_warn_fn("Sub-buffer %p requires more memory than its size, you're on your own!", this);
     }
 
-    if (m_parent_offset != memreqs.alignment) {
-        cvk_warn_fn("Sub-buffer %p offset does not satisfy the alignment "
-                    "requirements of the Vulkan implementation, "
-                    "you're on your own!", this);
+    if (m_parent_offset % memreqs.alignment != 0) {
+        cvk_warn_fn("Sub-buffer %p offset (%zu) does not satisfy the alignment "
+                    "requirements (%lu) of the Vulkan implementation, "
+                    "you're on your own!", this, m_parent_offset, memreqs.alignment);
     }
 
     // Bind the buffer to memory
