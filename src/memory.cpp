@@ -91,7 +91,7 @@ bool cvk_mem::init()
         return false;
     }
 
-    if ((m_flags & CL_MEM_COPY_HOST_PTR) || (m_flags & CL_MEM_USE_HOST_PTR)) {
+    if (has_any_flag(CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) {
         if (!copy_from(m_host_ptr, 0, m_size)) {
             return false;
         }
