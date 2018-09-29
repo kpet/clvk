@@ -103,16 +103,18 @@ int main(int argc, char* argv[])
     CHECK_CL_ERRCODE(err);
 
     // Map the buffer
-    auto ptr = clEnqueueMapBuffer(queue, buffer, CL_TRUE, CL_MAP_WRITE, 0,
+    auto ptr = clEnqueueMapBuffer(queue, buffer, CL_TRUE, CL_MAP_READ, 0,
                                   BUFFER_SIZE, 0, nullptr, nullptr, &err);
     CHECK_CL_ERRCODE(err);
 
     // Check the expected result
+    bool success = true;
     auto buffer_data = static_cast<cl_int*>(ptr);
     for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_int); ++i) {
         if (buffer_data[i] != static_cast<cl_int>(i)) {
-            printf("Failed comparison at buffer_data[%d]: expected %d != got %d\n",
+            printf("Failed comparison at buffer_data[%d]: expected %d but got %d\n",
                    i, i, buffer_data[i]);
+            success = false;
         }
     }
 
@@ -129,9 +131,13 @@ int main(int argc, char* argv[])
     clReleaseProgram(program);
     clReleaseContext(context);
 
-    // Success!
-    printf("Buffer content verified, test passed.\n");
-
-    return EXIT_SUCCESS;
+    // Report status
+    if (success) {
+        printf("Buffer content verified, test passed.\n");
+        return EXIT_SUCCESS;
+    } else {
+        printf("Test failed.\n");
+        return EXIT_FAILURE;
+    }
 }
 
