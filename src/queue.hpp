@@ -167,7 +167,13 @@ typedef struct _cl_command_queue : public api_object {
 
     void enqueue_command_with_deps(cvk_command *cmd, cl_uint num_dep_events,
                                    cvk_event *const* dep_events, cvk_event **event);
+    CHECK_RETURN cl_int enqueue_command_with_deps(cvk_command *cmd, bool blocking,
+                                                  cl_uint num_dep_events,
+                                                  cvk_event *const* dep_events,
+                                                  cvk_event **event);
 
+    CHECK_RETURN static cl_int wait_for_events(cl_uint num_events,
+                                               const cl_event *event_list);
     CHECK_RETURN cl_int flush(cvk_event** event);
 
     CHECK_RETURN cl_int flush() {

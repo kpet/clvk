@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unordered_set>
-
 #include "cl_headers.hpp"
 #include "kernel.hpp"
 #include "memory.hpp"
@@ -695,42 +693,6 @@ clGetContextInfo(
 
 // Event APIs
 cl_int
-cvk_wait_for_events(
-    cl_uint         num_events,
-    const cl_event *event_list
-){
-    cl_int ret = CL_SUCCESS;
-
-    // Create set of queues to flush
-    std::unordered_set<cvk_command_queue*> queues_to_flush;
-    for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event *event = event_list[i];
-
-        if (!event->is_user_event()) {
-            queues_to_flush.insert(event->queue());
-        }
-    }
-
-    // Flush queues
-    for (auto q : queues_to_flush) {
-        cl_int qerr = q->flush();
-        if (qerr != CL_SUCCESS) {
-            return qerr;
-        }
-    }
-
-    // Now wait for all the events
-    for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event *event = event_list[i];
-        if (event->wait() != CL_COMPLETE) {
-            ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
-        }
-    }
-
-    return ret;
-}
-
-cl_int
 clWaitForEvents(
     cl_uint         num_events,
     const cl_event *event_list
@@ -748,7 +710,7 @@ clWaitForEvents(
         }
     }
 
-    return cvk_wait_for_events(num_events, event_list);
+    return cvk_command_queue::wait_for_events(num_events, event_list);
 }
 
 cl_int
@@ -2192,14 +2154,11 @@ clEnqueueReadBuffer(
 
     auto cmd = new cvk_command_copy(command_queue, CL_COMMAND_READ_BUFFER, buffer, ptr, offset, size);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
+    auto err = command_queue->enqueue_command_with_deps(cmd, blocking_read,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
 
-    if (blocking_read == CL_TRUE) {
-        cvk_event *ev = cmd->event();
-        cvk_wait_for_events(1, &ev);
-    }
-
-    return CL_SUCCESS;
+    return err;
 }
 
 cl_int
@@ -2237,14 +2196,11 @@ clEnqueueWriteBuffer(
 
     auto cmd = new cvk_command_copy(command_queue, CL_COMMAND_WRITE_BUFFER, buffer, ptr, offset, size);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
+    auto err = command_queue->enqueue_command_with_deps(cmd, blocking_write,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
 
-    if (blocking_write == CL_TRUE) {
-        cvk_event *ev = cmd->event();
-        cvk_wait_for_events(1, &ev);
-    }
-
-    return CL_SUCCESS;
+    return err;
 }
 
 cl_int
@@ -2297,14 +2253,11 @@ clEnqueueReadBufferRect(
                                          buffer_row_pitch, buffer_slice_pitch,
                                          host_row_pitch, host_slice_pitch);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
+    auto err = command_queue->enqueue_command_with_deps(cmd, blocking_read,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
 
-    if (blocking_read == CL_TRUE) {
-        cvk_event *ev = cmd->event();
-        cvk_wait_for_events(1, &ev);
-    }
-
-    return CL_SUCCESS;
+    return err;
 }
 
 cl_int clEnqueueWriteBufferRect(
@@ -2356,14 +2309,11 @@ cl_int clEnqueueWriteBufferRect(
                                          buffer_row_pitch, buffer_slice_pitch,
                                          host_row_pitch, host_slice_pitch);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
+    auto err = command_queue->enqueue_command_with_deps(cmd, blocking_write,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
 
-    if (blocking_write == CL_TRUE) {
-        cvk_event *ev = cmd->event();
-        cvk_wait_for_events(1, &ev);
-    }
-
-    return CL_SUCCESS;
+    return err;
 }
 
 cl_int clEnqueueFillBuffer(
@@ -2572,8 +2522,6 @@ clEnqueueMapBuffer(
         return nullptr;
     }
 
-    cl_int err = CL_SUCCESS;
-
     // TODO enqueue barriers to VK command buffer
     // TODO handle map flags
 
@@ -2595,12 +2543,9 @@ clEnqueueMapBuffer(
 
     auto cmd = new cvk_command_map(command_queue, CL_COMMAND_MAP_BUFFER, buffer, offset, size);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
-
-    if (blocking_map == CL_BLOCKING) {
-        cvk_event *ev = cmd->event();
-        cvk_wait_for_events(1, &ev);
-    }
+    auto err = command_queue->enqueue_command_with_deps(cmd, blocking_map,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;

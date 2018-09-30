@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <unordered_set>
+
 #include "memory.hpp"
 #include "queue.hpp"
 
@@ -96,6 +98,61 @@ void cvk_command_queue::enqueue_command_with_deps(cvk_command *cmd, cl_uint num_
                                                   cvk_event *const* dep_events, cvk_event **event) {
     cmd->set_dependencies(num_dep_events, dep_events);
     enqueue_command(cmd, event);
+}
+
+cl_int cvk_command_queue::enqueue_command_with_deps(cvk_command *cmd, bool blocking, cl_uint num_dep_events,
+                                                    cvk_event *const* dep_events, cvk_event **event) {
+    cmd->set_dependencies(num_dep_events, dep_events);
+
+    cvk_event *evt;
+    enqueue_command(cmd, &evt);
+
+    cl_int err = CL_SUCCESS;
+
+    if (blocking) {
+        err = wait_for_events(1, &evt);
+    }
+
+    if (event != nullptr) {
+        *event = evt;
+    } else {
+        evt->release();
+    }
+
+    return err;
+}
+
+cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
+                                          const cl_event *event_list){
+    cl_int ret = CL_SUCCESS;
+
+    // Create set of queues to flush
+    std::unordered_set<cvk_command_queue*> queues_to_flush;
+    for (cl_uint i = 0; i < num_events; i++) {
+        cvk_event *event = event_list[i];
+
+        if (!event->is_user_event()) {
+            queues_to_flush.insert(event->queue());
+        }
+    }
+
+    // Flush queues
+    for (auto q : queues_to_flush) {
+        cl_int qerr = q->flush();
+        if (qerr != CL_SUCCESS) {
+            return qerr;
+        }
+    }
+
+    // Now wait for all the events
+    for (cl_uint i = 0; i < num_events; i++) {
+        cvk_event *event = event_list[i];
+        if (event->wait() != CL_COMPLETE) {
+            ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
+        }
+    }
+
+    return ret;
 }
 
 void cvk_executor_thread::executor() {
