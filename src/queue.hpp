@@ -113,7 +113,7 @@ struct cvk_command_group {
 struct cvk_executor_thread {
 
     cvk_executor_thread() : m_thread(nullptr), m_shutdown(false), m_profiling(false) {
-        m_thread = new std::thread(&cvk_executor_thread::executor, this);
+        m_thread = std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
 
     void set_profiling(bool profiling) {
@@ -146,7 +146,7 @@ private:
 
     std::mutex m_lock;
     std::condition_variable m_cv;
-    std::thread *m_thread;
+    std::unique_ptr<std::thread> m_thread;
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
