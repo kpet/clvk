@@ -24,6 +24,7 @@ struct cvk_mem_callback {
 };
 
 typedef struct _cl_mem cvk_mem;
+using cvk_mem_holder = refcounted_holder<cvk_mem>;
 
 typedef struct _cl_mem : public api_object {
 

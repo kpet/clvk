@@ -31,6 +31,7 @@ struct cvk_kernel_pipeline_cache_entry {
 };
 
 typedef struct _cl_kernel cvk_kernel;
+using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 
 struct cvk_kernel_pipeline_cache {
 

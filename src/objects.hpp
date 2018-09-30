@@ -61,6 +61,29 @@ private:
     std::atomic<unsigned int> m_refcount;
 };
 
+template<typename T>
+struct refcounted_holder {
+
+    refcounted_holder(refcounted *refc) : m_refcounted(refc) {
+        m_refcounted->retain();
+    }
+
+    ~refcounted_holder() {
+        m_refcounted->release();
+    }
+
+    T* operator->() {
+        return static_cast<T*>(m_refcounted);
+    }
+
+    operator T*() {
+        return static_cast<T*>(m_refcounted);
+    }
+
+private:
+    refcounted *m_refcounted;
+};
+
 typedef struct _cl_context : public refcounted {
 
     _cl_context(cvk_device *device, const cl_context_properties* props)

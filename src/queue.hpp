@@ -314,16 +314,10 @@ private:
 struct cvk_command_memobj : public cvk_command {
 
     cvk_command_memobj(cvk_command_queue *queue, cl_command_type type, cvk_mem *memobj)
-                      : cvk_command(type, queue), m_mem(memobj) {
-        m_mem->retain();
-    }
-
-    ~cvk_command_memobj() {
-        m_mem->release();
-    }
+                      : cvk_command(type, queue), m_mem(memobj) {}
 
 protected:
-    cvk_mem *m_mem;
+    cvk_mem_holder m_mem;
 };
 
 struct cvk_command_memobj_region : public cvk_command_memobj {
@@ -395,21 +389,13 @@ struct cvk_command_copy_buffer : public cvk_command {
     cvk_command_copy_buffer(cvk_command_queue *q, cl_command_type type, cvk_mem *src, cvk_mem *dst,
                             size_t src_offset, size_t dst_offset, size_t size)
                             : cvk_command(type, q), m_src_buffer(src), m_dst_buffer(dst),
-                              m_src_offset(src_offset), m_dst_offset(dst_offset), m_size(size) {
-        m_src_buffer->retain();
-        m_dst_buffer->retain();
-    }
-
-    ~cvk_command_copy_buffer() {
-        m_src_buffer->release();
-        m_dst_buffer->release();
-    }
+                              m_src_offset(src_offset), m_dst_offset(dst_offset), m_size(size) {}
 
     virtual cl_int do_action() override;
 
 private:
-    cvk_mem *m_src_buffer;
-    cvk_mem *m_dst_buffer;
+    cvk_mem_holder m_src_buffer;
+    cvk_mem_holder m_dst_buffer;
     size_t m_src_offset;
     size_t m_dst_offset;
     size_t m_size;
@@ -448,15 +434,12 @@ struct cvk_command_kernel : public cvk_command {
         m_wg_size[0] = wg_size[0];
         m_wg_size[1] = wg_size[1];
         m_wg_size[2] = wg_size[2];
-
-        m_kernel->retain();
     }
 
     ~cvk_command_kernel() {
         if (m_descriptor_set != VK_NULL_HANDLE) {
             m_kernel->free_descriptor_set(m_descriptor_set);
         }
-        m_kernel->release();
     }
 
 
@@ -466,7 +449,7 @@ private:
     uint32_t m_num_wg[3];
     uint32_t m_wg_size[3];
     VkCommandBuffer m_command_buffer;
-    cvk_kernel *m_kernel;
+    cvk_kernel_holder m_kernel;
     VkDescriptorSet m_descriptor_set;
     std::unique_ptr<cvk_mem> m_pod_buffer;
 };
