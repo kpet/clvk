@@ -19,6 +19,14 @@
 
 #include <vulkan/vulkan.h>
 
+#ifndef _MSC_VER
+#define CHECK_RETURN __attribute__((warn_unused_result))
+#define CHECK_PRINTF(index, first) __attribute__((format(printf, index, first)))
+#else
+#define CHECK_RETURN
+#define CHECK_PRINTF(index, first)
+#endif
+
 enum loglevel {
     fatal = 0,
     error = 1,
@@ -30,7 +38,9 @@ enum loglevel {
 extern loglevel gLoggingLevel;
 extern bool gLoggingColour;
 
-void cvk_log(loglevel level, const char *fmt, ...) __attribute__((format(printf, 2, 3)));;
+char* cvk_mkdtemp(std::string& tmpl);
+
+void cvk_log(loglevel level, const char *fmt, ...) CHECK_PRINTF(2, 3);
 
 #define cvk_fatal(fmt, ...) cvk_log(loglevel::fatal, fmt "\n", ##__VA_ARGS__)
 #define cvk_error(fmt, ...) cvk_log(loglevel::error, fmt "\n", ##__VA_ARGS__)
@@ -56,26 +66,24 @@ static inline std::string vulkan_version_string(uint32_t version) {
     return ret;
 }
 
-#define CVK_VK_CHECK_INTERNAL(logfn, res, msg, ...) do {                       \
+#define CVK_VK_CHECK_INTERNAL(logfn, res, msg) do {                       \
             if (res != VK_SUCCESS) {                                           \
-                logfn(msg " : %s", ##__VA_ARGS__, vulkan_error_string(res)); \
+                logfn(msg " : %s", vulkan_error_string(res)); \
             }                                                                  \
         } while (0);
 
-#define CVK_VK_CHECK_INTERNAL_RET(logfn, res, ret, msg, ...) do {                       \
+#define CVK_VK_CHECK_INTERNAL_RET(logfn, res, ret, msg) do {                       \
             if (res != VK_SUCCESS) {                                           \
-                logfn(msg " : %s", ##__VA_ARGS__, vulkan_error_string(res)); \
+                logfn(msg " : %s", vulkan_error_string(res)); \
                 return ret;                                                    \
             }                                                                  \
         } while (0);
 
-#define CVK_VK_CHECK_FATAL(res, msg, ...) CVK_VK_CHECK_INTERNAL(cvk_fatal, res, msg, ##__VA_ARGS__)
-#define CVK_VK_CHECK_ERROR(res, msg, ...) CVK_VK_CHECK_INTERNAL(cvk_error, res, msg, ##__VA_ARGS__)
-#define CVK_VK_CHECK_ERROR_RET(res, ret, msg, ...) CVK_VK_CHECK_INTERNAL_RET(cvk_error, res, ret, msg, ##__VA_ARGS__)
+#define CVK_VK_CHECK_FATAL(res, msg) CVK_VK_CHECK_INTERNAL(cvk_fatal, res, msg)
+#define CVK_VK_CHECK_ERROR(res, msg) CVK_VK_CHECK_INTERNAL(cvk_error, res, msg)
+#define CVK_VK_CHECK_ERROR_RET(res, ret, msg) CVK_VK_CHECK_INTERNAL_RET(cvk_error, res, ret, msg)
 
 #define CVK_ASSERT(cond) assert(cond)
-
-#define CHECK_RETURN __attribute__((warn_unused_result))
 
 #define CVK_VK_GET_INSTANCE_PROC(name) \
         PFN_##name fn##name = reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(gVkInstance, #name))
