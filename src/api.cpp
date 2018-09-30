@@ -1713,7 +1713,7 @@ clGetProgramBuildInfo(
     size_t ret_size = 0;
     const void *copy_ptr;
     cl_build_status val_status;
-    std::string val_string;
+    string val_string;
     cl_program_binary_type val_binarytype;
 
     if (program == nullptr) {
@@ -1733,7 +1733,7 @@ clGetProgramBuildInfo(
     case CL_PROGRAM_BUILD_LOG: // TODO
         val_string = "BUILD LOG UNSUPPORTED";
         copy_ptr = val_string.c_str();
-        ret_size = val_string.length();
+        ret_size = val_string.size_with_null();
         break;
     case CL_PROGRAM_BUILD_OPTIONS:
         copy_ptr = program->build_options().c_str();
