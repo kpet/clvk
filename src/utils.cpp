@@ -12,11 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "utils.hpp"
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 
-#include "utils.hpp"
+#ifdef WIN32
+#include <Windows.h>
+#include <io.h>
+#endif
+
+char* cvk_mkdtemp(std::string& tmpl)
+{
+#ifdef WIN32
+    if (_mktemp_s(&tmpl.front(), tmpl.size() + 1) != 0) {
+        return nullptr;
+    }
+
+    if (!CreateDirectory(tmpl.c_str(), nullptr)) {
+        return nullptr;
+    }
+
+    return &tmpl.front();
+#else
+    return mkdtemp(&tmpl.front());
+#endif
+}
 
 const char* vulkan_error_string(VkResult result) {
     switch(result) {

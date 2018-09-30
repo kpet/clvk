@@ -377,7 +377,7 @@ cl_build_status cvk_program::compile_source()
 {
     // Create temporary folder
     std::string tmp_template{"clvk-XXXXXX"};
-    const char* tmp = mkdtemp(&tmp_template.front());
+    const char* tmp = cvk_mkdtemp(tmp_template);
     if (tmp == nullptr) {
         return CL_BUILD_ERROR;
     }

@@ -13,8 +13,10 @@
 # limitations under the License.
 
 
-add_compile_options(-Wall -W -Wextra)
-add_compile_options(-Wno-ignored-attributes)
+if(NOT MSVC)
+    add_compile_options(-Wall -W -Wextra)
+    add_compile_options(-Wno-ignored-attributes)
+endif()
 
 add_library(OpenCL SHARED
   api.cpp
