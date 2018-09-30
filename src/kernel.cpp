@@ -134,16 +134,15 @@ void cvk_kernel::build_descriptor_sets_layout_bindings()
     }
 }
 
-bool cvk_kernel::allocate_pod_buffer()
+std::unique_ptr<cvk_mem> cvk_kernel::allocate_pod_buffer()
 {
     cl_int err;
     auto mem = cvk_mem::create(m_context, 0, pod_size(), nullptr, &err);
     if (err != CL_SUCCESS) {
-        return false;
+        return nullptr;
     }
 
-    m_pod_buffer = std::move(mem);
-    return true;
+    return mem;
 }
 
 cl_int cvk_kernel::init()
@@ -183,20 +182,6 @@ cl_int cvk_kernel::init()
         return CL_INVALID_VALUE;
     }
 
-    // Create argument storage holders // TODO all the storage for PODs is wasted
-    m_args_storage.resize(m_args.size());
-
-    for (uint32_t i = 0; i < m_args.size(); ++i) {
-        auto const &arg = m_args[i];
-
-        cvk_kernel_arg_storage *storage = &m_args_storage[arg.pos];
-
-        if (arg.kind == kernel_argument_kind::buffer) {
-            storage->ptr = new char[sizeof(cvk_mem*)];
-            storage->size = sizeof(cvk_mem*);
-        }
-    }
-
     // Init POD arguments
     if (has_pod_arguments()) {
 
@@ -216,11 +201,12 @@ cl_int cvk_kernel::init()
         if (m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
             return CL_INVALID_PROGRAM;
         }
+    }
 
-        // Create initial POD buffer
-        if (!allocate_pod_buffer()) {
-            return CL_OUT_OF_RESOURCES;
-        }
+    // Init argument values
+    m_argument_values = cvk_kernel_argument_values::create(this);
+    if (m_argument_values == nullptr) {
+        return CL_OUT_OF_RESOURCES;
     }
 
     // Create pipeline layout
@@ -275,7 +261,8 @@ cl_int cvk_kernel::init()
     return CL_SUCCESS;
 }
 
-bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds, std::unique_ptr<cvk_mem> &pod_buffer)
+bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
+                                      std::unique_ptr<cvk_kernel_argument_values> &arg_values)
 {
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -297,20 +284,21 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds, std::unique_ptr<cvk_m
         return false;
     }
 
+    // Transfer ownership of the argument values to the command
+    arg_values = std::move(m_argument_values);
+
+    // Create a new set, copy the argument values
+    m_argument_values = cvk_kernel_argument_values::create(*arg_values.get());
+    if (m_argument_values == nullptr) {
+        return false;
+    }
+
     // Setup descriptors for POD arguments
     if (has_pod_arguments()) {
 
-        // Transfer ownership of the POD buffer to the command
-        pod_buffer = std::move(m_pod_buffer);
-
-        // Allocate a new one
-        if (!allocate_pod_buffer()) {
-            return false;
-        }
-
         // Update desciptors
         VkDescriptorBufferInfo bufferInfo = {
-            pod_buffer->vulkan_buffer(),
+            arg_values->pod_vulkan_buffer(),
             0, // offset
             VK_WHOLE_SIZE
         };
@@ -334,13 +322,11 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds, std::unique_ptr<cvk_m
     for (cl_uint i = 0; i < m_args.size(); i++) {
 
         auto const &arg = m_args[i];
-        cvk_kernel_arg_storage *storage = &m_args_storage[i];
 
         switch (arg.kind){
 
         case kernel_argument_kind::buffer: {
-            cvk_mem *mem = *reinterpret_cast<cvk_mem*const*>(storage->ptr);
-            mem->retain(); // FIXME per command with release
+            auto mem = static_cast<cvk_mem*>(arg_values->get_arg_value(arg));
             VkBuffer buffer = mem->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
             VkDescriptorBufferInfo bufferInfo = {
@@ -378,25 +364,10 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds, std::unique_ptr<cvk_m
 
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void *value)
 {
-    auto const &arg = m_args[index];
-    cvk_kernel_arg_storage *storage = &m_args_storage[index];
-
     std::lock_guard<std::mutex> lock(m_lock);
 
-    cl_int err = CL_SUCCESS;
+    auto const &arg = m_args[index];
 
-    if (arg.is_pod()) {
-        if (!m_pod_buffer->copy_from(value, arg.offset, size)) { // FIXME check size, this allows overwrites
-            err = CL_OUT_OF_RESOURCES;
-        }
-    } else {
-        if (size > storage->size) {
-            cvk_warn_fn("app trying to store more than the argument can receive, will be truncated");
-        }
-
-        memcpy(storage->ptr, value, std::min(size, storage->size));
-    }
-
-    return err;
+    return m_argument_values->set_arg(arg, size, value);
 }
 

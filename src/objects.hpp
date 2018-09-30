@@ -64,12 +64,25 @@ private:
 template<typename T>
 struct refcounted_holder {
 
+    refcounted_holder() : m_refcounted(nullptr) {}
+
     refcounted_holder(refcounted *refc) : m_refcounted(refc) {
         m_refcounted->retain();
     }
 
+    refcounted_holder(const refcounted_holder &other) :
+        m_refcounted(other.m_refcounted) {
+        if (m_refcounted != nullptr) {
+            m_refcounted->retain();
+        }
+    }
+
+    refcounted_holder(const refcounted_holder &&other) = delete;
+
     ~refcounted_holder() {
-        m_refcounted->release();
+        if (m_refcounted != nullptr) {
+            m_refcounted->release();
+        }
     }
 
     T* operator->() {
@@ -78,6 +91,19 @@ struct refcounted_holder {
 
     operator T*() {
         return static_cast<T*>(m_refcounted);
+    }
+
+    refcounted_holder& operator=(const refcounted_holder& ) = delete;
+    refcounted_holder& operator=(const refcounted_holder&&) = delete;
+
+    void reset(refcounted* refc) {
+        if (m_refcounted != nullptr) {
+            m_refcounted->release();
+        }
+        m_refcounted = refc;
+        if (m_refcounted != nullptr) {
+            m_refcounted->retain();
+        }
     }
 
 private:

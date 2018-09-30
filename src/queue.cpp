@@ -244,9 +244,10 @@ cl_int cvk_command_kernel::build() {
     }
 
     // TODO check against the size specified at compile time, if any
+    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been specified.
 
     // Setup descriptors
-    if (!m_kernel->setup_descriptor_set(&m_descriptor_set, m_pod_buffer)) {
+    if (!m_kernel->setup_descriptor_set(&m_descriptor_set, m_argument_values)) {
         return CL_OUT_OF_RESOURCES;
     }
 

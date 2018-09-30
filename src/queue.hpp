@@ -421,11 +421,11 @@ private:
 
 struct cvk_command_kernel : public cvk_command {
 
-    cvk_command_kernel(cvk_command_queue *q, cvk_kernel *k, uint32_t *num_wg, uint32_t *wg_size) :
+    cvk_command_kernel(cvk_command_queue *q, cvk_kernel *kernel, uint32_t *num_wg, uint32_t *wg_size) :
         cvk_command(CL_COMMAND_NDRANGE_KERNEL, q),
-        m_kernel(k),
+        m_kernel(kernel),
         m_descriptor_set(VK_NULL_HANDLE),
-        m_pod_buffer(nullptr)
+        m_argument_values(nullptr)
     {
         m_num_wg[0] = num_wg[0];
         m_num_wg[1] = num_wg[1];
@@ -451,7 +451,7 @@ private:
     VkCommandBuffer m_command_buffer;
     cvk_kernel_holder m_kernel;
     VkDescriptorSet m_descriptor_set;
-    std::unique_ptr<cvk_mem> m_pod_buffer;
+    std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
 };
 
 struct cvk_command_map : public cvk_command_memobj_region {
