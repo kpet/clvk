@@ -2792,6 +2792,8 @@ cl_int clRetainSampler(
         return CL_INVALID_SAMPLER;
     }
 
+    sampler->retain();
+
     return CL_SUCCESS;
 }
 
@@ -2803,6 +2805,8 @@ cl_int clReleaseSampler(
     if (sampler == nullptr) {
         return CL_INVALID_SAMPLER;
     }
+
+    sampler->release();
 
     return CL_SUCCESS;
 }
