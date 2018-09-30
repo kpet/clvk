@@ -37,7 +37,7 @@ _cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
     m_executor(nullptr),
     m_command_pool(VK_NULL_HANDLE)
 {
-    m_groups.push_back(new cvk_command_group());
+    m_groups.push_back(std::make_unique<cvk_command_group>());
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
         cvk_warn_fn("out-of-order execution enabled, will be ignored");
@@ -112,10 +112,10 @@ void cvk_executor_thread::executor() {
             continue;
         }
 
-        auto group = m_groups.front();
+        auto group = std::move(m_groups.front());
         m_groups.pop_front();
 
-        cvk_debug_fn("received group %p", group);
+        cvk_debug_fn("received group %p", group.get());
 
         lock.unlock();
 
@@ -142,8 +142,6 @@ void cvk_executor_thread::executor() {
             delete cmd;
         }
         lock.lock();
-
-        delete group;
     }
 }
 
@@ -152,15 +150,15 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     cvk_info_fn("queue = %p, event = %p", this, event);
 
     // Get command group to the executor's queue
-    cvk_command_group *group;
+    std::unique_ptr<cvk_command_group> group;
     {
         std::lock_guard<std::mutex> lock(m_lock);
-        group = m_groups.front();
-        if (group->commands.size() == 0) {
+        if (m_groups.front()->commands.size() == 0) {
             return CL_SUCCESS;
         }
+        group = std::move(m_groups.front());
         m_groups.pop_front();
-        m_groups.push_back(new cvk_command_group());
+        m_groups.push_back(std::make_unique<cvk_command_group>());
     }
 
     cvk_debug_fn("groups.size() = %zu", m_groups.size());
@@ -189,7 +187,7 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     }
 
     // Submit command group to executor
-    m_executor->send_group(group);
+    m_executor->send_group(std::move(group));
 
     return CL_SUCCESS;
 }

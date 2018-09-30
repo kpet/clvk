@@ -120,9 +120,9 @@ struct cvk_executor_thread {
         m_profiling = profiling;
     }
 
-    void send_group(cvk_command_group *group) {
+    void send_group(std::unique_ptr<cvk_command_group> &&group) {
         m_lock.lock();
-        m_groups.push_back(group);
+        m_groups.push_back(std::move(group));
         m_cv.notify_one();
         m_lock.unlock();
     }
@@ -148,7 +148,7 @@ private:
     std::condition_variable m_cv;
     std::thread *m_thread;
     bool m_shutdown;
-    std::deque<cvk_command_group*> m_groups;
+    std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
 };
 
@@ -195,7 +195,7 @@ private:
     cvk_executor_thread *m_executor;
 
     std::mutex m_lock;
-    std::deque<cvk_command_group*> m_groups;
+    std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     VkCommandPool m_command_pool;
 
     VkQueue m_vulkan_queue;
