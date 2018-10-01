@@ -124,6 +124,14 @@ void* clGetExtensionFunctionAddressForPlatform(
     return nullptr;
 }
 
+void* clGetExtensionFunctionAddress(
+    const char *funcname
+){
+    LOG_API_CALL("funcname = '%s'", funcname);
+
+    return nullptr;
+}
+
 // Device APIs
 cl_int
 clGetDeviceIDs(
