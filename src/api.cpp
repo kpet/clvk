@@ -2140,6 +2140,7 @@ clFinish(
 
     if ((status == CL_SUCCESS) && (event != nullptr)) {
         event->wait();
+        event->release();
     }
 
     return status;

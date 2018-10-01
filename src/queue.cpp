@@ -227,7 +227,9 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     }
 
     if (event != nullptr) {
-        *event = group->commands.back()->event();
+        auto ev = group->commands.back()->event();
+        ev->retain();
+        *event = ev;
         cvk_debug_fn("returned event %p", *event);
     }
 
