@@ -929,7 +929,7 @@ cl_int clGetEventInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -1051,7 +1051,7 @@ cl_int clGetCommandQueueInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -1270,7 +1270,7 @@ cl_int clGetMemObjectInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -1333,8 +1333,8 @@ clCreateProgramWithBinary(
     if (context == nullptr) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
-            return nullptr;
         }
+        return nullptr;
     }
 
     if ((num_devices != 1) || (device_list == nullptr)) {
@@ -1507,18 +1507,21 @@ clLinkProgram(
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
+        return nullptr;
     }
 
     if (((device_list == nullptr) && (num_devices > 0)) || ((device_list != nullptr) && (num_devices == 0))) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_VALUE;
         }
+        return nullptr;
     }
 
     if (((input_programs == nullptr) && (num_input_programs == 0)) || ((num_input_programs == 0) && (input_programs != nullptr)) || ((num_input_programs != 0) && (input_programs == nullptr))) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_VALUE;
         }
+        return nullptr;
     }
 
     for (cl_uint i = 0; i < num_input_programs; i++) {
@@ -1526,6 +1529,7 @@ clLinkProgram(
             if (errcode_ret != nullptr) {
                 *errcode_ret = CL_INVALID_PROGRAM;
             }
+            return nullptr;
         }
     }
 
@@ -1533,6 +1537,7 @@ clLinkProgram(
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_VALUE;
         }
+        return nullptr;
     }
 
     // TODO CL_INVALID_DEVICE if OpenCL devices listed in device_list are not in the list of devices associated with context.
@@ -1668,7 +1673,7 @@ clGetProgramInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if ((param_value != nullptr) && (param_name != CL_PROGRAM_BINARIES)) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr) && (param_name != CL_PROGRAM_BINARIES)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -1694,7 +1699,7 @@ clGetProgramBuildInfo(
     LOG_API_CALL("program = %p, device = %p, param_name = %x, param_value_size = %zu, param_value = %p, param_value_size_ret = %p", program, device, param_name, param_value_size, param_value, param_value_size_ret);
     cl_int ret = CL_SUCCESS;
     size_t ret_size = 0;
-    const void *copy_ptr;
+    const void *copy_ptr = nullptr;
     cl_build_status val_status;
     string val_string;
     cl_program_binary_type val_binarytype;
@@ -1731,7 +1736,7 @@ clGetProgramBuildInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
     }
 
@@ -1931,7 +1936,7 @@ cl_int clGetKernelInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -2010,7 +2015,7 @@ clGetKernelWorkGroupInfo(
             break;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -2831,7 +2836,7 @@ cl_int clGetSamplerInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }
@@ -2965,7 +2970,7 @@ cl_int clGetImageInfo(
         ret = CL_INVALID_VALUE;
     }
 
-    if (param_value != nullptr) {
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         if (param_value_size < ret_size) {
             ret = CL_INVALID_VALUE;
         }

@@ -282,7 +282,7 @@ bool spir_binary::load_descriptor_map(std::istream &istream)
         m_dmaps_text += line + "\n";
         cvk_debug("DMAP line: %s", line.c_str());
         const char *delim = ",";
-        size_t start = line.find_first_not_of(delim), end = start;
+        size_t start = line.find_first_not_of(delim), end;
         std::vector<std::string> tokens;
 
         while (start != std::string::npos) {

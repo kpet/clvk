@@ -80,14 +80,14 @@ bool cvk_mem::init()
 
     res = vkAllocateMemory(vkdev, &memoryAllocateInfo, 0, &m_memory);
 
-    if(res != VK_SUCCESS) {
+    if (res != VK_SUCCESS) {
         return false;
     }
 
     // Bind the buffer to memory
     res = vkBindBufferMemory(vkdev, m_buffer, m_memory, 0);
     
-    if(res != VK_SUCCESS) {
+    if (res != VK_SUCCESS) {
         return false;
     }
 
