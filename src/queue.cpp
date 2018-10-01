@@ -19,18 +19,6 @@
 
 cvk_executor_thread_pool gThreadPool;
 
-cvk_command_queue* cvk_event::queue() const
-{
-    CVK_ASSERT(!is_user_event());
-    return m_command->queue();
-}
-
-cl_command_type cvk_event::command_type() const
-{
-    CVK_ASSERT(!is_user_event());
-    return m_command->type();
-}
-
 _cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
                                      cl_command_queue_properties properties) :
     api_object(ctx),

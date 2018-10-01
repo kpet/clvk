@@ -85,11 +85,11 @@ struct refcounted_holder {
         }
     }
 
-    T* operator->() {
+    T* operator->() const {
         return static_cast<T*>(m_refcounted);
     }
 
-    operator T*() {
+    operator T*() const {
         return static_cast<T*>(m_refcounted);
     }
 

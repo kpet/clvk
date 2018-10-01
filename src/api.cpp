@@ -755,8 +755,21 @@ cl_event clCreateUserEvent(
     cl_context context,
     cl_int    *errcode_ret
 ){
-    *errcode_ret = CL_SUCCESS;
-    return new cvk_event(context, CL_SUBMITTED, nullptr);
+    LOG_API_CALL("context = %p, errcode_ret = %p", context, errcode_ret);
+
+    if (context == nullptr) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_CONTEXT;
+        }
+    }
+
+    auto event = new cvk_event(context, CL_SUBMITTED, CL_COMMAND_USER, nullptr);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = CL_SUCCESS;
+    }
+
+    return event;
 }
 
 cl_int clSetUserEventStatus(

@@ -21,6 +21,7 @@
 
 struct cvk_command;
 typedef struct _cl_command_queue cvk_command_queue;
+using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 using cvk_event_callback_pointer_type = void (*) (cl_event event, cl_int event_command_exec_status, void *user_data);
 
@@ -31,12 +32,11 @@ struct cvk_event_callback {
 
 typedef struct _cl_event : public api_object {
 
-    _cl_event(cvk_context *ctx, cl_int status, cvk_command *cmd) :
+    _cl_event(cvk_context *ctx, cl_int status, cl_command_type type, cvk_command_queue *queue) :
         api_object(ctx),
         m_status(status),
-        m_command(cmd) {}
-
-    virtual ~_cl_event() {}
+        m_command_type(type),
+        m_queue(queue) {}
 
     void set_status(cl_int status) {
         std::lock_guard<std::mutex> lock(m_lock);
@@ -60,16 +60,17 @@ typedef struct _cl_event : public api_object {
         m_callbacks[callback_type].push_back(cb);
     }
 
-    cl_int get_status() const {
-        return m_status;
-    }
+    cl_int get_status() const { return m_status; }
+    cl_command_type command_type() const { return m_command_type; }
 
     bool is_user_event() const {
-        return m_command == nullptr;
+        return m_command_type == CL_COMMAND_USER;
     }
 
-    cvk_command_queue* queue() const;
-    cl_command_type command_type() const;
+    cvk_command_queue* queue() const {
+        CVK_ASSERT(!is_user_event());
+        return m_queue;
+    }
 
     cl_int wait() {
         std::unique_lock<std::mutex> lock(m_lock);
@@ -101,7 +102,8 @@ private:
     std::condition_variable m_cv;
     cl_int m_status;
     cl_ulong m_profiling_data[4];
-    cvk_command *m_command;
+    cl_command_type m_command_type;
+    cvk_command_queue *m_queue;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
 
 } cvk_event;
@@ -263,13 +265,12 @@ private:
 
 struct cvk_command {
 
-    cvk_command(cl_command_type ct, cvk_command_queue *q)
-              : m_type(ct), m_queue(q), m_event(new cvk_event(m_queue->context(), CL_QUEUED, this)) {
-        m_queue->retain();
-    }
+    cvk_command(cl_command_type type, cvk_command_queue *queue) :
+        m_type(type),
+        m_queue(queue),
+        m_event(new cvk_event(m_queue->context(), CL_QUEUED, type, queue)) {}
 
     virtual ~cvk_command() {
-        m_queue->release();
         m_event->release();
     }
 
@@ -311,7 +312,7 @@ struct cvk_command {
 
 protected:
     cl_command_type m_type;
-    cvk_command_queue *m_queue;
+    cvk_command_queue_holder m_queue;
     cvk_event *m_event;
 private:
     std::vector<cvk_event*> m_event_deps;
