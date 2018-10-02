@@ -17,6 +17,10 @@
 #include <cstdio>
 #include <cstdlib>
 
+#ifdef __APPLE__
+#include <unistd.h>
+#endif
+
 #ifdef WIN32
 #include <Windows.h>
 #include <io.h>

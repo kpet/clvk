@@ -19,10 +19,6 @@
 #include <utility>
 #include <vector>
 
-#ifdef __APPLE__
-#include <unistd.h>
-#endif
-
 #include <vulkan/vulkan.h>
 
 #include "spirv/1.0/spirv.hpp"
