@@ -1,0 +1,30 @@
+cache:
+  ccache: true
+  directories:
+    - external/clspv/third_party/
+    - $HOME/Library/Caches/Homebrew
+
+language: cpp
+
+os:
+  - linux
+  - osx
+
+compiler:
+  - gcc
+
+env:
+  global:
+    - CCACHE_COMPRESS=1
+
+before_install:
+  - ./tests/travis/step-before-install.sh
+
+install:
+  - source ./tests/travis/step-install.sh
+
+before_script:
+  - ./tests/travis/step-before-script.sh
+
+script:
+  - ./tests/travis/step-script.sh
