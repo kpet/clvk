@@ -253,6 +253,7 @@ typedef struct _cl_sampler : public api_object {
     bool normalized_coords() const { return m_normalized_coords; }
     cl_addressing_mode addressing_mode() const { return m_addressing_mode; }
     cl_filter_mode filter_mode() const { return m_filter_mode; }
+    VkSampler vulkan_sampler() const { return m_sampler; }
 
 private:
     bool init();

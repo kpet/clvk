@@ -327,7 +327,7 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
 
         case kernel_argument_kind::buffer: {
             auto mem = static_cast<cvk_mem*>(arg_values->get_arg_value(arg));
-            VkBuffer buffer = mem->vulkan_buffer();
+            auto buffer = mem->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
             VkDescriptorBufferInfo bufferInfo = {
                 buffer,
@@ -345,6 +345,31 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
                 VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
                 nullptr, // pImageInfo
                 &bufferInfo,
+                nullptr, // pTexelBufferView
+            };
+            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            break;
+        }
+        case kernel_argument_kind::sampler: {
+            auto clsampler = static_cast<cvk_sampler*>(arg_values->get_arg_value(arg));
+            auto sampler = clsampler->vulkan_sampler();
+
+            VkDescriptorImageInfo imageInfo = {
+                sampler,
+                VK_NULL_HANDLE, // imageView
+                VK_IMAGE_LAYOUT_UNDEFINED // imageLayout
+            };
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                *ds,
+                arg.binding, // dstBinding
+                0, // dstArrayElement
+                1, // descriptorCount
+                VK_DESCRIPTOR_TYPE_SAMPLER,
+                &imageInfo, // pImageInfo
+                nullptr, // pBufferInfo
                 nullptr, // pTexelBufferView
             };
             vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
