@@ -122,6 +122,9 @@ void cvk_device::init_features()
     if (supported_features.shaderFloat64) {
         m_features.shaderFloat64 = VK_TRUE;
     }
+    if (supported_features.shaderStorageImageWriteWithoutFormat) {
+        m_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+    }
 }
 
 bool cvk_device::init()

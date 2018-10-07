@@ -215,7 +215,6 @@ bool cvk_buffer::init_subbuffer() {
     return true;
 }
 
-
 cvk_sampler*
 cvk_sampler::create(cvk_context *context, bool normalized_coords,
                     cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
@@ -303,4 +302,180 @@ bool cvk_sampler::init()
     auto res = vkCreateSampler(vkdev, &create_info, nullptr, &m_sampler);
 
     return (res == VK_SUCCESS);
+}
+
+cvk_image* cvk_image::create(cvk_context *ctx, cl_mem_flags flags,
+                             const cl_image_desc *desc,
+                             const cl_image_format *format, void *host_ptr)
+{
+    auto image = std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr);
+
+    if (!image->init()) {
+        return nullptr;
+    }
+
+    return image.release();
+}
+
+extern bool cl_image_format_to_vulkan_format(const cl_image_format &clfmt, VkFormat &format);
+
+bool cvk_image::init()
+{
+    // Translate image type and size
+    VkImageType image_type;
+    VkImageViewType view_type;
+    VkExtent3D extent;
+
+    extent.width = m_desc.image_width;
+    extent.height = m_desc.image_height;
+    extent.depth = m_desc.image_depth;
+
+    switch (m_desc.image_type) {
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER: // TODO support that
+        image_type = VK_IMAGE_TYPE_1D;
+        view_type = VK_IMAGE_VIEW_TYPE_1D;
+        extent.height = 1;
+        extent.depth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        image_type = VK_IMAGE_TYPE_1D;
+        view_type = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+        extent.height = 1;
+        extent.depth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D:
+        image_type = VK_IMAGE_TYPE_2D;
+        view_type = VK_IMAGE_VIEW_TYPE_2D;
+        extent.depth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        image_type = VK_IMAGE_TYPE_2D;
+        view_type = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+        extent.depth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE3D:
+        image_type = VK_IMAGE_TYPE_3D;
+        view_type = VK_IMAGE_VIEW_TYPE_3D;
+        break;
+    default:
+        CVK_ASSERT(false);
+        image_type = VK_IMAGE_TYPE_MAX_ENUM;
+        view_type = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+        break;
+    }
+
+    uint32_t array_layers = 1;
+    if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+        (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+        array_layers = m_desc.image_array_size;
+    }
+
+    // Translate format
+    VkFormat format;
+    auto success = cl_image_format_to_vulkan_format(m_format, format);
+    if (!success) {
+        return false; // TODO error code
+    }
+
+    // Create Image
+    VkImageCreateInfo imageCreateInfo = {
+        VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        nullptr, // pNext
+        0, // flags
+        image_type, // imageType
+        format, // format
+        extent, // extent
+        1, // mipLevels
+        array_layers, // arrayLayers
+        VK_SAMPLE_COUNT_1_BIT, // samples
+        VK_IMAGE_TILING_OPTIMAL, // tiling
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, // usage TODO transfers
+        VK_SHARING_MODE_EXCLUSIVE, // sharingMode
+        0, // queueFamilyIndexCount
+        nullptr, // pQueueFamilyIndices
+        VK_IMAGE_LAYOUT_UNDEFINED, // initialLayout
+    };
+
+    auto device = m_context->device();
+    auto vkdev = device->vulkan_device();
+
+    auto res = vkCreateImage(vkdev, &imageCreateInfo, nullptr, &m_image);
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not create image!");
+        return false;
+    }
+
+    // Get memory requirements
+    VkMemoryRequirements memreqs;
+    vkGetImageMemoryRequirements(vkdev, m_image, &memreqs);
+    cvk_debug_fn("Required memory type bits: %x", memreqs.memoryTypeBits);
+
+    // Select memory type
+    uint32_t memoryTypeIndex = device->memory_type_index_for_image(memreqs.memoryTypeBits);
+
+    if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
+        cvk_error_fn("Could not get memory type!");
+        return false;
+    }
+
+    // Check against the memory requirements
+    // TODO get the type index from the requirements
+    if (!((1 << memoryTypeIndex) & memreqs.memoryTypeBits)) {
+        cvk_error_fn("Could not find compatible memory type!");
+        return false;
+    }
+
+    // Allocate memory
+    const VkMemoryAllocateInfo memoryAllocateInfo = {
+        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        nullptr,
+        memreqs.size,
+        memoryTypeIndex,
+    };
+
+    res = vkAllocateMemory(vkdev, &memoryAllocateInfo, 0, &m_memory);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not allocate memory!");
+        return false;
+    }
+
+    // Bind the buffer to memory
+    res = vkBindImageMemory(vkdev, m_image, m_memory, 0);
+
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    // Create image view
+    VkComponentMapping components = {
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY
+    };
+
+    VkImageSubresourceRange subresource = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0, // baseMipLevel
+        1, // levelCount
+        0, // baseArrayLayer
+        array_layers, // layerCount
+    };
+
+    VkImageViewCreateInfo imageViewCreateInfo = {
+        VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        nullptr, // pNext
+        0, // flags
+        m_image, // image
+        view_type, // viewType;
+        format, // format
+        components, // components
+        subresource, // subresourceRange
+    };
+
+    res = vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr, &m_image_view);
+
+    return res == VK_SUCCESS;
 }

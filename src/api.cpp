@@ -492,7 +492,7 @@ clGetDeviceInfo(
             size_ret = sizeof(val_uint);
             break;
         case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
-            val_sizet = 65536; // FIXME
+            val_sizet = device->vulkan_limits().maxImageDimension1D;
             copy_ptr = &val_sizet;
             size_ret = sizeof(val_sizet);
             break;
@@ -2890,13 +2890,13 @@ cl_mem clCreateImage(
 // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
 // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for image object.
 
-    auto mem = std::make_unique<cvk_image>(context, flags, image_desc, image_format, host_ptr);
+    auto image = cvk_image::create(context, flags, image_desc, image_format, host_ptr);
 
     if (errcode_ret != nullptr) {
-        *errcode_ret = CL_SUCCESS;
+        *errcode_ret = (image != nullptr) ? CL_SUCCESS : CL_OUT_OF_RESOURCES; // FIXME do this properly
     }
 
-    return mem.release();
+    return image;
 }
 
 cl_int clGetImageInfo(
@@ -3077,6 +3077,19 @@ static bool vulkan_format_to_cl_image_format(VkFormat format, cl_image_format *c
     }
 
     return success;
+}
+
+bool cl_image_format_to_vulkan_format(const cl_image_format &clformat, VkFormat &format) {
+    for (auto const &vkcl : gFormatMaps) {
+        auto const &clfmt = vkcl.second;
+        if ((clfmt.image_channel_order == clformat.image_channel_order) &&
+            (clfmt.image_channel_data_type == clformat.image_channel_data_type)) {
+            format = vkcl.first;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 cl_int clGetSupportedImageFormats(

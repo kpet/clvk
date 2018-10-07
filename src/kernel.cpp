@@ -395,6 +395,54 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
             vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
             break;
         }
+        case kernel_argument_kind::wo_image: {
+            auto image = static_cast<cvk_image*>(arg_values->get_arg_value(arg));
+
+            VkDescriptorImageInfo imageInfo = {
+                VK_NULL_HANDLE,
+                image->vulkan_image_view(), // imageView
+                VK_IMAGE_LAYOUT_GENERAL // imageLayout
+            };
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                *ds,
+                arg.binding, // dstBinding
+                0, // dstArrayElement
+                1, // descriptorCount
+                VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                &imageInfo, // pImageInfo
+                nullptr, // pBufferInfo
+                nullptr, // pTexelBufferView
+            };
+            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            break;
+        }
+        case kernel_argument_kind::ro_image: {
+            auto image = static_cast<cvk_image*>(arg_values->get_arg_value(arg));
+
+            VkDescriptorImageInfo imageInfo = {
+                VK_NULL_HANDLE,
+                image->vulkan_image_view(), // imageView
+                VK_IMAGE_LAYOUT_GENERAL // imageLayout
+            };
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                *ds,
+                arg.binding, // dstBinding
+                0, // dstArrayElement
+                1, // descriptorCount
+                VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+                &imageInfo, // pImageInfo
+                nullptr, // pBufferInfo
+                nullptr, // pTexelBufferView
+            };
+            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            break;
+        }
         case kernel_argument_kind::pod: // skip POD arguments
         case kernel_argument_kind::pod_ubo:
             break;

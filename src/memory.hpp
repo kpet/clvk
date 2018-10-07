@@ -253,10 +253,26 @@ struct cvk_image : public cvk_mem {
                   host_ptr, /* FIXME parent */ nullptr,
                   /* FIXME parent_offset */ 0, desc->image_type),
           m_desc(*desc),
-          m_format(*format)
-    {
+          m_format(*format),
+          m_image(VK_NULL_HANDLE),
+          m_image_view(VK_NULL_HANDLE) {}
+
+    ~cvk_image() {
+        auto vkdev = m_context->device()->vulkan_device();
+        if (m_image != VK_NULL_HANDLE) {
+            vkDestroyImage(vkdev, m_image, nullptr);
+        }
+        if (m_image_view != VK_NULL_HANDLE) {
+            vkDestroyImageView(vkdev, m_image_view, nullptr);
+        }
     }
 
+    static cvk_image* create(cvk_context *ctx, cl_mem_flags flags,
+                             const cl_image_desc *desc,
+                             const cl_image_format *format, void *host_ptr);
+
+    VkImage vulkan_image() const { return m_image; }
+    VkImageView vulkan_image_view() const { return m_image_view; }
     const cl_image_format& format() const { return m_format; }
     size_t element_size() const {
         return num_channels() * element_size_per_channel();
@@ -272,6 +288,8 @@ struct cvk_image : public cvk_mem {
     cl_uint num_samples() const { return m_desc.num_samples; }
 
 private:
+
+    bool init();
 
     size_t num_channels() const {
         switch (m_format.image_channel_order) {
@@ -322,6 +340,8 @@ private:
         }
     }
 
-    cl_image_desc m_desc;
-    cl_image_format m_format;
+    const cl_image_desc m_desc;
+    const cl_image_format m_format;
+    VkImage m_image;
+    VkImageView m_image_view;
 };

@@ -57,6 +57,16 @@ typedef struct _cl_device_id {
         return memoryTypeIndex;
     }
 
+    CHECK_RETURN uint32_t memory_type_index_for_image(uint32_t memory_type_bits) const {
+        for (auto i = 0u; i < 31; i++) {
+            if ((1ULL << i) & memory_type_bits) {
+                return i;
+            }
+        }
+
+        return VK_MAX_MEMORY_TYPES;
+    }
+
     uint64_t actual_memory_size() const {
         uint32_t type = memory_type_index();
         auto memprop = m_mem_properties.memoryTypes[type];
