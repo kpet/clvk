@@ -2745,10 +2745,16 @@ cl_sampler clCreateSampler(
         return nullptr;
     }
 
-    cvk_sampler *sampler = new cvk_sampler(context, normalized_coords, addressing_mode, filter_mode);
+    auto sampler = cvk_sampler::create(context, normalized_coords, addressing_mode, filter_mode);
+
+    cl_int err = CL_SUCCESS;
+
+    if (sampler == nullptr) {
+        err = CL_OUT_OF_RESOURCES;
+    }
 
     if (errcode_ret != nullptr) {
-        *errcode_ret = CL_SUCCESS;
+        *errcode_ret = err;
     }
 
     return sampler;

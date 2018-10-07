@@ -227,6 +227,8 @@ private:
 
 } cvk_mem;
 
+typedef struct _cl_sampler cvk_sampler;
+
 typedef struct _cl_sampler : public api_object {
 
     _cl_sampler(cvk_context *context, bool normalized_coords,
@@ -234,16 +236,30 @@ typedef struct _cl_sampler : public api_object {
         api_object(context),
         m_normalized_coords(normalized_coords),
         m_addressing_mode(addressing_mode),
-        m_filter_mode(filter_mode) {} // TODO actually create a sampler
+        m_filter_mode(filter_mode),
+        m_sampler(VK_NULL_HANDLE) {}
+
+    ~_cl_sampler() {
+        if (m_sampler != VK_NULL_HANDLE) {
+            auto vkdev = context()->device()->vulkan_device();
+            vkDestroySampler(vkdev, m_sampler, nullptr);
+        }
+    }
+
+    static cvk_sampler* create(cvk_context *context, bool normalized_coords,
+                               cl_addressing_mode addressing_mode,
+                               cl_filter_mode filter_mode);
 
     bool normalized_coords() const { return m_normalized_coords; }
     cl_addressing_mode addressing_mode() const { return m_addressing_mode; }
     cl_filter_mode filter_mode() const { return m_filter_mode; }
 
 private:
+    bool init();
     bool m_normalized_coords;
     cl_addressing_mode m_addressing_mode;
     cl_filter_mode m_filter_mode;
+    VkSampler m_sampler;
 } cvk_sampler;
 
 struct cvk_image : public cvk_mem {

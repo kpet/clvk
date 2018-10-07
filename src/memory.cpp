@@ -159,3 +159,93 @@ bool cvk_mem::init_subbuffer() {
 
     return true;
 }
+
+
+cvk_sampler*
+cvk_sampler::create(cvk_context *context, bool normalized_coords,
+                    cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
+{
+    auto sampler = std::make_unique<cvk_sampler>(context, normalized_coords,
+                                                 addressing_mode, filter_mode);
+
+    if (!sampler->init()) {
+        return nullptr;
+    }
+
+    return sampler.release();
+}
+
+bool cvk_sampler::init()
+{
+    auto vkdev = context()->device()->vulkan_device();
+
+    // Translate addressing mode
+    VkSamplerAddressMode address_mode;
+    switch (m_addressing_mode) {
+    default:
+    case CL_ADDRESS_NONE:
+        address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        break;
+    case CL_ADDRESS_CLAMP_TO_EDGE:
+        address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        break;
+    case CL_ADDRESS_CLAMP:
+        address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        break;
+    case CL_ADDRESS_REPEAT:
+        address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        break;
+    case CL_ADDRESS_MIRRORED_REPEAT:
+        address_mode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        break;
+    }
+
+    // Translate filtering
+    VkFilter filter;
+    VkSamplerMipmapMode mipmap_mode;
+    switch (m_filter_mode) {
+    default:
+    case CL_FILTER_NEAREST:
+        filter = VK_FILTER_NEAREST;
+        mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        break;
+    case CL_FILTER_LINEAR:
+        filter = VK_FILTER_LINEAR;
+        mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        break;
+    }
+
+    // Translate coordinate type
+    VkBool32 unnormalized_coordinates;
+    if (m_normalized_coords) {
+        unnormalized_coordinates = VK_FALSE;
+    } else {
+        unnormalized_coordinates = VK_TRUE;
+    }
+
+    // TODO this is a rough first pass, dig into the details
+    const VkSamplerCreateInfo create_info = {
+        VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        nullptr, // pNext
+        0, // flags
+        filter, // magFilter
+        filter, // minFilter
+        mipmap_mode, // mipmapMode
+        address_mode, // addressModeU
+        address_mode, // addressModeV
+        address_mode, // addressModeW
+        0.0f, // mipLodBias
+        VK_FALSE, // anisotropyEnable
+        0.0f, // maxAnisotropy
+        VK_FALSE, // compareEnable
+        VK_COMPARE_OP_NEVER, // compareOp
+        0.0f, // minLod
+        0.0f, // maxLod
+        VK_BORDER_COLOR_INT_TRANSPARENT_BLACK, // borderColor
+        unnormalized_coordinates, // unnormalizedCoordinates
+    };
+
+    auto res = vkCreateSampler(vkdev, &create_info, nullptr, &m_sampler);
+
+    return (res == VK_SUCCESS);
+}
