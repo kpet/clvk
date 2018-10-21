@@ -432,6 +432,7 @@ struct cvk_command_kernel : public cvk_command {
         cvk_command(CL_COMMAND_NDRANGE_KERNEL, q),
         m_kernel(kernel),
         m_descriptor_set(VK_NULL_HANDLE),
+        m_pipeline(VK_NULL_HANDLE),
         m_argument_values(nullptr)
     {
         m_num_wg[0] = num_wg[0];
@@ -447,6 +448,10 @@ struct cvk_command_kernel : public cvk_command {
         if (m_descriptor_set != VK_NULL_HANDLE) {
             m_kernel->free_descriptor_set(m_descriptor_set);
         }
+
+        if (m_pipeline != VK_NULL_HANDLE) {
+            vkDestroyPipeline(m_queue->device()->vulkan_device(), m_pipeline, nullptr);
+        }
     }
 
 
@@ -458,6 +463,7 @@ private:
     VkCommandBuffer m_command_buffer;
     cvk_kernel_holder m_kernel;
     VkDescriptorSet m_descriptor_set;
+    VkPipeline m_pipeline;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
 };
 
