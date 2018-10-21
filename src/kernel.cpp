@@ -17,72 +17,6 @@
 #include "memory.hpp"
 #include "kernel.hpp"
 
-VkPipeline cvk_kernel_pipeline_cache::get_pipeline(uint32_t x, uint32_t y, uint32_t z) {
-    VkPipeline ret = VK_NULL_HANDLE;
-
-    m_lock.lock();
-    for (auto &entry : m_entries) {
-        if ((entry.lws[0] == x) && (entry.lws[1] == y) && (entry.lws[2] == z)) {
-            ret = entry.pipeline;
-            break;
-        }
-    }
-
-    if (ret == VK_NULL_HANDLE) {
-        ret = create_and_insert_pipeline(x, y, z);
-    }
-    m_lock.unlock();
-    return ret;
-}
-
-VkPipeline cvk_kernel_pipeline_cache::create_and_insert_pipeline(uint32_t x, uint32_t y, uint32_t z) {
-    uint32_t lws[3] = {x,y,z};
-
-    VkSpecializationMapEntry mapEntries[3] = {
-        {0, 0 * sizeof(uint32_t), sizeof(uint32_t)},
-        {1, 1 * sizeof(uint32_t), sizeof(uint32_t)},
-        {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
-    };
-
-    VkSpecializationInfo specialiaztionInfo = {
-        3,
-        mapEntries,
-        sizeof(lws),
-        &lws,
-    };
-
-    const VkComputePipelineCreateInfo createInfo = {
-        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
-        {
-            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, // sType
-            nullptr, // pNext
-            0, // flags
-            VK_SHADER_STAGE_COMPUTE_BIT, // stage
-            m_kernel->program()->shader_module(), // module
-            m_kernel->name().c_str(),
-            &specialiaztionInfo // pSpecializationInfo
-        }, // stage
-        m_kernel->pipeline_layout(), // layout
-        VK_NULL_HANDLE, // basePipelineHandle
-        0 // basePipelineIndex
-    };
-
-    VkPipeline pipeline;
-    auto vkdev = m_device->vulkan_device();
-    VkResult res = vkCreateComputePipelines(vkdev, VK_NULL_HANDLE, 1, &createInfo, nullptr, &pipeline);
-
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("Could not create compute pipeline: %s", vulkan_error_string(res));
-        return VK_NULL_HANDLE;
-    }
-
-    insert_pipeline(x, y, z, pipeline);
-
-    return pipeline;
-}
-
 void cvk_kernel::build_descriptor_sets_layout_bindings()
 {
     bool pod_found = false;
@@ -281,6 +215,21 @@ cl_int cvk_kernel::init()
         return CL_INVALID_VALUE;
     }
 
+    // Create pipeline cache
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        nullptr, // pNext
+        0, // flags
+        0, // initialDataSize
+        nullptr, // pInitialData
+    };
+
+    res = vkCreatePipelineCache(vkdev, &pipelineCacheCreateInfo, nullptr, &m_pipeline_cache);
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create pipeline cache.");
+        return CL_OUT_OF_RESOURCES;
+    }
+
     return CL_SUCCESS;
 }
 
@@ -460,6 +409,53 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
     }
 
     return true;
+}
+
+VkPipeline cvk_kernel::create_pipeline(uint32_t x, uint32_t y, uint32_t z)
+{
+    uint32_t lws[3] = {x,y,z};
+
+    VkSpecializationMapEntry mapEntries[3] = {
+        {0, 0 * sizeof(uint32_t), sizeof(uint32_t)},
+        {1, 1 * sizeof(uint32_t), sizeof(uint32_t)},
+        {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
+    };
+
+    VkSpecializationInfo specialiaztionInfo = {
+        3,
+        mapEntries,
+        sizeof(lws),
+        &lws,
+    };
+
+    const VkComputePipelineCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, // sType
+        nullptr, // pNext
+        0, // flags
+        {
+            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, // sType
+            nullptr, // pNext
+            0, // flags
+            VK_SHADER_STAGE_COMPUTE_BIT, // stage
+            program()->shader_module(), // module
+            name().c_str(),
+            &specialiaztionInfo // pSpecializationInfo
+        }, // stage
+        pipeline_layout(), // layout
+        VK_NULL_HANDLE, // basePipelineHandle
+        0 // basePipelineIndex
+    };
+
+    VkPipeline pipeline;
+    auto vkdev = m_context->device()->vulkan_device();
+    VkResult res = vkCreateComputePipelines(vkdev, m_pipeline_cache, 1, &createInfo, nullptr, &pipeline);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not create compute pipeline: %s", vulkan_error_string(res));
+        return VK_NULL_HANDLE;
+    }
+
+    return pipeline;
 }
 
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void *value)

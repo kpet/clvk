@@ -314,17 +314,17 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    VkPipeline pipeline = m_kernel->get_pipeline(
+    m_pipeline = m_kernel->create_pipeline(
         m_wg_size[0],
         m_wg_size[1],
         m_wg_size[2]
     );
 
-    if (pipeline == VK_NULL_HANDLE) {
+    if (m_pipeline == VK_NULL_HANDLE) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
     vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                             m_kernel->pipeline_layout(), 0, 1, &m_descriptor_set, 0, 0);

@@ -20,42 +20,7 @@
 #include "objects.hpp"
 #include "program.hpp"
 
-struct cvk_kernel_pipeline_cache_entry {
-    uint32_t lws[3];
-    VkPipeline pipeline;
-};
-
-typedef struct _cl_kernel cvk_kernel;
-using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 struct cvk_kernel_argument_values;
-
-struct cvk_kernel_pipeline_cache {
-
-    cvk_kernel_pipeline_cache(cvk_kernel *kernel, cvk_device *dev) : m_kernel(kernel), m_device(dev) {};
-
-    ~cvk_kernel_pipeline_cache() {
-        for (auto &entry : m_entries) {
-            vkDestroyPipeline(m_device->vulkan_device(), entry.pipeline, nullptr);
-        }
-    }
-
-    CHECK_RETURN VkPipeline get_pipeline(uint32_t x, uint32_t y, uint32_t z);
-
-private:
-
-    void insert_pipeline(uint32_t x, uint32_t y, uint32_t z, VkPipeline pipeline) {
-        cvk_kernel_pipeline_cache_entry entry = {{x,y,z}, pipeline};
-        m_entries.push_back(entry);
-    }
-
-    CHECK_RETURN VkPipeline create_and_insert_pipeline(uint32_t x, uint32_t y, uint32_t z);
-
-    std::mutex m_lock;
-    cvk_kernel *m_kernel;
-    cvk_device *m_device;
-    // TODO use map instead?
-    std::list<cvk_kernel_pipeline_cache_entry> m_entries;
-};
 
 typedef struct _cl_kernel : public api_object {
 
@@ -72,7 +37,7 @@ typedef struct _cl_kernel : public api_object {
         m_descriptor_pool(VK_NULL_HANDLE),
         m_descriptor_set_layout(VK_NULL_HANDLE),
         m_pipeline_layout(VK_NULL_HANDLE),
-        m_pipeline_cache(this, m_context->device())
+        m_pipeline_cache(VK_NULL_HANDLE)
     {
         m_program->retain();
     }
@@ -81,6 +46,9 @@ typedef struct _cl_kernel : public api_object {
 
     virtual ~_cl_kernel() {
         VkDevice dev = m_context->device()->vulkan_device();
+        if (m_pipeline_cache != VK_NULL_HANDLE) {
+            vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
+        }
         if (m_descriptor_pool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(dev, m_descriptor_pool, nullptr);
         }
@@ -103,10 +71,7 @@ typedef struct _cl_kernel : public api_object {
     }
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void *value);
-
-    CHECK_RETURN VkPipeline get_pipeline(uint32_t x, uint32_t y, uint32_t z) {
-        return m_pipeline_cache.get_pipeline(x, y, z);
-    }
+    CHECK_RETURN VkPipeline create_pipeline(uint32_t x, uint32_t y, uint32_t z);
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
     const std::string& name() const { return m_name; }
@@ -141,8 +106,10 @@ private:
     VkDescriptorPool m_descriptor_pool;
     VkDescriptorSetLayout m_descriptor_set_layout;
     VkPipelineLayout m_pipeline_layout;
-    cvk_kernel_pipeline_cache m_pipeline_cache;
+    VkPipelineCache m_pipeline_cache;
 } cvk_kernel;
+
+using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 
 struct cvk_kernel_argument_values {
 
