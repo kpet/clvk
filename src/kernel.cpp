@@ -411,23 +411,8 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
     return true;
 }
 
-VkPipeline cvk_kernel::create_pipeline(uint32_t x, uint32_t y, uint32_t z)
+VkPipeline cvk_kernel::create_pipeline(const VkSpecializationInfo& specializationInfo)
 {
-    uint32_t lws[3] = {x,y,z};
-
-    VkSpecializationMapEntry mapEntries[3] = {
-        {0, 0 * sizeof(uint32_t), sizeof(uint32_t)},
-        {1, 1 * sizeof(uint32_t), sizeof(uint32_t)},
-        {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
-    };
-
-    VkSpecializationInfo specialiaztionInfo = {
-        3,
-        mapEntries,
-        sizeof(lws),
-        &lws,
-    };
-
     const VkComputePipelineCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, // sType
         nullptr, // pNext
@@ -439,7 +424,7 @@ VkPipeline cvk_kernel::create_pipeline(uint32_t x, uint32_t y, uint32_t z)
             VK_SHADER_STAGE_COMPUTE_BIT, // stage
             program()->shader_module(), // module
             name().c_str(),
-            &specialiaztionInfo // pSpecializationInfo
+            &specializationInfo // pSpecializationInfo
         }, // stage
         pipeline_layout(), // layout
         VK_NULL_HANDLE, // basePipelineHandle

@@ -71,7 +71,7 @@ typedef struct _cl_kernel : public api_object {
     }
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void *value);
-    CHECK_RETURN VkPipeline create_pipeline(uint32_t x, uint32_t y, uint32_t z);
+    CHECK_RETURN VkPipeline create_pipeline(const VkSpecializationInfo &info);
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
     const std::string& name() const { return m_name; }

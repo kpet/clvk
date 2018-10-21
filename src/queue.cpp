@@ -314,11 +314,20 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    m_pipeline = m_kernel->create_pipeline(
-        m_wg_size[0],
-        m_wg_size[1],
-        m_wg_size[2]
-    );
+    VkSpecializationMapEntry mapEntries[3] = {
+        {0, 0 * sizeof(uint32_t), sizeof(uint32_t)},
+        {1, 1 * sizeof(uint32_t), sizeof(uint32_t)},
+        {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
+    };
+
+    VkSpecializationInfo specializationInfo = {
+        3,
+        mapEntries,
+        sizeof(m_wg_size),
+        &m_wg_size,
+    };
+
+    m_pipeline = m_kernel->create_pipeline(specializationInfo);
 
     if (m_pipeline == VK_NULL_HANDLE) {
         return CL_OUT_OF_RESOURCES;
