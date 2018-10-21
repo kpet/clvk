@@ -69,8 +69,6 @@ TESTS_MODE_NOT_WIMPY = (
 )
 
 TESTS_FOR_WIMPY = TESTS_QUICK + (
-    ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
-    ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
     ('Basic', 'basic/test_basic'),
     ('Buffers', 'buffers/test_buffers'),
 )
@@ -99,6 +97,8 @@ TESTS_IMAGES = (
 
 
 TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
+    ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
+    ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
 #    ('Headers (cl.h standalone C99), headers/test_cl_h_c99
 #    ('Headers (cl_platform.h standalone C99), headers/test_cl_platform_h_c99
 #    ('Headers (cl_gl.h standalone C99), headers/test_cl_gl_h_c99
