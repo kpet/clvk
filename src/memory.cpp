@@ -193,7 +193,8 @@ bool cvk_buffer::init_subbuffer() {
     vkGetBufferMemoryRequirements(vkdev, m_buffer, &memreqs);
 
     if (m_size != memreqs.size) {
-        cvk_warn_fn("Sub-buffer %p requires more memory than its size, you're on your own!", this);
+        cvk_warn_fn("Sub-buffer %p requires more memory (%lu) than its size (%zu), "
+                    "you're on your own!", this, memreqs.size, m_size);
     }
 
     if (m_parent_offset % memreqs.alignment != 0) {
@@ -203,7 +204,8 @@ bool cvk_buffer::init_subbuffer() {
     }
 
     // Bind the buffer to memory
-    auto parent_buffer = static_cast<cvk_buffer*>(m_parent);
+    cvk_mem *parent = m_parent;
+    auto parent_buffer = static_cast<cvk_buffer*>(parent);
     res = vkBindBufferMemory(vkdev, m_buffer, parent_buffer->m_memory, m_parent_offset);
 
     if(res != VK_SUCCESS) {

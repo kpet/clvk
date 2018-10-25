@@ -67,7 +67,9 @@ struct refcounted_holder {
     refcounted_holder() : m_refcounted(nullptr) {}
 
     refcounted_holder(refcounted *refc) : m_refcounted(refc) {
-        m_refcounted->retain();
+        if (m_refcounted != nullptr) {
+            m_refcounted->retain();
+        }
     }
 
     refcounted_holder(const refcounted_holder &other) :

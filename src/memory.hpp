@@ -41,7 +41,6 @@ typedef struct _cl_mem : public api_object {
         m_memory(VK_NULL_HANDLE)
 {
         if (m_parent != nullptr) {
-            m_parent->retain();
 
             // Handle flag inheritance
             cl_mem_flags access_flags = CL_MEM_READ_WRITE |
@@ -74,9 +73,6 @@ typedef struct _cl_mem : public api_object {
 
 
     virtual ~_cl_mem() {
-        if (m_parent != nullptr) {
-            m_parent->release();
-        }
         auto device = m_context->device()->vulkan_device();
 
         if (m_parent == nullptr) {
@@ -174,7 +170,7 @@ private:
 protected:
     size_t m_size;
     void *m_host_ptr;
-    cvk_mem *m_parent;
+    cvk_mem_holder m_parent;
     size_t m_parent_offset;
     VkDeviceMemory m_memory;
 
