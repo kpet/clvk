@@ -117,52 +117,8 @@ typedef struct _cl_mem : public api_object {
         return m_map_ptr;
     }
 
-    bool CHECK_RETURN map() {
-        std::lock_guard<std::mutex> lock(m_map_lock);
-        cvk_debug("%p::map", this);
-
-        if (m_parent != nullptr) {
-            if (!m_parent->map()) {
-                return false;
-            }
-            m_map_ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_parent->host_va()) + m_parent_offset);
-            cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
-        } else {
-            if (m_map_count == 0) {
-                auto vkdev = m_context->device()->vulkan_device();
-                VkResult res = vkMapMemory(vkdev, m_memory, 0, m_size, 0, &m_map_ptr);
-                if (res != VK_SUCCESS) {
-                    return false;
-                }
-                cvk_debug("%p::map, map_ptr = %p", this, m_map_ptr);
-            }
-        }
-
-        m_map_count++;
-        retain();
-        cvk_debug("%p::map, new map_count = %u", this, m_map_count);
-
-        return true;
-    }
-
-    void unmap() {
-        std::lock_guard<std::mutex> lock(m_map_lock);
-        cvk_debug("%p::unmap", this);
-
-        CVK_ASSERT(m_map_count > 0);
-        m_map_count--;
-        release();
-        if (m_parent != nullptr) {
-            m_parent->unmap();
-            cvk_debug("%p::unmap, sub-buffer", this);
-        } else {
-            if (m_map_count == 0) {
-                auto vkdev = m_context->device()->vulkan_device();
-                vkUnmapMemory(vkdev, m_memory);
-            }
-        }
-        cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
-    }
+    bool CHECK_RETURN map();
+    void unmap();
 
     bool CHECK_RETURN copy_to(void *dst, size_t offset, size_t size) {
         if (map()) {
