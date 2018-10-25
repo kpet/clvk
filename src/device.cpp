@@ -174,7 +174,7 @@ bool cvk_device::init()
         nullptr, // pNext
         0, // flags
         1, // size
-        cvk_mem::USAGE_FLAGS, // usage
+        cvk_buffer::USAGE_FLAGS, // usage
         VK_SHARING_MODE_EXCLUSIVE,
         0, // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices

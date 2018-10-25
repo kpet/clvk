@@ -1078,7 +1078,7 @@ clCreateBuffer(
                  context, flags, size, host_ptr, errcode_ret);
 
     cl_int err;
-    auto mem = cvk_mem::create(context, flags, size, host_ptr, &err);
+    auto buffer = cvk_buffer::create(context, flags, size, host_ptr, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1087,7 +1087,7 @@ clCreateBuffer(
     if (err != CL_SUCCESS) {
         return nullptr;
     } else {
-        return mem.release();
+        return buffer.release();
     }
 }
 
@@ -1102,6 +1102,16 @@ cl_mem clCreateSubBuffer(
                  "buffer_create_info = %p, errcode_ret = %p",
                  buffer, flags, buffer_create_type, buffer_create_info, errcode_ret);
 
+    // TODO CL_INVALID_MEM_OBJECT if buffer is not a valid buffer object or is a sub-buffer object.
+    // TODO CL_INVALID_VALUE if buffer was created with CL_MEM_WRITE_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_READ_ONLY, or if buffer was created with CL_MEM_READ_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_WRITE_ONLY, or if flags specifies CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR or CL_MEM_COPY_HOST_PTR.
+    // TODO CL_INVALID_VALUE if buffer was created with CL_MEM_HOST_WRITE_ONLY and flags specifies CL_MEM_HOST_READ_ONLY or if buffer was created with CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY, or if buffer was created with CL_MEM_HOST_NO_ACCESS and flags specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
+    // TODO CL_INVALID_VALUE if value specified in buffer_create_type is not valid.
+    // TODO CL_INVALID_VALUE if value(s) specified in buffer_create_info (for a given buffer_create_type) is not valid or if buffer_create_info is NULL.
+    // TODO CL_INVALID_BUFFER_SIZE if size is 0.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for sub-buffer object.
+    // TODO CL_OUT_OF_RESOURCES if there is a failure to allocate resources required by the OpenCL implementation on the device.
+    // TODO CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources required by the OpenCL implementation on the host.
+
     if (buffer_create_type != CL_BUFFER_CREATE_TYPE_REGION) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_VALUE;
@@ -1113,7 +1123,8 @@ cl_mem clCreateSubBuffer(
     LOG_API_CALL("CL_BUFFER_CREATE_TYPE_REGION, origin = %zu, size = %zu", region->origin, region->size);
 
     cl_int err = CL_SUCCESS;
-    cvk_mem *sub = buffer->create_subbuffer(flags, region->origin, region->size);
+    auto buf = static_cast<cvk_buffer*>(buffer);
+    auto sub = buf->create_subbuffer(flags, region->origin, region->size);
 
     if (sub == nullptr) {
         err = CL_OUT_OF_RESOURCES;

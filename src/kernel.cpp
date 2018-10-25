@@ -134,15 +134,15 @@ void cvk_kernel::build_descriptor_sets_layout_bindings()
     }
 }
 
-std::unique_ptr<cvk_mem> cvk_kernel::allocate_pod_buffer()
+std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer()
 {
     cl_int err;
-    auto mem = cvk_mem::create(m_context, 0, m_pod_buffer_size, nullptr, &err);
+    auto buffer = cvk_buffer::create(m_context, 0, m_pod_buffer_size, nullptr, &err);
     if (err != CL_SUCCESS) {
         return nullptr;
     }
 
-    return mem;
+    return buffer;
 }
 
 cl_int cvk_kernel::init()
@@ -346,11 +346,11 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
         switch (arg.kind){
 
         case kernel_argument_kind::buffer: {
-            auto mem = static_cast<cvk_mem*>(arg_values->get_arg_value(arg));
-            auto buffer = mem->vulkan_buffer();
+            auto buffer = static_cast<cvk_buffer*>(arg_values->get_arg_value(arg));
+            auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
             VkDescriptorBufferInfo bufferInfo = {
-                buffer,
+                vkbuf,
                 0, // offset
                 VK_WHOLE_SIZE
             };

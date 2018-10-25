@@ -125,7 +125,7 @@ private:
 
     const uint32_t INVALID_POD_BINDING = std::numeric_limits<uint32_t>::max();
     void build_descriptor_sets_layout_bindings();
-    std::unique_ptr<cvk_mem> allocate_pod_buffer();
+    std::unique_ptr<cvk_buffer> allocate_pod_buffer();
     friend cvk_kernel_argument_values;
 
     std::mutex m_lock;
@@ -182,12 +182,12 @@ struct cvk_kernel_argument_values {
 
     bool init() {
         if (m_kernel->has_pod_arguments()) {
-            auto mem = m_kernel->allocate_pod_buffer();
-            if (mem == nullptr) {
+            auto buffer = m_kernel->allocate_pod_buffer();
+            if (buffer == nullptr) {
                 return false;
             }
 
-            m_pod_buffer = std::move(mem);
+            m_pod_buffer = std::move(buffer);
         }
 
         return true;
@@ -235,6 +235,6 @@ struct cvk_kernel_argument_values {
 
 private:
     cvk_kernel *m_kernel;
-    std::unique_ptr<cvk_mem> m_pod_buffer;
+    std::unique_ptr<cvk_buffer> m_pod_buffer;
     std::vector<refcounted_holder<refcounted>> m_kernel_resources;
 };

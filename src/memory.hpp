@@ -28,24 +28,17 @@ using cvk_mem_holder = refcounted_holder<cvk_mem>;
 
 typedef struct _cl_mem : public api_object {
 
-    static const VkBufferUsageFlags USAGE_FLAGS = \
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | \
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | \
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | \
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-    _cl_mem(cvk_context *ctx, cl_mem_flags flags, size_t sz, void *hptr,
-            cvk_mem *par, size_t par_off, cl_mem_object_type type = CL_MEM_OBJECT_BUFFER) :
+    _cl_mem(cvk_context *ctx, cl_mem_flags flags, size_t size, void *host_ptr,
+            cvk_mem *parent, size_t parent_offset, cl_mem_object_type type) :
         api_object(ctx),
         m_type(type),
         m_flags(flags),
         m_map_count(0),
-        m_parent(par),
-        m_parent_offset(par_off),
-        m_host_ptr(hptr),
-        m_size(sz),
-        m_memory(VK_NULL_HANDLE),
-        m_buffer(VK_NULL_HANDLE)
+        m_size(size),
+        m_host_ptr(host_ptr),
+        m_parent(parent),
+        m_parent_offset(parent_offset),
+        m_memory(VK_NULL_HANDLE)
 {
         if (m_parent != nullptr) {
             m_parent->retain();
@@ -68,16 +61,12 @@ typedef struct _cl_mem : public api_object {
         }
     }
 
-    static std::unique_ptr<cvk_mem> create(cvk_context *context, cl_mem_flags, size_t size, void *host_ptr, cl_int *errcode_ret);
-    cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
 
     virtual ~_cl_mem() {
         if (m_parent != nullptr) {
             m_parent->release();
         }
         auto device = m_context->device()->vulkan_device();
-
-        vkDestroyBuffer(device, m_buffer, nullptr);
 
         if (m_parent == nullptr) {
             vkFreeMemory(device, m_memory, nullptr);
@@ -89,7 +78,6 @@ typedef struct _cl_mem : public api_object {
         }
     }
 
-    VkBuffer vulkan_buffer() const { return m_buffer; }
     uint32_t map_count() const { return m_map_count; }
     cvk_mem* parent() const { return m_parent; }
     size_t parent_offset() const { return m_parent_offset; }
@@ -209,23 +197,54 @@ typedef struct _cl_mem : public api_object {
     }
 
 private:
-    bool init();
-    bool init_subbuffer();
 
     cl_mem_object_type m_type;
     std::mutex m_map_lock;
     cl_mem_flags m_flags;
     uint32_t m_map_count;
     void *m_map_ptr;
+    std::vector<cvk_mem_callback> m_callbacks;
+protected:
+    size_t m_size;
+    void *m_host_ptr;
     cvk_mem *m_parent;
     size_t m_parent_offset;
-    void *m_host_ptr;
-    size_t m_size;
     VkDeviceMemory m_memory;
-    VkBuffer m_buffer;
-    std::vector<cvk_mem_callback> m_callbacks;
 
 } cvk_mem;
+
+struct cvk_buffer : public cvk_mem {
+
+    static const VkBufferUsageFlags USAGE_FLAGS = \
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | \
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | \
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | \
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+    cvk_buffer(cvk_context *ctx, cl_mem_flags flags, size_t size, void *host_ptr,
+               cvk_mem *parent, size_t parent_offset)
+        : cvk_mem(ctx, flags, size, host_ptr, parent, parent_offset,
+                  CL_MEM_OBJECT_BUFFER),
+          m_buffer(VK_NULL_HANDLE) {}
+
+    virtual ~cvk_buffer() {
+        auto vkdev = m_context->device()->vulkan_device();
+        vkDestroyBuffer(vkdev, m_buffer, nullptr);
+    }
+
+    static std::unique_ptr<cvk_buffer> create(cvk_context *context, cl_mem_flags,
+                                           size_t size, void *host_ptr,
+                                           cl_int *errcode_ret);
+    cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
+
+    VkBuffer vulkan_buffer() const { return m_buffer; }
+
+private:
+    bool init();
+    bool init_subbuffer();
+
+    VkBuffer m_buffer;
+};
 
 typedef struct _cl_sampler cvk_sampler;
 

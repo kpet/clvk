@@ -15,20 +15,20 @@
 #include "memory.hpp"
 
 
-std::unique_ptr<cvk_mem> cvk_mem::create(cvk_context *context, cl_mem_flags flags, size_t size, void *host_ptr, cl_int *errcode_ret
+std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context *context, cl_mem_flags flags, size_t size, void *host_ptr, cl_int *errcode_ret
 ){
-    auto mem = std::make_unique<cvk_mem>(context, flags, size, host_ptr, nullptr, 0);
+    auto buffer = std::make_unique<cvk_buffer>(context, flags, size, host_ptr, nullptr, 0);
 
-    if (!mem->init()) {
+    if (!buffer->init()) {
         *errcode_ret = CL_OUT_OF_RESOURCES;
         return nullptr;
     }
 
     *errcode_ret = CL_SUCCESS;
-    return mem;
+    return buffer;
 }
 
-bool cvk_mem::init()
+bool cvk_buffer::init()
 {
     auto device = m_context->device();
     auto vkdev = device->vulkan_device();
@@ -39,7 +39,7 @@ bool cvk_mem::init()
         nullptr, // pNext
         0, // flags
         m_size,
-        cvk_mem::USAGE_FLAGS, // usage
+        cvk_buffer::USAGE_FLAGS, // usage
         VK_SHARING_MODE_EXCLUSIVE,
         0, // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
@@ -102,18 +102,18 @@ bool cvk_mem::init()
 
 
 
-cvk_mem* cvk_mem::create_subbuffer(cl_mem_flags flags, size_t origin, size_t size)
+cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin, size_t size)
 {
-    std::unique_ptr<cvk_mem> mem(new cvk_mem(m_context, flags, size, nullptr, this, origin));
+    auto buffer = std::make_unique<cvk_buffer>(m_context, flags, size, nullptr, this, origin);
 
-    if (!mem->init_subbuffer()) {
+    if (!buffer->init_subbuffer()) {
         return nullptr;
     }
 
-    return mem.release();
+    return buffer.release();
 }
 
-bool cvk_mem::init_subbuffer() {
+bool cvk_buffer::init_subbuffer() {
 
     // Create the buffer
     const VkBufferCreateInfo createInfo = {
@@ -121,7 +121,7 @@ bool cvk_mem::init_subbuffer() {
         nullptr, // pNext
         0, // flags
         m_size,
-        cvk_mem::USAGE_FLAGS, // usage
+        cvk_buffer::USAGE_FLAGS, // usage
         VK_SHARING_MODE_EXCLUSIVE,
         0, // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
@@ -151,7 +151,8 @@ bool cvk_mem::init_subbuffer() {
     }
 
     // Bind the buffer to memory
-    res = vkBindBufferMemory(vkdev, m_buffer, m_parent->m_memory, m_parent_offset);
+    auto parent_buffer = static_cast<cvk_buffer*>(m_parent);
+    res = vkBindBufferMemory(vkdev, m_buffer, parent_buffer->m_memory, m_parent_offset);
 
     if(res != VK_SUCCESS) {
         return false;
