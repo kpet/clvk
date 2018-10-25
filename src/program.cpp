@@ -253,6 +253,8 @@ bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int
 
     if (akind == "buffer") {
         arg.kind = kernel_argument_kind::buffer;
+    } else if (akind == "buffer_ubo") {
+        arg.kind = kernel_argument_kind::buffer_ubo;
     } else if (akind == "pod") {
         arg.kind = kernel_argument_kind::pod;
     } else if (akind == "pod_ubo") {

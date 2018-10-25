@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple_image)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple_ubo)
+set(BINARY_NAME simple_ubo_test)
+
+add_executable(${BINARY_NAME} simple.cpp)
+
+target_link_libraries(${BINARY_NAME} OpenCL)
+
+set_target_properties(${BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
+

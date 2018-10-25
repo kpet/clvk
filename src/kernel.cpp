@@ -94,6 +94,9 @@ void cvk_kernel::build_descriptor_sets_layout_bindings()
         case kernel_argument_kind::buffer:
             dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             break;
+        case kernel_argument_kind::buffer_ubo:
+            dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            break;
         case kernel_argument_kind::ro_image:
             dt = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             break;
@@ -345,7 +348,8 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
 
         switch (arg.kind){
 
-        case kernel_argument_kind::buffer: {
+        case kernel_argument_kind::buffer:
+        case kernel_argument_kind::buffer_ubo: {
             auto buffer = static_cast<cvk_buffer*>(arg_values->get_arg_value(arg));
             auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
@@ -355,6 +359,9 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
                 VK_WHOLE_SIZE
             };
 
+            auto descriptor_type = arg.kind == kernel_argument_kind::buffer
+                                       ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+                                       : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 nullptr,
@@ -362,7 +369,7 @@ bool cvk_kernel::setup_descriptor_set(VkDescriptorSet *ds,
                 arg.binding, // dstBinding
                 0, // dstArrayElement
                 1, // descriptorCount
-                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                descriptor_type,
                 nullptr, // pImageInfo
                 &bufferInfo,
                 nullptr, // pTexelBufferView
