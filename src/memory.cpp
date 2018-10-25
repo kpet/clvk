@@ -64,7 +64,10 @@ void cvk_mem::unmap()
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
 }
 
-std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context *context, cl_mem_flags flags, size_t size, void *host_ptr, cl_int *errcode_ret
+std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context *context,
+                                               cl_mem_flags flags, size_t size,
+                                               void *host_ptr,
+                                               cl_int *errcode_ret
 ){
     auto buffer = std::make_unique<cvk_buffer>(context, flags, size, host_ptr, nullptr, 0);
 

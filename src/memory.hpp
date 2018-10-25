@@ -44,20 +44,31 @@ typedef struct _cl_mem : public api_object {
             m_parent->retain();
 
             // Handle flag inheritance
-            cl_mem_flags access_flags = CL_MEM_READ_WRITE | CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY;
+            cl_mem_flags access_flags = CL_MEM_READ_WRITE |
+                                        CL_MEM_READ_ONLY |
+                                        CL_MEM_WRITE_ONLY;
+
             if ((m_flags & access_flags) == 0) {
                 m_flags |= m_parent->m_flags & access_flags;
             }
 
-            m_flags |= m_parent->m_flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR | CL_MEM_ALLOC_HOST_PTR);
+            cl_mem_flags host_ptr_flags = CL_MEM_USE_HOST_PTR |
+                                          CL_MEM_COPY_HOST_PTR |
+                                          CL_MEM_ALLOC_HOST_PTR;
 
-            cl_mem_flags host_access_flags = CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS;
+            m_flags |= m_parent->m_flags & host_ptr_flags;
+
+            cl_mem_flags host_access_flags = CL_MEM_HOST_WRITE_ONLY |
+                                             CL_MEM_HOST_READ_ONLY |
+                                             CL_MEM_HOST_NO_ACCESS;
+
             if ((m_flags & host_access_flags) == 0) {
                 m_flags |= m_parent->m_flags & host_access_flags;
             }
 
             // Handle host_ptr
-            m_host_ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_parent->host_ptr()) + m_parent_offset);
+            auto parent_host_ptr = reinterpret_cast<uintptr_t>(m_parent->host_ptr());
+            m_host_ptr = reinterpret_cast<void*>(parent_host_ptr + m_parent_offset);
         }
     }
 
