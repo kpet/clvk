@@ -30,6 +30,7 @@ const int SPIR_WORD_SIZE = 4;
 
 enum class kernel_argument_kind {
     buffer,
+    buffer_ubo,
     pod,
     pod_ubo,
     ro_image,
@@ -176,7 +177,7 @@ typedef struct _cl_program : public api_object {
             ret.push_back(dev_st.first);
         }
 
-        return std::move(ret);
+        return ret;
     }
 
     VkShaderModule shader_module() const {
