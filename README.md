@@ -37,9 +37,7 @@ TODO move to a separate doc file and list the status for all applications that
 
 ```
 git submodule update --init --recursive
-cd external/clspv
-./utils/fetch_sources.py --deps clang llvm
-cd ../..
+./external/clspv/utils/fetch_sources.py --deps clang llvm
 ```
 
 # Building

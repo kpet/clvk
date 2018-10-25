@@ -51,14 +51,14 @@ TESTS_QUICK = TESTS_HEADERS + (
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
     ('Profiling', 'profiling/test_profiling'),
-    ('Select', 'select/test_select'),
-    ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'full*'),
     ('VecAlign', 'vec_align/test_vecalign'),
     ('VecStep', 'vec_step/test_vecstep'),
 )
 
 TESTS_MODE_WIMPY = (
     ('Math', 'math_brute_force/bruteforce', '-1', '-w'),
+    ('Select', 'select/test_select', '-w'),
+    ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'quick*'),
 )
 
 TESTS_MODE_NOT_WIMPY = (
@@ -66,6 +66,8 @@ TESTS_MODE_NOT_WIMPY = (
     ('Conversions', 'conversions/test_conversions'),
     ('Integer Ops', 'integer_ops/test_integer_ops'),
     ('Relationals', 'relationals/test_relationals'),
+    ('Select', 'select/test_select'),
+    ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'full*'),
 )
 
 TESTS_FOR_WIMPY = TESTS_QUICK + (
