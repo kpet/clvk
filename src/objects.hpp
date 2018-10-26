@@ -66,7 +66,7 @@ struct refcounted_holder {
 
     refcounted_holder() : m_refcounted(nullptr) {}
 
-    refcounted_holder(refcounted *refc) : m_refcounted(refc) {
+    refcounted_holder(T *refcounted) : m_refcounted(refcounted) {
         if (m_refcounted != nullptr) {
             m_refcounted->retain();
         }
@@ -88,11 +88,11 @@ struct refcounted_holder {
     }
 
     T* operator->() const {
-        return static_cast<T*>(m_refcounted);
+        return m_refcounted;
     }
 
     operator T*() const {
-        return static_cast<T*>(m_refcounted);
+        return m_refcounted;
     }
 
     refcounted_holder& operator=(const refcounted_holder& ) = delete;
@@ -109,7 +109,7 @@ struct refcounted_holder {
     }
 
 private:
-    refcounted *m_refcounted;
+    T *m_refcounted;
 };
 
 typedef struct _cl_context : public refcounted {
