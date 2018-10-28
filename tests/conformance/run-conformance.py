@@ -57,6 +57,7 @@ TESTS_QUICK = TESTS_HEADERS + (
 
 TESTS_MODE_WIMPY = (
     ('Math', 'math_brute_force/bruteforce', '-1', '-w'),
+    ('Relationals', 'relationals/test_relationals', 'relational_*'),
     ('Select', 'select/test_select', '-w'),
     ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'quick*'),
 )
