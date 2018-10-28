@@ -18,9 +18,9 @@
     "total": 1
   },
   "Atomics": {
-    "duration": "00:00:02.919352",
-    "passed": 0,
-    "retcode": 13,
+    "duration": "00:00:03.648902",
+    "passed": 12,
+    "retcode": 1,
     "total": 13
   },
   "Basic": {
@@ -83,6 +83,36 @@
     "retcode": 1,
     "total": 1
   },
+  "Headers (cl.h standalone)": {
+    "duration": "00:00:00.481266",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (cl_gl.h standalone)": {
+    "duration": "00:00:00.496547",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (cl_platform.h standalone)": {
+    "duration": "00:00:00.485991",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (cl_typen)": {
+    "duration": "00:00:00.491308",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (opencl.h standalone)": {
+    "duration": "00:00:00.476570",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
   "Math": {
     "duration": "00:00:11.090892",
     "passed": 41,
@@ -113,6 +143,12 @@
     "retcode": 4,
     "total": 31
   },
+  "Relationals": {
+    "duration": "00:00:04.601906",
+    "passed": 7,
+    "retcode": 5,
+    "total": 12
+  },
   "Select": {
     "duration": "00:02:09.366772",
     "passed": 14,
@@ -120,9 +156,9 @@
     "total": 18
   },
   "Thread Dimensions": {
-    "duration": "00:00:00.514463",
-    "passed": 0,
-    "retcode": 6,
+    "duration": "00:04:53.640390",
+    "passed": 6,
+    "retcode": 0,
     "total": 6
   },
   "VecAlign": {
