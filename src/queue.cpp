@@ -331,6 +331,24 @@ cl_int cvk_command_kernel::build() {
 
     vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
 
+    VkMemoryBarrier memoryBarrier = {
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_MEMORY_WRITE_BIT,
+        VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT
+    };
+
+    vkCmdPipelineBarrier(m_command_buffer,
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                         VK_PIPELINE_STAGE_HOST_BIT,
+                         0, // dependencyFlags
+                         1, // memoryBarrierCount
+                         &memoryBarrier,
+                         0, // bufferMemoryBarrierCount
+                         nullptr, // pBufferMemoryBarriers
+                         0, // imageMemoryBarrierCount
+                         nullptr); // pImageMemoryBarriers
+
     res = vkEndCommandBuffer(m_command_buffer);
 
     if (res != VK_SUCCESS) {
