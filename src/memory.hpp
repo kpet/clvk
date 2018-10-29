@@ -106,11 +106,11 @@ typedef struct _cl_mem : public api_object {
         return is_image_type(type());
     }
 
-    bool has_flags(cl_mem_flags flags) {
+    bool has_flags(cl_mem_flags flags) const {
         return (m_flags & flags) == flags;
     }
 
-    bool has_any_flag(cl_mem_flags flags) {
+    bool has_any_flag(cl_mem_flags flags) const {
         return (m_flags & flags) != 0;
     }
 
