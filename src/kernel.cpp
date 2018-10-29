@@ -126,8 +126,8 @@ cl_int cvk_kernel::init()
 
     auto vkdev = m_context->device()->vulkan_device();
 
-    VkResult res = vkCreateDescriptorSetLayout(vkdev, &descriptorSetLayoutCreateInfo, 0, &m_descriptor_set_layout);
-
+    auto res = vkCreateDescriptorSetLayout(vkdev, &descriptorSetLayoutCreateInfo,
+                                           0, &m_descriptor_set_layout);
     if (res != VK_SUCCESS) {
         cvk_error("Could not create descriptor set layout");
         return CL_INVALID_VALUE;

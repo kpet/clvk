@@ -98,7 +98,7 @@ struct refcounted_holder {
     refcounted_holder& operator=(const refcounted_holder& ) = delete;
     refcounted_holder& operator=(const refcounted_holder&&) = delete;
 
-    void reset(refcounted* refc) {
+    void reset(T* refc) {
         if (m_refcounted != nullptr) {
             m_refcounted->release();
         }
