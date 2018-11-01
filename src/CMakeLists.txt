@@ -42,8 +42,8 @@ target_link_libraries(OpenCL ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(OpenCL SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
 target_link_libraries(OpenCL ${Vulkan_LIBRARIES})
 
-add_dependencies(OpenCL clspv)
-target_link_libraries(OpenCL SPIRV-Tools-opt SPIRV-Tools-link)
+#add_dependencies(OpenCL clspv)
+target_link_libraries(OpenCL clspv_core SPIRV-Tools-opt SPIRV-Tools-link)
 
 target_compile_definitions(OpenCL PRIVATE
     DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")

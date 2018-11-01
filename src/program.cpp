@@ -21,6 +21,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "clspv/Compiler.h"
 #include "spirv/1.0/spirv.hpp"
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
@@ -391,23 +392,8 @@ cl_build_status cvk_program::compile_source()
     std::string tmp_folder = tmp;
     cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
 
-    // Save source to file
-    std::string src_file{tmp_folder + "/source.cl"};
-    if (!save_string_to_file(src_file, m_source)) {
-        cvk_error_fn("Couldn't save source to file!");
-        return CL_BUILD_ERROR;
-    }
-
-    // Save headers
-    if (m_operation == build_operation::compile) {
-        for (cl_uint i = 0; i < m_num_input_programs; i++) {
-            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
-            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
-                cvk_error_fn("Couldn't save header to file!");
-                return CL_BUILD_ERROR;
-            }
-        }
-    }
+    std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
+    std::string spirv_file{tmp_folder + "/compiled.spv"};
 
     // Remove unsupported -cl-kernel-arg-info option
     // TODO Write clspv pass
@@ -424,37 +410,76 @@ cl_build_status cvk_program::compile_source()
         processed_options.replace(loc, search.length(), replace);
     }
 
-    // Compose clspv command-line
-    std::string cmd{gCLSPVPath};
-    std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
-    std::string spirv_file{tmp_folder + "/compiled.spv"};
+    if (m_operation == build_operation::build) {
+        std::string options;
+        options += " -descriptormap=";
+        options += descriptor_map_file;
+        options += " ";
+        options += processed_options;
+        options += " -cluster-pod-kernel-args ";
+        options += " -cl-single-precision-constant ";
+        options += " -pod-ubo ";
+        options += " -o ";
+        options += spirv_file;
 
-    cmd += " -descriptormap=";
-    cmd += descriptor_map_file;
-    cmd += " ";
-    cmd += src_file;
-    cmd += processed_options;
-    cmd += " -cluster-pod-kernel-args ";
-    cmd += " -cl-single-precision-constant ";
-    cmd += " -pod-ubo ";
-    // FIXME support building a library with clBuildProgram
-    if (m_operation == build_operation::compile) {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+        cvk_info("About to compile \"%s\"", options.c_str());
+        auto error = clspv::CompileFromSourceString(m_source, options);
+        std::cerr << "Return code " << error << std::endl;
+        if (error != 0) {
+            cvk_error_fn("failed to compile the program");
+            return CL_BUILD_ERROR;
+        }
+        cvk_info("Return code was: %d", error);
     } else {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
-    }
-    cmd += " -o ";
-    cmd += spirv_file;
-    cvk_info("About to run \"%s\"", cmd.c_str());
+        // Save source to file
+        std::string src_file{tmp_folder + "/source.cl"};
+        if (!save_string_to_file(src_file, m_source)) {
+            cvk_error_fn("Couldn't save source to file!");
+            return CL_BUILD_ERROR;
+        }
 
-    // Call clspv
-    // TODO Sanity check the command / move away from system()
-    int status = std::system(cmd.c_str());
-    cvk_info("Return code was: %d", status);
+        // Save headers
+        if (m_operation == build_operation::compile) {
+            for (cl_uint i = 0; i < m_num_input_programs; i++) {
+                std::string fname{tmp_folder + "/" + m_header_include_names[i]};
+                if (!save_string_to_file(fname, m_input_programs[i]->source())) {
+                    cvk_error_fn("Couldn't save header to file!");
+                    return CL_BUILD_ERROR;
+                }
+            }
+        }
 
-    if (status != 0) {
-        cvk_error_fn("failed to compile the program");
-        return CL_BUILD_ERROR;
+        // Compose clspv command-line
+        std::string cmd{gCLSPVPath};
+
+        cmd += " -descriptormap=";
+        cmd += descriptor_map_file;
+        cmd += " ";
+        cmd += src_file;
+        cmd += processed_options;
+        cmd += " -cluster-pod-kernel-args ";
+        cmd += " -cl-single-precision-constant ";
+        cmd += " -pod-ubo ";
+        // FIXME support building a library with clBuildProgram
+        if (m_operation == build_operation::compile) {
+            cmd += " -partial ";
+            m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+        } else {
+            m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+        }
+        cmd += " -o ";
+        cmd += spirv_file;
+        cvk_info("About to run \"%s\"", cmd.c_str());
+
+        // Call clspv
+        // TODO Sanity check the command / move away from system()
+        int status = std::system(cmd.c_str());
+        cvk_info("Return code was: %d", status);
+
+        if (status != 0) {
+            cvk_error_fn("failed to compile the program");
+            return CL_BUILD_ERROR;
+        }
     }
 
     // Load SPIR-V program
