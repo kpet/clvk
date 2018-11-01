@@ -44,17 +44,25 @@ typedef struct _cl_device_id {
 
 
     CHECK_RETURN uint32_t memory_type_index() const {
-        uint32_t memoryTypeIndex = VK_MAX_MEMORY_TYPES;
 
-        for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
-            if ((VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & m_mem_properties.memoryTypes[k].propertyFlags) &&
-                (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT & m_mem_properties.memoryTypes[k].propertyFlags)) {
-                memoryTypeIndex = k;
-                break;
+        uint32_t desiredMemoryTypes[] = {
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        };
+
+        for (auto mt : desiredMemoryTypes) {
+            for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
+                if ((m_mem_properties.memoryTypes[k].propertyFlags & mt) == mt) {
+                    return k;
+                }
             }
         }
 
-        return memoryTypeIndex;
+        return VK_MAX_MEMORY_TYPES;
     }
 
     CHECK_RETURN uint32_t memory_type_index_for_image(uint32_t memory_type_bits) const {
