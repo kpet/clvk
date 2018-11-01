@@ -217,7 +217,7 @@ cl_int cvk_kernel::init()
         int max_offset_arg_size = 0;
 
         for (auto &arg : m_args) {
-            if (arg.offset >= max_offset) {
+            if (arg.is_pod() && (arg.offset >= max_offset)) {
                 max_offset = arg.offset;
                 max_offset_arg_size = arg.size;
             }
