@@ -419,11 +419,9 @@ cl_build_status cvk_program::compile_source()
         options += " -cluster-pod-kernel-args ";
         options += " -cl-single-precision-constant ";
         options += " -pod-ubo ";
-        options += " -o ";
-        options += spirv_file;
 
         cvk_info("About to compile \"%s\"", options.c_str());
-        auto error = clspv::CompileFromSourceString(m_source, options);
+        auto error = clspv::CompileFromSourceString(m_source, "", options, m_binary.raw_binary());
         std::cerr << "Return code " << error << std::endl;
         if (error != 0) {
             cvk_error_fn("failed to compile the program");
@@ -480,15 +478,16 @@ cl_build_status cvk_program::compile_source()
             cvk_error_fn("failed to compile the program");
             return CL_BUILD_ERROR;
         }
-    }
 
-    // Load SPIR-V program
-    const char *filename = spirv_file.c_str();
-    if (!m_binary.load_spir(filename)) {
-        cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
-        return CL_BUILD_ERROR;
-    } else {
-        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename, m_binary.code().size());
+        // Load SPIR-V program
+        const char *filename = spirv_file.c_str();
+        if (!m_binary.load_spir(filename)) {
+            cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
+            return CL_BUILD_ERROR;
+        } else {
+          cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words",
+                   filename, m_binary.code().size());
+        }
     }
 
     // Load descriptor map

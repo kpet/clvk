@@ -88,6 +88,7 @@ public:
     CHECK_RETURN bool validate() const;
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
+    std::vector<uint32_t> *raw_binary() { return &m_code; }
 
 private:
     spv_context m_context;
