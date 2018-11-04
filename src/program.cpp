@@ -409,86 +409,41 @@ cl_build_status cvk_program::compile_source()
     if (loc != std::string::npos) {
         processed_options.replace(loc, search.length(), replace);
     }
-
-    if (m_operation == build_operation::build) {
-        std::string options;
-        options += " -descriptormap=";
-        options += descriptor_map_file;
-        options += " ";
-        options += processed_options;
-        options += " -cluster-pod-kernel-args ";
-        options += " -cl-single-precision-constant ";
-        options += " -pod-ubo ";
-
-        cvk_info("About to compile \"%s\"", options.c_str());
-        auto error = clspv::CompileFromSourceString(m_source, "", options, m_binary.raw_binary());
-        std::cerr << "Return code " << error << std::endl;
-        if (error != 0) {
-            cvk_error_fn("failed to compile the program");
-            return CL_BUILD_ERROR;
-        }
-        cvk_info("Return code was: %d", error);
-    } else {
-        // Save source to file
-        std::string src_file{tmp_folder + "/source.cl"};
-        if (!save_string_to_file(src_file, m_source)) {
-            cvk_error_fn("Couldn't save source to file!");
-            return CL_BUILD_ERROR;
-        }
-
-        // Save headers
-        if (m_operation == build_operation::compile) {
-            for (cl_uint i = 0; i < m_num_input_programs; i++) {
-                std::string fname{tmp_folder + "/" + m_header_include_names[i]};
-                if (!save_string_to_file(fname, m_input_programs[i]->source())) {
-                    cvk_error_fn("Couldn't save header to file!");
-                    return CL_BUILD_ERROR;
-                }
+ 
+    // Save headers
+    if (m_operation == build_operation::compile) {
+        for (cl_uint i = 0; i < m_num_input_programs; i++) {
+            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
+            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
+                cvk_error_fn("Couldn't save header to file!");
+                return CL_BUILD_ERROR;
             }
         }
-
-        // Compose clspv command-line
-        std::string cmd{gCLSPVPath};
-
-        cmd += " -descriptormap=";
-        cmd += descriptor_map_file;
-        cmd += " ";
-        cmd += src_file;
-        cmd += processed_options;
-        cmd += " -cluster-pod-kernel-args ";
-        cmd += " -cl-single-precision-constant ";
-        cmd += " -pod-ubo ";
-        // FIXME support building a library with clBuildProgram
-        if (m_operation == build_operation::compile) {
-            cmd += " -partial ";
-            m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
-        } else {
-            m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
-        }
-        cmd += " -o ";
-        cmd += spirv_file;
-        cvk_info("About to run \"%s\"", cmd.c_str());
-
-        // Call clspv
-        // TODO Sanity check the command / move away from system()
-        int status = std::system(cmd.c_str());
-        cvk_info("Return code was: %d", status);
-
-        if (status != 0) {
-            cvk_error_fn("failed to compile the program");
-            return CL_BUILD_ERROR;
-        }
-
-        // Load SPIR-V program
-        const char *filename = spirv_file.c_str();
-        if (!m_binary.load_spir(filename)) {
-            cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
-            return CL_BUILD_ERROR;
-        } else {
-          cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words",
-                   filename, m_binary.code().size());
-        }
     }
+
+    std::string options;
+    options += " -descriptormap=";
+    options += descriptor_map_file;
+    options += " ";
+    options += processed_options;
+    options += " -cluster-pod-kernel-args ";
+    options += " -cl-single-precision-constant ";
+    options += " -pod-ubo ";
+    // FIXME support building a library with clBuildProgram
+    if (m_operation == build_operation::compile) {
+        options += " -partial ";
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+    } else {
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+    }
+
+    cvk_info("About to compile \"%s\"", options.c_str());
+    auto error = clspv::CompileFromSourceString(m_source, "", options, m_binary.raw_binary());
+    if (error != 0) {
+        cvk_error_fn("failed to compile the program");
+        return CL_BUILD_ERROR;
+    }
+    cvk_info("Return code was: %d", error);
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map(descriptor_map_file.c_str())) {
