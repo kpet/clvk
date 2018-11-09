@@ -16,6 +16,7 @@
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -359,6 +360,65 @@ bool spir_binary::load_descriptor_map(const char *fname)
     return load_descriptor_map(ifile);
 }
 
+bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries)
+{
+  m_dmaps.clear();
+  for (const auto &entry : entries) {
+    if (gLoggingLevel == loglevel::debug) {
+      std::string s;
+      std::ostringstream str(s);
+      str << entry;
+      cvk_debug("DMAP line: %s", str.str().c_str());
+    }
+    if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
+      return false;
+
+    kernel_argument arg;
+    arg.name = entry.kernel_arg_data.arg_name;
+    arg.pos = entry.kernel_arg_data.arg_ordinal;
+    if (entry.kernel_arg_data.arg_kind == clspv::ArgKind::Local) {
+      arg.kind = kernel_argument_kind::local;
+      arg.local_elem_size = entry.kernel_arg_data.local_element_size;
+      arg.local_spec_id = entry.kernel_arg_data.local_spec_id;
+    } else {
+      arg.descriptorSet = entry.descriptor_set;
+      arg.binding = entry.binding;
+      arg.offset = entry.kernel_arg_data.pod_offset;
+      switch (entry.kernel_arg_data.arg_kind) {
+        case clspv::ArgKind::Buffer:
+          arg.kind = kernel_argument_kind::buffer;
+          break;
+        case clspv::ArgKind::BufferUBO:
+          arg.kind = kernel_argument_kind::buffer_ubo;
+          break;
+        case clspv::ArgKind::Pod:
+          arg.kind = kernel_argument_kind::pod;
+          break;
+        case clspv::ArgKind::PodUBO:
+          arg.kind = kernel_argument_kind::pod_ubo;
+          break;
+        case clspv::ArgKind::ReadOnlyImage:
+          arg.kind = kernel_argument_kind::ro_image;
+          break;
+        case clspv::ArgKind::WriteOnlyImage:
+          arg.kind = kernel_argument_kind::wo_image;
+          break;
+        default:
+          return false;
+      }
+      if (arg.is_pod()) {
+        arg.size = entry.kernel_arg_data.pod_arg_size;
+      }
+    }
+
+    m_dmaps[entry.kernel_arg_data.kernel_name].push_back(arg);    
+  }
+
+  cvk_debug_fn("num_kernels = %zu", num_kernels());
+
+  return true;
+}
+
 void spir_binary::insert_descriptor_map(const spir_binary &other)
 {
     for (auto &args: other.kernels_arguments()) {
@@ -383,17 +443,17 @@ bool save_string_to_file(const std::string &fname, const std::string &text)
 
 cl_build_status cvk_program::compile_source()
 {
-    // Create temporary folder
-    std::string tmp_template{"clvk-XXXXXX"};
-    const char* tmp = cvk_mkdtemp(tmp_template);
-    if (tmp == nullptr) {
-        return CL_BUILD_ERROR;
+    std::string tmp_folder;
+    if (m_operation == build_operation::compile && m_num_input_programs > 0) {
+        // Create temporary folder
+        std::string tmp_template{"clvk-XXXXXX"};
+        const char* tmp = cvk_mkdtemp(tmp_template);
+        if (tmp == nullptr) {
+            return CL_BUILD_ERROR;
+        }
+        tmp_folder = tmp;
+        cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
     }
-    std::string tmp_folder = tmp;
-    cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
-
-    std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
-    std::string spirv_file{tmp_folder + "/compiled.spv"};
 
     // Remove unsupported -cl-kernel-arg-info option
     // TODO Write clspv pass
@@ -422,9 +482,6 @@ cl_build_status cvk_program::compile_source()
     }
 
     std::string options;
-    options += " -descriptormap=";
-    options += descriptor_map_file;
-    options += " ";
     options += processed_options;
     options += " -cluster-pod-kernel-args ";
     options += " -cl-single-precision-constant ";
@@ -438,7 +495,9 @@ cl_build_status cvk_program::compile_source()
     }
 
     cvk_info("About to compile \"%s\"", options.c_str());
-    auto error = clspv::CompileFromSourceString(m_source, "", options, m_binary.raw_binary());
+    std::vector<clspv::version0::DescriptorMapEntry> entries;
+    auto error = clspv::CompileFromSourceString(
+        m_source, "", options, m_binary.raw_binary(), &entries);
     if (error != 0) {
         cvk_error_fn("failed to compile the program");
         return CL_BUILD_ERROR;
@@ -446,7 +505,7 @@ cl_build_status cvk_program::compile_source()
     cvk_info("Return code was: %d", error);
 
     // Load descriptor map
-    if (!m_binary.load_descriptor_map(descriptor_map_file.c_str())) {
+    if (!m_binary.load_descriptor_map(entries)) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }

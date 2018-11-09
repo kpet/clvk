@@ -21,6 +21,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "clspv/DescriptorMap.h"
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
@@ -71,6 +72,7 @@ public:
     CHECK_RETURN bool load_spir(std::istream &istream, uint32_t size);
     CHECK_RETURN bool load_descriptor_map(const char *fname);
     CHECK_RETURN bool load_descriptor_map(std::istream &istream);
+    CHECK_RETURN bool load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries);
     void insert_descriptor_map(const spir_binary &other);
     CHECK_RETURN bool save_spir(const char *fname) const;
     CHECK_RETURN bool load(std::istream &istream);
