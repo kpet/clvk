@@ -144,3 +144,11 @@ variables. Here's a quick guide:
 
 * `CLVK_CLSPV_OPTIONS` to provide additional options to pass to clspv
 
+* `CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES` to use timestamp queries to
+  measure the `CL_PROFILING_COMMAND_{START,END}` profiling infos.
+  WARNING: the values will not use the same time base as that used for
+  `CL_PROFILING_COMMAND_{QUEUED,SUBMIT}` but this allows to get
+  closer-to-the-execution timestamps. The two can be reconciled on devices
+  that support `VK_EXT_calibrated_timestamps`
+  (see [#110](https://github.com/kpet/clvk/issues/110)).
+

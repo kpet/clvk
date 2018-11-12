@@ -20,6 +20,7 @@ add_executable(
     dependencies.cpp
     images.cpp
     main.cpp
+    profiling.cpp
     simple.cpp
     simple_image.cpp
     simple_ubo.cpp

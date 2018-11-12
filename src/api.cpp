@@ -410,7 +410,7 @@ clGetDeviceInfo(
             size_ret = sizeof(val_uint);
             break;
         case CL_DEVICE_PROFILING_TIMER_RESOLUTION:
-            val_sizet = device->vulkan_limits().timestampPeriod;
+            val_sizet = 1;
             copy_ptr = &val_sizet;
             size_ret = sizeof(val_sizet);
             break;

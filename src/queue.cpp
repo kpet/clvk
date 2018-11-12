@@ -14,6 +14,7 @@
 
 #include <unordered_set>
 
+#include "init.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
 
@@ -167,14 +168,14 @@ void cvk_executor_thread::executor() {
             cvk_command *cmd = group->commands.front();
             cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
 
-            if (m_profiling) {
+            if (m_profiling && cmd->is_profiled_by_executor()) {
                 cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_START);
             }
 
             cl_int status = cmd->execute();
             cvk_debug_fn("command returned %d", status);
 
-            if (m_profiling) {
+            if (m_profiling && cmd->is_profiled_by_executor()) {
                 cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_END);
             }
 
@@ -294,6 +295,27 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
+    // Create query pool
+    VkQueryPoolCreateInfo query_pool_create_info = {
+        VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+        nullptr,
+        0, // flags
+        VK_QUERY_TYPE_TIMESTAMP, // queryType
+        NUM_POOL_QUERIES_PER_KERNEL, // queryCount
+        0, // pipelineStatistics
+    };
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    if (profiling && !is_profiled_by_executor()) {
+        auto vkdev = m_queue->device()->vulkan_device();
+        auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
+                                     &m_query_pool);
+        if (res != VK_SUCCESS) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
     // Create and populate the command buffer
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return CL_OUT_OF_RESOURCES;
@@ -352,6 +374,14 @@ cl_int cvk_command_kernel::build() {
 
     vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
+    if (profiling && !is_profiled_by_executor()) {
+        vkCmdResetQueryPool(m_command_buffer, m_query_pool, 0,
+                            NUM_POOL_QUERIES_PER_KERNEL);
+        vkCmdWriteTimestamp(m_command_buffer,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
+                            POOL_QUERY_KERNEL_START);
+    }
+
     vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                             m_kernel->pipeline_layout(), 0, 1, &m_descriptor_set, 0, 0);
 
@@ -374,6 +404,12 @@ cl_int cvk_command_kernel::build() {
                          nullptr, // pBufferMemoryBarriers
                          0, // imageMemoryBarrierCount
                          nullptr); // pImageMemoryBarriers
+
+    if (profiling && !is_profiled_by_executor()) {
+        vkCmdWriteTimestamp(m_command_buffer,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
+                            POOL_QUERY_KERNEL_END);
+    }
 
     res = vkEndCommandBuffer(m_command_buffer);
 
@@ -403,6 +439,35 @@ cl_int cvk_command_kernel::do_action()
     }
 
     m_queue->free_command_buffer(m_command_buffer);
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    if (profiling && !is_profiled_by_executor()) {
+        uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
+        auto dev = m_queue->device();
+        vkGetQueryPoolResults(dev->vulkan_device(), m_query_pool, 0,
+                              NUM_POOL_QUERIES_PER_KERNEL,
+                              sizeof(timestamps), timestamps, sizeof(uint64_t),
+                              VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+
+        auto nsPerTick = dev->vulkan_limits().timestampPeriod;
+
+        auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
+        auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
+        uint64_t ts_start, ts_end;
+
+        // Most implementations seem to use 1 ns = 1 tick, handle this as a
+        // special case to not lose precision.
+        if (nsPerTick == 1.0) {
+            ts_start = ts_start_raw;
+            ts_end = ts_end_raw;
+        } else {
+            ts_start = ts_start_raw * nsPerTick;
+            ts_end = ts_start_raw * nsPerTick;
+        }
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
+    }
 
     return CL_COMPLETE;
 }

@@ -102,42 +102,58 @@ extern cl_device_id gDevice;
 template<typename T>
 struct holder {
     holder(T obj) : m_obj(obj) {}
-    ~holder() {}
+    ~holder() {
+        if (m_obj != nullptr) {
+            deleter();
+        }
+    }
+    void deleter() {}
     operator T() {
         return m_obj;
+    }
+    T release() {
+        T ret = m_obj;
+        m_obj = nullptr;
+        return ret;
     }
 private:
     T m_obj;
 };
 
 template<>
-inline holder<cl_mem>::~holder() {
+inline void holder<cl_mem>::deleter() {
     auto err = clReleaseMemObject(m_obj);
-    EXPECT_CL_SUCCESS(err);
+    ASSERT_CL_SUCCESS(err);
 }
 
 template<>
-inline holder<cl_kernel>::~holder() {
+inline void holder<cl_kernel>::deleter() {
     auto err = clReleaseKernel(m_obj);
-    EXPECT_CL_SUCCESS(err);
+    ASSERT_CL_SUCCESS(err);
 }
 
 template<>
-inline holder<cl_sampler>::~holder() {
+inline void holder<cl_sampler>::deleter() {
     auto err = clReleaseSampler(m_obj);
-    EXPECT_CL_SUCCESS(err);
+    ASSERT_CL_SUCCESS(err);
 }
 
 template<>
-inline holder<cl_program>::~holder() {
+inline void holder<cl_program>::deleter() {
     auto err = clReleaseProgram(m_obj);
-    EXPECT_CL_SUCCESS(err);
+    ASSERT_CL_SUCCESS(err);
 }
 
 template<>
-inline holder<cl_event>::~holder() {
+inline void holder<cl_event>::deleter() {
     auto err = clReleaseEvent(m_obj);
-    EXPECT_CL_SUCCESS(err);
+    ASSERT_CL_SUCCESS(err);
+}
+
+template<>
+inline void holder<cl_command_queue>::deleter() {
+    auto err = clReleaseCommandQueue(m_obj);
+    ASSERT_CL_SUCCESS(err);
 }
 
 class WithContext : public ::testing::Test {
@@ -207,6 +223,18 @@ protected:
         return kernel;
     }
 
+    holder<cl_command_queue> CreateCommandQueue(cl_device_id device, cl_command_queue_properties properties) {
+        cl_int err;
+        auto queue = clCreateCommandQueue(m_context, device, properties, &err);
+        EXPECT_CL_SUCCESS(err);
+        return queue;
+    }
+
+    void ReleaseCommandQueue(cl_command_queue queue) {
+        cl_int err = clReleaseCommandQueue(queue);
+        ASSERT_CL_SUCCESS(err);
+    }
+
     holder<cl_event> CreateUserEvent() {
         cl_int err;
         auto event = clCreateUserEvent(m_context, &err);
@@ -273,22 +301,28 @@ protected:
     void SetKernelArg(cl_kernel kernel, cl_uint arg_index, cl_sampler sampler) {
         SetKernelArg(kernel, arg_index, sizeof(cl_sampler), &sampler);
     }
+
+    void SetKernelArg(cl_kernel kernel, cl_uint arg_index, cl_int* val) {
+        SetKernelArg(kernel, arg_index, sizeof(*val), val);
+    }
 };
 
 class WithCommandQueue : public WithContext {
 protected:
     cl_command_queue m_queue;
 
-    void SetUp() override {
+    void SetUpQueue(cl_command_queue_properties properties) {
         WithContext::SetUp();
-        cl_int err;
-        m_queue = clCreateCommandQueue(m_context, gDevice, 0, &err);
-        ASSERT_CL_SUCCESS(err);
+        auto queue = CreateCommandQueue(gDevice, properties);
+        m_queue = queue.release();
+    }
+
+    void SetUp() override {
+        SetUpQueue(0);
     }
 
     void TearDown() override {
-        cl_int err = clReleaseCommandQueue(m_queue);
-        ASSERT_CL_SUCCESS(err);
+        ReleaseCommandQueue(m_queue);
         WithContext::TearDown();
     }
 
@@ -296,6 +330,20 @@ protected:
         cl_int err = clFinish(m_queue);
         ASSERT_CL_SUCCESS(err);
     }
+
+    void GetEventProfilingInfo(cl_event event, cl_profiling_info param_name,
+                               size_t param_value_size, void *param_value,
+                               size_t *param_value_size_ret) {
+        cl_int err = clGetEventProfilingInfo(event, param_name, param_value_size,
+                                             param_value, param_value_size_ret);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void GetEventProfilingInfo(cl_event event, cl_profiling_info param_name,
+                               cl_ulong *val_ret) {
+        GetEventProfilingInfo(event, param_name, sizeof(*val_ret), val_ret, nullptr);
+    }
+
 
     void EnqueueNDRangeKernel(cl_kernel kernel, cl_uint work_dim,
                               const size_t * global_work_offset,
@@ -373,5 +421,12 @@ protected:
                            0, nullptr, nullptr);
     }
 
+};
+
+class WithProfiledCommandQueue : public WithCommandQueue {
+protected:
+    void SetUp() override {
+        SetUpQueue(CL_QUEUE_PROFILING_ENABLE);
+    }
 };
 

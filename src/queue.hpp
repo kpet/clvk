@@ -321,6 +321,8 @@ struct cvk_command {
 
     cvk_command_queue *queue() const { return m_queue; }
 
+    virtual bool is_profiled_by_executor() const { return true; }
+
 protected:
     cl_command_type m_type;
     cvk_command_queue_holder m_queue;
@@ -444,6 +446,7 @@ struct cvk_command_kernel : public cvk_command {
         m_kernel(kernel),
         m_descriptor_set(VK_NULL_HANDLE),
         m_pipeline(VK_NULL_HANDLE),
+        m_query_pool(VK_NULL_HANDLE),
         m_argument_values(nullptr)
     {
         m_num_wg[0] = num_wg[0];
@@ -463,8 +466,16 @@ struct cvk_command_kernel : public cvk_command {
         if (m_pipeline != VK_NULL_HANDLE) {
             vkDestroyPipeline(m_queue->device()->vulkan_device(), m_pipeline, nullptr);
         }
+
+        if (m_query_pool != VK_NULL_HANDLE) {
+            auto vkdev = m_queue->device()->vulkan_device();
+            vkDestroyQueryPool(vkdev, m_query_pool, nullptr);
+        }
     }
 
+    bool is_profiled_by_executor() const override {
+        return !gQueueProfilingUsesTimestampQueries;
+    }
 
     CHECK_RETURN cl_int build();
     virtual cl_int do_action() override;
@@ -475,7 +486,12 @@ private:
     cvk_kernel_holder m_kernel;
     VkDescriptorSet m_descriptor_set;
     VkPipeline m_pipeline;
+    VkQueryPool m_query_pool;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
+
+    static const int NUM_POOL_QUERIES_PER_KERNEL = 2;
+    static const int POOL_QUERY_KERNEL_START = 0;
+    static const int POOL_QUERY_KERNEL_END = 1;
 };
 
 struct cvk_command_map : public cvk_command_memobj_region {

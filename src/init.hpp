@@ -25,4 +25,5 @@ extern std::string gCLSPVPath;
 extern std::string gCLSPVOptions;
 extern int gLoggingLevel;
 extern bool gLoggingColour;
+extern bool gQueueProfilingUsesTimestampQueries;
 

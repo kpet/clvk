@@ -28,6 +28,7 @@ int gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
 bool gImageSupport = false;
+bool gQueueProfilingUsesTimestampQueries = false;
 
 #ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
@@ -194,7 +195,7 @@ static void init_logging()
     }
 }
 
-static void init_compiler()
+static void init_options()
 {
 #ifndef CLSPV_ONLINE_COMPILER
     char *clspv_binary = getenv("CLVK_CLSPV_BIN");
@@ -205,6 +206,13 @@ static void init_compiler()
     auto clspv_options = getenv("CLVK_CLSPV_OPTIONS");
     if (clspv_options != nullptr) {
         gCLSPVOptions = clspv_options;
+    }
+    auto profiling = getenv("CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES");
+    if (profiling != nullptr) {
+        int val = atoi(profiling);
+        if (val != 0) {
+            gQueueProfilingUsesTimestampQueries = true;
+        }
     }
 }
 
@@ -251,7 +259,7 @@ public:
     {
         init_logging();
         cvk_info("Starting initialisation");
-        init_compiler();
+        init_options();
         init_vulkan();
         init_platform();
         cvk_info("Initialisation complete");
