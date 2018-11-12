@@ -469,7 +469,7 @@ cl_build_status cvk_program::compile_source()
     if (loc != std::string::npos) {
         processed_options.replace(loc, search.length(), replace);
     }
- 
+
     // Save headers
     if (m_operation == build_operation::compile) {
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
@@ -496,13 +496,13 @@ cl_build_status cvk_program::compile_source()
 
     cvk_info("About to compile \"%s\"", options.c_str());
     std::vector<clspv::version0::DescriptorMapEntry> entries;
-    auto error = clspv::CompileFromSourceString(
+    auto result = clspv::CompileFromSourceString(
         m_source, "", options, m_binary.raw_binary(), &entries);
-    if (error != 0) {
-        cvk_error_fn("failed to compile the program");
+    if (result.result_code != 0) {
+        cvk_error_fn("failed to compile the program: %s", result.message.c_str());
         return CL_BUILD_ERROR;
     }
-    cvk_info("Return code was: %d", error);
+    cvk_info("Return code was: %d", result.result_code);
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map(entries)) {
