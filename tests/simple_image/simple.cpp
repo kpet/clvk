@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 
 #define CL_TARGET_OPENCL_VERSION 120

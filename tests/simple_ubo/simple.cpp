@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <cstdio>
+#include <cstdlib>
 
 #define CL_TARGET_OPENCL_VERSION 120
 #include "CL/cl.h"
