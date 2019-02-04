@@ -2920,6 +2920,32 @@ cl_int clGetSamplerInfo(
     return ret;
 }
 
+cl_mem cvk_create_image(
+    cl_context             context,
+    cl_mem_flags           flags,
+    const cl_image_format *image_format,
+    const cl_image_desc   *image_desc,
+    void                  *host_ptr,
+    cl_int                *errcode_ret
+){
+    // TODO CL_INVALID_CONTEXT if context is not a valid context.
+    // TODO CL_INVALID_VALUE if values specified in flags are not valid.
+    // TODO CL_INVALID_IMAGE_FORMAT_DESCRIPTOR if values specified in image_format are not valid or if image_format is NULL.
+    // TODO CL_INVALID_IMAGE_DESCRIPTOR if values specified in image_desc are not valid or if image_desc is NULL.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions specified in image_desc exceed the minimum maximum image dimensions described in the table of allowed values for param_name for clGetDeviceInfo for all devices in context.
+    // TODO CL_INVALID_HOST_PTR if host_ptr in image_desc is NULL and CL_MEM_USE_HOST_PTR or CL_MEM_COPY_HOST_PTR are set in flags or if host_ptr is not NULL but CL_MEM_COPY_HOST_PTR or CL_MEM_USE_HOST_PTR are not set in flags.
+    // TODO CL_INVALID_VALUE if a 1D image buffer is being created and the buffer object was created with CL_MEM_WRITE_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_READ_ONLY, or if the buffer object was created with CL_MEM_READ_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_WRITE_ONLY, or if flags specifies CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR or CL_MEM_COPY_HOST_PTR.
+    // TODO CL_INVALID_VALUE if a 1D image buffer is being created and the buffer object was created with CL_MEM_HOST_WRITE_ONLY and flags specifies CL_MEM_HOST_READ_ONLY, or if the buffer object was created with CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY, or if the buffer object was created with CL_MEM_HOST_NO_ACCESS and flags specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
+    // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for image object.
+
+    auto image = cvk_image::create(context, flags, image_desc, image_format, host_ptr);
+
+    *errcode_ret = (image != nullptr) ? CL_SUCCESS : CL_OUT_OF_RESOURCES; // FIXME do this properly
+
+    return image;
+}
+
 cl_mem clCreateImage(
     cl_context             context,
     cl_mem_flags           flags,
@@ -2931,26 +2957,97 @@ cl_mem clCreateImage(
     LOG_API_CALL("context = %p, flags = %lu, image_format = %p, image_desc = %p,"
                  " host_ptr = %p, errcode_ret = %p",
                  context, flags, image_format, image_desc, host_ptr, errcode_ret);
-// TODO CL_INVALID_CONTEXT if context is not a valid context.
-// TODO CL_INVALID_VALUE if values specified in flags are not valid.
-// TODO CL_INVALID_IMAGE_FORMAT_DESCRIPTOR if values specified in image_format are not valid or if image_format is NULL.
-// TODO CL_INVALID_IMAGE_DESCRIPTOR if values specified in image_desc are not valid or if image_desc is NULL.
-// TODO CL_INVALID_IMAGE_SIZE if image dimensions specified in image_desc exceed the minimum maximum image dimensions described in the table of allowed values for param_name for clGetDeviceInfo for all devices in context.
-// TODO CL_INVALID_HOST_PTR if host_ptr in image_desc is NULL and CL_MEM_USE_HOST_PTR or CL_MEM_COPY_HOST_PTR are set in flags or if host_ptr is not NULL but CL_MEM_COPY_HOST_PTR or CL_MEM_USE_HOST_PTR are not set in flags.
-// TODO CL_INVALID_VALUE if a 1D image buffer is being created and the buffer object was created with CL_MEM_WRITE_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_READ_ONLY, or if the buffer object was created with CL_MEM_READ_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_WRITE_ONLY, or if flags specifies CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR or CL_MEM_COPY_HOST_PTR.
-// TODO CL_INVALID_VALUE if a 1D image buffer is being created and the buffer object was created with CL_MEM_HOST_WRITE_ONLY and flags specifies CL_MEM_HOST_READ_ONLY, or if the buffer object was created with CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY, or if the buffer object was created with CL_MEM_HOST_NO_ACCESS and flags specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
-// TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
-// TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for image object.
 
-    auto image = cvk_image::create(context, flags, image_desc, image_format, host_ptr);
+    cl_int err;
+    auto image = cvk_create_image(context, flags, image_format, image_desc, host_ptr, &err);
 
     if (errcode_ret != nullptr) {
-        *errcode_ret = (image != nullptr) ? CL_SUCCESS : CL_OUT_OF_RESOURCES; // FIXME do this properly
+        *errcode_ret = err;
     }
 
     return image;
 }
 
+cl_mem clCreateImage2D(
+    cl_context             context,
+    cl_mem_flags           flags,
+    const cl_image_format *image_format,
+    size_t                 image_width,
+    size_t                 image_height,
+    size_t                 image_row_pitch,
+    void                  *host_ptr,
+    cl_int                *errcode_ret
+){
+    LOG_API_CALL("context = %p, flags = %lu, image_format = %p, image_width = %zu, "
+                 "image_height = %zu, image_row_pitch = %zu, host_ptr = %p, "
+                 "errcode_ret = %p",
+                 context, flags, image_format, image_width, image_height,
+                 image_row_pitch, host_ptr, errcode_ret);
+
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D,
+        image_width,
+        image_height,
+        0, // image_depth
+        0, // image_array_size
+        image_row_pitch,
+        0, // image_slice_pitch
+        0, // num_mip_levels
+        0, // num_samples
+        nullptr // buffer
+    };
+
+    cl_int err;
+    auto image = cvk_create_image(context, flags, image_format, &desc, host_ptr, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return image;
+}
+
+cl_mem clCreateImage3D(
+    cl_context             context,
+    cl_mem_flags           flags,
+    const cl_image_format *image_format,
+    size_t                 image_width,
+    size_t                 image_height,
+    size_t                 image_depth,
+    size_t                 image_row_pitch,
+    size_t                 image_slice_pitch,
+    void                  *host_ptr,
+    cl_int                *errcode_ret
+){
+    LOG_API_CALL("context = %p, flags = %lu, image_format = %p, image_width = %zu, "
+                 "image_height = %zu, image_depth = %zu, image_row_pitch = %zu, "
+                 "image_slice_pitch = %zu, host_ptr = %p, errcode_ret = %p",
+                 context, flags, image_format, image_width, image_height,
+                 image_depth, image_row_pitch, image_slice_pitch, host_ptr,
+                 errcode_ret);
+
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE3D,
+        image_width,
+        image_height,
+        image_depth,
+        0, // image_array_size
+        image_row_pitch,
+        image_slice_pitch,
+        0, // num_mip_levels
+        0, // num_samples
+        nullptr // buffer
+    };
+
+    cl_int err;
+    auto image = cvk_create_image(context, flags, image_format, &desc, host_ptr, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return image;
+}
 cl_int clGetImageInfo(
     cl_mem        image,
     cl_image_info param_name,
