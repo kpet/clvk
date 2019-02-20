@@ -37,8 +37,8 @@
   },
   "Common Functions": {
     "duration": "00:00:03.249545",
-    "passed": 15,
-    "retcode": 2,
+    "passed": 17,
+    "retcode": 0,
     "total": 17
   },
   "Compiler": {
@@ -145,8 +145,8 @@
   },
   "Relationals": {
     "duration": "00:00:04.601906",
-    "passed": 7,
-    "retcode": 5,
+    "passed": 10,
+    "retcode": 2,
     "total": 12
   },
   "Select": {
