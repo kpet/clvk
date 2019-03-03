@@ -51,11 +51,11 @@ TESTS_QUICK = TESTS_HEADERS + (
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
     ('Profiling', 'profiling/test_profiling'),
-    ('VecAlign', 'vec_align/test_vecalign'),
     ('VecStep', 'vec_step/test_vecstep'),
 )
 
 TESTS_MODE_WIMPY = (
+    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick* integer* popcount unary_ops*'),
     ('Math', 'math_brute_force/bruteforce', '-1', '-w'),
     ('Relationals', 'relationals/test_relationals', 'relational_*'),
     ('Select', 'select/test_select', '-w'),
@@ -74,6 +74,7 @@ TESTS_MODE_NOT_WIMPY = (
 TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Basic', 'basic/test_basic'),
     ('Buffers', 'buffers/test_buffers'),
+    ('VecAlign', 'vec_align/test_vecalign'),
 )
 
 TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY
@@ -231,7 +232,7 @@ def check_reference(results, reference):
         resdur = timedelta_from_string(res['duration']).total_seconds()
         timediff = resdur - refdur
         reltimediff = timediff / refdur
-        duration_threshold = 0.05
+        duration_threshold = 0.10
         if abs(reltimediff) > duration_threshold:
             time_msg = '\t\tduration, expected {} (+/- {}%) but got {} ({}%)'.format(refdur, duration_threshold * 100, resdur, reltimediff * 100)
         # Print differences if any

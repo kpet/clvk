@@ -1,6 +1,6 @@
 {
   "API": {
-    "duration": "00:00:07.595190",
+    "duration": "00:00:07.672144",
     "passed": 67,
     "retcode": 5,
     "total": 72
@@ -18,7 +18,7 @@
     "total": 1
   },
   "Atomics": {
-    "duration": "00:00:03.648902",
+    "duration": "00:00:03.510945",
     "passed": 12,
     "retcode": 1,
     "total": 13
@@ -30,13 +30,13 @@
     "total": 90
   },
   "Buffers": {
-    "duration": "00:03:06.476430",
-    "passed": 72,
-    "retcode": 18,
+    "duration": "00:02:40.925676",
+    "passed": 73,
+    "retcode": 17,
     "total": 90
   },
   "Common Functions": {
-    "duration": "00:00:03.249545",
+    "duration": "00:00:02.936193",
     "passed": 17,
     "retcode": 0,
     "total": 17
@@ -48,70 +48,76 @@
     "total": 55
   },
   "Compute Info": {
-    "duration": "00:00:00.232184",
+    "duration": "00:00:00.307625",
     "passed": 1,
     "retcode": 0,
     "total": 1
   },
   "Contractions": {
-    "duration": "00:00:00.523909",
+    "duration": "00:00:00.636230",
     "passed": 0,
     "retcode": 255,
     "total": 1
   },
   "Device Partitioning": {
-    "duration": "00:00:00.232521",
+    "duration": "00:00:00.275667",
     "passed": 9,
     "retcode": 0,
     "total": 9
   },
   "Events": {
-    "duration": "00:00:03.803707",
+    "duration": "00:00:03.335214",
     "passed": 28,
     "retcode": 0,
     "total": 28
   },
   "Geometric Functions": {
-    "duration": "00:00:02.478193",
+    "duration": "00:00:02.495081",
     "passed": 6,
     "retcode": 2,
     "total": 8
   },
   "Half Ops": {
-    "duration": "00:00:00.276479",
+    "duration": "00:00:00.334386",
     "passed": 0,
     "retcode": 1,
     "total": 1
   },
   "Headers (cl.h standalone)": {
-    "duration": "00:00:00.481266",
+    "duration": "00:00:00.252592",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_gl.h standalone)": {
-    "duration": "00:00:00.496547",
+    "duration": "00:00:00.251464",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_platform.h standalone)": {
-    "duration": "00:00:00.485991",
+    "duration": "00:00:00.251623",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_typen)": {
-    "duration": "00:00:00.491308",
+    "duration": "00:00:00.283873",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (opencl.h standalone)": {
-    "duration": "00:00:00.476570",
+    "duration": "00:00:00.250980",
     "passed": 0,
     "retcode": 0,
     "total": 0
+  },
+  "Integer Ops": {
+    "duration": "00:00:48.239649",
+    "passed": 13,
+    "retcode": 19,
+    "total": 32
   },
   "Math": {
     "duration": "00:00:11.090892",
@@ -120,57 +126,57 @@
     "total": 98
   },
   "Mem (Host Flags)": {
-    "duration": "00:00:00.234785",
+    "duration": "00:00:00.271543",
     "passed": 9,
     "retcode": 0,
     "total": 9
   },
   "Multiple Device/Context": {
-    "duration": "00:00:00.929980",
-    "passed": 1,
-    "retcode": 6,
+    "duration": "00:00:00.905654",
+    "passed": 3,
+    "retcode": 4,
     "total": 7
   },
   "Printf": {
-    "duration": "00:00:04.336299",
+    "duration": "00:00:03.012156",
     "passed": 0,
     "retcode": 57,
     "total": 57
   },
   "Profiling": {
-    "duration": "00:00:02.999030",
+    "duration": "00:00:02.968997",
     "passed": 27,
     "retcode": 4,
     "total": 31
   },
   "Relationals": {
-    "duration": "00:00:04.601906",
+    "duration": "00:00:04.515579",
     "passed": 10,
     "retcode": 2,
     "total": 12
   },
   "Select": {
-    "duration": "00:02:09.366772",
+    "duration": "00:00:11.331213",
     "passed": 14,
     "retcode": 4,
     "total": 18
   },
   "Thread Dimensions": {
-    "duration": "00:04:53.640390",
+    "duration": "00:00:31.633648",
     "passed": 6,
     "retcode": 0,
     "total": 6
   },
   "VecAlign": {
-    "duration": "00:00:00.508128",
-    "passed": 0,
-    "retcode": 5,
+    "duration": "00:01:22.133837",
+    "passed": 2,
+    "retcode": 3,
     "total": 5
   },
   "VecStep": {
-    "duration": "00:00:00.646968",
-    "passed": 0,
-    "retcode": 4,
+    "duration": "00:00:05.138312",
+    "passed": 4,
+    "retcode": 0,
     "total": 4
   }
 }
