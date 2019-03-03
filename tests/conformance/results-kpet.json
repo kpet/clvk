@@ -114,9 +114,9 @@
     "total": 0
   },
   "Integer Ops": {
-    "duration": "00:00:48.239649",
-    "passed": 13,
-    "retcode": 19,
+    "duration": "00:00:52.726757",
+    "passed": 21,
+    "retcode": 11,
     "total": 32
   },
   "Math": {
