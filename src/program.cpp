@@ -439,7 +439,6 @@ cl_build_status cvk_program::compile_source()
     cmd += " -pod-ubo ";
     // FIXME support building a library with clBuildProgram
     if (m_operation == build_operation::compile) {
-        cmd += " -partial ";
         m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
     } else {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
