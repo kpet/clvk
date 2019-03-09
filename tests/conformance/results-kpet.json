@@ -24,15 +24,15 @@
     "total": 13
   },
   "Basic": {
-    "duration": "00:00:58.567249",
-    "passed": 61,
-    "retcode": 29,
-    "total": 90
+    "duration": "00:00:30.789454",
+    "passed": 62,
+    "retcode": 27,
+    "total": 89
   },
   "Buffers": {
-    "duration": "00:02:40.925676",
-    "passed": 73,
-    "retcode": 17,
+    "duration": "00:02:32.041072",
+    "passed": 72,
+    "retcode": 18,
     "total": 90
   },
   "Common Functions": {
@@ -42,9 +42,9 @@
     "total": 17
   },
   "Compiler": {
-    "duration": "00:00:04.857170",
-    "passed": 23,
-    "retcode": 32,
+    "duration": "00:00:21.065587",
+    "passed": 35,
+    "retcode": 20,
     "total": 55
   },
   "Compute Info": {
@@ -120,10 +120,10 @@
     "total": 32
   },
   "Math": {
-    "duration": "00:00:11.090892",
-    "passed": 41,
+    "duration": "00:00:16.387941",
+    "passed": 42,
     "retcode": 255,
-    "total": 98
+    "total": 96
   },
   "Mem (Host Flags)": {
     "duration": "00:00:00.271543",
@@ -168,9 +168,9 @@
     "total": 6
   },
   "VecAlign": {
-    "duration": "00:01:22.133837",
-    "passed": 2,
-    "retcode": 3,
+    "duration": "00:00:53.948608",
+    "passed": 1,
+    "retcode": 4,
     "total": 5
   },
   "VecStep": {

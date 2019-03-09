@@ -46,7 +46,6 @@ TESTS_QUICK = TESTS_HEADERS + (
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
     ('Geometric Functions', 'geometrics/test_geometrics'),
-    ('Half Ops', 'half/Test_half'),
     ('Mem (Host Flags)', 'mem_host_flags/test_mem_host_flags'),
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
@@ -103,6 +102,7 @@ TESTS_IMAGES = (
 TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
     ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
     ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
+    ('Half Ops', 'half/Test_half'),
 #    ('Headers (cl.h standalone C99), headers/test_cl_h_c99
 #    ('Headers (cl_platform.h standalone C99), headers/test_cl_platform_h_c99
 #    ('Headers (cl_gl.h standalone C99), headers/test_cl_gl_h_c99
