@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.com/kpet/clvk.svg?branch=master)](https://travis-ci.com/kpet/clvk)
 
 # What is this?
 
