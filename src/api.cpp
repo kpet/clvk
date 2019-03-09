@@ -1759,9 +1759,25 @@ clGetProgramBuildInfo(
 }
 
 cl_int
+clRetainProgram(
+    cl_program program
+){
+    LOG_API_CALL("program = %p", program);
+
+    if (program == nullptr) {
+        return CL_INVALID_PROGRAM;
+    }
+
+    program->retain();
+    return CL_SUCCESS;
+}
+
+cl_int
 clReleaseProgram(
     cl_program program
 ){
+    LOG_API_CALL("program = %p", program);
+
     if (program == nullptr) {
         return CL_INVALID_PROGRAM;
     }
