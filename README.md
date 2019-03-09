@@ -36,6 +36,18 @@ TODO move to a separate doc file and list the status for all applications that
 
 # Getting dependencies
 
+clvk depends on the following external projects:
+
+* [clspv](https://github.com/google/clspv) and its dependencies
+* [OpenCL-Headers](https://github.com/KhronosGroup/OpenCL-Headers)
+* [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers)
+* [SPIRV-Tools](https://github.com/KhronosGroup/SPIRV-Tools)
+
+clvk also (obviously) depends on a Vulkan implementation. The build system
+supports a number of options there (see [Building section](#building)).
+
+To fetch all the dependencies needed to build and run clvk, please run:
+
 ```
 git submodule update --init --recursive
 ./external/clspv/utils/fetch_sources.py --deps clang llvm
@@ -43,23 +55,67 @@ git submodule update --init --recursive
 
 # Building
 
+clvk uses CMake for its build system.
+
+## Getting started
+
+To build with the default configuration options, just use following:
+
 ```
 mkdir -p build
 cd build
 cmake ../
-make -jN
+make -j$(nproc)
 ```
+
+## Other options
+
+The build system allows a number of things to be configured.
+
+### Vulkan implementation
+
+You can select the Vulkan implementation that clvk will target with the
+`VULKAN_IMPLEMENTATION` build system option. Two options are currently
+supported:
+
+* `-DVULKAN_IMPLEMENTATION=system` instructs the build system to use the
+  Vulkan implementation provided by your system as detected by CMake. This
+  is the default.
+
+* `-DVULKAN_IMPLEMENTATION=talvos` instructs the build system to use
+  [Talvos](https://github.com/talvos/talvos). Talvos emulates the
+  Vulkan API and provides an interpreter for SPIR-V modules. You don't
+  need Vulkan-compatible hardware and drivers to run clvk using Talvos.
+
+### OpenCL conformance tests
+
+Passing `-DBUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
+[OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS).
+This is _not expected to work out-of-the box_ at the moment.
 
 # Using
 
+To use clvk to run an OpenCL application, you just need to make sure
+that the clvk libOpenCL.so shared library is picked up by the dynamic
+linker and that clvk has access to the `clspv` binary. The following
+ought to work on most Unix-like systems:
+
 ```
-LD_LIBRARY_PATH=/path/to/build /path/to/application
+$ LD_LIBRARY_PATH=/path/to/build /path/to/application
 
 # Running the included simple test
-LD_LIBRARY_PATH=./build ./build/simple_test
+$ LD_LIBRARY_PATH=./build ./build/simple_test
 ```
 
+If you wish to move the built library and `clspv` binary out of the build
+tree, you will need to make sure that you provide clvk with a path
+to the `clspv` binary via the `CVK_CLSPV_BIN` environment variable
+(see [Environment variables](#environment-variables)).
+
 # Environment variables
+
+The behaviour of a few things in clvk can be controlled by environment
+variables. Here's a quick guide:
 
 * `CVK_LOG` controls the level of logging
 
