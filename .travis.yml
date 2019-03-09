@@ -17,6 +17,10 @@ env:
   global:
     - CCACHE_COMPRESS=1
 
+branches:
+  only:
+    - master
+
 before_install:
   - ./tests/travis/step-before-install.sh
 
