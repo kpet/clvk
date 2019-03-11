@@ -12,11 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set(BINARY_NAME simple_ubo_test)
 
-add_executable(${BINARY_NAME} simple.cpp)
+set(BINARY_NAME api_tests)
 
-target_link_libraries(${BINARY_NAME} OpenCL)
+add_executable(
+    ${BINARY_NAME}
+    main.cpp
+    simple.cpp
+    simple_image.cpp
+    simple_ubo.cpp
+    workgroup.cpp
+)
+
+# Use the gtest copy that comes with clspv's version of LLVM
+include_directories(${LLVM_BINARY_DIR}/include)
+include_directories(${LLVM_SOURCE_DIR}/include)
+include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
+
+target_link_libraries(${BINARY_NAME} OpenCL gtest gtest_main)
 
 set_target_properties(${BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
