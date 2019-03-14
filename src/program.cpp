@@ -443,8 +443,15 @@ bool save_string_to_file(const std::string &fname, const std::string &text)
 
 cl_build_status cvk_program::compile_source()
 {
+    bool use_tmp_folder = true;
+    bool save_headers = true;
+#ifdef CLSPV_ONLINE_COMPILER
+    use_tmp_folder = m_operation == build_operation::compile && m_num_input_programs > 0;
+    save_headers = m_operation == build_operation::compile;
+#endif
+
     std::string tmp_folder;
-    if (m_operation == build_operation::compile && m_num_input_programs > 0) {
+    if (use_tmp_folder) {
         // Create temporary folder
         std::string tmp_template{"clvk-XXXXXX"};
         const char* tmp = cvk_mkdtemp(tmp_template);
@@ -453,6 +460,26 @@ cl_build_status cvk_program::compile_source()
         }
         tmp_folder = tmp;
         cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
+    }
+
+#ifndef CLSPV_ONLINE_COMPILER
+    // Save source to file
+    std::string src_file{tmp_folder + "/source.cl"};
+    if (!save_string_to_file(src_file, m_source)) {
+        cvk_error_fn("Couldn't save source to file!");
+        return CL_BUILD_ERROR;
+    }
+#endif
+
+    // Save headers
+    if (save_headers) {
+        for (cl_uint i = 0; i < m_num_input_programs; i++) {
+            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
+            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
+                cvk_error_fn("Couldn't save header to file!");
+                return CL_BUILD_ERROR;
+            }
+        }
     }
 
     // Remove unsupported -cl-kernel-arg-info option
@@ -470,45 +497,74 @@ cl_build_status cvk_program::compile_source()
         processed_options.replace(loc, search.length(), replace);
     }
 
-    // Save headers
-    if (m_operation == build_operation::compile) {
-        for (cl_uint i = 0; i < m_num_input_programs; i++) {
-            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
-            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
-                cvk_error_fn("Couldn't save header to file!");
-                return CL_BUILD_ERROR;
-            }
-        }
-    }
-
-    std::string options;
-    options += processed_options;
-    options += " -cluster-pod-kernel-args ";
-    options += " -cl-single-precision-constant ";
-    options += " -pod-ubo ";
     // FIXME support building a library with clBuildProgram
     if (m_operation == build_operation::compile) {
-        options += " -partial ";
         m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
     } else {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
     }
 
+    std::string options = processed_options;
+    options += " -cluster-pod-kernel-args ";
+    options += " -cl-single-precision-constant ";
+    options += " -pod-ubo ";
+#ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", options.c_str());
     std::vector<clspv::version0::DescriptorMapEntry> entries;
     auto result = clspv::CompileFromSourceString(
         m_source, "", options, m_binary.raw_binary(), &entries);
-    if (result.result_code != 0) {
-        cvk_error_fn("failed to compile the program: %s", result.message.c_str());
+    if (result != 0) {
+        cvk_error_fn("failed to compile the program");
         return CL_BUILD_ERROR;
     }
-    cvk_info("Return code was: %d", result.result_code);
+    cvk_info("Return code was: %d", result);
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map(entries)) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
+#else
+    // Compose clspv command-line
+    std::string cmd{gCLSPVPath};
+    std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
+    std::string spirv_file{tmp_folder + "/compiled.spv"};
+
+    cmd += " -descriptormap=";
+    cmd += descriptor_map_file;
+    cmd += " ";
+    cmd += src_file;
+    cmd += " ";
+    cmd += options;
+    cmd += " -o ";
+    cmd += spirv_file;
+    cvk_info("About to run \"%s\"", cmd.c_str());
+
+    // Call clspv
+    // TODO Sanity check the command / move away from system()
+    int status = std::system(cmd.c_str());
+    cvk_info("Return code was: %d", status);
+
+    if (status != 0) {
+        cvk_error_fn("failed to compile the program");
+        return CL_BUILD_ERROR;
+    }
+
+    // Load SPIR-V program
+    const char *filename = spirv_file.c_str();
+    if (!m_binary.load_spir(filename)) {
+        cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
+        return CL_BUILD_ERROR;
+    } else {
+        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename, m_binary.code().size());
+    }
+
+    // Load descriptor map
+    if (!m_binary.load_descriptor_map(descriptor_map_file.c_str())) {
+        cvk_error("Could not load descriptor map for SPIR-V binary.");
+        return CL_BUILD_ERROR;
+    }
+#endif
 
     return CL_BUILD_SUCCESS;
 }

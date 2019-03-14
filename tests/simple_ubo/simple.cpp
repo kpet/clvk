@@ -28,10 +28,10 @@
     } while (0)
 
 const char *program_source = R"(
-kernel void test_simple(global int* out, constant int* c_data)
+kernel void test_simple(global int4* out, constant int4* c_data)
 {
     size_t gid = get_global_id(0);
-    out[gid] = gid + c_data[gid];
+    out[gid] = (int4)(gid, gid, gid, gid) + c_data[gid];
 }
 )";
 
@@ -71,7 +71,7 @@ int main(int argc, char* argv[])
     CHECK_CL_ERRCODE(err);
 
     // Build program
-    err = clBuildProgram(program, 1, &device, " -constant-args-ubo -inline-entry-points ", nullptr, nullptr);
+    err = clBuildProgram(program, 1, &device, " -constant-args-ubo -inline-entry-points -relaxed-ubo-layout ", nullptr, nullptr);
     CHECK_CL_ERRCODE(err);
 
     // Create kernel
@@ -109,7 +109,7 @@ int main(int argc, char* argv[])
     err = clSetKernelArg(kernel, 1, sizeof(cl_mem), &c_buffer);
     CHECK_CL_ERRCODE(err);
 
-    size_t gws = num_items;
+    size_t gws = num_items / 4;
     size_t lws = 2;
 
     err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &gws, &lws,
@@ -129,7 +129,8 @@ int main(int argc, char* argv[])
     bool success = true;
     auto buffer_data = static_cast<cl_int*>(ptr);
     for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_int); ++i) {
-        if (buffer_data[i] != static_cast<cl_int>(i + 1)) {
+        int i_div_4 = i / 4;
+        if (buffer_data[i] != static_cast<cl_int>(i_div_4 + 1)) {
             printf("Failed comparison at buffer_data[%d]: expected %d but got %d\n",
                    i, i + 1, buffer_data[i]);
             success = false;

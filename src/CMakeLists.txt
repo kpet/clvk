@@ -18,6 +18,10 @@ if(NOT MSVC)
     add_compile_options(-Wno-ignored-attributes)
 endif()
 
+if (DEFINED CLVK_CLSPV_ONLINE_COMPILER)
+  add_compile_options(-DCLSPV_ONLINE_COMPILER)
+endif()
+
 add_library(OpenCL SHARED
   api.cpp
   device.cpp
@@ -42,8 +46,10 @@ target_link_libraries(OpenCL ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(OpenCL SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
 target_link_libraries(OpenCL ${Vulkan_LIBRARIES})
 
-#add_dependencies(OpenCL clspv)
 target_link_libraries(OpenCL clspv_core SPIRV-Tools-opt SPIRV-Tools-link)
+if (NOT DEFINED CLVK_CLSPV_ONLINE_COMPILER)
+  add_dependencies(OpenCL clspv)
+endif()
 
 target_compile_definitions(OpenCL PRIVATE
     DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
