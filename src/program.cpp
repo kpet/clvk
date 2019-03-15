@@ -22,7 +22,9 @@
 
 #include <vulkan/vulkan.h>
 
+#ifdef CLSPV_ONLINE_COMPILER
 #include "clspv/Compiler.h"
+#endif
 #include "spirv/1.0/spirv.hpp"
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
@@ -360,6 +362,7 @@ bool spir_binary::load_descriptor_map(const char *fname)
     return load_descriptor_map(ifile);
 }
 
+#ifdef CLSPV_ONLINE_COMPILER
 bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries)
 {
   m_dmaps.clear();
@@ -418,6 +421,7 @@ bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::Descrip
 
   return true;
 }
+#endif
 
 void spir_binary::insert_descriptor_map(const spir_binary &other)
 {
@@ -513,11 +517,11 @@ cl_build_status cvk_program::compile_source()
     std::vector<clspv::version0::DescriptorMapEntry> entries;
     auto result = clspv::CompileFromSourceString(
         m_source, "", options, m_binary.raw_binary(), &entries);
+    cvk_info("Return code was: %d", result);
     if (result != 0) {
         cvk_error_fn("failed to compile the program");
         return CL_BUILD_ERROR;
     }
-    cvk_info("Return code was: %d", result);
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map(entries)) {

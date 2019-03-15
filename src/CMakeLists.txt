@@ -18,7 +18,8 @@ if(NOT MSVC)
     add_compile_options(-Wno-ignored-attributes)
 endif()
 
-if (DEFINED CLVK_CLSPV_ONLINE_COMPILER)
+option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
+if (CLVK_CLSPV_ONLINE_COMPILER)
   add_compile_options(-DCLSPV_ONLINE_COMPILER)
 endif()
 
@@ -46,8 +47,10 @@ target_link_libraries(OpenCL ${CMAKE_THREAD_LIBS_INIT})
 target_include_directories(OpenCL SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
 target_link_libraries(OpenCL ${Vulkan_LIBRARIES})
 
-target_link_libraries(OpenCL clspv_core SPIRV-Tools-opt SPIRV-Tools-link)
-if (NOT DEFINED CLVK_CLSPV_ONLINE_COMPILER)
+target_link_libraries(OpenCL SPIRV-Tools-opt SPIRV-Tools-link)
+if (CLVK_CLSPV_ONLINE_COMPILER)
+  target_link_libraries(OpenCL clspv_core)
+else()
   add_dependencies(OpenCL clspv)
 endif()
 
