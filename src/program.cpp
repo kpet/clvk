@@ -16,11 +16,15 @@
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <utility>
 #include <vector>
 
 #include <vulkan/vulkan.h>
 
+#ifdef CLSPV_ONLINE_COMPILER
+#include "clspv/Compiler.h"
+#endif
 #include "spirv/1.0/spirv.hpp"
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
@@ -358,6 +362,67 @@ bool spir_binary::load_descriptor_map(const char *fname)
     return load_descriptor_map(ifile);
 }
 
+#ifdef CLSPV_ONLINE_COMPILER
+bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries)
+{
+  m_dmaps.clear();
+  for (const auto &entry : entries) {
+    if (gLoggingLevel == loglevel::debug) {
+      std::string s;
+      std::ostringstream str(s);
+      str << entry;
+      cvk_debug("DMAP line: %s", str.str().c_str());
+    }
+    if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
+      return false;
+
+    kernel_argument arg;
+    arg.name = entry.kernel_arg_data.arg_name;
+    arg.pos = entry.kernel_arg_data.arg_ordinal;
+    if (entry.kernel_arg_data.arg_kind == clspv::ArgKind::Local) {
+      arg.kind = kernel_argument_kind::local;
+      arg.local_elem_size = entry.kernel_arg_data.local_element_size;
+      arg.local_spec_id = entry.kernel_arg_data.local_spec_id;
+    } else {
+      arg.descriptorSet = entry.descriptor_set;
+      arg.binding = entry.binding;
+      arg.offset = entry.kernel_arg_data.pod_offset;
+      switch (entry.kernel_arg_data.arg_kind) {
+        case clspv::ArgKind::Buffer:
+          arg.kind = kernel_argument_kind::buffer;
+          break;
+        case clspv::ArgKind::BufferUBO:
+          arg.kind = kernel_argument_kind::buffer_ubo;
+          break;
+        case clspv::ArgKind::Pod:
+          arg.kind = kernel_argument_kind::pod;
+          break;
+        case clspv::ArgKind::PodUBO:
+          arg.kind = kernel_argument_kind::pod_ubo;
+          break;
+        case clspv::ArgKind::ReadOnlyImage:
+          arg.kind = kernel_argument_kind::ro_image;
+          break;
+        case clspv::ArgKind::WriteOnlyImage:
+          arg.kind = kernel_argument_kind::wo_image;
+          break;
+        default:
+          return false;
+      }
+      if (arg.is_pod()) {
+        arg.size = entry.kernel_arg_data.pod_arg_size;
+      }
+    }
+
+    m_dmaps[entry.kernel_arg_data.kernel_name].push_back(arg);    
+  }
+
+  cvk_debug_fn("num_kernels = %zu", num_kernels());
+
+  return true;
+}
+#endif
+
 void spir_binary::insert_descriptor_map(const spir_binary &other)
 {
     for (auto &args: other.kernels_arguments()) {
@@ -382,24 +447,36 @@ bool save_string_to_file(const std::string &fname, const std::string &text)
 
 cl_build_status cvk_program::compile_source()
 {
-    // Create temporary folder
-    std::string tmp_template{"clvk-XXXXXX"};
-    const char* tmp = cvk_mkdtemp(tmp_template);
-    if (tmp == nullptr) {
-        return CL_BUILD_ERROR;
-    }
-    std::string tmp_folder = tmp;
-    cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
+    bool use_tmp_folder = true;
+    bool save_headers = true;
+#ifdef CLSPV_ONLINE_COMPILER
+    use_tmp_folder = m_operation == build_operation::compile && m_num_input_programs > 0;
+    save_headers = m_operation == build_operation::compile;
+#endif
 
+    std::string tmp_folder;
+    if (use_tmp_folder) {
+        // Create temporary folder
+        std::string tmp_template{"clvk-XXXXXX"};
+        const char* tmp = cvk_mkdtemp(tmp_template);
+        if (tmp == nullptr) {
+            return CL_BUILD_ERROR;
+        }
+        tmp_folder = tmp;
+        cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
+    }
+
+#ifndef CLSPV_ONLINE_COMPILER
     // Save source to file
     std::string src_file{tmp_folder + "/source.cl"};
     if (!save_string_to_file(src_file, m_source)) {
         cvk_error_fn("Couldn't save source to file!");
         return CL_BUILD_ERROR;
     }
+#endif
 
     // Save headers
-    if (m_operation == build_operation::compile) {
+    if (save_headers) {
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             std::string fname{tmp_folder + "/" + m_header_include_names[i]};
             if (!save_string_to_file(fname, m_input_programs[i]->source())) {
@@ -424,6 +501,34 @@ cl_build_status cvk_program::compile_source()
         processed_options.replace(loc, search.length(), replace);
     }
 
+    // FIXME support building a library with clBuildProgram
+    if (m_operation == build_operation::compile) {
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+    } else {
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+    }
+
+    std::string options = processed_options;
+    options += " -cluster-pod-kernel-args ";
+    options += " -cl-single-precision-constant ";
+    options += " -pod-ubo ";
+#ifdef CLSPV_ONLINE_COMPILER
+    cvk_info("About to compile \"%s\"", options.c_str());
+    std::vector<clspv::version0::DescriptorMapEntry> entries;
+    auto result = clspv::CompileFromSourceString(
+        m_source, "", options, m_binary.raw_binary(), &entries);
+    cvk_info("Return code was: %d", result);
+    if (result != 0) {
+        cvk_error_fn("failed to compile the program");
+        return CL_BUILD_ERROR;
+    }
+
+    // Load descriptor map
+    if (!m_binary.load_descriptor_map(entries)) {
+        cvk_error("Could not load descriptor map for SPIR-V binary.");
+        return CL_BUILD_ERROR;
+    }
+#else
     // Compose clspv command-line
     std::string cmd{gCLSPVPath};
     std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
@@ -433,16 +538,8 @@ cl_build_status cvk_program::compile_source()
     cmd += descriptor_map_file;
     cmd += " ";
     cmd += src_file;
-    cmd += processed_options;
-    cmd += " -cluster-pod-kernel-args ";
-    cmd += " -cl-single-precision-constant ";
-    cmd += " -pod-ubo ";
-    // FIXME support building a library with clBuildProgram
-    if (m_operation == build_operation::compile) {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
-    } else {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
-    }
+    cmd += " ";
+    cmd += options;
     cmd += " -o ";
     cmd += spirv_file;
     cvk_info("About to run \"%s\"", cmd.c_str());
@@ -471,6 +568,7 @@ cl_build_status cvk_program::compile_source()
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
+#endif
 
     return CL_BUILD_SUCCESS;
 }

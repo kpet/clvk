@@ -93,6 +93,15 @@ Passing `-DBUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
 [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS).
 This is _not expected to work out-of-the box_ at the moment.
 
+### Clspv compilation
+
+You can select the compilation style that clvk will use with Clspv via
+the `CLVK_CLSPV_ONLINE_COMPILER` option. By default, Clspv is run in a
+separate process.
+
+* `-DCLVK_CLSPV_ONLINE_COMPILER=1` will cause clvk to compile kernels
+in the same process via the Clspv C++ API.
+
 # Using
 
 To use clvk to run an OpenCL application, you just need to make sure
