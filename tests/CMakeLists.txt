@@ -12,6 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple_image)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple_ubo)
