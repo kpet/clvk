@@ -34,15 +34,19 @@ TESTS_HEADERS = (
     ('Headers (cl_platform.h standalone)', 'headers/test_cl_platform_h'),
     ('Headers (cl_gl.h standalone)', 'headers/test_cl_gl_h'),
     ('Headers (opencl.h standalone)', 'headers/test_opencl_h'),
+    ('Headers (cl.h standalone C99)', 'headers/test_cl_h_c99'),
+    ('Headers (cl_platform.h standalone C99)', 'headers/test_cl_platform_h_c99'),
+    ('Headers (cl_gl.h standalone C99)', 'headers/test_cl_gl_h_c99'),
+    ('Headers (opencl.h standalone C99)', 'headers/test_opencl_h_c99'),
 )
 
 TESTS_QUICK = TESTS_HEADERS + (
     ('API', 'api/test_api'),
     ('Atomics', 'atomics/test_atomics'),
-    ('Compute Info', 'computeinfo/computeinfo'),
+    ('Compute Info', 'computeinfo/test_computeinfo'),
     ('Common Functions', 'commonfns/test_commonfns'),
     ('Compiler', 'compiler/test_compiler'),
-    ('Contractions', 'contractions/contractions'),
+    ('Contractions', 'contractions/test_contractions'),
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
     ('Geometric Functions', 'geometrics/test_geometrics'),
@@ -56,7 +60,7 @@ TESTS_QUICK = TESTS_HEADERS + (
 TESTS_MODE_WIMPY = (
     ('Conversions', 'conversions/test_conversions', '-w'),
     ('Integer Ops', 'integer_ops/test_integer_ops', 'quick* integer* popcount unary_ops*'),
-    ('Math', 'math_brute_force/bruteforce', '-1', '-w'),
+    ('Math', 'math_brute_force/test_bruteforce', '-1', '-w'),
     ('Relationals', 'relationals/test_relationals', 'relational_*'),
     ('Select', 'select/test_select', '-w'),
     ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'quick*'),
@@ -65,7 +69,7 @@ TESTS_MODE_WIMPY = (
 TESTS_MODE_NOT_WIMPY = (
     ('Conversions', 'conversions/test_conversions'),
     ('Integer Ops', 'integer_ops/test_integer_ops'),
-    ('Math', 'math_brute_force/bruteforce'),
+    ('Math', 'math_brute_force/test_bruteforce'),
     ('Relationals', 'relationals/test_relationals'),
     ('Select', 'select/test_select'),
     ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'full*'),
@@ -98,16 +102,10 @@ TESTS_IMAGES = (
     ('Images (Samplerless max size)', 'images/samplerlessReads/test_samplerless_reads', 'max_images'),
 )
 
-
-
 TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
     ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
     ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
-    ('Half Ops', 'half/Test_half'),
-#    ('Headers (cl.h standalone C99), headers/test_cl_h_c99
-#    ('Headers (cl_platform.h standalone C99), headers/test_cl_platform_h_c99
-#    ('Headers (cl_gl.h standalone C99), headers/test_cl_gl_h_c99
-#    ('Headers (opencl.h standalone C99), headers/test_opencl_h_c99
+    ('Half Ops', 'half/test_half'),
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR),images/kernel_read_write/test_image_streams CL_FILTER_LINEAR
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR pitch),images/kernel_read_write/test_image_streams use_pitches CL_FILTER_LINEAR
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR max size),images/kernel_read_write/test_image_streams max_images CL_FILTER_LINEAR

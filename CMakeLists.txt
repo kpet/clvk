@@ -88,6 +88,7 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
 option(BUILD_CONFORMANCE_TESTS "Build OpenCL conformance tests")
 
 if (BUILD_CONFORMANCE_TESTS)
+set(CLConf_OUT_DIR dummy)
 set(CLConform_LIBRARIES OpenCL)
 add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS/test_conformance)
 endif (BUILD_CONFORMANCE_TESTS)

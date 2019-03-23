@@ -1,9 +1,9 @@
 {
   "API": {
-    "duration": "00:00:07.251736",
-    "passed": 68,
+    "duration": "00:00:07.962431",
+    "passed": 69,
     "retcode": 4,
-    "total": 72
+    "total": 73
   },
   "Allocations (single maximum)": {
     "duration": "00:00:42.222763",
@@ -42,9 +42,9 @@
     "total": 17
   },
   "Compiler": {
-    "duration": "00:00:21.065587",
-    "passed": 35,
-    "retcode": 20,
+    "duration": "00:00:22.195739",
+    "passed": 37,
+    "retcode": 18,
     "total": 55
   },
   "Compute Info": {
@@ -89,26 +89,50 @@
     "retcode": 1,
     "total": 1
   },
+  "Headers (cl.h standalone C99)": {
+    "duration": "00:00:00.260682",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
   "Headers (cl.h standalone)": {
-    "duration": "00:00:00.252592",
+    "duration": "00:00:00.261350",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (cl_gl.h standalone C99)": {
+    "duration": "00:00:00.263133",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_gl.h standalone)": {
-    "duration": "00:00:00.251464",
+    "duration": "00:00:00.268385",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (cl_platform.h standalone C99)": {
+    "duration": "00:00:00.276615",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_platform.h standalone)": {
-    "duration": "00:00:00.251623",
+    "duration": "00:00:00.271409",
     "passed": 0,
     "retcode": 0,
     "total": 0
   },
   "Headers (cl_typen)": {
-    "duration": "00:00:00.283873",
+    "duration": "00:00:00.309835",
+    "passed": 0,
+    "retcode": 0,
+    "total": 0
+  },
+  "Headers (opencl.h standalone C99)": {
+    "duration": "00:00:00.256681",
     "passed": 0,
     "retcode": 0,
     "total": 0
@@ -146,8 +170,8 @@
   "Printf": {
     "duration": "00:00:03.012156",
     "passed": 0,
-    "retcode": 57,
-    "total": 57
+    "retcode": 56,
+    "total": 56
   },
   "Profiling": {
     "duration": "00:00:02.968997",
