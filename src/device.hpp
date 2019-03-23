@@ -22,6 +22,7 @@
 
 #include "cl_headers.hpp"
 #include "utils.hpp"
+#include "vkutils.hpp"
 
 typedef struct _cl_device_id cvk_device;
 
@@ -136,21 +137,16 @@ typedef struct _cl_device_id {
         }
     }
 
-    VkQueue vulkan_queue_allocate() {
-        VkQueue queue = VK_NULL_HANDLE;
-        vkGetDeviceQueue(m_dev, m_vulkan_queue_family, m_vulkan_queue_alloc_index, &queue);
-
+    cvk_vulkan_queue_wrapper& vulkan_queue_allocate() {
         // Simple round-robin allocation for now
-        m_vulkan_queue_alloc_index++;
-        if (m_vulkan_queue_alloc_index == m_vulkan_num_queues) {
+
+        auto &queue = m_vulkan_queues[m_vulkan_queue_alloc_index++];
+
+        if (m_vulkan_queue_alloc_index == m_vulkan_queues.size()) {
             m_vulkan_queue_alloc_index = 0;
         }
 
         return queue;
-    }
-
-    uint32_t vulkan_queue_family() const {
-        return m_vulkan_queue_family;
     }
 
     cl_device_fp_config fp_config(cl_device_info fptype) const {
@@ -175,7 +171,7 @@ typedef struct _cl_device_id {
     }
 
 private:
-    bool init_queues();
+    bool init_queues(uint32_t *num_queues, uint32_t *queue_family);
     bool init_extensions();
     void init_features();
     bool init();
@@ -188,9 +184,8 @@ private:
     std::vector<const char*> m_vulkan_device_extensions;
     cl_uint m_mem_base_addr_align;
 
-    uint32_t m_vulkan_num_queues;
+    std::vector<cvk_vulkan_queue_wrapper> m_vulkan_queues;
     uint32_t m_vulkan_queue_alloc_index;
-    uint32_t m_vulkan_queue_family;
 
 } cvk_device;
 

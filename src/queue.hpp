@@ -198,7 +198,7 @@ typedef struct _cl_command_queue : public api_object {
 
     void free_command_buffer(VkCommandBuffer buf);
 
-    VkQueue vulkan_queue() const {
+    cvk_vulkan_queue_wrapper& vulkan_queue() {
         return m_vulkan_queue;
     }
 
@@ -218,8 +218,7 @@ private:
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     VkCommandPool m_command_pool;
 
-    VkQueue m_vulkan_queue;
-    uint32_t m_vulkan_queue_family;
+    cvk_vulkan_queue_wrapper& m_vulkan_queue;
 
 } cvk_command_queue;
 

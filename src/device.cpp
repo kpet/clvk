@@ -29,8 +29,9 @@ cvk_device* cvk_device::create(VkPhysicalDevice pdev)
     return device;
 }
 
-bool cvk_device::init_queues()
+bool cvk_device::init_queues(uint32_t *num_queues, uint32_t *queue_family)
 {
+    // Get number of queue families
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families, nullptr);
 
@@ -38,11 +39,13 @@ bool cvk_device::init_queues()
              vulkan_physical_device_type_string(m_properties.deviceType).c_str(),
              num_families);
 
+    // Get their properties
     std::vector<VkQueueFamilyProperties> families(num_families);
     vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families, families.data());
 
+    // Look for suitable queues
     bool found_queues = false;
-    m_vulkan_num_queues = 0;
+    *num_queues = 0;
     for (uint32_t i = 0; i < num_families; i++) {
 
         cvk_info_fn("queue family %u: %2u queues | %s", i,
@@ -51,8 +54,8 @@ bool cvk_device::init_queues()
         );
 
         if (!found_queues && (families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-            m_vulkan_queue_family = i;
-            m_vulkan_num_queues = families[i].queueCount;
+            *queue_family = i;
+            *num_queues = families[i].queueCount;
             found_queues = true;
         }
     }
@@ -62,6 +65,7 @@ bool cvk_device::init_queues()
         return false;
     }
 
+    // Initialise the queue allocator
     m_vulkan_queue_alloc_index = 0;
 
     return true;
@@ -129,7 +133,8 @@ bool cvk_device::init()
 {
     cvk_info_fn("Initialising device %s", m_properties.deviceName);
 
-    if (!init_queues()) {
+    uint32_t num_queues, queue_family;
+    if (!init_queues(&num_queues, &queue_family)) {
         return false;
     }
 
@@ -140,14 +145,14 @@ bool cvk_device::init()
     init_features();
 
     // Give all queues the same priority
-    std::vector<float> queuePriorities(m_vulkan_num_queues, 1.0f);
+    std::vector<float> queuePriorities(num_queues, 1.0f);
 
     VkDeviceQueueCreateInfo queueCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         nullptr,
         0, //flags
-        m_vulkan_queue_family,
-        m_vulkan_num_queues, // queueCount
+        queue_family,
+        num_queues, // queueCount
         queuePriorities.data()
     };
 
@@ -168,6 +173,14 @@ bool cvk_device::init()
 
     VkResult res = vkCreateDevice(m_pdev, &createInfo, nullptr, &m_dev);
     CVK_VK_CHECK_ERROR_RET(res, false, "Failed to create a device");
+
+    // Construct the queue wrappers now that our queues exist
+    for (auto i = 0U; i < num_queues; i++) {
+        VkQueue queue;
+
+        vkGetDeviceQueue(m_dev, queue_family, i, &queue);
+        m_vulkan_queues.emplace_back(cvk_vulkan_queue_wrapper(queue, queue_family));
+    }
 
     // Work out the required alignment for buffers
     const VkBufferCreateInfo bufferCreateInfo = {

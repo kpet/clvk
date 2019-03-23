@@ -25,16 +25,14 @@ _cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
     m_device(device),
     m_properties(properties),
     m_executor(nullptr),
-    m_command_pool(VK_NULL_HANDLE)
+    m_command_pool(VK_NULL_HANDLE),
+    m_vulkan_queue(device->vulkan_queue_allocate())
 {
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
         cvk_warn_fn("out-of-order execution enabled, will be ignored");
     }
-
-    m_vulkan_queue = device->vulkan_queue_allocate();
-    m_vulkan_queue_family = device->vulkan_queue_family();
 }
 
 cl_int cvk_command_queue::init() {
@@ -44,7 +42,7 @@ cl_int cvk_command_queue::init() {
         VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         nullptr,
         0, // flags
-        m_vulkan_queue_family
+        m_vulkan_queue.queue_family()
     };
 
     VkResult res = vkCreateCommandPool(m_device->vulkan_device(), &createInfo, nullptr, &m_command_pool);
@@ -388,28 +386,16 @@ cl_int cvk_command_kernel::build() {
 
 cl_int cvk_command_kernel::do_action()
 {
-    VkSubmitInfo submitInfo = {
-      VK_STRUCTURE_TYPE_SUBMIT_INFO,
-      nullptr,
-      0, // waitSemaphoreCOunt
-      nullptr, // pWaitSemaphores
-      nullptr, // pWaitDstStageMask
-      1, // commandBufferCount
-      &m_command_buffer,
-      0, // signalSemaphoreCount
-      nullptr, // pSignalSemaphores
-    };
+    auto &queue = m_queue->vulkan_queue();
 
-    auto queue = m_queue->vulkan_queue();
-
-    VkResult res = vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+    VkResult res = queue.submit(m_command_buffer);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("could not submit work to queue");
         return CL_OUT_OF_RESOURCES;
     }
 
-    res = vkQueueWaitIdle(queue);
+    res = queue.wait_idle();
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("could not wait for queue to become idle: %s", vulkan_error_string(res));
