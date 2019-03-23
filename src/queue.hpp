@@ -47,7 +47,7 @@ typedef struct _cl_event : public api_object {
 
             for (auto &type_cb : m_callbacks) {
                 for (auto &cb : type_cb.second) {
-                    cb.pointer(this, m_status, cb.data);
+                    execute_callback(cb);
                 }
             }
 
@@ -56,8 +56,15 @@ typedef struct _cl_event : public api_object {
     }
 
     void register_callback(cl_int callback_type, cvk_event_callback_pointer_type ptr, void *user_data) {
+        std::lock_guard<std::mutex> lock(m_lock);
+
         cvk_event_callback cb = {ptr, user_data};
-        m_callbacks[callback_type].push_back(cb);
+
+        if (m_status <= callback_type) {
+            execute_callback(cb);
+        } else {
+            m_callbacks[callback_type].push_back(cb);
+        }
     }
 
     cl_int get_status() const { return m_status; }
@@ -98,6 +105,11 @@ typedef struct _cl_event : public api_object {
     }
 
 private:
+
+    void execute_callback(cvk_event_callback cb) {
+         cb.pointer(this, m_status, cb.data);
+    }
+
     std::mutex m_lock;
     std::condition_variable m_cv;
     cl_int m_status;
