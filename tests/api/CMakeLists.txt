@@ -17,6 +17,7 @@ set(BINARY_NAME api_tests)
 
 add_executable(
     ${BINARY_NAME}
+    dependencies.cpp
     main.cpp
     simple.cpp
     simple_image.cpp

@@ -128,6 +128,12 @@ inline holder<cl_program>::~holder() {
     EXPECT_CL_SUCCESS(err);
 }
 
+template<>
+inline holder<cl_event>::~holder() {
+    auto err = clReleaseEvent(m_obj);
+    EXPECT_CL_SUCCESS(err);
+}
+
 class WithContext : public ::testing::Test {
 protected:
     cl_context m_context;
@@ -193,6 +199,18 @@ protected:
         auto kernel = clCreateKernel(program, name, &err);
         EXPECT_CL_SUCCESS(err);
         return kernel;
+    }
+
+    holder<cl_event> CreateUserEvent() {
+        cl_int err;
+        auto event = clCreateUserEvent(m_context, &err);
+        EXPECT_CL_SUCCESS(err);
+        return event;
+    }
+
+    void SetUserEventStatus(cl_event event, cl_int status) {
+        auto err = clSetUserEventStatus(event, status);
+        ASSERT_CL_SUCCESS(err);
     }
 
     holder<cl_mem> CreateBuffer(cl_mem_flags flags, size_t size, void *host_ptr) {

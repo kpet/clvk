@@ -2601,6 +2601,10 @@ clEnqueueMapBuffer(
                                                         num_events_in_wait_list,
                                                         event_wait_list, event);
 
+    if (err != CL_SUCCESS) {
+        buffer->unmap();
+    }
+
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
