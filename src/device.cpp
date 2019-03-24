@@ -82,8 +82,6 @@ bool cvk_device::init_extensions()
     m_vulkan_device_extensions = {
         "VK_KHR_storage_buffer_storage_class",
         "VK_KHR_variable_pointers",
-        // FIXME NVidia doesn't support "VK_KHR_get_physical_device_properties2"
-        // but it should to support VK_KHR_variable_pointers
     };
 
     const std::vector<const char *> desired_extensions = {

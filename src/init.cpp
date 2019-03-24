@@ -95,7 +95,9 @@ static void init_vulkan()
     res = vkEnumerateInstanceExtensionProperties(nullptr, &numExtensionProperties, extensionProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
 
-    std::vector<const char*> enabledExtensions;
+    std::vector<const char*> enabledExtensions = {
+        "VK_KHR_get_physical_device_properties2",
+    };
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("Found extension %s, spec version %u",
