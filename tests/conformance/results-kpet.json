@@ -60,8 +60,8 @@
     "total": 1
   },
   "Conversions": {
-    "duration": "00:00:07.011381",
-    "passed": 0,
+    "duration": "00:00:56.708916",
+    "passed": 49,
     "retcode": 255,
     "total": 81
   },
