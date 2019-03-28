@@ -96,7 +96,10 @@ static void init_vulkan()
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
 
     std::vector<const char*> enabledExtensions = {
+// TODO(kpet): Remove when https://github.com/talvos/talvos/issues/10 is resolved
+#ifndef USING_TALVOS
         "VK_KHR_get_physical_device_properties2",
+#endif
     };
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
