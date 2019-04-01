@@ -508,10 +508,17 @@ cl_build_status cvk_program::compile_source()
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
     }
 
+    // Prepare options
     std::string options = processed_options;
     options += " -cluster-pod-kernel-args ";
-    options += " -cl-single-precision-constant ";
+
+    std::string single_precision_option = "-cl-single-precision-constant";
+    if (processed_options.find(single_precision_option) == std::string::npos) {
+        options += " " + single_precision_option + " ";
+    }
+
     options += " -pod-ubo ";
+
 #ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", options.c_str());
     std::vector<clspv::version0::DescriptorMapEntry> entries;
