@@ -486,22 +486,29 @@ cl_build_status cvk_program::compile_source()
         }
     }
 
-    // Remove unsupported -cl-kernel-arg-info option
-    // TODO Write clspv pass
+    // Strip off a few options we can't handle
     std::string processed_options;
     if (m_build_options.size() > 0) {
         processed_options += " ";
         processed_options += m_build_options;
     }
-    std::string search{"-cl-kernel-arg-info"};
-    std::string replace{""};
+    std::vector<std::pair<std::string, std::string>> option_substitutions = {
+        // TODO Enable in clspv and figure out interface
+        {"-cl-kernel-arg-info", ""},
+        // FIXME The 1.2 conformance tests shouldn't pass this option.
+        //       It doesn't exist after OpenCL 1.0.
+        {"-cl-strict-aliasing", ""},
+    };
 
-    size_t loc = processed_options.find(search);
-    if (loc != std::string::npos) {
-        processed_options.replace(loc, search.length(), replace);
+    for (auto &subst : option_substitutions) {
+        size_t loc = processed_options.find(subst.first);
+        if (loc != std::string::npos) {
+            processed_options.replace(loc, subst.first.length(), subst.second);
+        }
     }
 
-    // FIXME support building a library with clBuildProgram
+    // Select operation
+    // TODO support building a library with clBuildProgram
     if (m_operation == build_operation::compile) {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
     } else {
