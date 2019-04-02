@@ -24,15 +24,15 @@
     "total": 13
   },
   "Basic": {
-    "duration": "00:00:31.199633",
-    "passed": 63,
-    "retcode": 26,
+    "duration": "00:00:45.973412",
+    "passed": 66,
+    "retcode": 23,
     "total": 89
   },
   "Buffers": {
-    "duration": "00:02:32.041072",
-    "passed": 72,
-    "retcode": 18,
+    "duration": "00:03:48.666474",
+    "passed": 89,
+    "retcode": 1,
     "total": 90
   },
   "Common Functions": {
@@ -60,9 +60,9 @@
     "total": 1
   },
   "Conversions": {
-    "duration": "00:00:56.708916",
-    "passed": 49,
-    "retcode": 255,
+    "duration": "00:01:18.093820",
+    "passed": 81,
+    "retcode": 0,
     "total": 81
   },
   "Device Partitioning": {
@@ -144,14 +144,14 @@
     "total": 0
   },
   "Integer Ops": {
-    "duration": "00:00:52.726757",
-    "passed": 21,
-    "retcode": 11,
+    "duration": "00:01:03.530541",
+    "passed": 28,
+    "retcode": 4,
     "total": 32
   },
   "Math": {
-    "duration": "00:00:16.387941",
-    "passed": 42,
+    "duration": "00:00:21.891517",
+    "passed": 43,
     "retcode": 255,
     "total": 96
   },
@@ -174,9 +174,9 @@
     "total": 56
   },
   "Profiling": {
-    "duration": "00:00:02.968997",
-    "passed": 27,
-    "retcode": 4,
+    "duration": "00:00:03.491335",
+    "passed": 31,
+    "retcode": 0,
     "total": 31
   },
   "Relationals": {
@@ -186,9 +186,9 @@
     "total": 12
   },
   "Select": {
-    "duration": "00:00:11.331213",
-    "passed": 14,
-    "retcode": 4,
+    "duration": "00:00:13.745737",
+    "passed": 18,
+    "retcode": 0,
     "total": 18
   },
   "Thread Dimensions": {
