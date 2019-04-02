@@ -39,4 +39,5 @@ if [ ${BUILD_STATUS} -ne 0 ]; then
 fi
 
 ./simple_test
+./simple_test_static
 ./api_tests

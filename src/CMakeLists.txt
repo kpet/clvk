@@ -27,7 +27,7 @@ if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_definitions(-DUSING_TALVOS)
 endif()
 
-add_library(OpenCL SHARED
+add_library(OpenCL-objects OBJECT
   api.cpp
   device.cpp
   init.cpp
@@ -37,26 +37,39 @@ add_library(OpenCL SHARED
   queue.cpp
   utils.cpp
 )
+set_property(TARGET OpenCL-objects PROPERTY POSITION_INDEPENDENT_CODE 1)
+target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
+
+find_package(Threads)
+
+set(OpenCL-dependencies
+  ${CMAKE_THREAD_LIBS_INIT}
+  SPIRV-Tools-opt
+  SPIRV-Tools-link
+  ${Vulkan_LIBRARIES}
+)
+
+if (CLVK_CLSPV_ONLINE_COMPILER)
+  target_include_directories(OpenCL-objects PRIVATE
+      "${CLSPV_SOURCE_DIR}/include")
+  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
+else()
+  add_dependencies(OpenCL-objects clspv)
+  target_compile_definitions(OpenCL-objects PRIVATE
+    DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+endif()
+
+function(CLLibrary target type)
+  add_library(${target} ${type} $<TARGET_OBJECTS:OpenCL-objects>)
+  target_link_libraries(${target} ${OpenCL-dependencies})
+  set_target_properties(${target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+      ${CMAKE_BINARY_DIR})
+endfunction(CLLibrary)
+
+CLLibrary(OpenCL SHARED)
+CLLibrary(OpenCL-static STATIC)
 
 set_target_properties(OpenCL PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
 
-set_target_properties(OpenCL PROPERTIES LIBRARY_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
-
-find_package(Threads)
-target_link_libraries(OpenCL ${CMAKE_THREAD_LIBS_INIT})
-
-target_include_directories(OpenCL SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
-target_link_libraries(OpenCL ${Vulkan_LIBRARIES})
-
-target_link_libraries(OpenCL SPIRV-Tools-opt SPIRV-Tools-link)
-if (CLVK_CLSPV_ONLINE_COMPILER)
-  target_link_libraries(OpenCL clspv_core)
-else()
-  add_dependencies(OpenCL clspv)
-endif()
-
-target_compile_definitions(OpenCL PRIVATE
-    DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")

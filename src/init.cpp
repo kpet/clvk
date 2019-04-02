@@ -28,7 +28,9 @@ loglevel gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
 
+#ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
+#endif
 
 static VkDebugReportCallbackEXT gVkDebugCallback;
 
@@ -195,10 +197,12 @@ static void init_logging()
 
 static void init_compiler()
 {
+#ifndef CLSPV_ONLINE_COMPILER
     char *clspv_binary = getenv("CVK_CLSPV_BIN");
     if (clspv_binary != nullptr) {
         gCLSPVPath = clspv_binary;
     }
+#endif
 }
 
 static void init_platform()

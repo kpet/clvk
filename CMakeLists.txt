@@ -37,7 +37,8 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
 
 # clspv
-add_subdirectory(${PROJECT_SOURCE_DIR}/external/clspv EXCLUDE_FROM_ALL)
+set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv)
+add_subdirectory(${CLSPV_SOURCE_DIR} EXCLUDE_FROM_ALL)
 set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
 
