@@ -28,7 +28,7 @@
     } while (0)
 
 const char *program_source = R"(
-kernel void test_simple(global int* out)
+kernel void test_simple(global uint* out)
 {
     size_t gid = get_global_id(0);
     out[gid] = gid;
@@ -110,10 +110,10 @@ int main(int argc, char* argv[])
 
     // Check the expected result
     bool success = true;
-    auto buffer_data = static_cast<cl_int*>(ptr);
-    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_int); ++i) {
-        if (buffer_data[i] != static_cast<cl_int>(i)) {
-            printf("Failed comparison at buffer_data[%d]: expected %d but got %d\n",
+    auto buffer_data = static_cast<cl_uint*>(ptr);
+    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_uint); ++i) {
+        if (buffer_data[i] != static_cast<cl_uint>(i)) {
+            printf("Failed comparison at buffer_data[%u]: expected %u but got %u\n",
                    i, i, buffer_data[i]);
             success = false;
         }

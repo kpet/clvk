@@ -17,10 +17,10 @@
 static const size_t BUFFER_SIZE = 1024;
 
 static const char *program_source = R"(
-kernel void test_simple(global int4* out, constant int4* c_data)
+kernel void test_simple(global uint4* out, constant uint4* c_data)
 {
     size_t gid = get_global_id(0);
-    out[gid] = (int4)(gid,gid,gid,gid) + c_data[gid];
+    out[gid] = (uint4)(gid,gid,gid,gid) + c_data[gid];
 }
 )";
 
@@ -31,7 +31,7 @@ TEST_F(WithCommandQueue, SimpleUBO)
                                " -constant-args-ubo -inline-entry-points ",
                                "test_simple");
 
-    auto num_items = BUFFER_SIZE / sizeof(cl_int);
+    auto num_items = BUFFER_SIZE / sizeof(cl_uint);
     cl_int c_data[num_items];
     for (auto i = 0; i != num_items; ++i) {
       c_data[i] = 1;
@@ -63,10 +63,10 @@ TEST_F(WithCommandQueue, SimpleUBO)
 
     // Check the expected result
     bool success = true;
-    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_int4); ++i) {
+    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_uint4); ++i) {
         auto expected = i / 4 + 1;
-        if (data[i] != static_cast<cl_int>(expected)) {
-            printf("Failed comparison at data[%d]: expected %d but got %d\n",
+        if (data[i] != static_cast<cl_uint>(expected)) {
+            printf("Failed comparison at data[%u]: expected %u but got %u\n",
                    i, expected, data[i]);
             success = false;
         }
