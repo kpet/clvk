@@ -1197,14 +1197,46 @@ cl_int clEnqueueMigrateMemObjects(
     const cl_event        *event_wait_list ,
     cl_event              *event
 ){
-    UNUSED(command_queue);
-    UNUSED(num_mem_objects);
-    UNUSED(mem_objects);
-    UNUSED(flags);
-    UNUSED(num_events_in_wait_list);
-    UNUSED(event_wait_list);
-    UNUSED(event);
-    return CL_INVALID_VALUE; // TODO implement
+    LOG_API_CALL("command_queue = %p, num_mem_objects = %u, mem_objects = %p, "
+                 "flags = %lx, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, num_mem_objects, mem_objects, flags,
+                 num_events_in_wait_list, event_wait_list, event);
+
+    // TODO CL_INVALID_CONTEXT if the context associated with command_queue and
+    // memory objects in memobj are not the same or if the context associated
+    // with command_queue and events in event_wait_list are not the same.
+
+    if ((num_mem_objects == 0) || (mem_objects == nullptr)) {
+        return CL_INVALID_VALUE;
+    }
+
+    for (cl_uint i = 0; i < num_mem_objects; i++) {
+        if (mem_objects[i] == nullptr) {
+            return CL_INVALID_MEM_OBJECT;
+        }
+    }
+
+    // TODO CL_INVALID_VALUE if flags is not 0 or is not any of the values
+    // described in the table above.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
+    // memory for the specified set of memory objects in mem_objects.
+
+    if (command_queue == nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    auto cmd = new cvk_command_dep(command_queue,
+                                   CL_COMMAND_MIGRATE_MEM_OBJECTS);
+
+    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    return CL_SUCCESS;
 }
 
 cl_int clGetMemObjectInfo(
