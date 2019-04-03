@@ -285,6 +285,87 @@ bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int
     return true;
 }
 
+static std::vector<std::string> tokenize(const std::string &str, const char *delim) {
+    size_t start = str.find_first_not_of(delim), end;
+    std::vector<std::string> tokens;
+
+    while (start != std::string::npos) {
+        end = str.find(delim, start);
+        tokens.push_back(str.substr(start, end-start));
+        start = str.find_first_not_of(delim, end);
+    }
+    for (auto& tok : tokens) {
+        //cvk_debug("TOK: %s", tok.c_str());
+    }
+
+    return tokens;
+}
+
+bool spir_binary::parse_sampler(const std::vector<std::string> &tokens, int toknum) {
+
+    sampler_desc desc;
+
+    int samplerVal = atoi(tokens[toknum++].c_str());
+    UNUSED(samplerVal);
+
+    if (tokens[toknum++] != "samplerExpr") {
+        return false;
+    }
+
+    std::string samplerExpr = tokens[toknum++];
+    auto exprTokens = tokenize(samplerExpr, "|");
+
+
+    if (tokens[toknum++] != "descriptorSet") {
+        return false;
+    }
+
+    desc.descriptorSet = atoi(tokens[toknum++].c_str());
+
+    if (tokens[toknum++] != "binding") {
+        return false;
+    }
+
+    desc.binding = atoi(tokens[toknum++].c_str());
+
+    m_literal_samplers.push_back(desc);
+
+    return true;
+}
+
+bool spir_binary::parse_kernel(const std::vector<std::string> &tokens, int toknum) {
+    kernel_argument arg;
+    std::string kname{tokens[toknum++]};
+
+    if (tokens[toknum++] != "arg") {
+        return false;
+    }
+
+    arg.name = tokens[toknum++];
+
+    if (tokens[toknum++] != "argOrdinal") {
+        return false;
+    }
+
+    arg.pos = atoi(tokens[toknum++].c_str());
+
+    if (tokens[toknum] == "descriptorSet") {
+        if (!parse_arg(arg, tokens, toknum)) {
+            return false;
+        }
+    } else if (tokens[toknum] == "argKind") {
+        if (!parse_local_arg(arg, tokens, toknum)) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    m_dmaps[kname].push_back(arg);
+
+    return true;
+}
+
 bool spir_binary::load_descriptor_map(std::istream &istream)
 {
     m_dmaps.clear();
@@ -293,54 +374,21 @@ bool spir_binary::load_descriptor_map(std::istream &istream)
     while (std::getline(istream, line)) {
         m_dmaps_text += line + "\n";
         cvk_debug("DMAP line: %s", line.c_str());
-        const char *delim = ",";
-        size_t start = line.find_first_not_of(delim), end;
-        std::vector<std::string> tokens;
-
-        while (start != std::string::npos) {
-            end = line.find(delim, start);
-            tokens.push_back(line.substr(start, end-start));
-            start = line.find_first_not_of(delim, end);
-        }
-
-        //for (auto& tok : tokens) {
-        //    cvk_debug("TOK: %s", tok.c_str());
-        //}
+        std::vector<std::string> tokens = tokenize(line, ",");
 
         int toknum = 0;
-        kernel_argument arg;
 
-        if (tokens[toknum++] != "kernel") {
-            return false;
-        }
-
-        std::string kname{tokens[toknum++]};
-
-        if (tokens[toknum++] != "arg") {
-            return false;
-        }
-
-        arg.name = tokens[toknum++];
-
-        if (tokens[toknum++] != "argOrdinal") {
-            return false;
-        }
-
-        arg.pos = atoi(tokens[toknum++].c_str());
-
-        if (tokens[toknum] == "descriptorSet") {
-            if (!parse_arg(arg, tokens, toknum)) {
+        if (tokens[toknum] == "kernel") {
+            if (!parse_kernel(tokens, toknum+1)) {
                 return false;
             }
-        } else if (tokens[toknum] == "argKind") {
-            if (!parse_local_arg(arg, tokens, toknum)) {
+        } else if (tokens[toknum] == "sampler") {
+            if (!parse_sampler(tokens, toknum+1)) {
                 return false;
             }
         } else {
             return false;
         }
-
-        m_dmaps[kname].push_back(arg);
     }
 
     cvk_debug_fn("num_kernels = %zu", num_kernels());

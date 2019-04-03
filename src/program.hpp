@@ -27,6 +27,7 @@
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
+#include "memory.hpp"
 #include "objects.hpp"
 
 const int SPIR_WORD_SIZE = 4;
@@ -56,6 +57,14 @@ struct kernel_argument {
     bool is_pod() const {
         return (kind == kernel_argument_kind::pod) || (kind == kernel_argument_kind::pod_ubo);
     }
+};
+
+struct sampler_desc {
+    uint32_t descriptorSet;
+    uint32_t binding;
+    bool normalized_coords;
+    cl_addressing_mode addressing_mode;
+    cl_filter_mode filter_mode;
 };
 
 class spir_binary {
@@ -95,10 +104,15 @@ public:
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
     std::vector<uint32_t> *raw_binary() { return &m_code; }
+    const std::vector<sampler_desc>& literal_samplers() { return m_literal_samplers; }
 
 private:
+    CHECK_RETURN bool parse_sampler(const std::vector<std::string> &tokens, int toknum);
+    CHECK_RETURN bool parse_kernel(const std::vector<std::string> &tokens, int toknum);
+
     spv_context m_context;
     std::vector<uint32_t> m_code;
+    std::vector<sampler_desc> m_literal_samplers;
     kernels_arguments_map m_dmaps;
     std::string m_dmaps_text;
     bool m_loaded_from_binary;
@@ -246,6 +260,10 @@ typedef struct _cl_program : public api_object {
         return ret;
     }
 
+    const std::vector<sampler_desc>& literal_samplers() {
+        return m_binary.literal_samplers();
+    }
+
 private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source();
@@ -267,6 +285,7 @@ private:
     std::unordered_map<const cvk_device*, cl_build_status> m_dev_status;
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
+    std::vector<cvk_sampler_holder> m_literal_samplers;
 
 } cvk_program;
 
