@@ -239,6 +239,22 @@ protected:
         return mem;
     }
 
+    void GetImageInfo(cl_mem image, cl_image_info param_name,
+                      size_t param_value_size, void *param_value,
+                      size_t *param_value_size_ret) {
+        cl_int err = clGetImageInfo(image, param_name, param_value_size,
+                                    param_value, param_value_size_ret);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void GetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
+                          size_t param_value_size, void *param_value,
+                          size_t *param_value_size_ret) {
+        cl_int err = clGetMemObjectInfo(mem, param_name, param_value_size,
+                                        param_value, param_value_size_ret);
+        ASSERT_CL_SUCCESS(err);
+    }
+
     void SetKernelArg(cl_kernel kernel, cl_uint arg_index, size_t arg_size, const void *arg_value) {
         cl_int err = clSetKernelArg(kernel, arg_index, arg_size, arg_value);
         ASSERT_CL_SUCCESS(err);
