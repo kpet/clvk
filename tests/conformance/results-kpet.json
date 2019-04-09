@@ -24,15 +24,15 @@
     "total": 13
   },
   "Basic": {
-    "duration": "00:00:45.973412",
-    "passed": 66,
+    "duration": "00:00:45.586799",
+    "passed": 67,
     "retcode": 23,
-    "total": 89
+    "total": 90
   },
   "Buffers": {
-    "duration": "00:03:48.666474",
-    "passed": 89,
-    "retcode": 1,
+    "duration": "00:03:37.877806",
+    "passed": 90,
+    "retcode": 0,
     "total": 90
   },
   "Common Functions": {
