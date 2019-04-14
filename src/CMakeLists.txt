@@ -38,7 +38,11 @@ add_library(OpenCL-objects OBJECT
   utils.cpp
 )
 set_property(TARGET OpenCL-objects PROPERTY POSITION_INDEPENDENT_CODE 1)
-target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE "${Vulkan_INCLUDE_DIRS}")
+target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
+    ${SPIRV_HEADERS_SOURCE_DIR}/include
+    ${SPIRV_TOOLS_SOURCE_DIR}/include
+    ${Vulkan_INCLUDE_DIRS}
+)
 
 find_package(Threads)
 
