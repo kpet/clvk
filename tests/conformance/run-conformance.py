@@ -116,6 +116,7 @@ TEST_SETS = {
     'quick': TESTS_QUICK,
     'wimpy': TESTS_WIMPY,
     'full': TESTS_FULL_CONFORMANCE,
+    'images': TESTS_IMAGES,
 }
 
 TIME_SERIALISATION_FORMAT = '%H:%M:%S.%f'
