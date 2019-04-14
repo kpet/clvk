@@ -21,18 +21,9 @@ computer crashes and burns, don't blame me! You've been warned.
 * All the limitations implied by the use of clspv
 * ... and problably others
 
-# Applications known to run
+# Supported applications
 
-The following applications work at least partially:
-
-* [clinfo](https://github.com/Oblomov/clinfo)
-* [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS)
-* [SHOC](https://github.com/vetter/shoc)
-* [OCLToys](https://github.com/ignatenkobrain/ocltoys.git)
-* Let others know whether your favourite application works or not, send a PR :)
-
-TODO move to a separate doc file and list the status for all applications that
-     have been tested
+[Full list](doc/supported-applications.md)
 
 # Getting dependencies
 
