@@ -14,6 +14,12 @@
 
 #pragma once
 
+#ifdef USING_TALVOS
+#define DISABLED_TALVOS(X) DISABLED_##X
+#else
+#define DISABLED_TALVOS(X) X
+#endif
+
 #define CL_TARGET_OPENCL_VERSION 120
 #include "CL/cl.h"
 

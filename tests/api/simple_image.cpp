@@ -35,7 +35,7 @@ kernel void copy(image2d_t read_only img, sampler_t sampler, global float4 *buff
 }
 )";
 
-TEST_F(WithCommandQueue, DISABLED_SimpleImage)
+TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
 {
     // Create and build program
     auto program = CreateAndBuildProgram(program_source);
