@@ -2624,7 +2624,7 @@ clEnqueueMapBuffer(
     if (buffer->has_flags(CL_MEM_USE_HOST_PTR)) {
         map_ptr = buffer->host_ptr();
     } else {
-        map_ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(buffer->host_va()) + offset);
+        map_ptr = pointer_offset(buffer->host_va(), offset);
     }
 
     auto cmd = new cvk_command_map(command_queue, CL_COMMAND_MAP_BUFFER, buffer, offset, size);

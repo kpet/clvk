@@ -104,3 +104,8 @@ public:
 
 std::string pretty_size(uint64_t size);
 
+static inline void* pointer_offset(void *ptr, size_t offset) {
+    auto ptrint = reinterpret_cast<uintptr_t>(ptr);
+    return reinterpret_cast<void*>(ptrint + offset);
+}
+

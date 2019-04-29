@@ -465,7 +465,7 @@ private:
 
 cl_int cvk_command_copy_rect::do_action()
 {
-    uintptr_t dst_base, src_base;
+    void *dst_base, *src_base;
     rectangle rsrc, rdst;
 
     memobj_map_holder map_holder{m_mem};
@@ -476,14 +476,14 @@ cl_int cvk_command_copy_rect::do_action()
 
     switch (m_type) {
     case CL_COMMAND_READ_BUFFER_RECT:
-        dst_base = reinterpret_cast<uintptr_t>(m_ptr);
-        src_base = reinterpret_cast<uintptr_t>(m_mem->host_va());
+        dst_base = m_ptr;
+        src_base = m_mem->host_va();
         rsrc.set_params(m_buffer_origin, m_buffer_slice_pitch, m_buffer_row_pitch);
         rdst.set_params(m_host_origin, m_host_slice_pitch, m_host_row_pitch);
         break;
     case CL_COMMAND_WRITE_BUFFER_RECT:
-        dst_base = reinterpret_cast<uintptr_t>(m_mem->host_va());
-        src_base = reinterpret_cast<uintptr_t>(m_ptr);
+        dst_base = m_mem->host_va();
+        src_base = m_ptr;
         rsrc.set_params(m_host_origin, m_host_slice_pitch, m_host_row_pitch);
         rdst.set_params(m_buffer_origin, m_buffer_slice_pitch, m_buffer_row_pitch);
         break;
@@ -495,9 +495,9 @@ cl_int cvk_command_copy_rect::do_action()
         cvk_debug_fn("slice = %zu", slice);
         for (size_t row = 0; row < m_region[1]; row++) {
             cvk_debug_fn("row = %zu", row);
-            uintptr_t dst = dst_base + rdst.get_row_offset(slice, row);
-            uintptr_t src = src_base + rsrc.get_row_offset(slice, row);
-            memcpy(reinterpret_cast<void*>(dst), reinterpret_cast<void*>(src), m_region[0]);
+            auto dst = pointer_offset(dst_base, rdst.get_row_offset(slice, row));
+            auto src = pointer_offset(src_base, rsrc.get_row_offset(slice, row));
+            memcpy(dst, src, m_region[0]);
         }
     }
 
@@ -519,13 +519,13 @@ cl_int cvk_command_fill::do_action()
         return CL_OUT_OF_RESOURCES;
     }
 
-    uintptr_t begin = reinterpret_cast<uintptr_t>(m_mem->host_va()) + m_offset;
-    uintptr_t end = begin + m_size;
+    auto begin = pointer_offset(m_mem->host_va(), m_offset);
+    auto end = pointer_offset(begin, m_size);
 
-    uintptr_t address = begin;
+    auto address = begin;
     while (address < end) {
-        memcpy(reinterpret_cast<void*>(address), m_pattern.get(), m_pattern_size);
-        address += m_pattern_size;
+        memcpy(address, m_pattern.get(), m_pattern_size);
+        address = pointer_offset(address, m_pattern_size);
     }
 
     return CL_COMPLETE;

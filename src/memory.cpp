@@ -23,8 +23,7 @@ bool cvk_mem::map()
         if (!m_parent->map()) {
             return false;
         }
-        auto parent_host_va = reinterpret_cast<uintptr_t>(m_parent->host_va());
-        m_map_ptr = reinterpret_cast<void*>(parent_host_va + m_parent_offset);
+        m_map_ptr = pointer_offset(m_parent->host_va(), m_parent_offset);
         cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
     } else {
         if (m_map_count == 0) {

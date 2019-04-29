@@ -66,8 +66,7 @@ typedef struct _cl_mem : public api_object {
             }
 
             // Handle host_ptr
-            auto parent_host_ptr = reinterpret_cast<uintptr_t>(m_parent->host_ptr());
-            m_host_ptr = reinterpret_cast<void*>(parent_host_ptr + m_parent_offset);
+            m_host_ptr = pointer_offset(m_parent->host_ptr(), m_parent_offset);
         }
     }
 
@@ -129,7 +128,7 @@ typedef struct _cl_mem : public api_object {
 
     bool CHECK_RETURN copy_to(void *dst, size_t offset, size_t size) {
         if (map()) {
-            void *src = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_map_ptr) + offset);
+            void *src = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
             unmap();
             return true;
@@ -139,8 +138,8 @@ typedef struct _cl_mem : public api_object {
 
     bool CHECK_RETURN copy_to(cvk_mem *dst, size_t src_offset, size_t dst_offset, size_t size) {
         if (map() && dst->map()) {
-            void *src_ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_map_ptr) + src_offset);
-            void *dst_ptr = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(dst->host_va()) + dst_offset);
+            void *src_ptr = pointer_offset(m_map_ptr, src_offset);
+            void *dst_ptr = pointer_offset(dst->host_va(), dst_offset);
             memcpy(dst_ptr, src_ptr, size);
             dst->unmap();
             unmap();
@@ -151,7 +150,7 @@ typedef struct _cl_mem : public api_object {
 
     bool CHECK_RETURN copy_from(const void *src, size_t offset, size_t size) {
         if (map()) {
-            void *dst = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(m_map_ptr) + offset);
+            void *dst = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
             unmap();
             return true;
