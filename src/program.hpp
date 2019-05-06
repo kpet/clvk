@@ -105,6 +105,7 @@ private:
 };
 
 extern std::string gCLSPVPath;
+extern std::string gCLSPVOptions;
 
 enum class build_operation {
     build,

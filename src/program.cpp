@@ -526,6 +526,7 @@ cl_build_status cvk_program::compile_source()
 
     options += " -pod-ubo ";
     options += " -int8 ";
+    options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", options.c_str());

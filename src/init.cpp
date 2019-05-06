@@ -31,6 +31,7 @@ bool gDebugReportEnabled = false;
 #ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
 #endif
+std::string gCLSPVOptions;
 
 static VkDebugReportCallbackEXT gVkDebugCallback;
 
@@ -200,6 +201,10 @@ static void init_compiler()
         gCLSPVPath = clspv_binary;
     }
 #endif
+    auto clspv_options = getenv("CVK_CLSPV_OPTIONS");
+    if (clspv_options != nullptr) {
+        gCLSPVOptions = clspv_options;
+    }
 }
 
 static void init_platform()

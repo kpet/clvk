@@ -137,3 +137,5 @@ variables. Here's a quick guide:
    * 0: disabled (default)
    * 1: enabled
 
+* `CVK_CLSPV_OPTIONS` to provide additional options to pass to clspv
+
