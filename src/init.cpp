@@ -27,6 +27,7 @@ cvk_platform *gPlatform;
 loglevel gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
+bool gImageSupport = false;
 
 #ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;

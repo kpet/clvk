@@ -29,6 +29,7 @@
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
 
+#include "init.hpp"
 #include "program.hpp"
 #include "utils.hpp"
 
@@ -523,7 +524,9 @@ cl_build_status cvk_program::compile_source()
     if (processed_options.find(single_precision_option) == std::string::npos) {
         options += " " + single_precision_option + " ";
     }
-
+    if (!gImageSupport) {
+        options += " -images=0 ";
+    }
     options += " -pod-ubo ";
     options += " -int8 ";
     options += " " + gCLSPVOptions + " ";

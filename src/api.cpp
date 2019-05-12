@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cl_headers.hpp"
+#include "init.hpp"
 #include "kernel.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
@@ -283,7 +284,7 @@ clGetDeviceInfo(
             size_ret = sizeof(val_bool);
             break;
         case CL_DEVICE_IMAGE_SUPPORT:
-            val_bool = CL_FALSE;
+            val_bool = gImageSupport ? CL_TRUE : CL_FALSE;
             copy_ptr = &val_bool;
             size_ret = sizeof(val_bool);
             break;
