@@ -24,7 +24,7 @@
 
 VkInstance gVkInstance;
 cvk_platform *gPlatform;
-loglevel gLoggingLevel = loglevel::fatal;
+int gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
 bool gImageSupport = false;

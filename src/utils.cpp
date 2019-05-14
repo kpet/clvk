@@ -26,6 +26,8 @@
 #include <io.h>
 #endif
 
+#include "init.hpp"
+
 char* cvk_mkdtemp(std::string& tmpl)
 {
 #ifdef WIN32

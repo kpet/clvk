@@ -14,4 +14,15 @@
 
 #pragma once
 
+#include "device.hpp"
+
+#include <string>
+
+extern cvk_platform *gPlatform;
+
 extern bool gImageSupport;
+extern std::string gCLSPVPath;
+extern std::string gCLSPVOptions;
+extern int gLoggingLevel;
+extern bool gLoggingColour;
+

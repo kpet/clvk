@@ -35,9 +35,6 @@ enum loglevel {
     debug = 4
 };
 
-extern loglevel gLoggingLevel;
-extern bool gLoggingColour;
-
 char* cvk_mkdtemp(std::string& tmpl);
 
 void cvk_log(loglevel level, const char *fmt, ...) CHECK_PRINTF(2, 3);

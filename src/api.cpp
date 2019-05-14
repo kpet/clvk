@@ -21,8 +21,6 @@
 #include "queue.hpp"
 #include "utils.hpp"
 
-extern cvk_platform *gPlatform;
-
 #define LOG_API_CALL(fmt, ...) cvk_info_fn(fmt,  __VA_ARGS__)
 
 // Platform API

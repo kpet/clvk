@@ -104,9 +104,6 @@ private:
     bool m_loaded_from_binary;
 };
 
-extern std::string gCLSPVPath;
-extern std::string gCLSPVOptions;
-
 enum class build_operation {
     build,
     compile,
