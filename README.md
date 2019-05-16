@@ -109,7 +109,7 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 
 If you wish to move the built library and `clspv` binary out of the build
 tree, you will need to make sure that you provide clvk with a path
-to the `clspv` binary via the `CVK_CLSPV_BIN` environment variable
+to the `clspv` binary via the `CLVK_CLSPV_BIN` environment variable
 (see [Environment variables](#environment-variables)).
 
 # Environment variables
@@ -117,7 +117,7 @@ to the `clspv` binary via the `CVK_CLSPV_BIN` environment variable
 The behaviour of a few things in clvk can be controlled by environment
 variables. Here's a quick guide:
 
-* `CVK_LOG` controls the level of logging
+* `CLVK_LOG` controls the level of logging
 
    * 0: only print fatal messages (default)
    * 1: print errors as well
@@ -125,17 +125,17 @@ variables. Here's a quick guide:
    * 3: print information messages as well
    * 4: print all debug messages
 
-* `CVK_LOG_COLOUR` controls colour logging
+* `CLVK_LOG_COLOUR` controls colour logging
 
    * 0: disabled
    * 1: enabled (default)
 
-* `CVK_CLSPV_BIN` to provide a path to the clspv binary to use
+* `CLVK_CLSPV_BIN` to provide a path to the clspv binary to use
 
-* `CVK_VALIDATION_LAYERS` allows to enable Vulkan validation layers
+* `CLVK_VALIDATION_LAYERS` allows to enable Vulkan validation layers
 
    * 0: disabled (default)
    * 1: enabled
 
-* `CVK_CLSPV_OPTIONS` to provide additional options to pass to clspv
+* `CLVK_CLSPV_OPTIONS` to provide additional options to pass to clspv
 

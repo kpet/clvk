@@ -117,7 +117,7 @@ static void init_vulkan()
     // Handle validation layers
     std::vector<const char*> enabledLayers;
 
-    char *enable_validation_layers = getenv("CVK_VALIDATION_LAYERS");
+    char *enable_validation_layers = getenv("CLVK_VALIDATION_LAYERS");
     if (enable_validation_layers != nullptr) {
         int value = atoi(enable_validation_layers);
         if (value == 1) {
@@ -176,7 +176,7 @@ static void term_vulkan()
 
 static void init_logging()
 {
-    char *logging = getenv("CVK_LOG");
+    char *logging = getenv("CLVK_LOG");
     if (logging) {
         loglevel setting = static_cast<loglevel>(atoi(logging));
         if ((setting < loglevel::fatal) || (setting > loglevel::debug)) {
@@ -185,7 +185,7 @@ static void init_logging()
         gLoggingLevel = setting;
     }
 
-    char *logging_colour = getenv("CVK_LOG_COLOUR");
+    char *logging_colour = getenv("CLVK_LOG_COLOUR");
     if (logging_colour) {
         int val = atoi(logging_colour);
         if (val == 0) {
@@ -197,12 +197,12 @@ static void init_logging()
 static void init_compiler()
 {
 #ifndef CLSPV_ONLINE_COMPILER
-    char *clspv_binary = getenv("CVK_CLSPV_BIN");
+    char *clspv_binary = getenv("CLVK_CLSPV_BIN");
     if (clspv_binary != nullptr) {
         gCLSPVPath = clspv_binary;
     }
 #endif
-    auto clspv_options = getenv("CVK_CLSPV_OPTIONS");
+    auto clspv_options = getenv("CLVK_CLSPV_OPTIONS");
     if (clspv_options != nullptr) {
         gCLSPVOptions = clspv_options;
     }
