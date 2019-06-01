@@ -509,7 +509,9 @@ private:
 };
 
 struct memobj_map_holder {
-    memobj_map_holder(cvk_mem *memobj) : m_mem(memobj), m_mapped(false) {}
+    memobj_map_holder(cvk_mem *memobj) : m_mem(memobj), m_mapped(false) {
+        CVK_ASSERT(memobj != nullptr);
+    }
     ~memobj_map_holder() {
         if (m_mapped) {
             m_mem->unmap();
@@ -647,6 +649,20 @@ cl_int cvk_command_map_buffer::do_action()
 cl_int cvk_command_unmap_buffer::do_action()
 {
     m_mem->unmap();
+    return CL_COMPLETE;
+}
+
+cl_int cvk_command_unmap_image::do_action()
+{
+    // TODO flush caches on non-coherent memory
+    m_image->remove_mapping(m_mapped_ptr);
+
+    if (m_needs_copy) {
+        auto err = m_cmd_copy.do_action();
+        if (err != CL_COMPLETE) {
+            return err;
+        }
+    }
 
     return CL_COMPLETE;
 }
@@ -705,6 +721,45 @@ VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
     return ret;
 }
 
+cl_int cvk_command_map_image::build(void **map_ptr)
+{
+    // Get a mapping
+    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region, m_flags)) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    *map_ptr = m_mapping.ptr;
+
+    // TODO deal with CL_MEM_USE_HOST_PTR
+
+    if (needs_copy()) {
+        m_cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
+                        CL_COMMAND_MAP_IMAGE, m_queue, m_mapping.buffer,
+                        m_image, 0, m_origin, m_region);
+
+        cl_int err = m_cmd_copy->build();
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+    }
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_map_image::do_action()
+{
+    if (needs_copy()) {
+        auto err = m_cmd_copy->do_action();
+        if (err != CL_COMPLETE) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
+    // TODO invalidate buffer if the memory isn't coherent
+
+    return CL_COMPLETE;
+}
+
 void cvk_command_buffer_image_copy::build_inner_image_to_buffer(const VkBufferImageCopy &region)
 {
     VkImageSubresourceRange subresourceRange = {
@@ -720,7 +775,7 @@ void cvk_command_buffer_image_copy::build_inner_image_to_buffer(const VkBufferIm
         nullptr,
         VK_ACCESS_MEMORY_WRITE_BIT, // srcAccessMask
         VK_ACCESS_TRANSFER_READ_BIT, // dstAccessMask
-        VK_IMAGE_LAYOUT_GENERAL, // oldLayout // TODO UNDEFINED when MAP_WRITE_INVALIDATE
+        VK_IMAGE_LAYOUT_GENERAL, // oldLayout
         VK_IMAGE_LAYOUT_GENERAL, // newLayout
         0, // srcQueueFamilyIndex
         0, // dstQueueFamilyIndex
@@ -786,9 +841,11 @@ cl_int cvk_command_buffer_image_copy::build()
 
     switch(type()) {
     case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
+    case CL_COMMAND_MAP_IMAGE:
         build_inner_image_to_buffer(region);
         break;
     case CL_COMMAND_COPY_BUFFER_TO_IMAGE:
+    case CL_COMMAND_UNMAP_MEM_OBJECT:
         build_inner_buffer_to_image(region);
         break;
     default:

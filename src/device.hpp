@@ -25,7 +25,7 @@
 #include "vkutils.hpp"
 
 static constexpr bool devices_support_images() {
-    return false;
+    return true;
 }
 
 typedef struct _cl_device_id cvk_device;

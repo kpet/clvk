@@ -78,3 +78,236 @@ TEST_F(WithContext, CreateImageLegacy)
     clReleaseMemObject(im2d);
     clReleaseMemObject(im3d);
 }
+
+TEST_F(WithCommandQueue, BasicImageMapUnmap)
+{
+    const size_t IMAGE_WIDTH = 97;
+    const size_t IMAGE_HEIGHT = 13;
+
+    // Create an image
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH, // image_width
+        IMAGE_HEIGHT, // image_height
+        1,   // image_depth
+        1,   // image_array_size
+        0,   // image_row_pitch
+        0,   // image_slice_pitch
+        0,   // num_mip_levels
+        0,   // num_samples
+        nullptr, // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+
+    // Map it
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+    size_t row_pitch;
+    auto data = EnqueueMapImage<cl_float4>(image, CL_BLOCKING,
+                                           CL_MAP_WRITE_INVALIDATE_REGION,
+                                           origin, region,
+                                           &row_pitch, nullptr);
+    size_t row_pitch_pixels = row_pitch / sizeof(cl_float4);
+    // Fill with pattern
+    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
+        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
+            data[row * row_pitch_pixels + pix] = {1.0f, 2.0f, 3.0f, 4.0f};
+        }
+    }
+
+    // Unmap
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+
+    // Create a sampler
+    auto sampler = CreateSampler(CL_FALSE, CL_ADDRESS_CLAMP, CL_FILTER_NEAREST);
+
+    // Create a buffer
+    auto buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                                         buffer_size, nullptr);
+
+    // Enqueue kernel to copy to a buffer
+    static const char *source = R"(
+    kernel void copy(image2d_t read_only img, sampler_t sampler, uint row_pitch, global float4 *buffer)
+{
+    uint x = get_global_id(0);
+    uint y = get_global_id(1);
+    int2 coord = {(int)x, (int)y};
+    float4 color = read_imagef(img, sampler, coord);
+    buffer[(y * row_pitch) + x] = color;
+}
+)";
+
+    auto kernel = CreateKernel(source, "copy");
+    SetKernelArg(kernel, 0, image);
+    SetKernelArg(kernel, 1, sampler);
+    cl_uint row_pitch_pixels_buffer = IMAGE_WIDTH;
+    SetKernelArg(kernel, 2, sizeof(cl_uint), &row_pitch_pixels_buffer);
+    SetKernelArg(kernel, 3, buffer);
+
+    size_t gws[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 0};
+    size_t lws[3] = {1, 1, 1};
+
+    EnqueueNDRangeKernel(kernel, 2, nullptr, gws, lws);
+
+    // Map the buffer
+    auto bdata = EnqueueMapBuffer<cl_float4>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    // Verify the content
+    bool success = true;
+    for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
+        auto val = bdata[i];
+        if ((val.x != 1.0f) || (val.y != 2.0f) || (val.z != 3.0f) || (val.w != 4.0f)) {
+            printf("Failed comparison at data[%d]: "
+                   "expected {1.0,2.0,3.0,4.0} but got {%f,%f,%f,%f}\n",
+                   i, val.x, val.y, val.z, val.w);
+            success = false;
+        }
+    }
+    EXPECT_TRUE(success);
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, bdata);
+    Finish();
+}
+
+TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
+{
+    // Create image
+    const size_t IMAGE_WIDTH = 97;
+    const size_t IMAGE_HEIGHT = 13;
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH, // image_width
+        IMAGE_HEIGHT, // image_height
+        1,   // image_depth
+        1,   // image_array_size
+        0,   // image_row_pitch
+        0,   // image_slice_pitch
+        0,   // num_mip_levels
+        0,   // num_samples
+        nullptr, // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+
+    // Init with pattern
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+    const cl_uchar fill_value = 0xAB;
+    size_t row_pitch;
+    auto data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
+                                          CL_MAP_WRITE_INVALIDATE_REGION,
+                                          origin, region,
+                                          &row_pitch, nullptr);
+    size_t row_pitch_pixels = row_pitch / sizeof(int8_t);
+
+    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
+        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
+            data[row * row_pitch_pixels + pix] = fill_value;
+        }
+    }
+
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+
+    // Map for reading a region
+    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
+                                     CL_MAP_READ,
+                                     origin, region,
+                                     &row_pitch, nullptr);
+    // Change pattern
+    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
+        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
+            data[row * row_pitch_pixels + pix] = fill_value + pix;
+        }
+    }
+
+    // Unmap
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+
+    // Map again
+    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
+                                     CL_MAP_READ,
+                                     origin, region,
+                                     &row_pitch, nullptr);
+
+    // Check the new pattern isn't in the image
+    bool success = true;
+    for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
+        auto val = data[i];
+        if (val != fill_value) {
+            success = false;
+        }
+    }
+    EXPECT_TRUE(success);
+
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+}
+
+TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent)
+{
+    // Create an image
+    const size_t IMAGE_WIDTH = 97;
+    const size_t IMAGE_HEIGHT = 13;
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH, // image_width
+        IMAGE_HEIGHT, // image_height
+        1,   // image_depth
+        1,   // image_array_size
+        0,   // image_row_pitch
+        0,   // image_slice_pitch
+        0,   // num_mip_levels
+        0,   // num_samples
+        nullptr, // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+
+    // Init content
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+    const cl_uchar fill_value = 0x42;
+    size_t row_pitch;
+    auto data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
+                                          CL_MAP_WRITE_INVALIDATE_REGION,
+                                          origin, region,
+                                          &row_pitch, nullptr);
+    size_t row_pitch_pixels = row_pitch / sizeof(int8_t);
+
+    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
+        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
+            data[row * row_pitch_pixels + pix] = fill_value;
+        }
+    }
+
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+
+    // Map with CL_MAP_WRITE_INVALIDATE_REGION
+    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
+                                     CL_MAP_WRITE_INVALIDATE_REGION,
+                                     origin, region,
+                                     &row_pitch, nullptr);
+
+    // Check the pattern isn't visible
+    bool success = false;
+    for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
+        auto val = data[i];
+        if (val != fill_value) {
+            success = true;
+        }
+    }
+    EXPECT_TRUE(success);
+
+    EnqueueUnmapMemObject(image, data);
+    Finish();
+}
+

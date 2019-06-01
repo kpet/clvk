@@ -265,6 +265,14 @@ private:
     VkSampler m_sampler;
 } cvk_sampler;
 
+struct cvk_image_mapping {
+    cvk_buffer* buffer;
+    std::array<size_t, 3> origin;
+    std::array<size_t, 3> region;
+    void *ptr;
+    cl_map_flags flags;
+};
+
 struct cvk_image : public cvk_mem {
 
     cvk_image(cvk_context *ctx, cl_mem_flags flags, const cl_image_desc *desc,
@@ -306,6 +314,56 @@ struct cvk_image : public cvk_mem {
     cvk_mem* buffer() const { return m_desc.buffer; }
     cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
     cl_uint num_samples() const { return m_desc.num_samples; }
+
+    bool find_or_create_mapping(cvk_image_mapping &mapping,
+                                std::array<size_t, 3> origin,
+                                std::array<size_t, 3> region,
+                                cl_map_flags flags) {
+        // TODO try to reuse existing mappings
+        // TODO add overlap checks
+
+        // Create a buffer
+        // TODO adapt flags depending on the map flags
+        auto buffer_size = element_size() * region[0] * region[1] * region[2];
+        cl_int err;
+        auto buffer = cvk_buffer::create(context(), CL_MEM_READ_WRITE, buffer_size, nullptr, &err);
+
+        if (err != CL_SUCCESS) {
+            return false;
+        }
+
+        if (!buffer->map()) {
+            return false;
+        }
+
+        mapping.buffer = buffer.release();
+        mapping.origin = origin;
+        mapping.region = region;
+        mapping.ptr = mapping.buffer->map_ptr(0);
+        mapping.flags = flags;
+
+        CVK_ASSERT(m_mappings.count(ptr) == 0);
+        m_mappings[mapping.ptr] = mapping;
+
+        return true;
+    }
+
+    cvk_image_mapping remove_mapping(void *ptr) {
+        CVK_ASSERT(m_mappings.count(ptr) > 0);
+        auto mapping = m_mappings.at(ptr);
+        m_mappings.erase(ptr);
+        mapping.buffer->unmap();
+        mapping.buffer->release();
+        mapping.buffer = nullptr;
+        mapping.ptr = nullptr;
+        return mapping;
+    }
+
+    cvk_image_mapping mapping_for(void *ptr) {
+        CVK_ASSERT(m_mappings.count(ptr) > 0);
+        auto mapping = m_mappings.at(ptr);
+        return mapping;
+    }
 
 private:
 
@@ -364,6 +422,7 @@ private:
     const cl_image_format m_format;
     VkImage m_image;
     VkImageView m_image_view;
+    std::unordered_map<void*, cvk_image_mapping> m_mappings;
 };
 
 using cvk_image_holder = refcounted_holder<cvk_image>;
