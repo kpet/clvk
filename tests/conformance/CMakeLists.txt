@@ -1,4 +1,4 @@
-# Copyright 2018 The clvk authors.
+# Copyright 2019 The clvk authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
-
-option(CLVK_BUILD_CONFORMANCE_TESTS "Build OpenCL conformance tests")
-if (CLVK_BUILD_CONFORMANCE_TESTS)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/conformance)
-endif (CLVK_BUILD_CONFORMANCE_TESTS)
+set(CLConf_OUT_DIR dummy)
+set(CLConform_LIBRARIES OpenCL)
+add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS/test_conformance
+                 ${CMAKE_BINARY_DIR}/conformance)

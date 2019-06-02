@@ -66,21 +66,26 @@ The build system allows a number of things to be configured.
 ### Vulkan implementation
 
 You can select the Vulkan implementation that clvk will target with the
-`VULKAN_IMPLEMENTATION` build system option. Two options are currently
+`CLVK_VULKAN_IMPLEMENTATION` build system option. Two options are currently
 supported:
 
-* `-DVULKAN_IMPLEMENTATION=system` instructs the build system to use the
+* `-DCLVK_VULKAN_IMPLEMENTATION=system` instructs the build system to use the
   Vulkan implementation provided by your system as detected by CMake. This
   is the default.
 
-* `-DVULKAN_IMPLEMENTATION=talvos` instructs the build system to use
+* `-DCLVK_VULKAN_IMPLEMENTATION=talvos` instructs the build system to use
   [Talvos](https://github.com/talvos/talvos). Talvos emulates the
   Vulkan API and provides an interpreter for SPIR-V modules. You don't
   need Vulkan-compatible hardware and drivers to run clvk using Talvos.
 
+### Tests
+
+It is possible to disable the build of the tests by passing
+`-DCLVK_BUILD_TESTS=OFF`.
+
 ### OpenCL conformance tests
 
-Passing `-DBUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
+Passing `-DCLVK_BUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
 [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS).
 This is _not expected to work out-of-the box_ at the moment.
 

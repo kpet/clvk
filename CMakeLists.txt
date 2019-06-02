@@ -44,20 +44,20 @@ set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
 
 # Vulkan
 set(
-  VULKAN_IMPLEMENTATION "system"
+  CLVK_VULKAN_IMPLEMENTATION "system"
   CACHE STRING "Select the Vulkan implementation"
 )
 
-set(VULKAN_IMPLEMENTATION_OPTIONS
+set(CLVK_VULKAN_IMPLEMENTATION_OPTIONS
     system # Use the system's Vulkan
     talvos # Use talvos to provide Vulkan
 )
-set_property(CACHE VULKAN_IMPLEMENTATION PROPERTY STRINGS
-    ${VULKAN_IMPLEMENTATION_OPTIONS})
+set_property(CACHE CLVK_VULKAN_IMPLEMENTATION PROPERTY STRINGS
+    ${CLVK_VULKAN_IMPLEMENTATION_OPTIONS})
 
-message(STATUS "VULKAN_IMPLEMENTATION = ${VULKAN_IMPLEMENTATION}")
+message(STATUS "CLVK_VULKAN_IMPLEMENTATION = ${CLVK_VULKAN_IMPLEMENTATION}")
 
-if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   set(SPIRV_INCLUDE_DIR ${SPIRV_HEADERS_SOURCE_DIR}/include CACHE STRING
       "SPIRV Headers for Talvos")
   set(SPIRV_TOOLS_INCLUDE_DIR ${SPIRV_TOOLS_SOURCE_DIR}/include CACHE STRING
@@ -67,13 +67,13 @@ if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_dependencies(talvos SPIRV-Tools)
   set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
   set(Vulkan_LIBRARIES talvos talvos-vulkan)
-elseif (${VULKAN_IMPLEMENTATION} STREQUAL system)
+elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
 else ()
   message(FATAL_ERROR "Unknown Vulkan implementation "
-                      "'${VULKAN_IMPLEMENTATION}', "
+                      "'${CLVK_VULKAN_IMPLEMENTATION}', "
                       "valid values are: "
-                      "'${VULKAN_IMPLEMENTATION_OPTIONS}'.")
+                      "'${CLVK_VULKAN_IMPLEMENTATION_OPTIONS}'.")
 endif ()
 
 message(STATUS "Vulkan_INCLUDE_DIRS = '${Vulkan_INCLUDE_DIRS}'")
@@ -83,13 +83,7 @@ message(STATUS "Vulkan_LIBRARIES = '${Vulkan_LIBRARIES}'")
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 
 # Tests
+option(CLVK_BUILD_TESTS "Build tests" ON)
+if (CLVK_BUILD_TESTS)
 add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
-
-# OpenCL Conformance tests
-option(BUILD_CONFORMANCE_TESTS "Build OpenCL conformance tests")
-
-if (BUILD_CONFORMANCE_TESTS)
-set(CLConf_OUT_DIR dummy)
-set(CLConform_LIBRARIES OpenCL)
-add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS/test_conformance)
-endif (BUILD_CONFORMANCE_TESTS)
+endif()

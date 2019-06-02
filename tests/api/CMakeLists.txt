@@ -26,7 +26,7 @@ add_executable(
     workgroup.cpp
 )
 
-if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_definitions(-DUSING_TALVOS)
 endif()
 

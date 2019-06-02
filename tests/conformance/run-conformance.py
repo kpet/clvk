@@ -25,7 +25,7 @@ import subprocess
 
 THIS_DIR = os.path.dirname(__file__)
 TOP_DIR = os.path.realpath(os.path.join(THIS_DIR, '..', '..'))
-CONFORMANCE_DIR = os.path.join(TOP_DIR, 'build', 'external', 'OpenCL-CTS', 'test_conformance')
+CONFORMANCE_DIR = os.path.join(TOP_DIR, 'build', 'conformance')
 
 # ('Name', 'binary', 'arg0', 'arg1', ...)
 TESTS_HEADERS = (

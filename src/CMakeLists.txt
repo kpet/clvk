@@ -23,7 +23,7 @@ if (CLVK_CLSPV_ONLINE_COMPILER)
   add_compile_options(-DCLSPV_ONLINE_COMPILER)
 endif()
 
-if (${VULKAN_IMPLEMENTATION} STREQUAL talvos)
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_definitions(-DUSING_TALVOS)
 endif()
 
