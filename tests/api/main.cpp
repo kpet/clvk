@@ -62,15 +62,15 @@ cl_device_id get_device() {
     return device;
 }
 
-cl_device_id device;
+cl_device_id gDevice;
 
 int main(int argc, char* argv[]) {
 
     ::testing::InitGoogleTest(&argc, argv);
 
     // Select device
-    device = get_device();
-    if (device == nullptr) {
+    gDevice = get_device();
+    if (gDevice == nullptr) {
         std::cerr << "Couldn't find an OpenCL device\n";
         std::exit(EXIT_FAILURE);
     }

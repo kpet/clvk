@@ -92,7 +92,7 @@ static inline const char* cl_code_to_string(cl_int code)
     return "Unknown";
 }
 
-extern cl_device_id device;
+extern cl_device_id gDevice;
 
 #include "gtest/gtest.h"
 
@@ -146,7 +146,7 @@ protected:
 
     void SetUp() override {
         cl_int err;
-        m_context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
+        m_context = clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -161,17 +161,17 @@ protected:
         auto program = clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         EXPECT_CL_SUCCESS(err);
 
-        err = clBuildProgram(program, 1, &device, nullptr, nullptr, nullptr);
+        err = clBuildProgram(program, 1, &gDevice, nullptr, nullptr, nullptr);
         EXPECT_CL_SUCCESS(err);
 
         if (err != CL_SUCCESS) {
             size_t log_size;
-            err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
             EXPECT_CL_SUCCESS(err);
             std::string build_log;
             build_log.reserve(log_size);
             auto data_ptr = const_cast<char*>(build_log.c_str());
-            err = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, data_ptr, nullptr);
+            err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_LOG, log_size, data_ptr, nullptr);
             EXPECT_CL_SUCCESS(err);
 
             printf("Build log:\n%s\n", build_log.c_str());
@@ -282,7 +282,7 @@ protected:
     void SetUp() override {
         WithContext::SetUp();
         cl_int err;
-        m_queue = clCreateCommandQueue(m_context, device, 0, &err);
+        m_queue = clCreateCommandQueue(m_context, gDevice, 0, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
