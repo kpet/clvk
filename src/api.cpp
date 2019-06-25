@@ -3534,6 +3534,72 @@ cl_int clGetSupportedImageFormats(
     return CL_SUCCESS;
 }
 
+cl_int cvk_enqueue_image_copy(cvk_command_queue *queue, cl_command_type command_type,
+                              cvk_mem *image, bool blocking,
+                              const size_t    *origin,
+                              const size_t    *region,
+                              size_t           row_pitch,
+                              size_t           slice_pitch,
+                              void            *ptr,
+                              cl_uint          num_events_in_wait_list,
+                              const cl_event  *event_wait_list,
+                              cl_event        *event) {
+
+    // Create image map command
+    std::array<size_t, 3> orig = { origin[0], origin[1], origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+
+    cl_map_flags map_flags;
+    if (command_type == CL_COMMAND_WRITE_IMAGE) {
+        map_flags = CL_MAP_WRITE_INVALIDATE_REGION;
+    } else {
+        map_flags = CL_MAP_READ;
+    }
+
+    auto img = static_cast<cvk_image*>(image);
+    auto cmd_map = std::make_unique<cvk_command_map_image>(queue, img, orig, reg, map_flags);
+    void *map_ptr;
+    cl_int err = cmd_map->build(&map_ptr);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+    auto map_buffer = cmd_map->map_buffer();
+
+    // Create copy command
+    auto rpitch = row_pitch;
+    if (rpitch == 0) {
+        rpitch = img->width() * img->element_size();
+    }
+
+    auto spitch = slice_pitch;
+    if (spitch == 0) {
+        spitch = img->height() * rpitch;
+    }
+    auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
+                          queue, command_type, map_buffer, ptr, origin, origin, region,
+                          cmd_map->map_buffer_row_pitch(), cmd_map->map_buffer_slice_pitch(),
+                          rpitch, spitch, img->element_size());
+
+    // Create unmap command
+    auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(queue, img, map_ptr);
+    err = cmd_unmap->build();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    // Create combine command
+    std::vector<std::unique_ptr<cvk_command>> commands;
+    commands.emplace_back(std::move(cmd_map));
+    commands.emplace_back(std::move(cmd_copy));
+    commands.emplace_back(std::move(cmd_unmap));
+
+    auto cmd = new cvk_command_combine(queue, command_type, std::move(commands));
+
+    // Enqueue combined command
+    return queue->enqueue_command_with_deps(cmd, blocking, num_events_in_wait_list,
+                                            event_wait_list, event);
+}
+
 cl_int clEnqueueReadImage(
     cl_command_queue command_queue,
     cl_mem           image,
@@ -3558,7 +3624,39 @@ cl_int clEnqueueReadImage(
                  row_pitch, slice_pitch, ptr, num_events_in_wait_list,
                  event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+    // TODO CL_INVALID_VALUE if the region being read specified by origin and region is out of bounds or if ptr is a NULL value.
+    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules described in the argument description for origin and region.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with image.
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (image->has_any_flag(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS)) {
+        return CL_INVALID_OPERATION;
+    }
+
+    return cvk_enqueue_image_copy(command_queue, CL_COMMAND_READ_IMAGE, image,
+                                  blocking_read, origin, region, row_pitch,
+                                  slice_pitch, ptr, num_events_in_wait_list,
+                                  event_wait_list, event);
 }
 
 cl_int clEnqueueWriteImage(
@@ -3585,7 +3683,40 @@ cl_int clEnqueueWriteImage(
                  input_row_pitch, input_slice_pitch, ptr, num_events_in_wait_list,
                  event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    // TODO CL_INVALID_VALUE if the region being written specified by origin and region is out of bounds or if ptr is a NULL value.
+    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules described in the argument description for origin and region.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with image.
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (image->has_any_flag(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS)) {
+        return CL_INVALID_OPERATION;
+    }
+
+    return cvk_enqueue_image_copy(command_queue, CL_COMMAND_WRITE_IMAGE, image,
+                                  blocking_write, origin, region, input_row_pitch,
+                                  input_slice_pitch, const_cast<void*>(ptr),
+                                  num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int clEnqueueCopyImage(
