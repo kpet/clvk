@@ -3,7 +3,7 @@
 set -ex
 
 cd external/clspv
-./utils/fetch_sources.py --deps clang llvm
+./utils/fetch_sources.py --deps llvm
 cd ../..
 
 if [ "${TRAVIS_OS_NAME}" = "osx" ]; then

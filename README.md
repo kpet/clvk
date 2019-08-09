@@ -41,7 +41,7 @@ To fetch all the dependencies needed to build and run clvk, please run:
 
 ```
 git submodule update --init --recursive
-./external/clspv/utils/fetch_sources.py --deps clang llvm
+./external/clspv/utils/fetch_sources.py --deps llvm
 ```
 
 # Building
