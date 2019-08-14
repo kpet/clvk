@@ -263,6 +263,44 @@ void cvk_command_queue::free_command_buffer(VkCommandBuffer buf) {
     vkFreeCommandBuffers(m_device->vulkan_device(), m_command_pool, 1, &buf);
 }
 
+bool cvk_command_buffer::begin() {
+    if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
+        return false;
+    }
+
+    VkCommandBufferBeginInfo beginInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        nullptr,
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+        nullptr // pInheritanceInfo
+    };
+
+    VkResult res = vkBeginCommandBuffer(m_command_buffer, &beginInfo);
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    return true;
+}
+
+bool cvk_command_buffer::submit_and_wait() {
+    auto &queue = m_queue->vulkan_queue();
+
+    VkResult res = queue.submit(m_command_buffer);
+
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    res = queue.wait_idle();
+
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    return true;
+}
+
 cl_int cvk_command_kernel::build() {
 
     auto vklimits = m_queue->device()->vulkan_limits();
@@ -316,21 +354,7 @@ cl_int cvk_command_kernel::build() {
         }
     }
 
-    // Create and populate the command buffer
-    if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    VkCommandBufferBeginInfo beginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        nullptr,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        nullptr // pInheritanceInfo
-    };
-
-    VkResult res = vkBeginCommandBuffer(m_command_buffer, &beginInfo);
-
-    if (res != VK_SUCCESS) {
+    if (!m_command_buffer.begin()) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -411,9 +435,7 @@ cl_int cvk_command_kernel::build() {
                             POOL_QUERY_KERNEL_END);
     }
 
-    res = vkEndCommandBuffer(m_command_buffer);
-
-    if (res != VK_SUCCESS) {
+    if (!m_command_buffer.end()) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -422,21 +444,9 @@ cl_int cvk_command_kernel::build() {
 
 cl_int cvk_command_kernel::do_action()
 {
-    auto &queue = m_queue->vulkan_queue();
-
-    VkResult res = queue.submit(m_command_buffer);
-
-    if (res != VK_SUCCESS) {
+    if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
-
-    res = queue.wait_idle();
-
-    if (res != VK_SUCCESS) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    m_queue->free_command_buffer(m_command_buffer);
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 

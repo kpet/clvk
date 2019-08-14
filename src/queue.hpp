@@ -439,11 +439,39 @@ private:
     size_t m_pattern_size;
 };
 
+struct cvk_command_buffer {
+    cvk_command_buffer(cvk_command_queue *queue) :
+        m_queue(queue), m_command_buffer(VK_NULL_HANDLE) {}
+
+    ~cvk_command_buffer() {
+        if(m_command_buffer != VK_NULL_HANDLE) {
+            m_queue->free_command_buffer(m_command_buffer);
+        }
+    }
+
+    CHECK_RETURN bool begin();
+
+    CHECK_RETURN bool end() {
+        auto res = vkEndCommandBuffer(m_command_buffer);
+        return res == VK_SUCCESS;
+    }
+
+    CHECK_RETURN bool submit_and_wait();
+
+    operator VkCommandBuffer () {
+        return m_command_buffer;
+    }
+protected:
+    cvk_command_queue_holder m_queue;
+    VkCommandBuffer m_command_buffer;
+};
+
 struct cvk_command_kernel : public cvk_command {
 
     cvk_command_kernel(cvk_command_queue *q, cvk_kernel *kernel, uint32_t *num_wg, uint32_t *wg_size) :
         cvk_command(CL_COMMAND_NDRANGE_KERNEL, q),
         m_kernel(kernel),
+        m_command_buffer(q),
         m_descriptor_set(VK_NULL_HANDLE),
         m_pipeline(VK_NULL_HANDLE),
         m_query_pool(VK_NULL_HANDLE),
@@ -482,8 +510,8 @@ struct cvk_command_kernel : public cvk_command {
 private:
     uint32_t m_num_wg[3];
     uint32_t m_wg_size[3];
-    VkCommandBuffer m_command_buffer;
     cvk_kernel_holder m_kernel;
+    cvk_command_buffer m_command_buffer;
     VkDescriptorSet m_descriptor_set;
     VkPipeline m_pipeline;
     VkQueryPool m_query_pool;
