@@ -43,13 +43,26 @@ struct cvk_vulkan_queue_wrapper {
         };
 
 
-        return vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        auto ret = vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        if (ret != VK_SUCCESS) {
+            cvk_error_fn("could not submit work to queue: %s",
+                         vulkan_error_string(ret));
+        }
+
+        return ret;
     }
 
     CHECK_RETURN VkResult wait_idle() {
         std::lock_guard<std::mutex> lock(m_lock);
 
-        return vkQueueWaitIdle(m_queue);
+        auto ret = vkQueueWaitIdle(m_queue);
+
+        if (ret != VK_SUCCESS) {
+            cvk_error_fn("could not wait for queue to become idle: %s",
+                         vulkan_error_string(ret));
+        }
+
+        return ret;
     }
 
     uint32_t queue_family() {

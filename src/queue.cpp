@@ -427,14 +427,12 @@ cl_int cvk_command_kernel::do_action()
     VkResult res = queue.submit(m_command_buffer);
 
     if (res != VK_SUCCESS) {
-        cvk_error_fn("could not submit work to queue");
         return CL_OUT_OF_RESOURCES;
     }
 
     res = queue.wait_idle();
 
     if (res != VK_SUCCESS) {
-        cvk_error_fn("could not wait for queue to become idle: %s", vulkan_error_string(res));
         return CL_OUT_OF_RESOURCES;
     }
 
