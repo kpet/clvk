@@ -355,3 +355,6 @@ private:
     VkImage m_image;
     VkImageView m_image_view;
 };
+
+using cvk_image_holder = refcounted_holder<cvk_image>;
+

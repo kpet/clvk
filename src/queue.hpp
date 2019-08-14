@@ -597,3 +597,30 @@ struct cvk_command_dep : public cvk_command {
     }
 };
 
+struct cvk_command_buffer_image_copy : public cvk_command {
+    cvk_command_buffer_image_copy(cl_command_type type, cvk_command_queue *queue,
+                                  cvk_buffer *buffer, cvk_image *image, size_t offset,
+                                  const std::array<size_t, 3> &origin,
+                                  const std::array<size_t, 3> &region)
+        : cvk_command(type, queue),
+          m_command_buffer(queue),
+          m_buffer(buffer),
+          m_image(image),
+          m_offset(offset),
+          m_origin(origin),
+          m_region(region) {}
+
+    void build_inner_image_to_buffer(const VkBufferImageCopy &region);
+    void build_inner_buffer_to_image(const VkBufferImageCopy &region);
+    CHECK_RETURN cl_int build();
+    virtual cl_int do_action() override;
+
+private:
+    cvk_command_buffer m_command_buffer;
+    cvk_buffer_holder m_buffer;
+    cvk_image_holder m_image;
+    size_t m_offset;
+    std::array<size_t, 3> m_origin;
+    std::array<size_t, 3> m_region;
+};
+

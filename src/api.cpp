@@ -3642,7 +3642,55 @@ cl_int clEnqueueCopyImageToBuffer(
                  dst_offset,
                  num_events_in_wait_list, event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(src_image) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, src_image) ||
+        !is_same_context(command_queue, dst_buffer) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+    // TODO CL_INVALID_MEM_OBJECT if src_image is a 1D image buffer object created from dst_buffer.
+    // TODO CL_INVALID_VALUE if the 1D, 2D, or 3D rectangular region specified by src_origin and src_origin + region refers to a region outside src_image, or if the region specified by dst_offset and dst_offset + dst_cb refers to a region outside dst_buffer.
+    // TODO CL_INVALID_VALUE if values in src_origin and region do not follow rules described in the argument description for src_origin and region.
+
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if dst_buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for src_image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for src_image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with src_image or dst_buffer.
+
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    //
+    auto image = static_cast<cvk_image*>(src_image);
+    auto buffer = static_cast<cvk_buffer*>(dst_buffer);
+    std::array<size_t, 3> origin = { src_origin[0], src_origin[1], src_origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+
+    auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+                    CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, buffer,
+                    image, dst_offset, origin, reg);
+    auto err = cmd->build();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    command_queue->enqueue_command_with_deps(cmd.release(),
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    return CL_SUCCESS;
 }
 
 cl_int clEnqueueCopyBufferToImage(
@@ -3666,7 +3714,52 @@ cl_int clEnqueueCopyBufferToImage(
                  region[0], region[1], region[2],
                  num_events_in_wait_list, event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(dst_image) || !is_valid_buffer(src_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, src_buffer) ||
+        !is_same_context(command_queue, dst_image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+    // TODO CL_INVALID_MEM_OBJECT if dst_image is a 1D image buffer object created from src_buffer.
+    // TODO CL_INVALID_VALUE if the 1D, 2D, or 3D rectangular region specified by dst_origin and dst_origin + region refers to a region outside dst_origin, or if the region specified by src_offset and src_offset + src_cb refers to a region outside src_buffer.
+    // TODO CL_INVALID_VALUE if values in dst_origin and region do not follow rules described in the argument description for dst_origin and region.
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if src_buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for dst_image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for dst_image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with src_buffer or dst_image.
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    auto image = static_cast<cvk_image*>(dst_image);
+    auto buffer = static_cast<cvk_buffer*>(src_buffer);
+    std::array<size_t, 3> origin = { dst_origin[0], dst_origin[1], dst_origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+
+    auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+                    CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue, buffer,
+                    image, src_offset, origin, reg);
+    auto err = cmd->build();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    command_queue->enqueue_command_with_deps(cmd.release(),
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    return CL_SUCCESS;
 }
 
 void* clEnqueueMapImage(
