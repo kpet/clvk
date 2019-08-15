@@ -129,9 +129,9 @@ def timedelta_to_string(duration):
     d = duration
     duration_as_date = datetime.datetime(
         year=1900, month=1, day=d.days+1,
-        hour=d.seconds / 3600,
-        minute=d.seconds / 60,
-        second=d.seconds % 60,
+        hour=int(d.seconds / 3600),
+        minute=int(d.seconds / 60),
+        second=int(d.seconds % 60),
         microsecond=d.microseconds
     )
     return datetime.datetime.strftime(duration_as_date, TIME_SERIALISATION_FORMAT)
@@ -147,6 +147,8 @@ def run_conformance_binary(path, args):
         cwd=os.path.dirname(path)
     )
     stdout, stderr = p.communicate()
+    stdout = stdout.decode('utf-8')
+    stderr = stderr.decode('utf-8')
     end = datetime.datetime.utcnow()
     #print(stdout)
     duration = end - start
@@ -212,7 +214,7 @@ def check_reference(results, reference):
     print("Difference w.r.t. reference results:")
     for name in sorted(results):
         # Skip checking if there is no reference
-        if not reference.has_key(name):
+        if not name in reference:
             print("No reference for {}".format(name))
             continue
 
