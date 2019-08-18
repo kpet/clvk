@@ -105,6 +105,10 @@ typedef struct _cl_mem : public api_object {
         return is_image_type(type());
     }
 
+    bool is_buffer_type() const {
+        return type() == CL_MEM_OBJECT_BUFFER;
+    }
+
     bool has_flags(cl_mem_flags flags) const {
         return (m_flags & flags) == flags;
     }

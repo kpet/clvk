@@ -23,6 +23,15 @@
 
 #define LOG_API_CALL(fmt, ...) cvk_info_fn(fmt,  __VA_ARGS__)
 
+// Validation functions
+namespace {
+
+bool is_valid_buffer(cl_mem mem) {
+    return ((mem != nullptr) && (mem->is_buffer_type()));
+}
+
+} // namespace
+
 // Platform API
 cl_int
 clGetPlatformIDs(
@@ -2225,7 +2234,7 @@ clEnqueueReadBuffer(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2267,7 +2276,7 @@ clEnqueueWriteBuffer(
 
     // TODO validate the contexts
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2321,7 +2330,7 @@ clEnqueueReadBufferRect(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2377,7 +2386,7 @@ cl_int clEnqueueWriteBufferRect(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2421,7 +2430,7 @@ cl_int clEnqueueFillBuffer(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2485,7 +2494,7 @@ cl_int clEnqueueCopyBuffer(
 
     // TODO validate the contexts
 
-    if ((src_buffer == nullptr) || (dst_buffer == nullptr)) {
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2555,7 +2564,7 @@ clEnqueueMapBuffer(
         return nullptr;
     }
 
-    if (buffer == nullptr) {
+    if (!is_valid_buffer(buffer)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_MEM_OBJECT;
         }
