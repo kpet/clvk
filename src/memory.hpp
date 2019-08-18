@@ -209,6 +209,16 @@ struct cvk_buffer : public cvk_mem {
 
     VkBuffer vulkan_buffer() const { return m_buffer; }
 
+    void* map_ptr(size_t offset) const {
+        void *ptr;
+        if (has_flags(CL_MEM_USE_HOST_PTR)) {
+            ptr = host_ptr();
+        } else {
+            ptr = pointer_offset(host_va(), offset);
+        }
+        return ptr;
+    }
+
 private:
     bool init();
     bool init_subbuffer();
