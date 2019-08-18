@@ -23,7 +23,6 @@ mkdir "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
 cmake --version
-mkdir -p external/clspv/include/clspv # FIXME
 cmake -DCMAKE_BUILD_TYPE=Release -DCLVK_VULKAN_IMPLEMENTATION=talvos -DSPIRV_WERROR=OFF ..
 
 set +e
