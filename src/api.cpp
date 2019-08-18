@@ -2342,10 +2342,12 @@ clEnqueueReadBufferRect(
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto cmd = new cvk_command_copy_rect(command_queue, CL_COMMAND_READ_BUFFER_RECT, buffer,
-                                         ptr, buffer_origin, host_origin, region,
-                                         buffer_row_pitch, buffer_slice_pitch,
-                                         host_row_pitch, host_slice_pitch);
+    auto buf = static_cast<cvk_buffer*>(buffer);
+
+    auto cmd = new cvk_command_copy_host_buffer_rect(
+        command_queue, CL_COMMAND_READ_BUFFER_RECT, buf, ptr, host_origin,
+        buffer_origin, region, host_row_pitch, host_slice_pitch,
+        buffer_row_pitch, buffer_slice_pitch);
 
     auto err = command_queue->enqueue_command_with_deps(cmd, blocking_read,
                                                         num_events_in_wait_list,
@@ -2398,10 +2400,12 @@ cl_int clEnqueueWriteBufferRect(
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto cmd = new cvk_command_copy_rect(command_queue, CL_COMMAND_WRITE_BUFFER_RECT, buffer,
-                                         ptr, buffer_origin, host_origin, region,
-                                         buffer_row_pitch, buffer_slice_pitch,
-                                         host_row_pitch, host_slice_pitch);
+    auto buf = static_cast<cvk_buffer*>(buffer);
+
+    auto cmd = new cvk_command_copy_host_buffer_rect(
+        command_queue, CL_COMMAND_WRITE_BUFFER_RECT, buf, const_cast<void*>(ptr), host_origin,
+        buffer_origin, region, host_row_pitch, host_slice_pitch,
+        buffer_row_pitch, buffer_slice_pitch);
 
     auto err = command_queue->enqueue_command_with_deps(cmd, blocking_write,
                                                         num_events_in_wait_list,

@@ -212,6 +212,8 @@ private:
     VkBuffer m_buffer;
 };
 
+using cvk_buffer_holder = refcounted_holder<cvk_buffer>;
+
 typedef struct _cl_sampler cvk_sampler;
 
 typedef struct _cl_sampler : public api_object {

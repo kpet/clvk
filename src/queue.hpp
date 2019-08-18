@@ -364,44 +364,70 @@ private:
     void *m_ptr;
 };
 
-struct cvk_command_copy_rect : public cvk_command_memobj {
+struct cvk_rectangle_copier {
 
-    cvk_command_copy_rect(cvk_command_queue *q, cl_command_type type, cvk_mem *memobj,
-                          const void *ptr, const size_t *buffer_origin, const size_t *host_origin,
-                          const size_t *region,
-                          size_t buffer_row_pitch, size_t buffer_slice_pitch,
-                          size_t host_row_pitch, size_t host_slice_pitch)
-                         :
-                         cvk_command_memobj(q, type, memobj),
-                         m_ptr(const_cast<void*>(ptr)),
-                         m_buffer_row_pitch(buffer_row_pitch),
-                         m_buffer_slice_pitch(buffer_slice_pitch),
-                         m_host_row_pitch(host_row_pitch),
-                         m_host_slice_pitch(host_slice_pitch) {
-        m_buffer_origin[0] = buffer_origin[0];
-        m_buffer_origin[1] = buffer_origin[1];
-        m_buffer_origin[2] = buffer_origin[2];
+    cvk_rectangle_copier(
+        const size_t *a_origin, const size_t *b_origin, const size_t *region,
+        size_t a_row_pitch, size_t a_slice_pitch, size_t b_row_pitch,
+        size_t b_slice_pitch, size_t elem_size)
+        :
+        m_a_row_pitch(a_row_pitch),
+        m_a_slice_pitch(a_slice_pitch),
+        m_b_row_pitch(b_row_pitch),
+        m_b_slice_pitch(b_slice_pitch),
+        m_elem_size(elem_size) {
 
-        m_host_origin[0] = host_origin[0];
-        m_host_origin[1] = host_origin[1];
-        m_host_origin[2] = host_origin[2];
+        m_a_origin[0] = a_origin[0];
+        m_a_origin[1] = a_origin[1];
+        m_a_origin[2] = a_origin[2];
+
+        m_b_origin[0] = b_origin[0];
+        m_b_origin[1] = b_origin[1];
+        m_b_origin[2] = b_origin[2];
 
         m_region[0] = region[0];
         m_region[1] = region[1];
         m_region[2] = region[2];
     }
 
+    enum class direction {
+        A_TO_B,
+        B_TO_A,
+    };
+
+    void do_copy(direction dir, void *src_base, void *dst_base);
+
+private:
+    size_t m_a_origin[3];
+    size_t m_a_row_pitch;
+    size_t m_a_slice_pitch;
+    size_t m_b_origin[3];
+    size_t m_b_row_pitch;
+    size_t m_b_slice_pitch;
+    size_t m_region[3];
+    size_t m_elem_size;
+};
+
+struct cvk_command_copy_host_buffer_rect : public cvk_command {
+
+    cvk_command_copy_host_buffer_rect(
+        cvk_command_queue *queue, cl_command_type type, cvk_buffer *buffer,
+        void *hostptr, const size_t *host_origin, const size_t *buffer_origin,
+        const size_t *region, size_t host_row_pitch, size_t host_slice_pitch,
+        size_t buffer_row_pitch, size_t buffer_slice_pitch, size_t elem_size = 1)
+        :
+        cvk_command(type, queue),
+        m_copier(buffer_origin, host_origin, region, buffer_row_pitch,
+                 buffer_slice_pitch, host_row_pitch, host_slice_pitch, elem_size),
+        m_buffer(buffer),
+        m_hostptr(hostptr) {}
+
     virtual cl_int do_action() override;
 
 private:
-    void *m_ptr;
-    size_t m_buffer_row_pitch;
-    size_t m_buffer_slice_pitch;
-    size_t m_host_row_pitch;
-    size_t m_host_slice_pitch;
-    size_t m_buffer_origin[3];
-    size_t m_host_origin[3];
-    size_t m_region[3];
+    cvk_rectangle_copier m_copier;
+    cvk_buffer_holder m_buffer;
+    void *m_hostptr;
 };
 
 struct cvk_command_copy_buffer : public cvk_command {

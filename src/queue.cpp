@@ -501,21 +501,25 @@ cl_int cvk_command_copy::do_action()
 
 struct rectangle {
 public:
-    void set_params(size_t *origin, size_t slicep, size_t rowp) {
+    void set_params(size_t *origin, size_t slicep, size_t rowp, size_t elem_size) {
         m_origin[0] = origin[0];
         m_origin[1] = origin[1];
         m_origin[2] = origin[2];
         m_slice_pitch = slicep;
         m_row_pitch = rowp;
+        m_elem_size = elem_size;
     }
 
     size_t get_row_offset(size_t slice, size_t row) {
-        return m_slice_pitch * (m_origin[2] + slice) + m_row_pitch * (m_origin[1] + row) + m_origin[0];
+        return m_slice_pitch * (m_origin[2] + slice) +
+               m_row_pitch * (m_origin[1] + row) +
+               m_origin[0] * m_elem_size;
     }
 private:
     size_t m_origin[3];
     size_t m_slice_pitch;
     size_t m_row_pitch;
+    size_t m_elem_size;
 };
 
 struct memobj_map_holder {
@@ -536,43 +540,61 @@ private:
     bool m_mapped;
 };
 
-cl_int cvk_command_copy_rect::do_action()
+void cvk_rectangle_copier::do_copy(direction dir, void *src_base, void *dst_base)
 {
-    void *dst_base, *src_base;
-    rectangle rsrc, rdst;
+    rectangle ra, rb;
 
-    memobj_map_holder map_holder{m_mem};
+    ra.set_params(m_a_origin, m_a_slice_pitch, m_a_row_pitch, m_elem_size);
+    rb.set_params(m_b_origin, m_b_slice_pitch, m_b_row_pitch, m_elem_size);
+
+    rectangle *rsrc, *rdst;
+    if (dir == direction::A_TO_B) {
+        rsrc = &ra;
+        rdst = &rb;
+    } else {
+        CVK_ASSERT(dir == direction::B_TO_A);
+        rsrc = &rb;
+        rdst = &ra;
+    }
+
+    for (size_t slice = 0; slice < m_region[2]; slice++) {
+        //cvk_debug_fn("slice = %zu", slice);
+        for (size_t row = 0; row < m_region[1]; row++) {
+            //cvk_debug_fn("row = %zu (size = %zu)", row, m_region[0]);
+            auto dst = pointer_offset(dst_base, rdst->get_row_offset(slice, row));
+            auto src = pointer_offset(src_base, rsrc->get_row_offset(slice, row));
+            memcpy(dst, src, m_region[0] * m_elem_size);
+        }
+    }
+}
+
+cl_int cvk_command_copy_host_buffer_rect::do_action()
+{
+    memobj_map_holder map_holder{m_buffer};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
     }
 
+    cvk_rectangle_copier::direction dir;
+    void *src_base, *dst_base;
+
     switch (m_type) {
     case CL_COMMAND_READ_BUFFER_RECT:
-        dst_base = m_ptr;
-        src_base = m_mem->host_va();
-        rsrc.set_params(m_buffer_origin, m_buffer_slice_pitch, m_buffer_row_pitch);
-        rdst.set_params(m_host_origin, m_host_slice_pitch, m_host_row_pitch);
+        dst_base = m_hostptr;
+        src_base = m_buffer->host_va();
+        dir = cvk_rectangle_copier::direction::A_TO_B;
         break;
     case CL_COMMAND_WRITE_BUFFER_RECT:
-        dst_base = m_mem->host_va();
-        src_base = m_ptr;
-        rsrc.set_params(m_host_origin, m_host_slice_pitch, m_host_row_pitch);
-        rdst.set_params(m_buffer_origin, m_buffer_slice_pitch, m_buffer_row_pitch);
+        dst_base = m_buffer->host_va();
+        src_base = m_hostptr;
+        dir = cvk_rectangle_copier::direction::B_TO_A;
         break;
     default:
         return CL_INVALID_OPERATION;
     }
 
-    for (size_t slice = 0; slice < m_region[2]; slice++) {
-        cvk_debug_fn("slice = %zu", slice);
-        for (size_t row = 0; row < m_region[1]; row++) {
-            cvk_debug_fn("row = %zu", row);
-            auto dst = pointer_offset(dst_base, rdst.get_row_offset(slice, row));
-            auto src = pointer_offset(src_base, rsrc.get_row_offset(slice, row));
-            memcpy(dst, src, m_region[0]);
-        }
-    }
+    m_copier.do_copy(dir, src_base, dst_base);
 
     return CL_COMPLETE;
 }
