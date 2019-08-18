@@ -648,7 +648,7 @@ cl_int cvk_command_fill::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_map::do_action()
+cl_int cvk_command_map_buffer::do_action()
 {
     bool success = true;
     if (m_mem->has_flags(CL_MEM_USE_HOST_PTR)) {
@@ -658,7 +658,7 @@ cl_int cvk_command_map::do_action()
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
-cl_int cvk_command_unmap::do_action()
+cl_int cvk_command_unmap_buffer::do_action()
 {
     m_mem->unmap();
 

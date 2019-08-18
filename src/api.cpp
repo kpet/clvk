@@ -2685,7 +2685,8 @@ clEnqueueMapBuffer(
         map_ptr = pointer_offset(buffer->host_va(), offset);
     }
 
-    auto cmd = new cvk_command_map(command_queue, CL_COMMAND_MAP_BUFFER, buffer, offset, size);
+    auto buf = static_cast<cvk_buffer*>(buffer);
+    auto cmd = new cvk_command_map_buffer(command_queue, buf, offset, size);
 
     auto err = command_queue->enqueue_command_with_deps(cmd, blocking_map,
                                                         num_events_in_wait_list,
@@ -2722,7 +2723,8 @@ clEnqueueUnmapMemObject(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    auto cmd = new cvk_command_unmap(command_queue, memobj);
+    auto buffer = static_cast<cvk_buffer*>(memobj);
+    auto cmd = new cvk_command_unmap_buffer(command_queue, buffer);
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
 

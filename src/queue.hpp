@@ -569,17 +569,23 @@ private:
     static const int POOL_QUERY_KERNEL_END = 1;
 };
 
-struct cvk_command_map : public cvk_command_memobj_region {
+struct cvk_command_map_buffer : public cvk_command_memobj_region {
 
-    cvk_command_map(cvk_command_queue *q, cl_command_type type, cvk_mem *memobj, size_t offset, size_t size)
-                   : cvk_command_memobj_region(q, type, memobj, offset, size) {}
+    cvk_command_map_buffer(
+        cvk_command_queue *queue, cvk_buffer *buffer, size_t offset,
+        size_t size)
+        :
+        cvk_command_memobj_region(queue, CL_COMMAND_MAP_BUFFER, buffer, offset,
+                                  size) {}
     virtual cl_int do_action() override;
 };
 
-struct cvk_command_unmap : public cvk_command_memobj {
+struct cvk_command_unmap_buffer : public cvk_command_memobj {
 
-    cvk_command_unmap(cvk_command_queue *q, cvk_mem *memobj)
-                     : cvk_command_memobj(q, CL_COMMAND_UNMAP_MEM_OBJECT, memobj) {}
+    cvk_command_unmap_buffer(
+        cvk_command_queue *queue, cvk_buffer *buffer)
+        :
+        cvk_command_memobj(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer) {}
     virtual cl_int do_action() override;
 };
 
