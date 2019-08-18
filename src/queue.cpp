@@ -599,6 +599,28 @@ cl_int cvk_command_copy_host_buffer_rect::do_action()
     return CL_COMPLETE;
 }
 
+cl_int cvk_command_copy_buffer_rect::do_action()
+{
+    memobj_map_holder src_map_holder{m_src_buffer};
+    memobj_map_holder dst_map_holder{m_dst_buffer};
+
+    if (!src_map_holder.map()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    if (!dst_map_holder.map()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    auto dir = cvk_rectangle_copier::direction::A_TO_B;
+    auto src_base = m_src_buffer->host_va();
+    auto dst_base = m_dst_buffer->host_va();
+
+    m_copier.do_copy(dir, src_base, dst_base);
+
+    return CL_COMPLETE;
+}
+
 cl_int cvk_command_copy_buffer::do_action()
 {
     bool success = m_src_buffer->copy_to(m_dst_buffer, m_src_offset, m_dst_offset, m_size);

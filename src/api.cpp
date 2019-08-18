@@ -2529,20 +2529,51 @@ cl_int clEnqueueCopyBufferRect(
     const cl_event  *event_wait_list,
     cl_event        *event
 ){
-    UNUSED(command_queue);
-    UNUSED(src_buffer);
-    UNUSED(dst_buffer);
-    UNUSED(src_origin);
-    UNUSED(dst_origin);
-    UNUSED(region);
-    UNUSED(src_row_pitch);
-    UNUSED(src_slice_pitch);
-    UNUSED(dst_row_pitch);
-    UNUSED(dst_slice_pitch);
-    UNUSED(num_events_in_wait_list);
-    UNUSED(event_wait_list);
-    UNUSED(event);
-    return CL_INVALID_VALUE; // TODO implement
+    LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_buffer = %p, "
+                 "src_origin = {%zu,%zu,%zu}, dst_origin = {%zu,%zu,%zu}, "
+                 "region = {%zu,%zu,%zu}, src_row_pitch = %zu, "
+                 "src_slice_pitch = %zu, dst_row_pitch = %zu, "
+                 "dst_slice_pitch = %zu, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, src_buffer, dst_buffer, src_origin[0],
+                 src_origin[1], src_origin[2], dst_origin[0], dst_origin[1],
+                 dst_origin[2], region[0], region[1], region[2], src_row_pitch,
+                 src_slice_pitch, dst_row_pitch, dst_slice_pitch,
+                 num_events_in_wait_list, event_wait_list, event);
+
+    // TODO CL_INVALID_COMMAND_QUEUE if command_queue is not a valid command-queue.
+    // TODO CL_INVALID_CONTEXT if the context associated with command_queue, src_buffer, and dst_buffer are not the same or if the context associated with command_queue and events in event_wait_list are not the same.
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+    // TODO CL_INVALID_VALUE if (src_offset, region) or (dst_offset, region) require accessing elements outside the src_buffer and dst_buffer objects respectively.
+    // TODO CL_INVALID_VALUE if any region array element is 0.
+    // TODO CL_INVALID_VALUE if src_row_pitch is not 0 and is less than region[0].
+    // TODO CL_INVALID_VALUE if dst_row_pitch is not 0 and is less than region[0].
+    // TODO CL_INVALID_VALUE if src_slice_pitch is not 0 and is less than region[1] * src_row_pitch or if src_slice_pitch is not 0 and is not a multiple of src_row_pitch.
+    // TODO CL_INVALID_VALUE if dst_slice_pitch is not 0 and is less than region[1] * dst_row_pitch or if dst_slice_pitch is not 0 and is not a multiple of dst_row_pitch.
+    // TODO CL_INVALID_VALUE if src_buffer and dst_buffer are the same buffer object and src_slice_pitch is not equal to dst_slice_pitch and src_row_pitch is not equal to dst_row_pitch.
+    //
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+    // TODO CL_MEM_COPY_OVERLAP if src_buffer and dst_buffer are the same buffer object and the source and destination regions overlap or if src_buffer and dst_buffer are different sub-buffers of the same associated buffer object and they overlap. Refer to Appendix E in the OpenCL specification for details on how to determine if source and destination regions overlap.
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if src_buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if dst_buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with src_buffer or dst_buffer.
+    // TODO CL_OUT_OF_RESOURCES if there is a failure to allocate resources required by the OpenCL implementation on the device.
+    // TODO CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources required by the OpenCL implementation on the host.
+    //
+    auto srcbuf = static_cast<cvk_buffer*>(src_buffer);
+    auto dstbuf = static_cast<cvk_buffer*>(dst_buffer);
+    auto cmd = new cvk_command_copy_buffer_rect(command_queue, srcbuf, dstbuf,
+                                                src_origin, dst_origin, region,
+                                                src_row_pitch, src_slice_pitch,
+                                                dst_row_pitch, dst_slice_pitch);
+    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    return CL_SUCCESS;
 }
 
 void *

@@ -447,6 +447,27 @@ private:
     size_t m_size;
 };
 
+struct cvk_command_copy_buffer_rect : public cvk_command {
+    cvk_command_copy_buffer_rect(
+        cvk_command_queue* queue, cvk_buffer *src_buffer, cvk_buffer *dst_buffer,
+        const size_t *src_origin, const size_t *dst_origin,
+        const size_t *region, size_t src_row_pitch, size_t src_slice_pitch,
+        size_t dst_row_pitch, size_t dst_slice_pitch)
+        :
+        cvk_command(CL_COMMAND_COPY_BUFFER_RECT, queue),
+        m_copier(src_origin, dst_origin, region, src_row_pitch, src_slice_pitch,
+                 dst_row_pitch, dst_slice_pitch, 1),
+        m_src_buffer(src_buffer),
+        m_dst_buffer(dst_buffer) {}
+
+        cl_int do_action() override;
+
+private:
+    cvk_rectangle_copier m_copier;
+    cvk_mem_holder m_src_buffer;
+    cvk_mem_holder m_dst_buffer;
+};
+
 struct cvk_command_fill : public cvk_command_memobj_region {
 
     cvk_command_fill(cvk_command_queue *q, cvk_mem *memobj, size_t offset, size_t size,
