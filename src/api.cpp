@@ -30,6 +30,10 @@ bool is_valid_platform(cl_platform_id platform) {
     return platform != nullptr;
 }
 
+bool is_valid_command_queue(cl_command_queue queue) {
+    return queue != nullptr;
+}
+
 bool is_valid_buffer(cl_mem mem) {
     return ((mem != nullptr) && (mem->is_buffer_type()));
 }
@@ -858,7 +862,7 @@ cl_int cvk_enqueue_marker_with_wait_list(
     const cl_event  *event_wait_list,
     cl_event        *event
 ){
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -901,7 +905,7 @@ cl_int cvk_enqueue_barrier_with_wait_list(
     const cl_event  *event_wait_list,
     cl_event        *event
 ){
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -1051,7 +1055,7 @@ clReleaseCommandQueue(
 ){
     LOG_API_CALL("command_queue = %p", command_queue);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -1066,7 +1070,7 @@ clRetainCommandQueue(
 ){
     LOG_API_CALL("command_queue = %p", command_queue);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -1091,7 +1095,7 @@ cl_int clGetCommandQueueInfo(
     cl_device_id val_device;
     cl_command_queue_properties val_properties;
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -1291,7 +1295,7 @@ cl_int clEnqueueMigrateMemObjects(
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for the specified set of memory objects in mem_objects.
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2264,7 +2268,7 @@ clFlush(
 ){
     LOG_API_CALL("command_queue = %p", command_queue);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2277,7 +2281,7 @@ clFinish(
 ){
     LOG_API_CALL("command_queue = %p", command_queue);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2309,7 +2313,7 @@ clEnqueueReadBuffer(
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = %zu, size = %zu, ptr = %p",
                  command_queue, buffer, blocking_read, offset, size, ptr);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2349,7 +2353,7 @@ clEnqueueWriteBuffer(
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = %zu, size = %zu, ptr = %p",
                  command_queue, buffer, blocking_write, offset, size, ptr);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2405,7 +2409,7 @@ clEnqueueReadBufferRect(
     LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
                  ptr, num_events_in_wait_list, event_wait_list, event);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2463,7 +2467,7 @@ cl_int clEnqueueWriteBufferRect(
     LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
                  ptr, num_events_in_wait_list, event_wait_list, event);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2509,7 +2513,7 @@ cl_int clEnqueueFillBuffer(
                  command_queue, buffer, pattern, pattern_size, offset, size,
                  num_events_in_wait_list, event_wait_list, event);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2571,7 +2575,7 @@ cl_int clEnqueueCopyBuffer(
                  command_queue, src_buffer, dst_buffer, src_offset, dst_offset, size,
                  num_events_in_wait_list, event_wait_list, event);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
@@ -2671,7 +2675,7 @@ clEnqueueMapBuffer(
     LOG_API_CALL("command_queue = %p, buffer = %p, offset = %zu, size = %zu",
                  command_queue, buffer, offset, size);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_COMMAND_QUEUE;
         }
@@ -2779,7 +2783,7 @@ clEnqueueUnmapMemObject(
     LOG_API_CALL("command_queue = %p, memobj = %p, mapped_ptr = %p",
                  command_queue, memobj, mapped_ptr);
 
-    if (command_queue == nullptr) {
+    if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
