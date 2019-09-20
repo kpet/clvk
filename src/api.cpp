@@ -26,6 +26,10 @@
 // Validation functions
 namespace {
 
+bool is_valid_platform(cl_platform_id platform) {
+    return platform != nullptr;
+}
+
 bool is_valid_buffer(cl_mem mem) {
     return ((mem != nullptr) && (mem->is_buffer_type()));
 }
@@ -1629,6 +1633,17 @@ clLinkProgram(
     }
 
     return prog_ret;
+}
+
+cl_int clUnloadPlatformCompiler(cl_platform_id platform)
+{
+    LOG_API_CALL("platform = %p", platform);
+
+    if (!is_valid_platform(platform)) {
+        return CL_INVALID_PLATFORM;
+    }
+
+    return CL_SUCCESS;
 }
 
 cl_int
