@@ -144,18 +144,14 @@ private:
 
 } cvk_context;
 
+using cvk_context_holder = refcounted_holder<cvk_context>;
+
 struct api_object : public refcounted {
 
-    api_object(cvk_context *context) : m_context(context) {
-        m_context->retain();
-    }
-    ~api_object() {
-        m_context->release();
-    }
-
+    api_object(cvk_context *context) : m_context(context) {}
     cvk_context* context() const { return m_context; }
 
 protected:
-    cvk_context *m_context;
+    cvk_context_holder m_context;
 };
 
