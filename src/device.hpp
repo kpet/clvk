@@ -96,7 +96,7 @@ typedef struct _cl_device_id {
     }
 
     std::string version_string() const {
-        std::string ret = "Vulkan v";
+        std::string ret = "CLVK on Vulkan v";
         ret += vulkan_version_string(m_properties.apiVersion);
         ret += " driver " + std::to_string(m_properties.driverVersion);
 
