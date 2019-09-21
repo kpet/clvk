@@ -133,7 +133,7 @@ void* clGetExtensionFunctionAddressForPlatform(
         return nullptr;
     }
 
-    return nullptr;
+    return nullptr; // TODO implement when adding an extension with entrypoints
 }
 
 void* clGetExtensionFunctionAddress(
@@ -141,7 +141,7 @@ void* clGetExtensionFunctionAddress(
 ){
     LOG_API_CALL("funcname = '%s'", funcname);
 
-    return nullptr;
+    return nullptr; // TODO implement when adding an extension with entrypoints
 }
 
 // Device APIs
@@ -733,6 +733,17 @@ clWaitForEvents(
     return cvk_command_queue::wait_for_events(num_events, event_list);
 }
 
+cl_int clEnqueueWaitForEvents(
+    cl_command_queue command_queue,
+    cl_uint          num_events,
+    const cl_event  *event_list
+){
+    LOG_API_CALL("command_queue = %p, num_events = %u, event_list = %p",
+                 command_queue, num_events, event_list);
+
+    return CL_INVALID_OPERATION; // TODO implement
+}
+
 cl_int
 clReleaseEvent(
     cl_event event
@@ -835,14 +846,12 @@ static bool event_wait_list_is_valid(cl_uint num_events_in_wait_list,
     return true;
 }
 
-cl_int clEnqueueMarkerWithWaitList(
+cl_int cvk_enqueue_marker_with_wait_list(
     cl_command_queue command_queue,
     cl_uint          num_events_in_wait_list,
     const cl_event  *event_wait_list,
     cl_event        *event
 ){
-    LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, event_wait_list = %p, event = %p", command_queue, num_events_in_wait_list, event_wait_list, event);
-
     if (command_queue == nullptr) {
         return CL_INVALID_COMMAND_QUEUE;
     }
@@ -858,14 +867,34 @@ cl_int clEnqueueMarkerWithWaitList(
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueBarrierWithWaitList(
+cl_int clEnqueueMarkerWithWaitList(
     cl_command_queue command_queue,
     cl_uint          num_events_in_wait_list,
     const cl_event  *event_wait_list,
     cl_event        *event
 ){
-    LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, event_wait_list = %p, event = %p", command_queue, num_events_in_wait_list, event_wait_list, event);
+    LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, num_events_in_wait_list, event_wait_list, event);
 
+    return cvk_enqueue_marker_with_wait_list(command_queue,
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
+}
+
+cl_int clEnqueueMarker(cl_command_queue command_queue, cl_event *event)
+{
+    LOG_API_CALL("command_queue = %p, event = %p", command_queue, event);
+
+    return cvk_enqueue_marker_with_wait_list(command_queue, 0, nullptr, event);
+}
+
+cl_int cvk_enqueue_barrier_with_wait_list(
+    cl_command_queue command_queue,
+    cl_uint          num_events_in_wait_list,
+    const cl_event  *event_wait_list,
+    cl_event        *event
+){
     if (command_queue == nullptr) {
         return CL_INVALID_COMMAND_QUEUE;
     }
@@ -879,6 +908,28 @@ cl_int clEnqueueBarrierWithWaitList(
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
 
     return CL_SUCCESS;
+}
+
+cl_int clEnqueueBarrierWithWaitList(
+    cl_command_queue command_queue,
+    cl_uint          num_events_in_wait_list,
+    const cl_event  *event_wait_list,
+    cl_event        *event
+){
+    LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, num_events_in_wait_list, event_wait_list, event);
+
+    return cvk_enqueue_barrier_with_wait_list(command_queue,
+                                              num_events_in_wait_list,
+                                              event_wait_list, event);
+}
+
+cl_int clEnqueueBarrier(cl_command_queue command_queue)
+{
+    LOG_API_CALL("command_queue = %p", command_queue);
+
+    return cvk_enqueue_barrier_with_wait_list(command_queue, 0, nullptr, nullptr);
 }
 
 cl_int clGetEventInfo(
@@ -1642,6 +1693,13 @@ cl_int clUnloadPlatformCompiler(cl_platform_id platform)
     if (!is_valid_platform(platform)) {
         return CL_INVALID_PLATFORM;
     }
+
+    return CL_SUCCESS;
+}
+
+cl_int clUnloadCompiler()
+{
+    LOG_API_CALL("%s", "");
 
     return CL_SUCCESS;
 }
