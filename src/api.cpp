@@ -3820,7 +3820,77 @@ cl_int clEnqueueFillImage(
                  region[0], region[1], region[2],
                  num_events_in_wait_list, event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (fill_color == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+    // TODO CL_INVALID_VALUE if the region being written specified by origin and region is out of bounds or if ptr is a NULL value.
+    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules described in the argument description for origin and region.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with image.
+
+    // TODO use Vulkan clear commands when possible
+    // TODO use a shader when better
+
+    // Create image map command
+    std::array<size_t, 3> orig = { origin[0], origin[1], origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+
+    auto img = static_cast<cvk_image*>(image);
+    auto cmd_map = std::make_unique<cvk_command_map_image>(command_queue, img,
+                                                           orig, reg,
+                                                           CL_MAP_WRITE_INVALIDATE_REGION);
+    void *map_ptr;
+    cl_int err = cmd_map->build(&map_ptr);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    // Fill
+    cvk_image::fill_pattern_array pattern;
+    size_t pattern_size;
+    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
+
+    auto cmd_fill = std::make_unique<cvk_command_fill_image>(command_queue, map_ptr,
+                                                             pattern,
+                                                             pattern_size, reg);
+
+    // Create unmap command
+    auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(command_queue, img, map_ptr);
+    err = cmd_unmap->build();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    // Create combine command
+    std::vector<std::unique_ptr<cvk_command>> commands;
+    commands.emplace_back(std::move(cmd_map));
+    commands.emplace_back(std::move(cmd_fill));
+    commands.emplace_back(std::move(cmd_unmap));
+
+    auto cmd = new cvk_command_combine(command_queue, CL_COMMAND_FILL_IMAGE, std::move(commands));
+
+    // Enqueue combined command
+    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
+                                             event_wait_list, event);
+    return CL_SUCCESS;
 }
 
 cl_int clEnqueueCopyImageToBuffer(

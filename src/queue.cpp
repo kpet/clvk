@@ -1005,3 +1005,16 @@ cl_int cvk_command_image_image_copy::do_action()
 
     return CL_COMPLETE;
 }
+
+cl_int cvk_command_fill_image::do_action()
+{
+    // TODO use bigger memcpy's when possible
+    size_t num_elems = m_region[2] * m_region[1] * m_region[0];
+    for (size_t elem = 0; elem < num_elems; elem++) {
+        auto dst = pointer_offset(m_ptr, elem * m_pattern_size);
+        memcpy(dst, m_pattern.data(), m_pattern_size);
+    }
+
+    return CL_COMPLETE;
+}
+
