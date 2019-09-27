@@ -78,6 +78,9 @@ supported:
   Vulkan API and provides an interpreter for SPIR-V modules. You don't
   need Vulkan-compatible hardware and drivers to run clvk using Talvos.
 
+It is also possible to manually point the build system at a Vulkan
+implementation using `-DVulkan_INCLUDE_DIRS` and `-DVulkan_LIBRARIES`.
+
 ### Tests
 
 It is possible to disable the build of the tests by passing
