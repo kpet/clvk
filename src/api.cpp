@@ -611,6 +611,10 @@ clCreateContextFromType(
     void                         *user_data,
     cl_int                       *errcode_ret
 ){
+    LOG_API_CALL("properties = %p, device_type = %lu, pfn_notify = %p, "
+                 "user_data = %p, errcode_ret = %p",
+                 properties, device_type, pfn_notify, user_data, errcode_ret);
+
     cl_device_id device;
 
     cl_int err = clGetDeviceIDs(nullptr, device_type, 1, &device, nullptr);
@@ -799,6 +803,8 @@ cl_int clSetUserEventStatus(
     cl_event event,
     cl_int execution_status
 ){
+    LOG_API_CALL("event = %p, execution_status = %d", event, execution_status);
+
     if (event == nullptr) {
         return CL_INVALID_EVENT;
     }
