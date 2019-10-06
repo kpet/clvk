@@ -49,6 +49,7 @@ set(
 )
 
 set(CLVK_VULKAN_IMPLEMENTATION_OPTIONS
+    custom # User-provided libraries and includes
     system # Use the system's Vulkan
     talvos # Use talvos to provide Vulkan
 )
@@ -69,6 +70,8 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   set(Vulkan_LIBRARIES talvos talvos-vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
+elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL custom)
+    # Nothing to do, trust the user
 else ()
   message(FATAL_ERROR "Unknown Vulkan implementation "
                       "'${CLVK_VULKAN_IMPLEMENTATION}', "
