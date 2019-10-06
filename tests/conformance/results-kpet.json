@@ -25,8 +25,8 @@
   },
   "Basic": {
     "duration": "00:00:53.897744",
-    "passed": 73,
-    "retcode": 17,
+    "passed": 74,
+    "retcode": 16,
     "total": 90
   },
   "Buffers": {
@@ -150,8 +150,8 @@
     "total": 32
   },
   "Math": {
-    "duration": "00:00:21.891517",
-    "passed": 43,
+    "duration": "00:00:23.151582",
+    "passed": 44,
     "retcode": 255,
     "total": 96
   },
