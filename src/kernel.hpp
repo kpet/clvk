@@ -23,7 +23,7 @@
 
 struct cvk_kernel_argument_values;
 
-struct cvk_kernel : public _cl_kernel, api_object {
+struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program),

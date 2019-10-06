@@ -332,7 +332,7 @@ private:
         m_pipelines;
 };
 
-struct cvk_program : public _cl_program, api_object {
+struct cvk_program : public _cl_program, api_object<object_magic::program> {
 
     cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),

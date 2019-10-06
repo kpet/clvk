@@ -16,7 +16,9 @@
 
 #include <array>
 
+#include "device.hpp"
 #include "objects.hpp"
+#include "utils.hpp"
 
 struct cvk_memory_allocation {
 
@@ -67,7 +69,7 @@ struct cvk_mem_callback {
 struct cvk_mem;
 using cvk_mem_holder = refcounted_holder<cvk_mem>;
 
-struct cvk_mem : public _cl_mem, api_object {
+struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
 
     cvk_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
             cvk_mem* parent, size_t parent_offset,
@@ -340,7 +342,7 @@ using cvk_buffer_holder = refcounted_holder<cvk_buffer>;
 struct cvk_sampler;
 using cvk_sampler_holder = refcounted_holder<cvk_sampler>;
 
-struct cvk_sampler : public _cl_sampler, api_object {
+struct cvk_sampler : public _cl_sampler, api_object<object_magic::sampler> {
 
     cvk_sampler(cvk_context* context, bool normalized_coords,
                 cl_addressing_mode addressing_mode, cl_filter_mode filter_mode,

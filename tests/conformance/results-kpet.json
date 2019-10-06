@@ -87,7 +87,7 @@
       "min_max_write_image_args": "pass",
       "native_kernel": "pass",
       "negative_get_platform_ids": "pass",
-      "negative_get_platform_info": "fail",
+      "negative_get_platform_info": "pass",
       "pipe_properties_queries": "skip",
       "platform_extensions": "pass",
       "queue_flush_on_release": "pass",

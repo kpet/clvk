@@ -30,7 +30,28 @@
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
-#include "device.hpp"
+#include "log.hpp"
+
+enum class object_magic : uint32_t
+{
+    platform = 0x11223344U,
+    device = 0x22334455U,
+    context = 0x33445566U,
+    command_queue = 0x44556677U,
+    event = 0x55667788U,
+    program = 0x66778899U,
+    kernel = 0x778899AAU,
+    memory_object = 0x8899AABBU,
+    sampler = 0x99AABBCCU
+};
+
+template <object_magic magic> struct object_magic_header {
+    object_magic_header() : m_magic(magic) {}
+    bool is_valid() const { return m_magic == magic; }
+
+private:
+    object_magic m_magic;
+};
 
 struct refcounted {
 
@@ -114,7 +135,11 @@ struct cvk_context_callback {
     void* data;
 };
 
-struct cvk_context : public _cl_context, refcounted {
+struct cvk_device;
+
+struct cvk_context : public _cl_context,
+                     refcounted,
+                     object_magic_header<object_magic::context> {
 
     cvk_context(cvk_device* device, const cl_context_properties* props)
         : m_device(device) {
@@ -166,7 +191,8 @@ static inline cvk_context* icd_downcast(cl_context context) {
 
 using cvk_context_holder = refcounted_holder<cvk_context>;
 
-struct api_object : public refcounted {
+template <object_magic magic>
+struct api_object : public refcounted, object_magic_header<magic> {
 
     api_object(cvk_context* context) : m_context(context) {}
     cvk_context* context() const { return m_context; }

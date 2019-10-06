@@ -29,19 +29,33 @@
 namespace {
 
 // Validation functions
-bool is_valid_platform(cl_platform_id platform) { return platform != nullptr; }
+bool is_valid_platform(cl_platform_id platform) {
+    return platform != nullptr && icd_downcast(platform)->is_valid();
+}
 
-bool is_valid_device(cl_device_id device) { return device != nullptr; }
+bool is_valid_device(cl_device_id device) {
+    return device != nullptr && icd_downcast(device)->is_valid();
+}
 
-bool is_valid_context(cl_context context) { return context != nullptr; }
+bool is_valid_context(cl_context context) {
+    return context != nullptr && icd_downcast(context)->is_valid();
+}
 
-bool is_valid_program(cl_program program) { return program != nullptr; }
+bool is_valid_program(cl_program program) {
+    return program != nullptr && icd_downcast(program)->is_valid();
+}
 
-bool is_valid_kernel(cl_kernel kernel) { return kernel != nullptr; }
+bool is_valid_kernel(cl_kernel kernel) {
+    return kernel != nullptr && icd_downcast(kernel)->is_valid();
+}
 
-bool is_valid_sampler(cl_sampler sampler) { return sampler != nullptr; }
+bool is_valid_sampler(cl_sampler sampler) {
+    return sampler != nullptr && icd_downcast(sampler)->is_valid();
+}
 
-bool is_valid_mem_object(cl_mem mem) { return mem != nullptr; }
+bool is_valid_mem_object(cl_mem mem) {
+    return mem != nullptr && icd_downcast(mem)->is_valid();
+}
 
 bool is_valid_buffer(cl_mem mem) {
     return is_valid_mem_object(mem) && icd_downcast(mem)->is_buffer_type();
@@ -51,9 +65,13 @@ bool is_valid_image(cl_mem mem) {
     return is_valid_mem_object(mem) && icd_downcast(mem)->is_image_type();
 }
 
-bool is_valid_command_queue(cl_command_queue queue) { return queue != nullptr; }
+bool is_valid_command_queue(cl_command_queue queue) {
+    return queue != nullptr && icd_downcast(queue)->is_valid();
+}
 
-bool is_valid_event(cl_event event) { return event != nullptr; }
+bool is_valid_event(cl_event event) {
+    return event != nullptr && icd_downcast(event)->is_valid();
+}
 
 bool is_same_context(cl_command_queue queue, cl_mem mem) {
     return icd_downcast(queue)->context() == icd_downcast(mem)->context();

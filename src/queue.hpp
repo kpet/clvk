@@ -34,7 +34,7 @@ struct cvk_event_callback {
     void* data;
 };
 
-struct cvk_event : public _cl_event, api_object {
+struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
     cvk_event(cvk_context* ctx, cl_int status, cl_command_type type,
               cvk_command_queue* queue)
@@ -232,7 +232,8 @@ private:
 
 using cvk_event_holder = refcounted_holder<cvk_event>;
 
-struct cvk_command_queue : public _cl_command_queue, api_object {
+struct cvk_command_queue : public _cl_command_queue,
+                           api_object<object_magic::command_queue> {
 
     cvk_command_queue(cvk_context* ctx, cvk_device* dev,
                       cl_command_queue_properties props,

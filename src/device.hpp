@@ -25,6 +25,7 @@
 
 #include "cl_headers.hpp"
 #include "icd.hpp"
+#include "objects.hpp"
 #include "sha1.hpp"
 #include "vkutils.hpp"
 
@@ -41,7 +42,8 @@ static constexpr bool devices_support_images() { return true; }
 
 struct cvk_platform;
 
-struct cvk_device : public _cl_device_id {
+struct cvk_device : public _cl_device_id,
+                    object_magic_header<object_magic::device> {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
         : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
@@ -463,7 +465,8 @@ static inline cvk_device* icd_downcast(cl_device_id device) {
     return static_cast<cvk_device*>(device);
 }
 
-struct cvk_platform : public _cl_platform_id {
+struct cvk_platform : public _cl_platform_id,
+                      object_magic_header<object_magic::platform> {
     cvk_platform() {
         m_extensions = {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_icd"),
