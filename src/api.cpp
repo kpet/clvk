@@ -286,6 +286,10 @@ clGetDeviceInfo(
             size_ret = val_string.size_with_null();
             break;
         case CL_DEVICE_BUILT_IN_KERNELS:
+            val_string = "";
+            copy_ptr = val_string.c_str();
+            size_ret = val_string.size_with_null();
+            break;
         case CL_DEVICE_EXTENSIONS:
             val_string = "cl_khr_global_int32_base_atomics "
                          "cl_khr_global_int32_extended_atomics "
