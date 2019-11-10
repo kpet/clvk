@@ -32,6 +32,7 @@ bool gQueueProfilingUsesTimestampQueries = false;
 
 #ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
+std::string gLLVMSPIRVPath = DEFAULT_LLVMSPIRV_BINARY_PATH;
 #endif
 std::string gCLSPVOptions;
 
@@ -198,6 +199,10 @@ static void init_logging()
 static void init_options()
 {
 #ifndef CLSPV_ONLINE_COMPILER
+    char *llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
+    if (llvmspirv_binary != nullptr) {
+        gLLVMSPIRVPath = llvmspirv_binary;
+    }
     char *clspv_binary = getenv("CLVK_CLSPV_BIN");
     if (clspv_binary != nullptr) {
         gCLSPVPath = clspv_binary;

@@ -59,8 +59,15 @@ if (CLVK_CLSPV_ONLINE_COMPILER)
   set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
 else()
   add_dependencies(OpenCL-objects clspv)
+  set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
+  add_dependencies(OpenCL-objects llvm-spirv)
+  set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
   target_compile_definitions(OpenCL-objects PRIVATE
     DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+  target_compile_definitions(OpenCL-objects PRIVATE
+    DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
 function(CLLibrary target type)

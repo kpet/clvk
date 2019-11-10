@@ -125,6 +125,13 @@ typedef struct _cl_program : public api_object {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
 
+    _cl_program(cvk_context *ctx, const void *il, size_t length) :
+        _cl_program(ctx)
+    {
+        m_il.resize(length);
+        memcpy(m_il.data(), il, length);
+    }
+
     virtual ~_cl_program() {
         if (m_shader_module != VK_NULL_HANDLE) {
             auto vkdev = m_context->device()->vulkan_device();
@@ -142,6 +149,10 @@ typedef struct _cl_program : public api_object {
 
     const std::string& source() const {
         return m_source;
+    }
+
+    const std::vector<uint8_t>& il() const {
+        return m_il;
     }
 
     uint32_t num_devices() const { return m_num_devices; }
@@ -251,6 +262,7 @@ private:
     std::mutex m_lock;
     std::thread *m_thread;
     std::string m_source;
+    std::vector<uint8_t> m_il;
     VkShaderModule m_shader_module;
     std::unordered_map<const cvk_device*, cl_build_status> m_dev_status;
     std::string m_build_options;

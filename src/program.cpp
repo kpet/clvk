@@ -446,6 +446,20 @@ bool save_string_to_file(const std::string &fname, const std::string &text)
     return ofile.good();
 }
 
+bool save_il_to_file(const std::string &fname, const std::vector<uint8_t> &il)
+{
+    std::ofstream ofile{fname, std::ios::binary};
+
+    if (!ofile.is_open()) {
+        return false;
+    }
+
+    ofile.write(reinterpret_cast<const char*>(il.data()), il.size());
+    ofile.close();
+
+    return ofile.good();
+}
+
 cl_build_status cvk_program::compile_source()
 {
     bool use_tmp_folder = true;
@@ -468,11 +482,22 @@ cl_build_status cvk_program::compile_source()
     }
 
 #ifndef CLSPV_ONLINE_COMPILER
-    // Save source to file
-    std::string src_file{tmp_folder + "/source.cl"};
-    if (!save_string_to_file(src_file, m_source)) {
-        cvk_error_fn("Couldn't save source to file!");
-        return CL_BUILD_ERROR;
+    bool build_from_il = m_il.size() > 0;
+    std::string clspv_input_file{tmp_folder + "/source"};
+    std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
+    // Save input program to a file
+    if (build_from_il) {
+        clspv_input_file += ".bc";
+        if (!save_il_to_file(llvmspirv_input_file, m_il)) {
+            cvk_error_fn("Couldn't save IL to file!");
+            return CL_BUILD_ERROR;
+        }
+    } else {
+        clspv_input_file += ".cl";
+        if (!save_string_to_file(clspv_input_file, m_source)) {
+            cvk_error_fn("Couldn't save source to file!");
+            return CL_BUILD_ERROR;
+        }
     }
 #endif
 
@@ -551,15 +576,38 @@ cl_build_status cvk_program::compile_source()
         return CL_BUILD_ERROR;
     }
 #else
+    if (build_from_il) {
+        // Compose llvm-spirv command-line
+        std::string cmd{gLLVMSPIRVPath};
+        cmd += " -r ";
+        cmd += " -o ";
+        cmd += clspv_input_file;
+        cmd += " ";
+        cmd += llvmspirv_input_file;
+
+        // Call the translator
+        // TODO Sanity check the command / move away from system()
+        int status = std::system(cmd.c_str());
+        cvk_info("Return code was: %d", status);
+
+        if (status != 0) {
+            cvk_error_fn("failed to translate SPIR-V to LLVM IR");
+            return CL_BUILD_ERROR;
+        }
+    }
+
     // Compose clspv command-line
     std::string cmd{gCLSPVPath};
     std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
     std::string spirv_file{tmp_folder + "/compiled.spv"};
 
+    if (build_from_il) {
+        cmd += " -x ir ";
+    }
     cmd += " -descriptormap=";
     cmd += descriptor_map_file;
     cmd += " ";
-    cmd += src_file;
+    cmd += clspv_input_file;
     cmd += " ";
     cmd += options;
     cmd += " -o ";
