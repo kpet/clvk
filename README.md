@@ -141,6 +141,8 @@ variables. Here's a quick guide:
 
 * `CLVK_CLSPV_BIN` to provide a path to the clspv binary to use
 
+* `CLVK_LLVMSPIRV_BIN` to provide a path to the llvm-spirv binary to use
+
 * `CLVK_VALIDATION_LAYERS` allows to enable Vulkan validation layers
 
    * 0: disabled (default)

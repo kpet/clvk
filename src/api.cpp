@@ -131,6 +131,7 @@ clGetPlatformInfo(
 }
 
 const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
+    { "clCreateProgramWithILKHR", reinterpret_cast<void*>(clCreateProgramWithILKHR) },
 };
 
 void* cvk_get_extension_function_pointer(const char *funcname)
@@ -307,6 +308,7 @@ clGetDeviceInfo(
                          "cl_khr_global_int32_extended_atomics "
                          "cl_khr_local_int32_base_atomics "
                          "cl_khr_local_int32_extended_atomics "
+                         "cl_khr_il_program "
                          "cl_khr_byte_addressable_store";
             copy_ptr = val_string.c_str();
             size_ret = val_string.size_with_null();
@@ -546,6 +548,11 @@ clGetDeviceInfo(
             val_uint = device->vulkan_limits().maxPerStageDescriptorStorageImages;
             copy_ptr = &val_uint;
             size_ret = sizeof(val_uint);
+            break;
+        case CL_DEVICE_IL_VERSION_KHR:
+            val_string = "SPIR-V_1.0";
+            copy_ptr = val_string.c_str();
+            size_ret = val_string.size_with_null();
             break;
         default:
             ret = CL_INVALID_VALUE;
@@ -1550,7 +1557,7 @@ clBuildProgram(
     // TODO CL_COMPILER_NOT_AVAILABLE if program is created with clCreateProgramWithSource and a compiler is not available i.e. CL_DEVICE_COMPILER_AVAILABLE specified in the table of OpenCL Device Queries for clGetDeviceInfo is set to CL_FALSE.
     // TODO CL_BUILD_PROGRAM_FAILURE if there is a failure to build the program executable. This error will be returned if clBuildProgram does not return until the build has completed.
     // TODO CL_INVALID_OPERATION if there are kernel objects attached to program.
-    // TODO CL_INVALID_OPERATION if program was not created with clCreateProgramWithSource or clCreateProgramWithBinary. 
+    // TODO CL_INVALID_OPERATION if program was not created with clCreateProgramWithSource or clCreateProgramWithBinary or clCreateProgramWithILKHR.
 
     if (!program->build(build_operation::build, num_devices, device_list, options, 0, nullptr, nullptr, pfn_notify, user_data)) {
         return CL_INVALID_OPERATION;
@@ -1822,6 +1829,10 @@ clGetProgramInfo(
                 }
             }
         }
+        break;
+    case CL_PROGRAM_IL_KHR:
+        copy_ptr = program->il().data();
+        ret_size = program->il().size();
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -3635,3 +3646,45 @@ void* clEnqueueMapImage(
     return nullptr;
 }
 
+cl_program cvk_create_program_with_il_khr(
+    cl_context context,
+    const void *il,
+    size_t length,
+    cl_int *errcode_ret
+){
+    if (!is_valid_context(context)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    if ((il == nullptr) || (length == 0)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    // TODO CL_INVALID_VALUE if the length-byte block of memory pointed to by il does not contain well-formed intermediate language.
+
+    auto program = new cvk_program(context, il, length);
+
+    *errcode_ret = CL_SUCCESS;
+    return program;
+}
+
+cl_program clCreateProgramWithILKHR(
+    cl_context context,
+    const void *il,
+    size_t length,
+    cl_int *errcode_ret
+){
+    LOG_API_CALL("context = %p, il = %p, length = %zu, errcode_ret = %p",
+                 context, il, length, errcode_ret);
+
+    cl_int errcode;
+    auto program = cvk_create_program_with_il_khr(context, il, length, &errcode);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = errcode;
+    }
+
+    return program;
+}

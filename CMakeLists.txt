@@ -39,8 +39,13 @@ add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
 # clspv
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv)
 add_subdirectory(${CLSPV_SOURCE_DIR} EXCLUDE_FROM_ALL)
-set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
+
+# SPIRV-LLVM-Translator
+set(LLVM_DIR
+    ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
+set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator)
+set(LLVM_SPIRV_BUILD_EXTERNAL YES)
+add_subdirectory(${LLVM_SPIRV_SOURCE} EXCLUDE_FROM_ALL)
 
 # Vulkan
 set(
