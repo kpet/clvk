@@ -130,6 +130,18 @@ clGetPlatformInfo(
     return ret;
 }
 
+const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
+};
+
+void* cvk_get_extension_function_pointer(const char *funcname)
+{
+    if (gExtensionEntrypoints.find(funcname) != gExtensionEntrypoints.end()) {
+        return gExtensionEntrypoints.at(funcname);
+    } else {
+        return nullptr;
+    }
+}
+
 void* clGetExtensionFunctionAddressForPlatform(
     cl_platform_id platform,
     const char    *funcname
@@ -141,7 +153,7 @@ void* clGetExtensionFunctionAddressForPlatform(
         return nullptr;
     }
 
-    return nullptr; // TODO implement when adding an extension with entrypoints
+    return cvk_get_extension_function_pointer(funcname);
 }
 
 void* clGetExtensionFunctionAddress(
@@ -149,7 +161,7 @@ void* clGetExtensionFunctionAddress(
 ){
     LOG_API_CALL("funcname = '%s'", funcname);
 
-    return nullptr; // TODO implement when adding an extension with entrypoints
+    return cvk_get_extension_function_pointer(funcname);
 }
 
 // Device APIs
