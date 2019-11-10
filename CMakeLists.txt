@@ -37,6 +37,7 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
 
 # clspv
+set(LLVM_TARGETS_TO_BUILD ARM) # FIXME fix LLVM to support the empty case
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv)
 add_subdirectory(${CLSPV_SOURCE_DIR} EXCLUDE_FROM_ALL)
 
