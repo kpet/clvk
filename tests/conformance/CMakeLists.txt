@@ -13,6 +13,11 @@
 # limitations under the License.
 
 set(CLConf_OUT_DIR dummy)
-set(CLConform_LIBRARIES OpenCL)
-add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS/test_conformance
+set(CLConform_LIBRARIES -lOpenCL)
+set(CL_LIBCLCXX_DIR dummy)
+set(CL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
+set(CL_LIB_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-ICD-Loader/build)
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/conformance)
+add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS
                  ${CMAKE_BINARY_DIR}/conformance)

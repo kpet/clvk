@@ -1,212 +1,314 @@
 {
   "API": {
-    "duration": "00:00:09.595578",
-    "passed": 70,
-    "retcode": 3,
-    "total": 73
-  },
-  "Allocations (single maximum)": {
-    "duration": "00:00:42.222763",
-    "passed": 0,
-    "retcode": 5,
-    "total": 1
-  },
-  "Allocations (total maximum)": {
-    "duration": "00:02:04.572192",
-    "passed": 0,
-    "retcode": 5,
-    "total": 1
+    "duration": "00:00:14.281396",
+    "passed": 64,
+    "retcode": 0,
+    "total": 74
   },
   "Atomics": {
-    "duration": "00:00:03.510945",
+    "duration": "00:00:08.223196",
     "passed": 12,
-    "retcode": 1,
+    "retcode": 0,
     "total": 13
   },
   "Basic": {
-    "duration": "00:01:08.297233",
-    "passed": 75,
-    "retcode": 15,
-    "total": 90
+    "duration": "00:03:11.397348",
+    "passed": 70,
+    "retcode": 0,
+    "total": 92
   },
   "Buffers": {
-    "duration": "00:03:37.877806",
+    "duration": "00:04:50.084071",
     "passed": 90,
     "retcode": 0,
     "total": 90
   },
+  "C11 Atomics": {
+    "duration": "00:00:00.362395",
+    "passed": 0,
+    "retcode": 0,
+    "total": 34
+  },
   "Common Functions": {
-    "duration": "00:00:02.936193",
+    "duration": "00:00:03.873867",
     "passed": 17,
     "retcode": 0,
     "total": 17
   },
   "Compiler": {
-    "duration": "00:00:27.765072",
-    "passed": 38,
-    "retcode": 17,
-    "total": 55
+    "duration": "00:00:29.230129",
+    "passed": 36,
+    "retcode": 0,
+    "total": 56
   },
   "Compute Info": {
-    "duration": "00:00:00.307625",
+    "duration": "00:00:00.277565",
+    "passed": 2,
+    "retcode": 0,
+    "total": 2
+  },
+  "Contractions": {
+    "duration": "00:00:00.749098",
+    "passed": 10,
+    "retcode": 0,
+    "total": 16
+  },
+  "Conversions": {
+    "duration": "00:01:34.598560",
     "passed": 1,
     "retcode": 0,
     "total": 1
   },
-  "Contractions": {
-    "duration": "00:00:00.636230",
-    "passed": 0,
-    "retcode": 255,
-    "total": 1
-  },
-  "Conversions": {
-    "duration": "00:01:18.093820",
-    "passed": 81,
-    "retcode": 0,
-    "total": 81
-  },
   "Device Partitioning": {
-    "duration": "00:00:00.275667",
+    "duration": "00:00:00.287897",
     "passed": 9,
     "retcode": 0,
     "total": 9
   },
+  "Device execution": {
+    "duration": "00:00:00.280082",
+    "passed": 11,
+    "retcode": 0,
+    "total": 11
+  },
+  "Device timer": {
+    "duration": "00:00:00.276786",
+    "passed": 1,
+    "retcode": 0,
+    "total": 1
+  },
   "Events": {
-    "duration": "00:00:03.335214",
+    "duration": "00:00:06.185263",
     "passed": 28,
     "retcode": 0,
     "total": 28
   },
+  "Generic Address Space": {
+    "duration": "00:00:02.251504",
+    "passed": 0,
+    "retcode": 0,
+    "total": 20
+  },
   "Geometric Functions": {
-    "duration": "00:00:02.495081",
+    "duration": "00:00:02.895970",
     "passed": 6,
-    "retcode": 2,
+    "retcode": 0,
     "total": 8
   },
   "Half Ops": {
-    "duration": "00:00:00.334386",
-    "passed": 0,
-    "retcode": 1,
-    "total": 1
-  },
-  "Headers (cl.h standalone C99)": {
-    "duration": "00:00:00.260682",
+    "duration": "00:00:01.220605",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 13
   },
-  "Headers (cl.h standalone)": {
-    "duration": "00:00:00.261350",
+  "Images (API Info)": {
+    "duration": "00:00:51.542147",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (cl_gl.h standalone C99)": {
-    "duration": "00:00:00.263133",
+  "Images (Kernel Methods)": {
+    "duration": "00:00:45.110930",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (cl_gl.h standalone)": {
-    "duration": "00:00:00.268385",
+  "Images (Kernel max size)": {
+    "duration": "00:01:57.271246",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (cl_platform.h standalone C99)": {
-    "duration": "00:00:00.276615",
+  "Images (Kernel pitch)": {
+    "duration": "00:15:00.391972",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (cl_platform.h standalone)": {
-    "duration": "00:00:00.271409",
+  "Images (Kernel)": {
+    "duration": "00:16:12.581346",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (cl_typen)": {
-    "duration": "00:00:00.309835",
+  "Images (Samplerless max size)": {
+    "duration": "00:00:15.984848",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (opencl.h standalone C99)": {
-    "duration": "00:00:00.256681",
+  "Images (Samplerless pitch)": {
+    "duration": "00:00:17.868526",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
   },
-  "Headers (opencl.h standalone)": {
-    "duration": "00:00:00.250980",
+  "Images (Samplerless)": {
+    "duration": "00:00:17.619977",
     "passed": 0,
     "retcode": 0,
-    "total": 0
+    "total": 5
+  },
+  "Images (clCopyImage max size)": {
+    "duration": "00:11:40.503096",
+    "passed": 11,
+    "retcode": 0,
+    "total": 11
+  },
+  "Images (clCopyImage small)": {
+    "duration": "00:08:43.209999",
+    "passed": 11,
+    "retcode": 0,
+    "total": 11
+  },
+  "Images (clCopyImage)": {
+    "duration": "00:39:42.914007",
+    "passed": 11,
+    "retcode": 0,
+    "total": 11
+  },
+  "Images (clFillImage max size)": {
+    "duration": "00:02:31.090735",
+    "passed": 0,
+    "retcode": 0,
+    "total": 5
+  },
+  "Images (clFillImage pitch)": {
+    "duration": "00:00:04.606578",
+    "passed": 0,
+    "retcode": 0,
+    "total": 5
+  },
+  "Images (clFillImage)": {
+    "duration": "00:04:54.594577",
+    "passed": 0,
+    "retcode": 0,
+    "total": 5
+  },
+  "Images (clReadWriteImage max size)": {
+    "duration": "00:00:32.028210",
+    "passed": 5,
+    "retcode": 0,
+    "total": 5
+  },
+  "Images (clReadWriteImage pitch)": {
+    "duration": "00:01:38.781297",
+    "passed": 5,
+    "retcode": 0,
+    "total": 5
+  },
+  "Images (clReadWriteImage)": {
+    "duration": "00:01:35.345226",
+    "passed": 5,
+    "retcode": 0,
+    "total": 5
   },
   "Integer Ops": {
-    "duration": "00:01:03.530541",
-    "passed": 28,
-    "retcode": 4,
-    "total": 32
+    "duration": "00:02:13.537602",
+    "passed": 45,
+    "retcode": 0,
+    "total": 61
   },
   "Math": {
-    "duration": "00:00:23.151582",
-    "passed": 44,
-    "retcode": 255,
-    "total": 96
+    "duration": "00:00:25.068578",
+    "passed": 46,
+    "retcode": 0,
+    "total": 98
   },
   "Mem (Host Flags)": {
-    "duration": "00:00:00.271543",
-    "passed": 9,
+    "duration": "00:00:00.281208",
+    "passed": 6,
     "retcode": 0,
     "total": 9
   },
   "Multiple Device/Context": {
-    "duration": "00:01:33.940844",
+    "duration": "00:01:43.256452",
     "passed": 7,
     "retcode": 0,
     "total": 7
   },
-  "Printf": {
-    "duration": "00:00:03.012156",
+  "Non-uniform work-group": {
+    "duration": "00:00:00.675757",
     "passed": 0,
-    "retcode": 56,
-    "total": 56
+    "retcode": 0,
+    "total": 12
+  },
+  "Pipes": {
+    "duration": "00:00:00.293978",
+    "passed": 55,
+    "retcode": 0,
+    "total": 55
+  },
+  "Printf": {
+    "duration": "00:00:04.134708",
+    "passed": 0,
+    "retcode": 0,
+    "total": 57
   },
   "Profiling": {
-    "duration": "00:00:03.491335",
-    "passed": 31,
+    "duration": "00:00:06.706934",
+    "passed": 30,
     "retcode": 0,
     "total": 31
   },
   "Relationals": {
-    "duration": "00:00:04.515579",
+    "duration": "00:00:06.182462",
     "passed": 10,
-    "retcode": 2,
+    "retcode": 0,
     "total": 12
   },
-  "Select": {
-    "duration": "00:00:13.745737",
-    "passed": 18,
+  "SPIR": {
+    "duration": "00:00:00.276902",
+    "passed": 0,
     "retcode": 0,
-    "total": 18
+    "total": 0
+  },
+  "SPIR-V": {
+    "duration": "00:00:00.292446",
+    "passed": 1,
+    "retcode": 0,
+    "total": 1
+  },
+  "SVM": {
+    "duration": "00:00:00.282416",
+    "passed": 14,
+    "retcode": 0,
+    "total": 14
+  },
+  "Select": {
+    "duration": "00:00:16.601655",
+    "passed": 20,
+    "retcode": 0,
+    "total": 20
+  },
+  "Subgroups": {
+    "duration": "00:00:00.295149",
+    "passed": 4,
+    "retcode": 0,
+    "total": 4
   },
   "Thread Dimensions": {
-    "duration": "00:00:31.633648",
+    "duration": "00:00:33.772092",
     "passed": 6,
     "retcode": 0,
     "total": 6
   },
   "VecAlign": {
-    "duration": "00:00:53.948608",
+    "duration": "00:01:10.959591",
     "passed": 1,
-    "retcode": 4,
+    "retcode": 0,
     "total": 5
   },
   "VecStep": {
-    "duration": "00:00:05.138312",
+    "duration": "00:00:06.268918",
     "passed": 4,
     "retcode": 0,
     "total": 4
+  },
+  "Workgroups": {
+    "duration": "00:00:00.341403",
+    "passed": 0,
+    "retcode": 0,
+    "total": 14
   }
 }

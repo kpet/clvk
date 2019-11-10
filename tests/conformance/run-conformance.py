@@ -28,19 +28,7 @@ TOP_DIR = os.path.realpath(os.path.join(THIS_DIR, '..', '..'))
 CONFORMANCE_DIR = os.path.join(TOP_DIR, 'build', 'conformance')
 
 # ('Name', 'binary', 'arg0', 'arg1', ...)
-TESTS_HEADERS = (
-    ('Headers (cl_typen)', 'headers/test_headers'),
-    ('Headers (cl.h standalone)', 'headers/test_cl_h'),
-    ('Headers (cl_platform.h standalone)', 'headers/test_cl_platform_h'),
-    ('Headers (cl_gl.h standalone)', 'headers/test_cl_gl_h'),
-    ('Headers (opencl.h standalone)', 'headers/test_opencl_h'),
-    ('Headers (cl.h standalone C99)', 'headers/test_cl_h_c99'),
-    ('Headers (cl_platform.h standalone C99)', 'headers/test_cl_platform_h_c99'),
-    ('Headers (cl_gl.h standalone C99)', 'headers/test_cl_gl_h_c99'),
-    ('Headers (opencl.h standalone C99)', 'headers/test_opencl_h_c99'),
-)
-
-TESTS_QUICK = TESTS_HEADERS + (
+TESTS_QUICK = (
     ('API', 'api/test_api'),
     ('Atomics', 'atomics/test_atomics'),
     ('Compute Info', 'computeinfo/test_computeinfo'),
@@ -50,6 +38,7 @@ TESTS_QUICK = TESTS_HEADERS + (
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
     ('Geometric Functions', 'geometrics/test_geometrics'),
+    ('Half Ops', 'half/test_half'),
     ('Mem (Host Flags)', 'mem_host_flags/test_mem_host_flags'),
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
@@ -59,7 +48,7 @@ TESTS_QUICK = TESTS_HEADERS + (
 
 TESTS_MODE_WIMPY = (
     ('Conversions', 'conversions/test_conversions', '-w'),
-    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick* integer* popcount unary_ops*'),
+    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick*', 'integer*', 'popcount', 'unary_ops*'),
     ('Math', 'math_brute_force/test_bruteforce', '-1', '-w'),
     ('Relationals', 'relationals/test_relationals', 'relational_*'),
     ('Select', 'select/test_select', '-w'),
@@ -79,6 +68,17 @@ TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Basic', 'basic/test_basic'),
     ('Buffers', 'buffers/test_buffers'),
     ('VecAlign', 'vec_align/test_vecalign'),
+    ('C11 Atomics', 'c11_atomics/test_c11_atomics'),
+    ('Device execution', 'device_execution/test_device_execution'),
+    ('Device timer', 'device_timer/test_device_timer'),
+    ('Generic Address Space', 'generic_address_space/test_generic_address_space'),
+    ('Non-uniform work-group', 'non_uniform_work_group/test_non_uniform_work_group'),
+    ('Pipes', 'pipes/test_pipes'),
+    ('SPIR', 'spir/test_spir'),
+    ('SPIR-V', 'spirv_new/test_spirv_new'),
+    ('SVM', 'SVM/test_svm'),
+    ('Subgroups', 'subgroups/test_subgroups'),
+    ('Workgroups', 'workgroups/test_workgroups'),
 )
 
 TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY
@@ -105,7 +105,6 @@ TESTS_IMAGES = (
 TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
     ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
     ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
-    ('Half Ops', 'half/test_half'),
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR),images/kernel_read_write/test_image_streams CL_FILTER_LINEAR
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR pitch),images/kernel_read_write/test_image_streams use_pitches CL_FILTER_LINEAR
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR max size),images/kernel_read_write/test_image_streams max_images CL_FILTER_LINEAR
@@ -140,7 +139,7 @@ def run_conformance_binary(path, args):
     start = datetime.datetime.utcnow()
     dirname = os.path.dirname(path)
     binary = os.path.basename(path)
-    path = os.path.join(dirname, binary)
+    path = os.path.join(dirname, os.path.basename(binary))
     p = subprocess.Popen(
         [path] + args,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -201,7 +200,7 @@ def run_tests(test_set):
         binary = test[1]
         args = test[2:]
         print("Running", name, "...")
-        status = run_conformance_binary(os.path.join(CONFORMANCE_DIR, binary), list(args))
+        status = run_conformance_binary(os.path.join(CONFORMANCE_DIR, os.path.basename(binary)), list(args))
         results[name] = status
         print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))
         print(status['passed'], "test(s) out of", status['total'], "passed")
