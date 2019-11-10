@@ -30,6 +30,10 @@ bool is_valid_platform(cl_platform_id platform) {
     return platform != nullptr;
 }
 
+bool is_valid_context(cl_context context) {
+    return context != nullptr;
+}
+
 bool is_valid_command_queue(cl_command_queue queue) {
     return queue != nullptr;
 }
@@ -637,7 +641,7 @@ clRetainContext(
 ){
     LOG_API_CALL("context = %p", context);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         return CL_INVALID_CONTEXT;
     }
 
@@ -652,7 +656,7 @@ clReleaseContext(
 ){
     LOG_API_CALL("context = %p", context);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         return CL_INVALID_CONTEXT;
     }
 
@@ -788,7 +792,7 @@ cl_event clCreateUserEvent(
 ){
     LOG_API_CALL("context = %p, errcode_ret = %p", context, errcode_ret);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -1027,7 +1031,7 @@ clCreateCommandQueue(
     LOG_API_CALL("context = %p, device = %p, properties = %lu, errcode_ret = %p",
                  context, device, properties, errcode_ret);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -1411,7 +1415,7 @@ clCreateProgramWithSource(
 ){
     LOG_API_CALL("context = %p, count = %u, lengths = %p", context, count, lengths);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -1446,7 +1450,7 @@ clCreateProgramWithBinary(
 ){
     LOG_API_CALL("context = %p, num_devices = %u, device_list = %p, lengths = %p, binaries = %p, binary_status = %p, errcode_ret = %p", context, num_devices, device_list, lengths, binaries, binary_status, errcode_ret);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -1619,7 +1623,7 @@ clLinkProgram(
 ){
     LOG_API_CALL("context = %p, num_devices = %d, device_list = %p, options = %p, num_input_programs = %d, input_programs = %p, pfn_notify = %p, user_data = %p, errcode_ret = %p", context, num_devices, device_list, options, num_input_programs, input_programs, pfn_notify, user_data, errcode_ret);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -2930,7 +2934,7 @@ cl_sampler clCreateSampler(
                  "filter_mode = %d, errcode_ret = %p",
                  context, normalized_coords, addressing_mode, filter_mode, errcode_ret);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
@@ -3381,7 +3385,7 @@ cl_int clGetSupportedImageFormats(
                  "image_formats = %p, num_image_formats = %p",
                  context, flags, image_type, num_entries, image_formats, num_image_formats);
 
-    if (context == nullptr) {
+    if (!is_valid_context(context)) {
         return CL_INVALID_CONTEXT;
     }
 
