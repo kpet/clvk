@@ -407,6 +407,9 @@ bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::Descrip
         case clspv::ArgKind::WriteOnlyImage:
           arg.kind = kernel_argument_kind::wo_image;
           break;
+        case clspv::ArgKind::Sampler:
+          arg.kind = kernel_argument_kind::sampler;
+          break;
         default:
           return false;
       }
