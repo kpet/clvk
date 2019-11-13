@@ -38,6 +38,10 @@ bool is_valid_command_queue(cl_command_queue queue) {
     return queue != nullptr;
 }
 
+bool is_valid_event(cl_event event) {
+    return event != nullptr;
+}
+
 bool is_valid_buffer(cl_mem mem) {
     return ((mem != nullptr) && (mem->is_buffer_type()));
 }
@@ -785,7 +789,7 @@ clReleaseEvent(
 ){
     LOG_API_CALL("event = %p", event);
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
     }
 
@@ -800,7 +804,7 @@ clRetainEvent(
 ){
     LOG_API_CALL("event = %p", event);
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
     }
 
@@ -836,7 +840,7 @@ cl_int clSetUserEventStatus(
 ){
     LOG_API_CALL("event = %p, execution_status = %d", event, execution_status);
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
     }
 
@@ -853,7 +857,7 @@ cl_int clSetEventCallback(
 ){
     LOG_API_CALL("event = %p, callback_type = %d, pfn_event_notify = %p, user_data = %p", event, command_exec_callback_type, pfn_event_notify, user_data);
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
     }
 
@@ -875,7 +879,7 @@ static bool event_wait_list_is_valid(cl_uint num_events_in_wait_list,
     }
 
     for (cl_uint i = 0; i < num_events_in_wait_list; i++) {
-        if (event_wait_list[i] == nullptr) {
+        if (!is_valid_event(event_wait_list[i])) {
             return false;
         }
     }
@@ -987,7 +991,7 @@ cl_int clGetEventInfo(
     cl_command_type val_command_type;
     cl_command_queue val_command_queue;
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_VALUE;
     }
 
@@ -2254,7 +2258,7 @@ clGetEventProfilingInfo(
                  "param_value = %p, param_value_size_ret = %p",
                  event, param_name, param_value_size, param_value, param_value_size_ret);
 
-    if (event == nullptr) {
+    if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
     }
 
