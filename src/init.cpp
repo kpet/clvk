@@ -27,7 +27,6 @@ cvk_platform *gPlatform;
 int gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
-bool gImageSupport = false;
 bool gQueueProfilingUsesTimestampQueries = false;
 
 #ifndef CLSPV_ONLINE_COMPILER

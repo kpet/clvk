@@ -20,7 +20,6 @@
 
 extern cvk_platform *gPlatform;
 
-extern bool gImageSupport;
 extern std::string gCLSPVPath;
 extern std::string gLLVMSPIRVPath;
 extern std::string gCLSPVOptions;

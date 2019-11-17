@@ -347,7 +347,7 @@ clGetDeviceInfo(
             size_ret = sizeof(val_bool);
             break;
         case CL_DEVICE_IMAGE_SUPPORT:
-            val_bool = gImageSupport ? CL_TRUE : CL_FALSE;
+            val_bool = device->supports_images();
             copy_ptr = &val_bool;
             size_ret = sizeof(val_bool);
             break;

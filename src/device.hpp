@@ -24,6 +24,10 @@
 #include "utils.hpp"
 #include "vkutils.hpp"
 
+static constexpr bool devices_support_images() {
+    return false;
+}
+
 typedef struct _cl_device_id cvk_device;
 
 typedef struct _cl_device_id {
@@ -93,6 +97,10 @@ typedef struct _cl_device_id {
 
     cl_uint mem_base_addr_align() const {
         return m_mem_base_addr_align;
+    }
+
+    bool supports_images() const {
+        return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
 
     std::string version_string() const {

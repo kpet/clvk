@@ -603,7 +603,7 @@ cl_build_status cvk_program::compile_source()
     if (processed_options.find(single_precision_option) == std::string::npos) {
         options += " " + single_precision_option + " ";
     }
-    if (!gImageSupport) {
+    if (!devices_support_images()) {
         options += " -images=0 ";
     }
     options += " -pod-ubo ";
