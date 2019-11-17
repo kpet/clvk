@@ -34,16 +34,24 @@ bool is_valid_context(cl_context context) {
     return context != nullptr;
 }
 
+bool is_valid_mem_object(cl_mem mem) {
+    return mem != nullptr;
+}
+
+bool is_valid_buffer(cl_mem mem) {
+    return is_valid_mem_object(mem) && mem->is_buffer_type();
+}
+
+bool is_valid_image(cl_mem mem) {
+    return is_valid_mem_object(mem) && mem->is_image_type();
+}
+
 bool is_valid_command_queue(cl_command_queue queue) {
     return queue != nullptr;
 }
 
 bool is_valid_event(cl_event event) {
     return event != nullptr;
-}
-
-bool is_valid_buffer(cl_mem mem) {
-    return ((mem != nullptr) && (mem->is_buffer_type()));
 }
 
 } // namespace
@@ -1206,7 +1214,13 @@ cl_mem clCreateSubBuffer(
                  "buffer_create_info = %p, errcode_ret = %p",
                  buffer, flags, buffer_create_type, buffer_create_info, errcode_ret);
 
-    // TODO CL_INVALID_MEM_OBJECT if buffer is not a valid buffer object or is a sub-buffer object.
+    if (!is_valid_buffer(buffer) || buffer->is_sub_buffer()) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_MEM_OBJECT;
+        }
+        return nullptr;
+    }
+
     // TODO CL_INVALID_VALUE if buffer was created with CL_MEM_WRITE_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_READ_ONLY, or if buffer was created with CL_MEM_READ_ONLY and flags specifies CL_MEM_READ_WRITE or CL_MEM_WRITE_ONLY, or if flags specifies CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR or CL_MEM_COPY_HOST_PTR.
     // TODO CL_INVALID_VALUE if buffer was created with CL_MEM_HOST_WRITE_ONLY and flags specifies CL_MEM_HOST_READ_ONLY or if buffer was created with CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY, or if buffer was created with CL_MEM_HOST_NO_ACCESS and flags specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
     // TODO CL_INVALID_VALUE if value specified in buffer_create_type is not valid.
@@ -1247,7 +1261,7 @@ clRetainMemObject(
 ){
     LOG_API_CALL("memobj = %p", memobj);
 
-    if (memobj == nullptr) {
+    if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -1262,7 +1276,7 @@ clReleaseMemObject(
 ){
     LOG_API_CALL("memobj = %p", memobj);
 
-    if (memobj == nullptr) {
+    if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -1279,7 +1293,7 @@ clSetMemObjectDestructorCallback(
 ){
     LOG_API_CALL("memobj = %p, pfn_notify = %p, user_data = %p", memobj, pfn_notify, user_data);
 
-    if (memobj == nullptr) {
+    if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -1316,7 +1330,7 @@ cl_int clEnqueueMigrateMemObjects(
     }
 
     for (cl_uint i = 0; i < num_mem_objects; i++) {
-        if (mem_objects[i] == nullptr) {
+        if (!is_valid_mem_object(mem_objects[i])) {
             return CL_INVALID_MEM_OBJECT;
         }
     }
@@ -1363,7 +1377,7 @@ cl_int clGetMemObjectInfo(
     cl_mem val_memobj;
     void *val_ptr;
 
-    if (memobj == nullptr) {
+    if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -2822,7 +2836,7 @@ clEnqueueUnmapMemObject(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (memobj == nullptr) {
+    if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
@@ -3230,11 +3244,7 @@ cl_int clGetImageInfo(
     cl_mem val_mem;
     cl_uint val_uint;
 
-    if (image == nullptr) {
-        return CL_INVALID_MEM_OBJECT;
-    }
-
-    if (!image->is_image_type()) {
+    if (!is_valid_image(image)) {
         return CL_INVALID_MEM_OBJECT;
     }
 
