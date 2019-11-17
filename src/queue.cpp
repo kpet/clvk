@@ -664,3 +664,183 @@ cl_int cvk_command_unmap_buffer::do_action()
 
     return CL_COMPLETE;
 }
+
+VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
+                                            size_t bufferOffset,
+                                            std::array<size_t, 3> origin,
+                                            std::array<size_t, 3> region) {
+    uint32_t extentHeight = region[1];
+    uint32_t extentDepth = region[2];
+    uint32_t baseArrayLayer = 0;
+    uint32_t layerCount = 1;
+    switch(image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        baseArrayLayer = origin[1];
+        layerCount = region[1];
+        extentHeight = 1;
+        extentDepth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        baseArrayLayer = origin[2];
+        layerCount = region[2];
+        extentDepth = 1;
+        break;
+    }
+    VkImageSubresourceLayers subResource = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0, // mipLevel
+        baseArrayLayer,
+        layerCount
+    };
+
+    VkOffset3D offset = {
+        static_cast<int32_t>(origin[0]), // x
+        static_cast<int32_t>(origin[1]), // y
+        static_cast<int32_t>(origin[2]), // z
+    };
+    cvk_debug_fn("offset: %d, %d, %d", offset.x, offset.y, offset.z);
+
+    VkExtent3D extent = {
+        static_cast<uint32_t>(region[0]),
+        extentHeight,
+        extentDepth
+    };
+    cvk_debug_fn("extent: %u, %u, %u", extent.width, extent.height, extent.depth);
+
+    // Tightly pack the data in the destination buffer
+    VkBufferImageCopy ret = {
+        bufferOffset, // bufferOffset
+        0, // bufferRowLength
+        0, // bufferImageHeight
+        subResource, // imageSubresource
+        offset, // imageOffset
+        extent, // imageExtent
+    };
+    return ret;
+}
+
+void cvk_command_buffer_image_copy::build_inner_image_to_buffer(const VkBufferImageCopy &region)
+{
+    VkImageSubresourceRange subresourceRange = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0, // baseMipLevel
+        VK_REMAINING_MIP_LEVELS, // levelCount
+        0, // baseArrayLayer
+        VK_REMAINING_ARRAY_LAYERS, // layerCount
+    };
+
+    VkImageMemoryBarrier imageBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_MEMORY_WRITE_BIT, // srcAccessMask
+        VK_ACCESS_TRANSFER_READ_BIT, // dstAccessMask
+        VK_IMAGE_LAYOUT_GENERAL, // oldLayout // TODO UNDEFINED when MAP_WRITE_INVALIDATE
+        VK_IMAGE_LAYOUT_GENERAL, // newLayout
+        0, // srcQueueFamilyIndex
+        0, // dstQueueFamilyIndex
+        m_image->vulkan_image(), // image
+        subresourceRange,
+    };
+
+    vkCmdPipelineBarrier(m_command_buffer,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, // dependencyFlags
+                         0, // memoryBarrierCount
+                         nullptr, // pMemoryBarriers
+                         0, // bufferMemoryBarrierCount
+                         nullptr, // pBufferMemoryBarriers
+                         1, // imageMemoryBarrierCount
+                         &imageBarrier); // pImageMemoryBarriers
+
+    vkCmdCopyImageToBuffer(m_command_buffer, m_image->vulkan_image(),
+                           VK_IMAGE_LAYOUT_GENERAL,
+                           m_buffer->vulkan_buffer(),
+                           1, &region);
+}
+
+void cvk_command_buffer_image_copy::build_inner_buffer_to_image(const VkBufferImageCopy &region)
+{
+    VkBufferMemoryBarrier bufferBarrier = {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_MEMORY_WRITE_BIT,
+        VK_ACCESS_TRANSFER_READ_BIT,
+        0, // srcQueueFamilyIndex
+        0, // dstQueueFamilyIndex
+        m_buffer->vulkan_buffer(),
+        0, // offset
+        VK_WHOLE_SIZE
+    };
+
+    vkCmdPipelineBarrier(m_command_buffer,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0, // dependencyFlags
+                         0, // memoryBarrierCount
+                         nullptr, // pMemoryBarriers
+                         1, // bufferMemoryBarrierCount
+                         &bufferBarrier, // pBufferMemoryBarriers
+                         0, // imageMemoryBarrierCount
+                         nullptr); // pImageMemoryBarriers
+
+    vkCmdCopyBufferToImage(m_command_buffer, m_buffer->vulkan_buffer(), m_image->vulkan_image(),
+                           VK_IMAGE_LAYOUT_GENERAL,
+                           1, &region);
+
+}
+
+cl_int cvk_command_buffer_image_copy::build()
+{
+    if (!m_command_buffer.begin()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    VkBufferImageCopy region = prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
+
+    switch(type()) {
+    case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
+        build_inner_image_to_buffer(region);
+        break;
+    case CL_COMMAND_COPY_BUFFER_TO_IMAGE:
+        build_inner_buffer_to_image(region);
+        break;
+    default:
+        CVK_ASSERT(false);
+        break;
+    }
+
+    VkMemoryBarrier memoryBarrier = {
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT
+    };
+
+    vkCmdPipelineBarrier(m_command_buffer,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         // TODO HOST only when the dest buffer is an image mapping buffer
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         0, // dependencyFlags
+                         1, // memoryBarrierCount
+                         &memoryBarrier,
+                         0, // bufferMemoryBarrierCount
+                         nullptr, // pBufferMemoryBarriers
+                         0, // imageMemoryBarrierCount
+                         nullptr); // pImageMemoryBarriers
+
+    if (!m_command_buffer.end()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_buffer_image_copy::do_action()
+{
+    if (!m_command_buffer.submit_and_wait()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_COMPLETE;
+}

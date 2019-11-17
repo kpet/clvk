@@ -389,7 +389,8 @@ bool cvk_image::init()
         array_layers, // arrayLayers
         VK_SAMPLE_COUNT_1_BIT, // samples
         VK_IMAGE_TILING_OPTIMAL, // tiling
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, // usage TODO transfers
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         VK_SHARING_MODE_EXCLUSIVE, // sharingMode
         0, // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
