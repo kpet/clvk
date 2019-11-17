@@ -566,7 +566,7 @@ struct cvk_command_kernel : public cvk_command {
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel,
                        uint32_t* num_wg, uint32_t* wg_size)
         : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_command_buffer(q), m_descriptor_set(VK_NULL_HANDLE),
+          m_command_buffer(q), m_descriptor_sets{VK_NULL_HANDLE},
           m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
           m_argument_values(nullptr) {
         m_num_wg[0] = num_wg[0];
@@ -579,8 +579,10 @@ struct cvk_command_kernel : public cvk_command {
     }
 
     ~cvk_command_kernel() {
-        if (m_descriptor_set != VK_NULL_HANDLE) {
-            m_kernel->free_descriptor_set(m_descriptor_set);
+        for (auto ds : m_descriptor_sets) {
+            if (ds != VK_NULL_HANDLE) {
+                m_kernel->free_descriptor_set(ds);
+            }
         }
 
         if (m_pipeline != VK_NULL_HANDLE) {
@@ -606,7 +608,8 @@ private:
     uint32_t m_wg_size[3];
     cvk_kernel_holder m_kernel;
     cvk_command_buffer m_command_buffer;
-    VkDescriptorSet m_descriptor_set;
+    std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
+        m_descriptor_sets;
     VkPipeline m_pipeline;
     VkQueryPool m_query_pool;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;

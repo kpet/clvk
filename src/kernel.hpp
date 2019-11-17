@@ -15,6 +15,7 @@
 #pragma once
 
 #include <limits>
+#include <unordered_map>
 
 #include "memory.hpp"
 #include "objects.hpp"
@@ -29,10 +30,9 @@ typedef struct _cl_kernel : public api_object {
     _cl_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program), m_name(name),
           m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
-          m_pod_binding(INVALID_POD_BINDING), m_pod_buffer_size(0u),
-          m_has_pod_arguments(false), m_descriptor_pool(VK_NULL_HANDLE),
-          m_descriptor_set_layout(VK_NULL_HANDLE),
-          m_pipeline_layout(VK_NULL_HANDLE), m_pipeline_cache(VK_NULL_HANDLE) {
+          m_pod_arg(nullptr), m_pod_buffer_size(0u), m_has_pod_arguments(false),
+          m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+          m_pipeline_cache(VK_NULL_HANDLE) {
         m_program->retain();
     }
 
@@ -49,9 +49,8 @@ typedef struct _cl_kernel : public api_object {
         if (m_pipeline_layout != VK_NULL_HANDLE) {
             vkDestroyPipelineLayout(dev, m_pipeline_layout, nullptr);
         }
-
-        if (m_descriptor_set_layout != VK_NULL_HANDLE) {
-            vkDestroyDescriptorSetLayout(dev, m_descriptor_set_layout, nullptr);
+        for (auto layout : m_descriptor_set_layouts) {
+            vkDestroyDescriptorSetLayout(dev, layout, nullptr);
         }
         m_program->release();
     }
@@ -71,7 +70,7 @@ typedef struct _cl_kernel : public api_object {
     bool has_pod_arguments() const { return m_has_pod_arguments; }
     const std::string& name() const { return m_name; }
     uint32_t num_args() const { return m_args.size(); }
-    uint32_t num_bindings() const { return m_layout_bindings.size(); }
+    uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
     VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
     cvk_program* program() const { return m_program; }
 
@@ -82,8 +81,14 @@ typedef struct _cl_kernel : public api_object {
     cl_ulong local_mem_size() const;
 
 private:
-    const uint32_t INVALID_POD_BINDING = std::numeric_limits<uint32_t>::max();
-    void build_descriptor_sets_layout_bindings();
+    using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
+    bool build_descriptor_set_layout(
+        VkDevice vkdev,
+        const std::vector<VkDescriptorSetLayoutBinding>& bindings);
+    bool build_descriptor_sets_layout_bindings_for_arguments(
+        VkDevice vkdev, binding_stat_map& smap, uint32_t& num_resources);
+    bool build_descriptor_sets_layout_bindings_for_literal_samplers(
+        VkDevice vkdev, binding_stat_map& smap);
     std::unique_ptr<cvk_buffer> allocate_pod_buffer();
     friend cvk_kernel_argument_values;
 
@@ -91,14 +96,13 @@ private:
     cvk_program* m_program;
     std::string m_name;
     VkDescriptorType m_pod_descriptor_type;
-    uint32_t m_pod_binding;
+    const kernel_argument* m_pod_arg;
     uint32_t m_pod_buffer_size;
     bool m_has_pod_arguments;
     std::vector<kernel_argument> m_args;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
-    std::vector<VkDescriptorSetLayoutBinding> m_layout_bindings;
     VkDescriptorPool m_descriptor_pool;
-    VkDescriptorSetLayout m_descriptor_set_layout;
+    std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
     VkPipelineLayout m_pipeline_layout;
     VkPipelineCache m_pipeline_cache;
 } cvk_kernel;
@@ -107,9 +111,9 @@ using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 
 struct cvk_kernel_argument_values {
 
-    cvk_kernel_argument_values(cvk_kernel* kernel)
+    cvk_kernel_argument_values(cvk_kernel* kernel, uint32_t num_resources)
         : m_kernel(kernel), m_pod_buffer(nullptr),
-          m_kernel_resources(m_kernel->num_bindings()),
+          m_kernel_resources(num_resources),
           m_local_args_size(m_kernel->num_args(), 0) {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values& other)
@@ -118,8 +122,9 @@ struct cvk_kernel_argument_values {
           m_local_args_size(other.m_local_args_size) {}
 
     static std::unique_ptr<cvk_kernel_argument_values>
-    create(cvk_kernel* kernel) {
-        auto val = std::make_unique<cvk_kernel_argument_values>(kernel);
+    create(cvk_kernel* kernel, uint32_t num_resources) {
+        auto val =
+            std::make_unique<cvk_kernel_argument_values>(kernel, num_resources);
 
         if (!val->init()) {
             return nullptr;

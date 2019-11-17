@@ -318,7 +318,8 @@ cl_int cvk_command_kernel::build() {
     // specified.
 
     // Setup descriptors
-    if (!m_kernel->setup_descriptor_set(&m_descriptor_set, m_argument_values)) {
+    if (!m_kernel->setup_descriptor_set(m_descriptor_sets.data(),
+                                        m_argument_values)) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -392,8 +393,9 @@ cl_int cvk_command_kernel::build() {
     }
 
     vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                            m_kernel->pipeline_layout(), 0, 1,
-                            &m_descriptor_set, 0, 0);
+                            m_kernel->pipeline_layout(), 0,
+                            m_kernel->num_set_layouts(),
+                            m_descriptor_sets.data(), 0, 0);
 
     vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
 
