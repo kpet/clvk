@@ -294,9 +294,9 @@ static std::vector<std::string> tokenize(const std::string &str, const char *del
         tokens.push_back(str.substr(start, end-start));
         start = str.find_first_not_of(delim, end);
     }
-    for (auto& tok : tokens) {
-        //cvk_debug("TOK: %s", tok.c_str());
-    }
+    //for (auto& tok : tokens) {
+    //    cvk_debug("TOK: %s", tok.c_str());
+    //}
 
     return tokens;
 }
