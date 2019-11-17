@@ -124,6 +124,8 @@ static void init_vulkan()
         int value = atoi(enable_validation_layers);
         if (value == 1) {
             enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
+            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+            cvk_info("Enabling validation layers.");
         }
     }
 
