@@ -54,6 +54,20 @@ bool is_valid_event(cl_event event) {
     return event != nullptr;
 }
 
+bool is_same_context(cl_command_queue queue, cl_mem mem) {
+    return queue->context() == mem->context();
+}
+
+bool is_same_context(cl_command_queue queue, cl_uint num_events, const cl_event *event_list) {
+    for (cl_uint i = 0; i < num_events; i++) {
+        if (queue->context() != event_list[i]->context()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 } // namespace
 
 // Platform API
@@ -1321,10 +1335,6 @@ cl_int clEnqueueMigrateMemObjects(
                  command_queue, num_mem_objects, mem_objects, flags,
                  num_events_in_wait_list, event_wait_list, event);
 
-    // TODO CL_INVALID_CONTEXT if the context associated with command_queue and
-    // memory objects in memobj are not the same or if the context associated
-    // with command_queue and events in event_wait_list are not the same.
-
     if ((num_mem_objects == 0) || (mem_objects == nullptr)) {
         return CL_INVALID_VALUE;
     }
@@ -1346,6 +1356,16 @@ cl_int clEnqueueMigrateMemObjects(
 
     if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    for (cl_uint i = 0; i < num_mem_objects; i++) {
+        if (!is_same_context(command_queue, mem_objects[i])) {
+            return CL_INVALID_CONTEXT;
+        }
     }
 
     auto cmd = new cvk_command_dep(command_queue,
@@ -2674,7 +2694,7 @@ cl_int clEnqueueCopyBufferRect(
                  num_events_in_wait_list, event_wait_list, event);
 
     // TODO CL_INVALID_COMMAND_QUEUE if command_queue is not a valid command-queue.
-    // TODO CL_INVALID_CONTEXT if the context associated with command_queue, src_buffer, and dst_buffer are not the same or if the context associated with command_queue and events in event_wait_list are not the same.
+
     if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
         return CL_INVALID_MEM_OBJECT;
     }
@@ -2688,6 +2708,12 @@ cl_int clEnqueueCopyBufferRect(
     //
     if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, src_buffer) ||
+        !is_same_context(command_queue, dst_buffer) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
     }
     // TODO CL_MEM_COPY_OVERLAP if src_buffer and dst_buffer are the same buffer object and the source and destination regions overlap or if src_buffer and dst_buffer are different sub-buffers of the same associated buffer object and they overlap. Refer to Appendix E in the OpenCL specification for details on how to determine if source and destination regions overlap.
     // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if src_buffer is a sub-buffer object and offset specified when the sub-buffer object is created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
@@ -2745,7 +2771,7 @@ clEnqueueMapBuffer(
         return nullptr;
     }
 
-    if (command_queue->context() != buffer->context()) {
+    if (!is_same_context(command_queue, buffer)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_CONTEXT;
         }
