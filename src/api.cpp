@@ -30,8 +30,24 @@ bool is_valid_platform(cl_platform_id platform) {
     return platform != nullptr;
 }
 
+bool is_valid_device(cl_device_id device) {
+    return device != nullptr;
+}
+
 bool is_valid_context(cl_context context) {
     return context != nullptr;
+}
+
+bool is_valid_program(cl_program program) {
+    return program != nullptr;
+}
+
+bool is_valid_kernel(cl_kernel kernel) {
+    return kernel != nullptr;
+}
+
+bool is_valid_sampler(cl_sampler sampler) {
+    return sampler != nullptr;
 }
 
 bool is_valid_mem_object(cl_mem mem) {
@@ -270,7 +286,7 @@ clGetDeviceInfo(
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
 
-    if (device == nullptr) {
+    if (!is_valid_device(device)) {
         return CL_INVALID_DEVICE;
     }
 
@@ -615,7 +631,7 @@ cl_int clRetainDevice(
 ){
     LOG_API_CALL("device = %p", device);
 
-    if (device == nullptr) {
+    if (!is_valid_device(device)) {
         return CL_INVALID_DEVICE;
     }
 
@@ -627,7 +643,7 @@ cl_int clReleaseDevice(
 ){
     LOG_API_CALL("device = %p", device);
 
-    if (device == nullptr) {
+    if (!is_valid_device(device)) {
         return CL_INVALID_DEVICE;
     }
 
@@ -786,7 +802,7 @@ clWaitForEvents(
 
     // TODO validate that all events belong to the same context
     for (cl_uint i = 0; i < num_events; i++) {
-        if (event_list[i] == nullptr) {
+        if (!is_valid_event(event_list[i])) {
             return CL_INVALID_EVENT;
         }
     }
@@ -1577,7 +1593,7 @@ clBuildProgram(
 ){
     LOG_API_CALL("program = %p, num_device = %d, device_list = %p, options = %s, pfn_notify = %p, user_data = %p", program, num_devices, device_list, options, pfn_notify, user_data);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -1626,7 +1642,7 @@ cl_int clCompileProgram(
 ){
     LOG_API_CALL("program = %p, num_devices = %u, device_list = %p, options = %p, num_input_headers = %u, input_headers = %p, header_include_names = %p, pfn_notify = %p, user_data = %p", program, num_devices, device_list, options, num_input_headers, input_headers, header_include_names, pfn_notify, user_data);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -1706,7 +1722,7 @@ clLinkProgram(
     }
 
     for (cl_uint i = 0; i < num_input_programs; i++) {
-        if (input_programs[i] == nullptr) {
+        if (!is_valid_program(input_programs[i])) {
             if (errcode_ret != nullptr) {
                 *errcode_ret = CL_INVALID_PROGRAM;
             }
@@ -1799,7 +1815,7 @@ clGetProgramInfo(
     std::vector<size_t> val_sizet_vec;
     std::vector<const cvk_device*> val_devices;
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -1907,11 +1923,11 @@ clGetProgramBuildInfo(
     string val_string;
     cl_program_binary_type val_binarytype;
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
-    if (device == nullptr) { // TODO check the program knows the device
+    if (!is_valid_device(device)) { // TODO check the program knows the device
         return CL_INVALID_DEVICE;
     }
 
@@ -1956,7 +1972,7 @@ clRetainProgram(
 ){
     LOG_API_CALL("program = %p", program);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -1970,7 +1986,7 @@ clReleaseProgram(
 ){
     LOG_API_CALL("program = %p", program);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -2004,7 +2020,7 @@ clCreateKernel(
 ){
     LOG_API_CALL("program = %p, kernel_name = %s", program, kernel_name);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_PROGRAM;
         }
@@ -2037,7 +2053,7 @@ clCreateKernelsInProgram(
 ){
     LOG_API_CALL("program = %p, num_kernels = %u, kernels = %p, num_kernels_ret = %p", program, num_kernels, kernels, num_kernels_ret);
 
-    if (program == nullptr) {
+    if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
     }
 
@@ -2080,7 +2096,7 @@ clSetKernelArg(
 
     LOG_API_CALL("kernel = %p, arg_index = %u, arg_size = %zu, arg_value = %p", kernel, arg_index, arg_size, arg_value);
 
-    if (kernel == nullptr) {
+    if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
@@ -2121,7 +2137,7 @@ cl_int clGetKernelInfo(
     cl_context val_context;
     cl_program val_program;
 
-    if (kernel == nullptr) {
+    if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
@@ -2204,7 +2220,7 @@ clGetKernelWorkGroupInfo(
     size_t val_sizet, ret_size = 0;
     cl_ulong val_ulong;
 
-    if (kernel == nullptr) {
+    if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
@@ -2254,7 +2270,7 @@ clRetainKernel(
 ){
     LOG_API_CALL("kernel = %p", kernel);
 
-    if (kernel == nullptr) {
+    if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
@@ -2269,7 +2285,7 @@ clReleaseKernel(
 ){
     LOG_API_CALL("kernel = %p", kernel);
 
-    if (kernel == nullptr) {
+    if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
@@ -3032,7 +3048,7 @@ cl_int clRetainSampler(
 ){
     LOG_API_CALL("sampler = %p", sampler);
 
-    if (sampler == nullptr) {
+    if (!is_valid_sampler(sampler)) {
         return CL_INVALID_SAMPLER;
     }
 
@@ -3046,7 +3062,7 @@ cl_int clReleaseSampler(
 ){
     LOG_API_CALL("sampler = %p", sampler);
 
-    if (sampler == nullptr) {
+    if (!is_valid_sampler(sampler)) {
         return CL_INVALID_SAMPLER;
     }
 
@@ -3075,7 +3091,7 @@ cl_int clGetSamplerInfo(
     cl_addressing_mode val_addressing_mode;
     cl_filter_mode val_filter_mode;
 
-    if (sampler == nullptr) {
+    if (!is_valid_sampler(sampler)) {
         return CL_INVALID_SAMPLER;
     }
 
