@@ -26,8 +26,8 @@ _cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
     m_device(device),
     m_properties(properties),
     m_executor(nullptr),
-    m_command_pool(VK_NULL_HANDLE),
-    m_vulkan_queue(device->vulkan_queue_allocate())
+    m_vulkan_queue(device->vulkan_queue_allocate()),
+    m_command_pool(device->vulkan_device(), m_vulkan_queue.queue_family())
 {
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
@@ -38,16 +38,7 @@ _cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
 
 cl_int cvk_command_queue::init() {
 
-    // Create command pool
-    VkCommandPoolCreateInfo createInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        nullptr,
-        0, // flags
-        m_vulkan_queue.queue_family()
-    };
-
-    VkResult res = vkCreateCommandPool(m_device->vulkan_device(), &createInfo, nullptr, &m_command_pool);
-    if (res != VK_SUCCESS) {
+    if (m_command_pool.init() != VK_SUCCESS) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -57,9 +48,6 @@ cl_int cvk_command_queue::init() {
 _cl_command_queue::~_cl_command_queue() {
     if (m_executor != nullptr) {
         gThreadPool.return_executor(m_executor);
-    }
-    if (m_command_pool != VK_NULL_HANDLE) {
-        vkDestroyCommandPool(m_device->vulkan_device(), m_command_pool, nullptr);
     }
 }
 
@@ -238,7 +226,7 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     return CL_SUCCESS;
 }
 
-bool cvk_command_queue::allocate_command_buffer(VkCommandBuffer *buf) {
+VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer *cmdbuf) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -250,23 +238,20 @@ bool cvk_command_queue::allocate_command_buffer(VkCommandBuffer *buf) {
       1 // commandBufferCount
     };
 
-    VkResult res = vkAllocateCommandBuffers(m_device->vulkan_device(), &commandBufferAllocateInfo, buf);
-
-    if (res != VK_SUCCESS) {
-        return false;
-    }
-
-    return true;
+    return vkAllocateCommandBuffers(m_device, &commandBufferAllocateInfo, cmdbuf);
 }
 
-void cvk_command_queue::free_command_buffer(VkCommandBuffer buf) {
-    vkFreeCommandBuffers(m_device->vulkan_device(), m_command_pool, 1, &buf);
+void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
+    vkFreeCommandBuffers(m_device, m_command_pool, 1, &buf);
 }
 
 bool cvk_command_buffer::begin() {
+
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return false;
     }
+
+    m_queue->command_pool_lock();
 
     VkCommandBufferBeginInfo beginInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

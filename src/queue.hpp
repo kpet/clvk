@@ -167,6 +167,48 @@ private:
     bool m_profiling;
 };
 
+struct cvk_command_pool {
+
+    cvk_command_pool(VkDevice device, uint32_t queue_family) :
+        m_device(device),
+        m_queue_family(queue_family),
+        m_command_pool(VK_NULL_HANDLE) {}
+
+    ~cvk_command_pool() {
+        if (m_command_pool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(m_device, m_command_pool, nullptr);
+        }
+    }
+
+    CHECK_RETURN VkResult init() {
+        // Create command pool
+        VkCommandPoolCreateInfo createInfo = {
+            VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            nullptr,
+            0, // flags
+            m_queue_family
+        };
+
+        return vkCreateCommandPool(m_device, &createInfo, nullptr, &m_command_pool);
+    }
+
+    VkResult allocate_command_buffer(VkCommandBuffer *buf);
+    void free_command_buffer(VkCommandBuffer buf);
+
+    void lock() {
+        m_lock.lock();
+    }
+
+    void unlock() {
+        m_lock.unlock();
+    }
+private:
+    VkDevice m_device;
+    uint32_t m_queue_family;
+    VkCommandPool m_command_pool;
+    std::mutex m_lock;
+};
+
 typedef struct _cl_command_queue : public api_object {
 
     _cl_command_queue(cvk_context *ctx, cvk_device *dev,
@@ -195,9 +237,21 @@ typedef struct _cl_command_queue : public api_object {
         return flush(nullptr);
     }
 
-    CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer *buf);
+    CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer *cmdbuf) {
+        return m_command_pool.allocate_command_buffer(cmdbuf) == VK_SUCCESS;
+    }
 
-    void free_command_buffer(VkCommandBuffer buf);
+    void free_command_buffer(VkCommandBuffer cmdbuf) {
+        return m_command_pool.free_command_buffer(cmdbuf);
+    }
+
+    void command_pool_lock() {
+        m_command_pool.lock();
+    }
+
+    void command_pool_unlock() {
+        m_command_pool.unlock();
+    }
 
     cvk_vulkan_queue_wrapper& vulkan_queue() {
         return m_vulkan_queue;
@@ -217,9 +271,9 @@ private:
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
-    VkCommandPool m_command_pool;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
+    cvk_command_pool m_command_pool;
 
 } cvk_command_queue;
 
@@ -501,6 +555,7 @@ struct cvk_command_buffer {
 
     CHECK_RETURN bool end() {
         auto res = vkEndCommandBuffer(m_command_buffer);
+        m_queue->command_pool_unlock();
         return res == VK_SUCCESS;
     }
 
