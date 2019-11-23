@@ -84,6 +84,14 @@ bool is_same_context(cl_command_queue queue, cl_uint num_events, const cl_event 
     return true;
 }
 
+bool map_flags_are_valid(cl_map_flags flags) {
+    if ((flags & CL_MAP_WRITE_INVALIDATE_REGION) &&
+        (flags & (CL_MAP_READ | CL_MAP_WRITE))) {
+        return false;
+    }
+    return true;
+}
+
 } // namespace
 
 // Platform API
@@ -2801,7 +2809,7 @@ clEnqueueMapBuffer(
         return nullptr;
     }
 
-    if ((map_flags & CL_MAP_WRITE_INVALIDATE_REGION) && (map_flags & (CL_MAP_WRITE | CL_MAP_READ))) {
+    if (!map_flags_are_valid(map_flags)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_VALUE;
         }
