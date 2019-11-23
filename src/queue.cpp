@@ -569,11 +569,13 @@ cl_int cvk_command_copy_host_buffer_rect::do_action()
 
     switch (m_type) {
     case CL_COMMAND_READ_BUFFER_RECT:
+    case CL_COMMAND_READ_IMAGE:
         dst_base = m_hostptr;
         src_base = m_buffer->host_va();
         dir = cvk_rectangle_copier::direction::A_TO_B;
         break;
     case CL_COMMAND_WRITE_BUFFER_RECT:
+    case CL_COMMAND_WRITE_IMAGE:
         dst_base = m_buffer->host_va();
         src_base = m_hostptr;
         dir = cvk_rectangle_copier::direction::B_TO_A;
