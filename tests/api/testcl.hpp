@@ -107,7 +107,7 @@ struct holder {
             deleter();
         }
     }
-    void deleter() {}
+    void deleter() = delete;
     operator T() {
         return m_obj;
     }
@@ -388,6 +388,31 @@ protected:
                         size_t size) {
         return EnqueueMapBuffer<T>(buffer, blocking_map, map_flags, offset, size,
                                    0, nullptr, nullptr);
+    }
+
+    template<typename T>
+    T* EnqueueMapImage(cl_mem image, cl_bool blocking_map,
+                       cl_map_flags map_flags, const size_t *origin,
+                       const size_t *region, size_t *image_row_pitch,
+                       size_t *image_slice_pitch, cl_uint num_events_in_wait_list,
+                       const cl_event *event_wait_list, cl_event *event) {
+        cl_int err;
+        auto ptr = clEnqueueMapImage(m_queue, image, blocking_map, map_flags,
+                                     origin, region, image_row_pitch,
+                                     image_slice_pitch, num_events_in_wait_list,
+                                     event_wait_list, event, &err);
+        EXPECT_CL_SUCCESS(err);
+        return static_cast<T*>(ptr);
+    }
+
+    template<typename T>
+    T* EnqueueMapImage(cl_mem image, cl_bool blocking_map,
+                       cl_map_flags map_flags, const size_t *origin,
+                       const size_t *region, size_t *image_row_pitch,
+                       size_t *image_slice_pitch) {
+        return EnqueueMapImage<T>(image, blocking_map, map_flags,
+                                  origin, region, image_row_pitch,
+                                  image_slice_pitch, 0, nullptr, nullptr);
     }
 
     void EnqueueUnmapMemObject(cl_mem memobj, void *mapped_ptr,

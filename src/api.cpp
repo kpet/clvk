@@ -2883,8 +2883,21 @@ clEnqueueUnmapMemObject(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    auto buffer = static_cast<cvk_buffer*>(memobj);
-    auto cmd = new cvk_command_unmap_buffer(command_queue, buffer);
+    cvk_command *cmd;
+
+    if (memobj->is_image_type()) {
+        auto image = static_cast<cvk_image*>(memobj);
+        auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(command_queue, image, mapped_ptr);
+
+        auto err = cmd_unmap->build();
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+        cmd = cmd_unmap.release();
+    } else {
+        auto buffer = static_cast<cvk_buffer*>(memobj);
+        cmd = new cvk_command_unmap_buffer(command_queue, buffer);
+    }
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
 
@@ -3763,6 +3776,112 @@ cl_int clEnqueueCopyBufferToImage(
     return CL_SUCCESS;
 }
 
+void* cvk_enqueue_map_image(
+    cl_command_queue command_queue,
+    cl_mem           image,
+    cl_bool          blocking_map,
+    cl_map_flags     map_flags,
+    const size_t    *origin,
+    const size_t    *region,
+    size_t          *image_row_pitch,
+    size_t          *image_slice_pitch,
+    cl_uint          num_events_in_wait_list,
+    const cl_event  *event_wait_list ,
+    cl_event        *event,
+    cl_int          *errcode_ret
+){
+    if (!is_valid_command_queue(command_queue)) {
+        *errcode_ret = CL_INVALID_COMMAND_QUEUE;
+        return nullptr;
+    }
+
+    if (!is_valid_image(image)) {
+        *errcode_ret = CL_INVALID_MEM_OBJECT;
+        return nullptr;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        *errcode_ret = CL_INVALID_EVENT_WAIT_LIST;
+        return nullptr;
+    }
+
+    if (!is_same_context(command_queue, image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    if (!map_flags_are_valid(map_flags)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+    // TODO CL_INVALID_VALUE if region being mapped given by (origin, origin+region) is out of bounds
+    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules described in the argument description for origin and region.
+
+    if (image_row_pitch == nullptr) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    switch(image->type()) {
+    case CL_MEM_OBJECT_IMAGE3D:
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        if (image_slice_pitch == nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+            return nullptr;
+        }
+        break;
+    default:
+        break;
+    }
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for image are not supported by device associated with queue.
+    // TODO CL_MAP_FAILURE if there is a failure to map the requested region into the host address space. This error cannot occur for image objects created with CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with buffer.
+    if (!command_queue->device()->supports_images()) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
+
+    if ((map_flags & CL_MAP_READ) && (image->has_any_flag(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS))) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
+
+    if (((map_flags & CL_MAP_WRITE) || (map_flags & CL_MAP_WRITE_INVALIDATE_REGION)) &&
+        (image->has_any_flag(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS))) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
+
+    std::array<size_t, 3> orig = { origin[0], origin[1], origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+    auto img = static_cast<cvk_image*>(image);
+    auto cmd = std::make_unique<cvk_command_map_image>(command_queue, img, orig, reg, map_flags);
+
+    void *map_ptr;
+    cl_int err = cmd->build(&map_ptr);
+
+    if (err != CL_SUCCESS) {
+        *errcode_ret = err;
+        return nullptr;
+    }
+
+    *image_row_pitch = cmd->map_buffer_row_pitch();
+    if (image_slice_pitch != nullptr) {
+        *image_slice_pitch = cmd->map_buffer_slice_pitch();
+    }
+
+    err = command_queue->enqueue_command_with_deps(cmd.release(), blocking_map,
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    *errcode_ret = err;
+
+    return map_ptr;
+}
+
 void* clEnqueueMapImage(
     cl_command_queue command_queue,
     cl_mem           image,
@@ -3789,11 +3908,17 @@ void* clEnqueueMapImage(
                  image_row_pitch, image_slice_pitch, num_events_in_wait_list,
                  event_wait_list, event, errcode_ret);
 
+    cl_int err;
+    auto ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
+                                     map_flags, origin, region, image_row_pitch,
+                                     image_slice_pitch, num_events_in_wait_list,
+                                     event_wait_list, event, &err);
+
     if (errcode_ret != nullptr) {
-        *errcode_ret = CL_INVALID_OPERATION;
+        *errcode_ret = err;
     }
 
-    return nullptr;
+    return ret;
 }
 
 cl_program cvk_create_program_with_il_khr(

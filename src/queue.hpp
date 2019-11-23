@@ -680,3 +680,87 @@ private:
     std::array<size_t, 3> m_region;
 };
 
+struct cvk_command_combine : public cvk_command {
+    cvk_command_combine(cvk_command_queue *queue, cl_command_type type,
+                        std::vector<std::unique_ptr<cvk_command>> &&commands)
+        : cvk_command(type, queue), m_commands(std::move(commands)) {}
+
+    virtual cl_int do_action() override {
+        for (auto &cmd : m_commands) {
+            cl_int ret = cmd->do_action();
+            if (ret != CL_COMPLETE) {
+                return ret;
+            }
+        }
+
+        return CL_COMPLETE;
+    }
+private:
+    std::vector<std::unique_ptr<cvk_command>> m_commands;
+};
+
+struct cvk_command_map_image : public cvk_command {
+    cvk_command_map_image(cvk_command_queue *q, cvk_image *img,
+                          const std::array<size_t, 3> &origin,
+                          const std::array<size_t, 3> &region,
+                          cl_map_flags flags)
+        : cvk_command(CL_COMMAND_MAP_IMAGE, q),
+          m_image(img),
+          m_origin(origin),
+          m_region(region),
+          m_flags(flags) {}
+
+    CHECK_RETURN cl_int build(void **map_ptr);
+    virtual cl_int do_action() override;
+    cvk_buffer* map_buffer() {
+        return m_mapping.buffer;
+    }
+    size_t map_buffer_row_pitch() const {
+        return m_region[0] * m_image->element_size();
+    }
+    size_t map_buffer_slice_pitch() const {
+        return map_buffer_row_pitch() * m_region[1];
+    }
+
+private:
+    bool needs_copy() const {
+        return (m_flags & CL_MAP_WRITE_INVALIDATE_REGION) == 0;
+    }
+
+    cvk_image_holder m_image;
+    cvk_image_mapping m_mapping;
+    std::array<size_t, 3> m_origin;
+    std::array<size_t, 3> m_region;
+    cl_map_flags m_flags;
+    std::unique_ptr<cvk_command_buffer_image_copy> m_cmd_copy;
+};
+
+struct cvk_command_unmap_image : public cvk_command {
+
+    cvk_command_unmap_image(cvk_command_queue *q, cvk_image *image, void *mapptr)
+                     : cvk_command_unmap_image(q, image, mapptr, image->mapping_for(mapptr)) {}
+
+    cvk_command_unmap_image(cvk_command_queue *queue, cvk_image *image,
+                            void *mapped_ptr,
+                            const cvk_image_mapping &mapping)
+                     : cvk_command(CL_COMMAND_UNMAP_MEM_OBJECT, queue),
+                       m_needs_copy((mapping.flags & (CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION)) != 0),
+                       m_mapped_ptr(mapped_ptr),
+                       m_image(image),
+                       m_cmd_copy(CL_COMMAND_UNMAP_MEM_OBJECT, queue,
+                                  mapping.buffer, image, 0, mapping.origin,
+                                  mapping.region) {}
+    cl_int build() {
+        if (m_needs_copy) {
+            return m_cmd_copy.build();
+        } else {
+            return CL_SUCCESS;
+        }
+    }
+    virtual cl_int do_action() override;
+private:
+    bool m_needs_copy;
+    void *m_mapped_ptr;
+    cvk_image_holder m_image;
+    cvk_command_buffer_image_copy m_cmd_copy;
+};

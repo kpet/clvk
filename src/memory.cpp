@@ -331,7 +331,6 @@ bool cvk_image::init()
 
     switch (m_desc.image_type) {
     case CL_MEM_OBJECT_IMAGE1D:
-    case CL_MEM_OBJECT_IMAGE1D_BUFFER: // TODO support that
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D;
         extent.height = 1;
@@ -357,6 +356,7 @@ bool cvk_image::init()
         image_type = VK_IMAGE_TYPE_3D;
         view_type = VK_IMAGE_VIEW_TYPE_3D;
         break;
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER: // TODO support that
     default:
         CVK_ASSERT(false);
         image_type = VK_IMAGE_TYPE_MAX_ENUM;
