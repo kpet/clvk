@@ -242,6 +242,7 @@ VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer *cmdbuf) {
 }
 
 void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
+    std::lock_guard<std::mutex> lock(m_lock);
     vkFreeCommandBuffers(m_device, m_command_pool, 1, &buf);
 }
 
