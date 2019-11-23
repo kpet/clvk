@@ -20,17 +20,16 @@ static const size_t IMAGE_WIDTH = 128;
 static const char *program_source = R"(
 kernel void write(image2d_t write_only img)
 {
-    int2 coord = {get_global_id(0), get_global_id(1)};
+    int2 coord = {(int)get_global_id(0), (int)get_global_id(1)};
     float4 color = {1, 2, 3, 4};
     write_imagef(img, coord, color);
 }
-kernel void copy(image2d_t read_only img, sampler_t sampler, global float4 *buffer)
+kernel void copy(image2d_t read_only img, sampler_t sampler, global float4 *buffer, int row_pitch)
 {
-    int x = get_global_id(0);
-    int y = get_global_id(1);
+    int x = (int)get_global_id(0);
+    int y = (int)get_global_id(1);
     int2 coord = {x, y};
     float4 color = read_imagef(img, sampler, coord);
-    int row_pitch = 128;
     buffer[(y * row_pitch) + x] = color;
 }
 )";
@@ -76,6 +75,8 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
     SetKernelArg(kernel_copy, 0, image);
     SetKernelArg(kernel_copy, 1, sampler);
     SetKernelArg(kernel_copy, 2, buffer);
+    cl_int buffer_row_pitch = IMAGE_WIDTH;
+    SetKernelArg(kernel_copy, 3, &buffer_row_pitch);
 
     EnqueueNDRangeKernel(kernel_write, 2, nullptr, gws, lws);
     EnqueueNDRangeKernel(kernel_copy, 2, nullptr, gws, lws);
