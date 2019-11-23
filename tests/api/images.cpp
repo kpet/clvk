@@ -79,7 +79,7 @@ TEST_F(WithContext, CreateImageLegacy)
     clReleaseMemObject(im3d);
 }
 
-TEST_F(WithCommandQueue, BasicImageMapUnmap)
+TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
 {
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
