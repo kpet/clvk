@@ -669,6 +669,78 @@ cl_int cvk_command_unmap_image::do_action()
     return CL_COMPLETE;
 }
 
+VkImageSubresourceLayers prepare_subresource(cvk_image *image,
+                                             std::array<size_t, 3> origin,
+                                             std::array<size_t, 3> region) {
+    uint32_t baseArrayLayer = 0;
+    uint32_t layerCount = 1;
+
+    switch(image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        baseArrayLayer = origin[1];
+        layerCount = region[1];
+        break;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        baseArrayLayer = origin[2];
+        layerCount = region[2];
+        break;
+    }
+
+    VkImageSubresourceLayers ret = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0, // mipLevel
+        baseArrayLayer,
+        layerCount
+    };
+
+    return ret;
+}
+
+VkOffset3D prepare_offset(cvk_image *image, std::array<size_t, 3> origin) {
+
+    auto x = static_cast<int32_t>(origin[0]);
+    auto y = static_cast<int32_t>(origin[1]);
+    auto z = static_cast<int32_t>(origin[2]);
+
+    switch(image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        y = 0;
+        z = 0;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        z = 0;
+        break;
+    }
+
+    VkOffset3D offset = {x, y, z};
+
+    return offset;
+}
+
+VkExtent3D prepare_extent(cvk_image *image,
+                          std::array<size_t, 3> region) {
+    uint32_t extentHeight = region[1];
+    uint32_t extentDepth = region[2];
+
+    switch(image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        extentHeight = 1;
+        extentDepth = 1;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        extentDepth = 1;
+        break;
+    }
+
+    VkExtent3D extent = {
+        static_cast<uint32_t>(region[0]),
+        extentHeight,
+        extentDepth
+    };
+
+    return extent;
+}
+
 VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
                                             size_t bufferOffset,
                                             std::array<size_t, 3> origin,
@@ -697,11 +769,7 @@ VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
         layerCount
     };
 
-    VkOffset3D offset = {
-        static_cast<int32_t>(origin[0]), // x
-        static_cast<int32_t>(origin[1]), // y
-        static_cast<int32_t>(origin[2]), // z
-    };
+    VkOffset3D offset = prepare_offset(image, origin);
     cvk_debug_fn("offset: %d, %d, %d", offset.x, offset.y, offset.z);
 
     VkExtent3D extent = {
@@ -882,6 +950,54 @@ cl_int cvk_command_buffer_image_copy::build()
 }
 
 cl_int cvk_command_buffer_image_copy::do_action()
+{
+    if (!m_command_buffer.submit_and_wait()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_COMPLETE;
+}
+
+cl_int cvk_command_image_image_copy::build()
+{
+    if (!m_command_buffer.begin()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    VkImageSubresourceLayers srcSubresource = prepare_subresource(m_src_image, m_src_origin, m_region);
+
+    VkOffset3D srcOffset = prepare_offset(m_src_image, m_src_origin);
+
+    VkImageSubresourceLayers dstSubresource = prepare_subresource(m_dst_image, m_dst_origin, m_region);
+
+    VkOffset3D dstOffset = prepare_offset(m_dst_image, m_dst_origin);
+
+    VkExtent3D extent = prepare_extent(m_src_image, m_region);
+
+    VkImageCopy region = {
+        srcSubresource,
+        srcOffset,
+        dstSubresource,
+        dstOffset,
+        extent
+    };
+
+    vkCmdCopyImage(m_command_buffer,
+                   m_src_image->vulkan_image(),
+                   VK_IMAGE_LAYOUT_GENERAL,
+                   m_dst_image->vulkan_image(),
+                   VK_IMAGE_LAYOUT_GENERAL,
+                   1,
+                   &region);
+
+    if (!m_command_buffer.end()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_image_image_copy::do_action()
 {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
