@@ -719,7 +719,13 @@ struct cvk_command_map_image : public cvk_command {
         return m_region[0] * m_image->element_size();
     }
     size_t map_buffer_slice_pitch() const {
-        return map_buffer_row_pitch() * m_region[1];
+        switch (m_image->type()) {
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            return map_buffer_row_pitch();
+            break;
+        default:
+            return map_buffer_row_pitch() * m_region[1];
+        }
     }
 
 private:
@@ -763,4 +769,30 @@ private:
     void *m_mapped_ptr;
     cvk_image_holder m_image;
     cvk_command_buffer_image_copy m_cmd_copy;
+};
+
+struct cvk_command_image_image_copy : public cvk_command {
+
+    cvk_command_image_image_copy(cvk_command_queue *queue, cvk_image *src_image,
+                                 cvk_image *dst_image,
+                                 std::array<size_t, 3> src_origin,
+                                 std::array<size_t, 3> dst_origin,
+                                 std::array<size_t, 3> region)
+                            : cvk_command(CL_COMMAND_COPY_IMAGE, queue),
+                              m_src_image(src_image),
+                              m_dst_image(dst_image),
+                              m_src_origin(src_origin),
+                              m_dst_origin(dst_origin),
+                              m_region(region),
+                              m_command_buffer(m_queue) {}
+    cl_int build ();
+    virtual cl_int do_action() override;
+
+private:
+    cvk_image_holder m_src_image;
+    cvk_image_holder m_dst_image;
+    std::array<size_t, 3> m_src_origin;
+    std::array<size_t, 3> m_dst_origin;
+    std::array<size_t, 3> m_region;
+    cvk_command_buffer m_command_buffer;
 };

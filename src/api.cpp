@@ -3741,7 +3741,58 @@ cl_int clEnqueueCopyImage(
                  region[0], region[1], region[2],
                  num_events_in_wait_list, event_wait_list, event);
 
-    return CL_INVALID_OPERATION;
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(src_image) || !is_valid_image(dst_image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!is_same_context(command_queue, src_image) ||
+        !is_same_context(command_queue, dst_image) ||
+        !is_same_context(command_queue, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    // TODO CL_INVALID_VALUE if the 2D or 3D rectangular region specified by src_origin and src_origin + region refers to a region outside src_image, or if the 2D or 3D rectangular region specified by dst_origin and dst_origin + region refers to a region outside dst_image.
+    // TODO CL_INVALID_VALUE if values in src_origin, dst_origin and region do not follow rules described in the argument description for src_origin, dst_origin and region.
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height, specified or compute row and/or slice pitch) for src_image or dst_image are not supported by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and data type) for src_image or dst_image are not supported by device associated with queue.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate memory for data store associated with src_image or dst_image.
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    // TODO CL_MEM_COPY_OVERLAP if src_image and dst_image are the same image object and the source and destination regions overlap.
+
+    auto src_img = static_cast<cvk_image*>(src_image);
+    auto dst_img = static_cast<cvk_image*>(dst_image);
+
+    if (!src_img->has_same_format(dst_img)) {
+        return CL_IMAGE_FORMAT_MISMATCH;
+    }
+
+    std::array<size_t, 3> src_orig = { src_origin[0], src_origin[1], src_origin[2] };
+    std::array<size_t, 3> dst_orig = { dst_origin[0], dst_origin[1], dst_origin[2] };
+    std::array<size_t, 3> reg = { region[0], region[1], region[2] };
+
+    auto cmd = std::make_unique<cvk_command_image_image_copy>(
+                    command_queue, src_img, dst_img, src_orig, dst_orig, reg);
+    auto err = cmd->build();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    command_queue->enqueue_command_with_deps(cmd.release(),
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
+
+    return CL_SUCCESS;
 }
 
 cl_int clEnqueueFillImage(

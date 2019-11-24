@@ -315,6 +315,14 @@ struct cvk_image : public cvk_mem {
     cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
     cl_uint num_samples() const { return m_desc.num_samples; }
 
+
+    bool has_same_format(const cvk_image* other) const {
+        auto fmt = format();
+        auto ofmt = other->format();
+        return fmt.image_channel_order == ofmt.image_channel_order &&
+               fmt.image_channel_data_type == ofmt.image_channel_data_type;
+    }
+
     bool find_or_create_mapping(cvk_image_mapping &mapping,
                                 std::array<size_t, 3> origin,
                                 std::array<size_t, 3> region,
