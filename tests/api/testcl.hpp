@@ -107,7 +107,7 @@ struct holder {
             deleter();
         }
     }
-    void deleter() = delete;
+    void deleter() { assert(false); }
     operator T() {
         return m_obj;
     }

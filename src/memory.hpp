@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <array>
+
 #include "objects.hpp"
 
 using cvk_mem_callback_pointer_type = void (*) (cl_mem mem, void *user_data);
