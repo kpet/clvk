@@ -8,7 +8,7 @@ language: cpp
 
 os:
   - linux
-#  - osx
+  - osx
 
 compiler:
   - gcc
@@ -16,6 +16,7 @@ compiler:
 env:
   global:
     - CCACHE_COMPRESS=1
+    - HOMEBREW_NO_AUTO_UPDATE=1
   jobs:
     - JOB_CMAKE_CONFIG="-DCLVK_CLSPV_ONLINE_COMPILER=1"
     - JOB_CMAKE_CONFIG="-DCLVK_CLSPV_ONLINE_COMPILER=0"
