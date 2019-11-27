@@ -352,7 +352,7 @@ struct cvk_image : public cvk_mem {
         mapping.ptr = mapping.buffer->map_ptr(0);
         mapping.flags = flags;
 
-        CVK_ASSERT(m_mappings.count(ptr) == 0);
+        CVK_ASSERT(m_mappings.count(mapping.ptr) == 0);
         m_mappings[mapping.ptr] = mapping;
 
         return true;
