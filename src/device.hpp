@@ -188,6 +188,7 @@ private:
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceFeatures m_features;
+    VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointers;
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
     cl_uint m_mem_base_addr_align;
