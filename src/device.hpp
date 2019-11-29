@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include <spirv/1.0/spirv.hpp>
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
@@ -102,6 +103,9 @@ typedef struct _cl_device_id {
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
+
+    /// Returns true if the device supports the given SPIR-V capability.
+    bool supports_capability(spv::Capability capability) const;
 
     std::string version_string() const {
         std::string ret = "CLVK on Vulkan v";

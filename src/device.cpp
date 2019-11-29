@@ -248,3 +248,27 @@ bool cvk_device::init()
     return true;
 }
 
+bool cvk_device::supports_capability(spv::Capability capability) const {
+    switch (capability) {
+    // Capabilities required by all Vulkan implementations:
+    case spv::CapabilityShader:
+        return true;
+    // Optional capabilities:
+    case spv::CapabilityFloat64:
+        return m_features.shaderFloat64;
+    case spv::CapabilityInt16:
+        return m_features.shaderInt16;
+    case spv::CapabilityInt64:
+        return m_features.shaderInt64;
+    case spv::CapabilityStorageImageWriteWithoutFormat:
+        return m_features.shaderStorageImageWriteWithoutFormat;
+    case spv::CapabilityVariablePointers:
+        return m_features_variable_pointers.variablePointers;
+    case spv::CapabilityVariablePointersStorageBuffer:
+        return m_features_variable_pointers.variablePointersStorageBuffer;
+    // Capabilities that have not yet been mapped to Vulkan features:
+    default:
+        cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
+        return false;
+    }
+}
