@@ -250,7 +250,7 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     Finish();
 }
 
-TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent)
+TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyImageContent))
 {
     // Create an image
     const size_t IMAGE_WIDTH = 97;
