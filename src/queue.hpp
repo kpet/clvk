@@ -796,3 +796,23 @@ private:
     std::array<size_t, 3> m_region;
     cvk_command_buffer m_command_buffer;
 };
+
+struct cvk_command_fill_image : public cvk_command {
+
+    cvk_command_fill_image(cvk_command_queue *queue, void *ptr,
+                           const cvk_image::fill_pattern_array &pattern,
+                           size_t pattern_size,
+                           std::array<size_t, 3> region)
+                         : cvk_command(CL_COMMAND_FILL_IMAGE, queue),
+                           m_ptr(ptr),
+                           m_pattern(pattern),
+                           m_pattern_size(pattern_size),
+                           m_region(region) {}
+    cl_int do_action() override;
+private:
+    void *m_ptr;
+    cvk_image::fill_pattern_array m_pattern;
+    size_t m_pattern_size;
+    std::array<size_t, 3> m_region;
+};
+

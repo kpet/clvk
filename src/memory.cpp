@@ -479,3 +479,118 @@ bool cvk_image::init()
 
     return res == VK_SUCCESS;
 }
+
+void cvk_image::prepare_fill_pattern(const void *input_pattern, fill_pattern_array &pattern, size_t *size_ret) const {
+
+    auto pat_float = static_cast<const cl_float*>(input_pattern);
+    auto pat_int = static_cast<const cl_int*>(input_pattern);
+    auto pat_uint = static_cast<const cl_uint*>(input_pattern);
+
+    cl_uchar pat_uchar[4] = {
+        static_cast<cl_uchar>(pat_uint[0]),
+        static_cast<cl_uchar>(pat_uint[1]),
+        static_cast<cl_uchar>(pat_uint[2]),
+        static_cast<cl_uchar>(pat_uint[3]),
+    };
+    cl_ushort pat_ushort[4] = {
+        static_cast<cl_ushort>(pat_uint[0]),
+        static_cast<cl_ushort>(pat_uint[1]),
+        static_cast<cl_ushort>(pat_uint[2]),
+        static_cast<cl_ushort>(pat_uint[3]),
+    };
+    cl_char pat_char[4] = {
+        static_cast<cl_char>(pat_int[0]),
+        static_cast<cl_char>(pat_int[1]),
+        static_cast<cl_char>(pat_int[2]),
+        static_cast<cl_char>(pat_int[3]),
+    };
+    cl_short pat_short[4] = {
+        static_cast<cl_short>(pat_int[0]),
+        static_cast<cl_short>(pat_int[1]),
+        static_cast<cl_short>(pat_int[2]),
+        static_cast<cl_short>(pat_int[3]),
+    };
+
+    size_t size = element_size();
+    *size_ret = size;
+
+    cl_uchar pat_unorm_int8[4] = {
+        static_cast<cl_uchar>(pat_float[0] * 255.0f),
+        static_cast<cl_uchar>(pat_float[1] * 255.0f),
+        static_cast<cl_uchar>(pat_float[2] * 255.0f),
+        static_cast<cl_uchar>(pat_float[3] * 255.0f)
+    };
+    cl_uchar pat_snorm_int8[4] = {
+        static_cast<cl_uchar>(pat_float[0] * 127.0f),
+        static_cast<cl_uchar>(pat_float[1] * 127.0f),
+        static_cast<cl_uchar>(pat_float[2] * 127.0f),
+        static_cast<cl_uchar>(pat_float[3] * 127.0f)
+    };
+    cl_ushort pat_unorm_int16[4] = {
+        static_cast<cl_ushort>(pat_float[0] * 65535.0f),
+        static_cast<cl_ushort>(pat_float[1] * 65535.0f),
+        static_cast<cl_ushort>(pat_float[2] * 65535.0f),
+        static_cast<cl_ushort>(pat_float[3] * 65535.0f)
+    };
+    cl_ushort pat_snorm_int16[4] = {
+        static_cast<cl_ushort>(pat_float[0] * 32767.0f),
+        static_cast<cl_ushort>(pat_float[1] * 32767.0f),
+        static_cast<cl_ushort>(pat_float[2] * 32767.0f),
+        static_cast<cl_ushort>(pat_float[3] * 32767.0f)
+    };
+
+    const void *cast_pattern = nullptr;
+    switch (format().image_channel_data_type) {
+    case CL_UNSIGNED_INT8:
+        cast_pattern = &pat_uchar;
+        break;
+    case CL_UNSIGNED_INT16:
+        cast_pattern = &pat_ushort;
+        break;
+    case CL_SIGNED_INT8:
+        cast_pattern = &pat_char;
+        break;
+    case CL_SIGNED_INT16:
+        cast_pattern = &pat_short;
+        break;
+    case CL_FLOAT:
+    case CL_UNSIGNED_INT32:
+    case CL_SIGNED_INT32:
+        cast_pattern = input_pattern;
+        break;
+    case CL_UNORM_INT8:
+        cast_pattern = pat_unorm_int8;
+        break;
+    case CL_UNORM_INT16:
+        cast_pattern = pat_unorm_int16;
+        break;
+    case CL_SNORM_INT8:
+        cast_pattern = pat_snorm_int8;
+        break;
+    case CL_SNORM_INT16:
+        cast_pattern = pat_snorm_int16;
+        break;
+    case CL_HALF_FLOAT: // FIXME
+    default:
+        CVK_ASSERT(false);
+        return;
+    }
+
+    size_t csize = element_size_per_channel();
+
+    switch (format().image_channel_order) {
+    case CL_R:
+    case CL_RG:
+    case CL_RGBA:
+        memcpy(pattern.data(), cast_pattern, size);
+        break;
+    case CL_BGRA:
+        memcpy(pattern.data() + 0 * csize, pointer_offset(cast_pattern, 2 * csize), csize);
+        memcpy(pattern.data() + 1 * csize, pointer_offset(cast_pattern, 1 * csize), csize);
+        memcpy(pattern.data() + 2 * csize, pointer_offset(cast_pattern, 0 * csize), csize);
+        memcpy(pattern.data() + 3 * csize, pointer_offset(cast_pattern, 3 * csize), csize);
+    default:
+        CVK_ASSERT(false);
+    }
+}
+

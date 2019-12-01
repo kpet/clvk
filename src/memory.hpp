@@ -375,6 +375,12 @@ struct cvk_image : public cvk_mem {
         return mapping;
     }
 
+    static constexpr int MAX_NUM_CHANNELS = 4;
+    static constexpr int MAX_CHANNEL_SIZE = 4;
+    static constexpr int FILL_PATTERN_MAX_SIZE = MAX_NUM_CHANNELS * MAX_CHANNEL_SIZE;
+    using fill_pattern_array = std::array<char, FILL_PATTERN_MAX_SIZE>;
+    void prepare_fill_pattern(const void *input_pattern, fill_pattern_array& pattern, size_t *size_ret) const;
+
 private:
 
     bool init();

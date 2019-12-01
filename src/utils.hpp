@@ -89,7 +89,7 @@ static inline std::string vulkan_version_string(uint32_t version) {
 
 std::string pretty_size(uint64_t size);
 
-static inline void* pointer_offset(void *ptr, size_t offset) {
+static inline void* pointer_offset(const void *ptr, size_t offset) {
     auto ptrint = reinterpret_cast<uintptr_t>(ptr);
     return reinterpret_cast<void*>(ptrint + offset);
 }
