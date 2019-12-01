@@ -87,18 +87,6 @@ static inline std::string vulkan_version_string(uint32_t version) {
 
 #define UNUSED(X) ((void)(X))
 
-class string : public std::string {
-public:
-    string() : std::string() {}
-    string(const char *init) : std::string(init) {}
-    string(std::string &init) : std::string(init) {}
-
-    size_t size_with_null() const {
-        return size() + 1;
-    }
-};
-
-
 std::string pretty_size(uint64_t size);
 
 static inline void* pointer_offset(void *ptr, size_t offset) {

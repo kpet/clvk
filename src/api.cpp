@@ -23,9 +23,9 @@
 
 #define LOG_API_CALL(fmt, ...) cvk_info_fn(fmt,  __VA_ARGS__)
 
-// Validation functions
 namespace {
 
+// Validation functions
 bool is_valid_platform(cl_platform_id platform) {
     return platform != nullptr;
 }
@@ -92,6 +92,17 @@ bool map_flags_are_valid(cl_map_flags flags) {
     return true;
 }
 
+// Utilities
+class api_query_string : public std::string {
+public:
+    api_query_string() : std::string() {}
+    api_query_string(const char *init) : std::string(init) {}
+
+    size_t size_with_null() const {
+        return size() + 1;
+    }
+};
+
 } // namespace
 
 // Platform API
@@ -136,11 +147,11 @@ clGetPlatformInfo(
     size_t size_ret = 0;
     const void *copy_ptr = nullptr;
 
-    const string platform_name{"clvk"};
-    const string platform_version{"OpenCL 1.2 clvk"};
-    const string platform_vendor{"clvk"};
-    const string platform_profile{"FULL_PROFILE"};
-    const string platform_extensions{""};
+    const api_query_string platform_name{"clvk"};
+    const api_query_string platform_version{"OpenCL 1.2 clvk"};
+    const api_query_string platform_vendor{"clvk"};
+    const api_query_string platform_profile{"FULL_PROFILE"};
+    const api_query_string platform_extensions{""};
 
     switch(param_name)
     {
@@ -279,7 +290,7 @@ clGetDeviceInfo(
     const void *copy_ptr = nullptr;
     size_t val_sizet;
     cl_uint val_uint;
-    string val_string;
+    api_query_string val_string;
     cl_device_type val_devicetype;
     cl_bool val_bool;
     cl_device_fp_config val_fpconfig;
@@ -1819,7 +1830,7 @@ clGetProgramInfo(
     cl_uint val_uint;
     cl_context val_context;
     size_t val_sizet;
-    string val_string;
+    api_query_string val_string;
     std::vector<size_t> val_sizet_vec;
     std::vector<const cvk_device*> val_devices;
 
@@ -1928,7 +1939,7 @@ clGetProgramBuildInfo(
     size_t ret_size = 0;
     const void *copy_ptr = nullptr;
     cl_build_status val_status;
-    string val_string;
+    api_query_string val_string;
     cl_program_binary_type val_binarytype;
 
     if (!is_valid_program(program)) {
