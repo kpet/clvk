@@ -146,6 +146,19 @@ void cvk_device::init_features()
     m_features.pNext = &m_features_variable_pointer;
 }
 
+void cvk_device::construct_extension_string() {
+
+    // Start with required extensions
+    m_extensions = "cl_khr_global_int32_base_atomics "
+                   "cl_khr_global_int32_extended_atomics "
+                   "cl_khr_local_int32_base_atomics "
+                   "cl_khr_local_int32_extended_atomics "
+                   "cl_khr_byte_addressable_store ";
+
+    // Add always supported extension
+    m_extensions += "cl_khr_il_program ";
+}
+
 bool cvk_device::init()
 {
     cvk_info_fn("Initialising device %s", m_properties.deviceName);
@@ -160,6 +173,8 @@ bool cvk_device::init()
     }
 
     init_features();
+
+    construct_extension_string();
 
     // Give all queues the same priority
     std::vector<float> queuePriorities(num_queues, 1.0f);

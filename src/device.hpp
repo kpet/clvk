@@ -104,6 +104,10 @@ typedef struct _cl_device_id {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
 
+    CHECK_RETURN const std::string& extensions() const {
+        return m_extensions;
+    }
+
     /// Returns true if the device supports the given SPIR-V capability.
     CHECK_RETURN bool supports_capability(spv::Capability capability) const;
 
@@ -186,6 +190,7 @@ private:
     bool init_queues(uint32_t *num_queues, uint32_t *queue_family);
     bool init_extensions();
     void init_features();
+    void construct_extension_string();
     bool init();
 
     VkPhysicalDevice m_pdev;
@@ -200,6 +205,8 @@ private:
 
     std::vector<cvk_vulkan_queue_wrapper> m_vulkan_queues;
     uint32_t m_vulkan_queue_alloc_index;
+
+    std::string m_extensions;
 
 } cvk_device;
 

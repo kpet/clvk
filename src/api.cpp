@@ -93,10 +93,10 @@ bool map_flags_are_valid(cl_map_flags flags) {
 }
 
 // Utilities
-class api_query_string : public std::string {
-public:
+struct api_query_string : public std::string {
     api_query_string() : std::string() {}
     api_query_string(const char *init) : std::string(init) {}
+    api_query_string(const std::string& other) : std::string(other) {}
 
     size_t size_with_null() const {
         return size() + 1;
@@ -365,12 +365,7 @@ clGetDeviceInfo(
             size_ret = val_string.size_with_null();
             break;
         case CL_DEVICE_EXTENSIONS:
-            val_string = "cl_khr_global_int32_base_atomics "
-                         "cl_khr_global_int32_extended_atomics "
-                         "cl_khr_local_int32_base_atomics "
-                         "cl_khr_local_int32_extended_atomics "
-                         "cl_khr_il_program "
-                         "cl_khr_byte_addressable_store";
+            val_string = device->extensions();
             copy_ptr = val_string.c_str();
             size_ret = val_string.size_with_null();
             break;
