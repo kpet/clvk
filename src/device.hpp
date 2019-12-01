@@ -105,7 +105,7 @@ typedef struct _cl_device_id {
     }
 
     /// Returns true if the device supports the given SPIR-V capability.
-    bool supports_capability(spv::Capability capability) const;
+    CHECK_RETURN bool supports_capability(spv::Capability capability) const;
 
     std::string version_string() const {
         std::string ret = "CLVK on Vulkan v";
@@ -166,7 +166,7 @@ typedef struct _cl_device_id {
             return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN;
         }
 
-        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && m_features.shaderFloat64) {
+        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && m_features.features.shaderFloat64) {
             return CL_FP_FMA | CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
                    CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_DENORM;
         }
@@ -191,8 +191,9 @@ private:
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
-    VkPhysicalDeviceFeatures m_features;
-    VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointers;
+    VkPhysicalDeviceFeatures2 m_features;
+    VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer;
+    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8;
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
     cl_uint m_mem_base_addr_align;

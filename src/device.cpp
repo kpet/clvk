@@ -83,13 +83,15 @@ bool cvk_device::init_extensions()
     res = vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext, extensions.data());
     CVK_VK_CHECK_ERROR_RET(res, false, "Could not enumerate device extension properties");
 
-    m_vulkan_device_extensions = {
-        "VK_KHR_storage_buffer_storage_class",
-    };
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        m_vulkan_device_extensions.push_back(VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
+        m_vulkan_device_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    }
 
     const std::vector<const char *> desired_extensions = {
-        "VK_KHR_16bit_storage",
-        "VK_KHR_variable_pointers",
+        VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+        VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
+        VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numext; i++) {
@@ -111,35 +113,37 @@ bool cvk_device::init_extensions()
 void cvk_device::init_features()
 {
     // Query supported features.
+    m_features_float16_int8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
+    m_features_float16_int8.pNext = nullptr;
+
+    m_features_variable_pointer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;
+    m_features_variable_pointer.pNext = &m_features_float16_int8;
+
     VkPhysicalDeviceFeatures2 supported_features;
-    VkPhysicalDeviceVariablePointerFeatures supported_features_variable_pointers;
     supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supported_features.pNext = &supported_features_variable_pointers;
+    supported_features.pNext = &m_features_variable_pointer;
+
     vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
 
+    // Selectively enable core features.
     memset(&m_features, 0, sizeof(m_features));
-    memset(&m_features_variable_pointers, 0,
-           sizeof(m_features_variable_pointers));
 
     if (supported_features.features.shaderInt16) {
-        m_features.shaderInt16 = VK_TRUE;
+        m_features.features.shaderInt16 = VK_TRUE;
     }
     if (supported_features.features.shaderInt64) {
-        m_features.shaderInt64 = VK_TRUE;
+        m_features.features.shaderInt64 = VK_TRUE;
     }
     if (supported_features.features.shaderFloat64) {
-        m_features.shaderFloat64 = VK_TRUE;
+        m_features.features.shaderFloat64 = VK_TRUE;
     }
     if (supported_features.features.shaderStorageImageWriteWithoutFormat) {
-        m_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+        m_features.features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
     }
 
-    if (supported_features_variable_pointers.variablePointers) {
-        m_features_variable_pointers.variablePointers = VK_TRUE;
-    }
-    if (supported_features_variable_pointers.variablePointersStorageBuffer) {
-        m_features_variable_pointers.variablePointersStorageBuffer = VK_TRUE;
-    }
+    // All queried extended features are enabled when supported.
+    m_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    m_features.pNext = &m_features_variable_pointer;
 }
 
 bool cvk_device::init()
@@ -173,7 +177,7 @@ bool cvk_device::init()
     // Create logical device
     const VkDeviceCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, // sType
-        nullptr, // pNext
+        &m_features, // pNext
         0, // flags
         1, // queueCreateInfoCount
         &queueCreateInfo, // pQueueCreateInfos,
@@ -181,7 +185,7 @@ bool cvk_device::init()
         nullptr, // ppEnabledLayerNames
         static_cast<uint32_t>(m_vulkan_device_extensions.size()), // enabledExtensionCount
         m_vulkan_device_extensions.data(), // ppEnabledExtensionNames
-        &m_features, // pEnabledFeatures
+        nullptr, // pEnabledFeatures
     };
 
     VkResult res = vkCreateDevice(m_pdev, &createInfo, nullptr, &m_dev);
@@ -254,18 +258,22 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityShader:
         return true;
     // Optional capabilities:
+    case spv::CapabilityFloat16:
+        return m_features_float16_int8.shaderFloat16;
     case spv::CapabilityFloat64:
-        return m_features.shaderFloat64;
+        return m_features.features.shaderFloat64;
+    case spv::CapabilityInt8:
+        return m_features_float16_int8.shaderInt8;
     case spv::CapabilityInt16:
-        return m_features.shaderInt16;
+        return m_features.features.shaderInt16;
     case spv::CapabilityInt64:
-        return m_features.shaderInt64;
+        return m_features.features.shaderInt64;
     case spv::CapabilityStorageImageWriteWithoutFormat:
-        return m_features.shaderStorageImageWriteWithoutFormat;
+        return m_features.features.shaderStorageImageWriteWithoutFormat;
     case spv::CapabilityVariablePointers:
-        return m_features_variable_pointers.variablePointers;
+        return m_features_variable_pointer.variablePointers;
     case spv::CapabilityVariablePointersStorageBuffer:
-        return m_features_variable_pointers.variablePointersStorageBuffer;
+        return m_features_variable_pointer.variablePointersStorageBuffer;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
