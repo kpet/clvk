@@ -618,7 +618,7 @@ cl_int cvk_command_copy_buffer::do_action()
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
-cl_int cvk_command_fill::do_action()
+cl_int cvk_command_fill_buffer::do_action()
 {
     memobj_map_holder map_holder{m_mem};
 
@@ -631,7 +631,7 @@ cl_int cvk_command_fill::do_action()
 
     auto address = begin;
     while (address < end) {
-        memcpy(address, m_pattern.get(), m_pattern_size);
+        memcpy(address, m_pattern.data(), m_pattern_size);
         address = pointer_offset(address, m_pattern_size);
     }
 

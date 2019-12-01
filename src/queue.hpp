@@ -523,21 +523,21 @@ private:
     cvk_mem_holder m_dst_buffer;
 };
 
-struct cvk_command_fill : public cvk_command_memobj_region {
+struct cvk_command_fill_buffer : public cvk_command_memobj_region {
 
-    cvk_command_fill(cvk_command_queue *q, cvk_mem *memobj, size_t offset, size_t size,
-                     const void *pattern, size_t pattern_size)
-                    : cvk_command_memobj_region(q, CL_COMMAND_FILL_BUFFER, memobj, offset, size),
-                      m_pattern(std::make_unique<char[]>(pattern_size)),
-                      m_pattern_size(pattern_size)
-                    {
-        memcpy(m_pattern.get(), pattern, pattern_size);
+    cvk_command_fill_buffer(cvk_command_queue *q, cvk_mem *memobj, size_t offset,
+                            size_t size, const void *pattern, size_t pattern_size)
+        : cvk_command_memobj_region(q, CL_COMMAND_FILL_BUFFER, memobj, offset, size),
+          m_pattern_size(pattern_size)
+    {
+        memcpy(m_pattern.data(), pattern, pattern_size);
     }
 
     virtual cl_int do_action() override;
 
 private:
-    std::unique_ptr<char[]> m_pattern;
+    static constexpr int MAX_PATTERN_SIZE = 128;
+    std::array<char, MAX_PATTERN_SIZE> m_pattern;
     size_t m_pattern_size;
 };
 

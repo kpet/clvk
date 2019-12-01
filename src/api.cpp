@@ -2651,7 +2651,7 @@ cl_int clEnqueueFillBuffer(
 
     // TODO check sub-buffer alignment
 
-    auto cmd = new cvk_command_fill(command_queue, buffer, offset, size, pattern, pattern_size);
+    auto cmd = new cvk_command_fill_buffer(command_queue, buffer, offset, size, pattern, pattern_size);
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list, event_wait_list, event);
 
