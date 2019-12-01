@@ -483,6 +483,38 @@ void spir_binary::insert_descriptor_map(const spir_binary &other)
     m_dmaps_text += other.m_dmaps_text;
 }
 
+bool spir_binary::get_capabilities(std::vector<spv::Capability> &capabilities) const {
+    // Callback for receiving parsed instructions.
+    // The `user_data` parameter will be a pointer to the vector of
+    // capabilities (we cannot use a lambda capture for this as it prevents the
+    // lambda from being able to be converted to a function pointer).
+    auto parse_inst = [](void *user_data,
+                         const spv_parsed_instruction_t *inst) {
+        // Stop parsing at first instruction that is not an OpCapability.
+        if (inst->opcode != spv::Op::OpCapability) {
+            return SPV_END_OF_STREAM;
+        }
+
+        // Add the capability to the list.
+        uint32_t capability = inst->words[inst->operands[0].offset];
+        auto capabilities =
+            reinterpret_cast<std::vector<spv::Capability>*>(user_data);
+        capabilities->push_back(static_cast<spv::Capability>(capability));
+
+        return SPV_SUCCESS;
+    };
+
+    // Parse the SPIR-V binary to build the list of required capabilities.
+    spv_result_t result =
+        spvBinaryParse(m_context, &capabilities, m_code.data(), m_code.size(),
+                       nullptr, parse_inst, nullptr);
+    if (result != SPV_SUCCESS && result != SPV_END_OF_STREAM) {
+        cvk_error_fn("Parsing SPIR-V module failed: %d", result);
+        return false;
+    }
+    return true;
+}
+
 bool save_string_to_file(const std::string &fname, const std::string &text)
 {
     std::ofstream ofile{fname};
@@ -778,6 +810,26 @@ cl_build_status cvk_program::link()
     return CL_BUILD_SUCCESS;
 }
 
+bool cvk_program::check_capabilities(const cvk_device *device) const {
+    // Get list of required SPIR-V capabilities.
+    std::vector<spv::Capability> capabilities;
+    if (!m_binary.get_capabilities(capabilities)) {
+        cvk_error("Failed to get required SPIR-V capabilities.");
+        return false;
+    }
+
+    // Check that each required capability is supported by the device.
+    for (auto c : capabilities) {
+        cvk_info_fn("Program requires SPIR-V capability %d.", c);
+        if (!device->supports_capability(c)) {
+            // TODO: propagate this message to the build log
+            cvk_error_fn("Device does not support SPIR-V capability %d.", c);
+            return false;
+        }
+    }
+    return true;
+}
+
 void cvk_program::do_build()
 {
     cl_build_status status = CL_BUILD_SUCCESS;
@@ -806,6 +858,14 @@ void cvk_program::do_build()
     // TODO validate with different rules depending on the binary type
     if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) && !m_binary.validate()) {
         cvk_error("Could not validate SPIR-V binary.");
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
+    }
+
+    // Check capabilities against the device.
+    if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
+        !check_capabilities(device)) {
+        cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
     }

@@ -85,11 +85,11 @@ bool cvk_device::init_extensions()
 
     m_vulkan_device_extensions = {
         "VK_KHR_storage_buffer_storage_class",
-        "VK_KHR_variable_pointers",
     };
 
     const std::vector<const char *> desired_extensions = {
         "VK_KHR_16bit_storage",
+        "VK_KHR_variable_pointers",
     };
 
     for (size_t i = 0; i < numext; i++) {
@@ -110,22 +110,35 @@ bool cvk_device::init_extensions()
 
 void cvk_device::init_features()
 {
-    VkPhysicalDeviceFeatures supported_features;
-    vkGetPhysicalDeviceFeatures(m_pdev, &supported_features);
+    // Query supported features.
+    VkPhysicalDeviceFeatures2 supported_features;
+    VkPhysicalDeviceVariablePointerFeatures supported_features_variable_pointers;
+    supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    supported_features.pNext = &supported_features_variable_pointers;
+    vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
 
     memset(&m_features, 0, sizeof(m_features));
+    memset(&m_features_variable_pointers, 0,
+           sizeof(m_features_variable_pointers));
 
-    if (supported_features.shaderInt16) {
+    if (supported_features.features.shaderInt16) {
         m_features.shaderInt16 = VK_TRUE;
     }
-    if (supported_features.shaderInt64) {
+    if (supported_features.features.shaderInt64) {
         m_features.shaderInt64 = VK_TRUE;
     }
-    if (supported_features.shaderFloat64) {
+    if (supported_features.features.shaderFloat64) {
         m_features.shaderFloat64 = VK_TRUE;
     }
-    if (supported_features.shaderStorageImageWriteWithoutFormat) {
+    if (supported_features.features.shaderStorageImageWriteWithoutFormat) {
         m_features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+    }
+
+    if (supported_features_variable_pointers.variablePointers) {
+        m_features_variable_pointers.variablePointers = VK_TRUE;
+    }
+    if (supported_features_variable_pointers.variablePointersStorageBuffer) {
+        m_features_variable_pointers.variablePointersStorageBuffer = VK_TRUE;
     }
 }
 
@@ -235,3 +248,27 @@ bool cvk_device::init()
     return true;
 }
 
+bool cvk_device::supports_capability(spv::Capability capability) const {
+    switch (capability) {
+    // Capabilities required by all Vulkan implementations:
+    case spv::CapabilityShader:
+        return true;
+    // Optional capabilities:
+    case spv::CapabilityFloat64:
+        return m_features.shaderFloat64;
+    case spv::CapabilityInt16:
+        return m_features.shaderInt16;
+    case spv::CapabilityInt64:
+        return m_features.shaderInt64;
+    case spv::CapabilityStorageImageWriteWithoutFormat:
+        return m_features.shaderStorageImageWriteWithoutFormat;
+    case spv::CapabilityVariablePointers:
+        return m_features_variable_pointers.variablePointers;
+    case spv::CapabilityVariablePointersStorageBuffer:
+        return m_features_variable_pointers.variablePointersStorageBuffer;
+    // Capabilities that have not yet been mapped to Vulkan features:
+    default:
+        cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
+        return false;
+    }
+}

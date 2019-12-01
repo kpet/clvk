@@ -105,6 +105,7 @@ public:
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
     std::vector<uint32_t> *raw_binary() { return &m_code; }
     const std::vector<sampler_desc>& literal_samplers() { return m_literal_samplers; }
+    CHECK_RETURN bool get_capabilities(std::vector<spv::Capability> &capabilities) const;
 
 private:
     CHECK_RETURN bool parse_sampler(const std::vector<std::string> &tokens, int toknum);
@@ -268,6 +269,10 @@ private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source();
     CHECK_RETURN cl_build_status link();
+
+    /// Check if all of the capabilities required by the SPIR-V module are
+    /// supported by `device`.
+    CHECK_RETURN bool check_capabilities(const cvk_device *device) const;
 
     uint32_t m_num_devices;
     cl_uint m_num_input_programs;
