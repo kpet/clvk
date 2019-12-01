@@ -187,11 +187,14 @@ typedef struct _cl_device_id {
     }
 
 private:
-    bool init_queues(uint32_t *num_queues, uint32_t *queue_family);
-    bool init_extensions();
+    CHECK_RETURN bool init_queues(uint32_t *num_queues, uint32_t *queue_family);
+    CHECK_RETURN bool init_extensions();
     void init_features();
     void construct_extension_string();
-    bool init();
+    CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues, uint32_t queue_family);
+    CHECK_RETURN bool compute_buffer_alignement_requirements();
+    void log_limits_and_memory_information();
+    CHECK_RETURN bool init();
 
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;

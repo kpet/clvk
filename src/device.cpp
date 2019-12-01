@@ -159,23 +159,8 @@ void cvk_device::construct_extension_string() {
     m_extensions += "cl_khr_il_program ";
 }
 
-bool cvk_device::init()
+bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues, uint32_t queue_family)
 {
-    cvk_info_fn("Initialising device %s", m_properties.deviceName);
-
-    uint32_t num_queues, queue_family;
-    if (!init_queues(&num_queues, &queue_family)) {
-        return false;
-    }
-
-    if (!init_extensions()) {
-        return false;
-    }
-
-    init_features();
-
-    construct_extension_string();
-
     // Give all queues the same priority
     std::vector<float> queuePriorities(num_queues, 1.0f);
 
@@ -214,6 +199,11 @@ bool cvk_device::init()
         m_vulkan_queues.emplace_back(cvk_vulkan_queue_wrapper(queue, queue_family));
     }
 
+    return true;
+}
+
+bool cvk_device::compute_buffer_alignement_requirements()
+{
     // Work out the required alignment for buffers
     const VkBufferCreateInfo bufferCreateInfo = {
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
@@ -227,7 +217,7 @@ bool cvk_device::init()
     };
 
     VkBuffer buffer;
-    res = vkCreateBuffer(m_dev, &bufferCreateInfo, nullptr, &buffer);
+    auto res = vkCreateBuffer(m_dev, &bufferCreateInfo, nullptr, &buffer);
     CVK_VK_CHECK_ERROR_RET(res, false, "Failed to create a buffer");
 
     VkMemoryRequirements memreqs;
@@ -238,6 +228,11 @@ bool cvk_device::init()
     m_mem_base_addr_align = std::max(alignment_bits, 1024u);
     vkDestroyBuffer(m_dev, buffer, nullptr);
 
+    return true;
+}
+
+void cvk_device::log_limits_and_memory_information()
+{
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
     cvk_info_fn("device's resources per stage limits:");
@@ -263,6 +258,34 @@ bool cvk_device::init()
             pretty_size(memheap.size).c_str(),
             vulkan_memory_property_flags_string(memheap.flags).c_str());
     }
+}
+
+bool cvk_device::init()
+{
+    cvk_info_fn("Initialising device %s", m_properties.deviceName);
+
+    uint32_t num_queues, queue_family;
+    if (!init_queues(&num_queues, &queue_family)) {
+        return false;
+    }
+
+    if (!init_extensions()) {
+        return false;
+    }
+
+    init_features();
+
+    construct_extension_string();
+
+    if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
+        return false;
+    }
+
+    if (!compute_buffer_alignement_requirements()) {
+        return false;
+    }
+
+    log_limits_and_memory_information();
 
     return true;
 }
