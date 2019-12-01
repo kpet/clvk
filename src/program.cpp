@@ -25,21 +25,22 @@
 #ifdef CLSPV_ONLINE_COMPILER
 #include "clspv/Compiler.h"
 #endif
-#include "spirv/1.0/spirv.hpp"
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
+#include "spirv/1.0/spirv.hpp"
 
 #include "init.hpp"
 #include "program.hpp"
 #include "utils.hpp"
 
 struct membuf : public std::streambuf {
-    membuf(const unsigned char *begin, const unsigned char *end) {
-        auto sbegin = reinterpret_cast<char*>(const_cast<unsigned char*>(begin));
+    membuf(const unsigned char* begin, const unsigned char* end) {
+        auto sbegin =
+            reinterpret_cast<char*>(const_cast<unsigned char*>(begin));
         auto send = reinterpret_cast<char*>(const_cast<unsigned char*>(end));
         setg(sbegin, sbegin, send);
     }
-    membuf(unsigned char *begin, unsigned char *end) {
+    membuf(unsigned char* begin, unsigned char* end) {
         auto sbegin = reinterpret_cast<char*>(begin);
         auto send = reinterpret_cast<char*>(end);
         setp(sbegin, send);
@@ -57,21 +58,18 @@ struct membuf : public std::streambuf {
  * +---------+-----------------------+
  */
 
-bool spir_binary::load_spir(std::istream &istream, uint32_t size)
-{
+bool spir_binary::load_spir(std::istream& istream, uint32_t size) {
     m_code.assign(size / SPIR_WORD_SIZE, 0);
     istream.read(reinterpret_cast<char*>(m_code.data()), size);
     return istream.good();
 }
 
-bool spir_binary::load_spir(const char *fname)
-{
+bool spir_binary::load_spir(const char* fname) {
     std::ifstream ifile;
 
     ifile.open(fname, std::ios::in | std::ios::binary);
 
-    if (!ifile.is_open())
-    {
+    if (!ifile.is_open()) {
         cvk_error("Failed to open %s", fname);
         return false;
     }
@@ -83,8 +81,7 @@ bool spir_binary::load_spir(const char *fname)
     return load_spir(ifile, size);
 }
 
-bool spir_binary::load(std::istream &istream)
-{
+bool spir_binary::load(std::istream& istream) {
     m_loaded_from_binary = true;
 
     // Check magic
@@ -114,15 +111,13 @@ bool spir_binary::load(std::istream &istream)
     return load_descriptor_map(istream);
 }
 
-bool spir_binary::read(const unsigned char *src, size_t size)
-{
+bool spir_binary::read(const unsigned char* src, size_t size) {
     membuf bufview(src, src + size);
     std::istream istream(&bufview);
     return load(istream);
 }
 
-bool spir_binary::save_spir(const char *fname) const
-{
+bool spir_binary::save_spir(const char* fname) const {
     std::ofstream ofile;
 
     ofile.open(fname, std::ios::out | std::ios::binary);
@@ -131,13 +126,13 @@ bool spir_binary::save_spir(const char *fname) const
         return false;
     }
 
-    ofile.write(reinterpret_cast<const char*>(m_code.data()), m_code.size() * sizeof(SPIR_WORD_SIZE));
+    ofile.write(reinterpret_cast<const char*>(m_code.data()),
+                m_code.size() * sizeof(SPIR_WORD_SIZE));
 
     return ofile.good();
 }
 
-bool spir_binary::save(std::ostream &ostream) const
-{
+bool spir_binary::save(std::ostream& ostream) const {
     // Write magic
     ostream.write(reinterpret_cast<const char*>(&MAGIC), sizeof(MAGIC));
 
@@ -149,13 +144,13 @@ bool spir_binary::save(std::ostream &ostream) const
     // Write DMAP
     uint32_t dmap_size = m_dmaps_text.size();
     ostream.write(reinterpret_cast<const char*>(&dmap_size), sizeof(dmap_size));
-    ostream.write(reinterpret_cast<const char*>(m_dmaps_text.c_str()), dmap_size);
+    ostream.write(reinterpret_cast<const char*>(m_dmaps_text.c_str()),
+                  dmap_size);
 
     return ostream.good();
 }
 
-bool spir_binary::save(const char *fname) const
-{
+bool spir_binary::save(const char* fname) const {
     std::ofstream ofile;
 
     ofile.open(fname, std::ios::out | std::ios::binary);
@@ -167,44 +162,35 @@ bool spir_binary::save(const char *fname) const
     return save(ofile);
 }
 
-size_t spir_binary::size() const
-{
-    return sizeof(MAGIC) +
-           sizeof(uint32_t) +
-           (m_code.size() * SPIR_WORD_SIZE) +
-           sizeof(uint32_t) +
-           m_dmaps_text.size();
+size_t spir_binary::size() const {
+    return sizeof(MAGIC) + sizeof(uint32_t) + (m_code.size() * SPIR_WORD_SIZE) +
+           sizeof(uint32_t) + m_dmaps_text.size();
 }
 
-bool spir_binary::write(unsigned char *dst) const
-{
+bool spir_binary::write(unsigned char* dst) const {
     membuf bufview(dst, dst + size());
     std::ostream ostream(&bufview);
     return save(ostream);
 }
 
-void spir_binary::use(std::vector<uint32_t> &&src)
-{
-    m_code = std::move(src);
-}
-    
-void spir_binary::set_target_env(spv_target_env env)
-{
+void spir_binary::use(std::vector<uint32_t>&& src) { m_code = std::move(src); }
+
+void spir_binary::set_target_env(spv_target_env env) {
     spvContextDestroy(m_context);
     m_context = spvContextCreate(env);
 }
 
-bool spir_binary::validate() const
-{
+bool spir_binary::validate() const {
     spv_diagnostic diag;
-    spv_result_t res = spvValidateBinary(m_context, m_code.data(), m_code.size(), &diag);
+    spv_result_t res =
+        spvValidateBinary(m_context, m_code.data(), m_code.size(), &diag);
     spvDiagnosticPrint(diag);
     spvDiagnosticDestroy(diag);
     return res == SPV_SUCCESS;
 }
 
-bool parse_local_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int toknum)
-{
+bool parse_local_arg(kernel_argument& arg,
+                     const std::vector<std::string>& tokens, int toknum) {
     if (tokens[toknum++] != "argKind") {
         return false;
     }
@@ -230,8 +216,8 @@ bool parse_local_arg(kernel_argument &arg, const std::vector<std::string> &token
     return true;
 }
 
-bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int toknum)
-{
+bool parse_arg(kernel_argument& arg, const std::vector<std::string>& tokens,
+               int toknum) {
     if (tokens[toknum++] != "descriptorSet") {
         return false;
     }
@@ -285,23 +271,25 @@ bool parse_arg(kernel_argument &arg, const std::vector<std::string> &tokens, int
     return true;
 }
 
-static std::vector<std::string> tokenize(const std::string &str, const char *delim) {
+static std::vector<std::string> tokenize(const std::string& str,
+                                         const char* delim) {
     size_t start = str.find_first_not_of(delim), end;
     std::vector<std::string> tokens;
 
     while (start != std::string::npos) {
         end = str.find(delim, start);
-        tokens.push_back(str.substr(start, end-start));
+        tokens.push_back(str.substr(start, end - start));
         start = str.find_first_not_of(delim, end);
     }
-    //for (auto& tok : tokens) {
+    // for (auto& tok : tokens) {
     //    cvk_debug("TOK: %s", tok.c_str());
     //}
 
     return tokens;
 }
 
-bool spir_binary::parse_sampler(const std::vector<std::string> &tokens, int toknum) {
+bool spir_binary::parse_sampler(const std::vector<std::string>& tokens,
+                                int toknum) {
 
     sampler_desc desc;
 
@@ -314,7 +302,6 @@ bool spir_binary::parse_sampler(const std::vector<std::string> &tokens, int tokn
 
     std::string samplerExpr = tokens[toknum++];
     auto exprTokens = tokenize(samplerExpr, "|");
-
 
     if (tokens[toknum++] != "descriptorSet") {
         return false;
@@ -333,7 +320,8 @@ bool spir_binary::parse_sampler(const std::vector<std::string> &tokens, int tokn
     return true;
 }
 
-bool spir_binary::parse_kernel(const std::vector<std::string> &tokens, int toknum) {
+bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
+                               int toknum) {
     kernel_argument arg;
     std::string kname{tokens[toknum++]};
 
@@ -366,8 +354,7 @@ bool spir_binary::parse_kernel(const std::vector<std::string> &tokens, int toknu
     return true;
 }
 
-bool spir_binary::load_descriptor_map(std::istream &istream)
-{
+bool spir_binary::load_descriptor_map(std::istream& istream) {
     m_dmaps.clear();
 
     std::string line;
@@ -379,11 +366,11 @@ bool spir_binary::load_descriptor_map(std::istream &istream)
         int toknum = 0;
 
         if (tokens[toknum] == "kernel") {
-            if (!parse_kernel(tokens, toknum+1)) {
+            if (!parse_kernel(tokens, toknum + 1)) {
                 return false;
             }
         } else if (tokens[toknum] == "sampler") {
-            if (!parse_sampler(tokens, toknum+1)) {
+            if (!parse_sampler(tokens, toknum + 1)) {
                 return false;
             }
         } else {
@@ -396,14 +383,12 @@ bool spir_binary::load_descriptor_map(std::istream &istream)
     return true;
 }
 
-bool spir_binary::load_descriptor_map(const char *fname)
-{
+bool spir_binary::load_descriptor_map(const char* fname) {
     std::ifstream ifile;
 
     ifile.open(fname, std::ios::in);
 
-    if (!ifile.is_open())
-    {
+    if (!ifile.is_open()) {
         cvk_error("Failed to open %s", fname);
         return false;
     }
@@ -412,84 +397,84 @@ bool spir_binary::load_descriptor_map(const char *fname)
 }
 
 #ifdef CLSPV_ONLINE_COMPILER
-bool spir_binary::load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries)
-{
-  m_dmaps.clear();
-  for (const auto &entry : entries) {
-    if (gLoggingLevel == loglevel::debug) {
-      std::string s;
-      std::ostringstream str(s);
-      str << entry;
-      cvk_debug("DMAP line: %s", str.str().c_str());
+bool spir_binary::load_descriptor_map(
+    const std::vector<clspv::version0::DescriptorMapEntry>& entries) {
+    m_dmaps.clear();
+    for (const auto& entry : entries) {
+        if (gLoggingLevel == loglevel::debug) {
+            std::string s;
+            std::ostringstream str(s);
+            str << entry;
+            cvk_debug("DMAP line: %s", str.str().c_str());
+        }
+        if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
+            return false;
+
+        kernel_argument arg;
+        arg.name = entry.kernel_arg_data.arg_name;
+        arg.pos = entry.kernel_arg_data.arg_ordinal;
+        if (entry.kernel_arg_data.arg_kind == clspv::ArgKind::Local) {
+            arg.kind = kernel_argument_kind::local;
+            arg.local_elem_size = entry.kernel_arg_data.local_element_size;
+            arg.local_spec_id = entry.kernel_arg_data.local_spec_id;
+        } else {
+            arg.descriptorSet = entry.descriptor_set;
+            arg.binding = entry.binding;
+            arg.offset = entry.kernel_arg_data.pod_offset;
+            switch (entry.kernel_arg_data.arg_kind) {
+            case clspv::ArgKind::Buffer:
+                arg.kind = kernel_argument_kind::buffer;
+                break;
+            case clspv::ArgKind::BufferUBO:
+                arg.kind = kernel_argument_kind::buffer_ubo;
+                break;
+            case clspv::ArgKind::Pod:
+                arg.kind = kernel_argument_kind::pod;
+                break;
+            case clspv::ArgKind::PodUBO:
+                arg.kind = kernel_argument_kind::pod_ubo;
+                break;
+            case clspv::ArgKind::ReadOnlyImage:
+                arg.kind = kernel_argument_kind::ro_image;
+                break;
+            case clspv::ArgKind::WriteOnlyImage:
+                arg.kind = kernel_argument_kind::wo_image;
+                break;
+            case clspv::ArgKind::Sampler:
+                arg.kind = kernel_argument_kind::sampler;
+                break;
+            default:
+                return false;
+            }
+            if (arg.is_pod()) {
+                arg.size = entry.kernel_arg_data.pod_arg_size;
+            }
+        }
+
+        m_dmaps[entry.kernel_arg_data.kernel_name].push_back(arg);
     }
-    if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
-      return false;
 
-    kernel_argument arg;
-    arg.name = entry.kernel_arg_data.arg_name;
-    arg.pos = entry.kernel_arg_data.arg_ordinal;
-    if (entry.kernel_arg_data.arg_kind == clspv::ArgKind::Local) {
-      arg.kind = kernel_argument_kind::local;
-      arg.local_elem_size = entry.kernel_arg_data.local_element_size;
-      arg.local_spec_id = entry.kernel_arg_data.local_spec_id;
-    } else {
-      arg.descriptorSet = entry.descriptor_set;
-      arg.binding = entry.binding;
-      arg.offset = entry.kernel_arg_data.pod_offset;
-      switch (entry.kernel_arg_data.arg_kind) {
-        case clspv::ArgKind::Buffer:
-          arg.kind = kernel_argument_kind::buffer;
-          break;
-        case clspv::ArgKind::BufferUBO:
-          arg.kind = kernel_argument_kind::buffer_ubo;
-          break;
-        case clspv::ArgKind::Pod:
-          arg.kind = kernel_argument_kind::pod;
-          break;
-        case clspv::ArgKind::PodUBO:
-          arg.kind = kernel_argument_kind::pod_ubo;
-          break;
-        case clspv::ArgKind::ReadOnlyImage:
-          arg.kind = kernel_argument_kind::ro_image;
-          break;
-        case clspv::ArgKind::WriteOnlyImage:
-          arg.kind = kernel_argument_kind::wo_image;
-          break;
-        case clspv::ArgKind::Sampler:
-          arg.kind = kernel_argument_kind::sampler;
-          break;
-        default:
-          return false;
-      }
-      if (arg.is_pod()) {
-        arg.size = entry.kernel_arg_data.pod_arg_size;
-      }
-    }
+    cvk_debug_fn("num_kernels = %zu", num_kernels());
 
-    m_dmaps[entry.kernel_arg_data.kernel_name].push_back(arg);    
-  }
-
-  cvk_debug_fn("num_kernels = %zu", num_kernels());
-
-  return true;
+    return true;
 }
 #endif
 
-void spir_binary::insert_descriptor_map(const spir_binary &other)
-{
-    for (auto &args: other.kernels_arguments()) {
+void spir_binary::insert_descriptor_map(const spir_binary& other) {
+    for (auto& args : other.kernels_arguments()) {
         m_dmaps[args.first] = args.second;
     }
     m_dmaps_text += other.m_dmaps_text;
 }
 
-bool spir_binary::get_capabilities(std::vector<spv::Capability> &capabilities) const {
+bool spir_binary::get_capabilities(
+    std::vector<spv::Capability>& capabilities) const {
     // Callback for receiving parsed instructions.
     // The `user_data` parameter will be a pointer to the vector of
     // capabilities (we cannot use a lambda capture for this as it prevents the
     // lambda from being able to be converted to a function pointer).
-    auto parse_inst = [](void *user_data,
-                         const spv_parsed_instruction_t *inst) {
+    auto parse_inst = [](void* user_data,
+                         const spv_parsed_instruction_t* inst) {
         // Stop parsing at first instruction that is not an OpCapability.
         if (inst->opcode != spv::Op::OpCapability) {
             return SPV_END_OF_STREAM;
@@ -515,8 +500,7 @@ bool spir_binary::get_capabilities(std::vector<spv::Capability> &capabilities) c
     return true;
 }
 
-bool save_string_to_file(const std::string &fname, const std::string &text)
-{
+bool save_string_to_file(const std::string& fname, const std::string& text) {
     std::ofstream ofile{fname};
 
     if (!ofile.is_open()) {
@@ -529,8 +513,7 @@ bool save_string_to_file(const std::string &fname, const std::string &text)
     return ofile.good();
 }
 
-bool save_il_to_file(const std::string &fname, const std::vector<uint8_t> &il)
-{
+bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
     std::ofstream ofile{fname, std::ios::binary};
 
     if (!ofile.is_open()) {
@@ -543,12 +526,12 @@ bool save_il_to_file(const std::string &fname, const std::vector<uint8_t> &il)
     return ofile.good();
 }
 
-cl_build_status cvk_program::compile_source()
-{
+cl_build_status cvk_program::compile_source() {
     bool use_tmp_folder = true;
     bool save_headers = true;
 #ifdef CLSPV_ONLINE_COMPILER
-    use_tmp_folder = m_operation == build_operation::compile && m_num_input_programs > 0;
+    use_tmp_folder =
+        m_operation == build_operation::compile && m_num_input_programs > 0;
     save_headers = m_operation == build_operation::compile;
 #endif
 
@@ -612,7 +595,7 @@ cl_build_status cvk_program::compile_source()
         {"-cl-arm-non-uniform-work-group-size", ""},
     };
 
-    for (auto &subst : option_substitutions) {
+    for (auto& subst : option_substitutions) {
         size_t loc = processed_options.find(subst.first);
         if (loc != std::string::npos) {
             processed_options.replace(loc, subst.first.length(), subst.second);
@@ -708,12 +691,13 @@ cl_build_status cvk_program::compile_source()
     }
 
     // Load SPIR-V program
-    const char *filename = spirv_file.c_str();
+    const char* filename = spirv_file.c_str();
     if (!m_binary.load_spir(filename)) {
         cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
         return CL_BUILD_ERROR;
     } else {
-        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename, m_binary.code().size());
+        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename,
+                 m_binary.code().size());
     }
 
     // Load descriptor map
@@ -726,36 +710,34 @@ cl_build_status cvk_program::compile_source()
     return CL_BUILD_SUCCESS;
 }
 
-cl_build_status cvk_program::link()
-{
+cl_build_status cvk_program::link() {
     spvtools::Context context(SPV_ENV_VULKAN_1_0);
     std::vector<uint32_t> linked;
     std::vector<std::vector<uint32_t>> binaries(m_num_input_programs);
 
-    const spvtools::MessageConsumer consumer = [](spv_message_level_t level,
-                                                  const char*,
-                                                  const spv_position_t &position,
-                                                  const char* message) {
+    const spvtools::MessageConsumer consumer =
+        [](spv_message_level_t level, const char*,
+           const spv_position_t& position, const char* message) {
 
-        #define msgtpl "spvtools says '%s' at position %zu"
-        switch(level) {
-        case SPV_MSG_FATAL:
-        case SPV_MSG_INTERNAL_ERROR:
-        case SPV_MSG_ERROR:
-            cvk_error(msgtpl, message, position.index);
-            break;
-        case SPV_MSG_WARNING:
-            cvk_warn(msgtpl, message, position.index);
-            break;
-        case SPV_MSG_INFO:
-            cvk_info(msgtpl, message, position.index);
-            break;
-        case SPV_MSG_DEBUG:
-            cvk_debug(msgtpl, message, position.index);
-            break;
-        }
-        #undef msgtpl
-    };
+#define msgtpl "spvtools says '%s' at position %zu"
+            switch (level) {
+            case SPV_MSG_FATAL:
+            case SPV_MSG_INTERNAL_ERROR:
+            case SPV_MSG_ERROR:
+                cvk_error(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_WARNING:
+                cvk_warn(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_INFO:
+                cvk_info(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_DEBUG:
+                cvk_debug(msgtpl, message, position.index);
+                break;
+            }
+#undef msgtpl
+        };
 
     context.SetMessageConsumer(consumer);
 
@@ -772,15 +754,18 @@ cl_build_status cvk_program::link()
     // Link binaries
     cvk_debug_fn("copying input programs...");
     for (cl_uint i = 0; i < m_num_input_programs; i++) {
-        cvk_debug_fn("program %u, %zu kernels...", i, m_input_programs[i]->m_binary.num_kernels());
-        cvk_debug_fn("about to copy code, size = %zu", m_input_programs[i]->m_binary.code().size());
+        cvk_debug_fn("program %u, %zu kernels...", i,
+                     m_input_programs[i]->m_binary.num_kernels());
+        cvk_debug_fn("about to copy code, size = %zu",
+                     m_input_programs[i]->m_binary.code().size());
         binaries[i] = m_input_programs[i]->m_binary.code();
     }
 
     cvk_debug_fn("linking...");
     spvtools::LinkerOptions linker_options;
     linker_options.SetCreateLibrary(create_library);
-    spv_result_t res = spvtools::Link(context, binaries, &linked, linker_options);
+    spv_result_t res =
+        spvtools::Link(context, binaries, &linked, linker_options);
 
     if (res != SPV_SUCCESS) {
         return CL_BUILD_ERROR;
@@ -805,12 +790,13 @@ cl_build_status cvk_program::link()
         m_binary.insert_descriptor_map(m_input_programs[i]->m_binary);
     }
 
-    cvk_debug_fn("linked binary has %zu kernels", m_binary.kernels_arguments().size());
+    cvk_debug_fn("linked binary has %zu kernels",
+                 m_binary.kernels_arguments().size());
 
     return CL_BUILD_SUCCESS;
 }
 
-bool cvk_program::check_capabilities(const cvk_device *device) const {
+bool cvk_program::check_capabilities(const cvk_device* device) const {
     // Get list of required SPIR-V capabilities.
     std::vector<spv::Capability> capabilities;
     if (!m_binary.get_capabilities(capabilities)) {
@@ -830,8 +816,7 @@ bool cvk_program::check_capabilities(const cvk_device *device) const {
     return true;
 }
 
-void cvk_program::do_build()
-{
+void cvk_program::do_build() {
     cl_build_status status = CL_BUILD_SUCCESS;
 
     auto device = m_context->device();
@@ -849,14 +834,16 @@ void cvk_program::do_build()
         break;
     }
 
-    if ((m_operation == build_operation::compile) || (status != CL_BUILD_SUCCESS)) {
+    if ((m_operation == build_operation::compile) ||
+        (status != CL_BUILD_SUCCESS)) {
         complete_operation(device, status);
         return;
     }
 
     // Validate
     // TODO validate with different rules depending on the binary type
-    if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) && !m_binary.validate()) {
+    if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
+        !m_binary.validate()) {
         cvk_error("Could not validate SPIR-V binary.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
@@ -875,13 +862,14 @@ void cvk_program::do_build()
 
     VkShaderModuleCreateInfo moduleCreateInfo = {
         VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
-        m_binary.spir_size(), // codeSize
-        m_binary.spir_data() // pCode
+        nullptr,                                     // pNext
+        0,                                           // flags
+        m_binary.spir_size(),                        // codeSize
+        m_binary.spir_data()                         // pCode
     };
 
-    VkResult res = vkCreateShaderModule(dev, &moduleCreateInfo, nullptr, &m_shader_module);
+    VkResult res =
+        vkCreateShaderModule(dev, &moduleCreateInfo, nullptr, &m_shader_module);
 
     if (res != VK_SUCCESS) {
         cvk_error("vkCreateShaderModule returned %d", res);
@@ -892,8 +880,12 @@ void cvk_program::do_build()
     complete_operation(device, CL_BUILD_SUCCESS);
 }
 
-bool cvk_program::build(build_operation operation, cl_uint num_devices, const cvk_device *const*device_list, const char *options, cl_uint num_input_programs, const cvk_program *const*input_programs, const char **header_include_names, cvk_program_callback cb, void *data)
-{
+bool cvk_program::build(build_operation operation, cl_uint num_devices,
+                        const cvk_device* const* device_list,
+                        const char* options, cl_uint num_input_programs,
+                        const cvk_program* const* input_programs,
+                        const char** header_include_names,
+                        cvk_program_callback cb, void* data) {
     if (!m_lock.try_lock()) {
         return false;
     }
@@ -901,7 +893,7 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices, const cv
     retain();
 
     for (cl_uint i = 0; i < num_input_programs; i++) {
-        cvk_program *iprog = const_cast<cvk_program*>(input_programs[i]);
+        cvk_program* iprog = const_cast<cvk_program*>(input_programs[i]);
         iprog->retain();
         m_input_programs.push_back(iprog);
         if (header_include_names != nullptr) {

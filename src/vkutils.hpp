@@ -19,8 +19,8 @@
 #include <vulkan/vulkan.h>
 
 struct cvk_vulkan_queue_wrapper {
-    cvk_vulkan_queue_wrapper(VkQueue queue, uint32_t family) :
-        m_queue(queue), m_queue_family(family) {}
+    cvk_vulkan_queue_wrapper(VkQueue queue, uint32_t family)
+        : m_queue(queue), m_queue_family(family) {}
 
     cvk_vulkan_queue_wrapper(cvk_vulkan_queue_wrapper&& other) {
         m_queue = other.m_queue;
@@ -33,15 +33,14 @@ struct cvk_vulkan_queue_wrapper {
         VkSubmitInfo submitInfo = {
             VK_STRUCTURE_TYPE_SUBMIT_INFO,
             nullptr,
-            0, // waitSemaphoreCOunt
+            0,       // waitSemaphoreCOunt
             nullptr, // pWaitSemaphores
             nullptr, // pWaitDstStageMask
-            1, // commandBufferCount
+            1,       // commandBufferCount
             &command_buffer,
-            0, // signalSemaphoreCount
+            0,       // signalSemaphoreCount
             nullptr, // pSignalSemaphores
         };
-
 
         auto ret = vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
         if (ret != VK_SUCCESS) {
@@ -65,13 +64,10 @@ struct cvk_vulkan_queue_wrapper {
         return ret;
     }
 
-    uint32_t queue_family() {
-        return m_queue_family;
-    }
+    uint32_t queue_family() { return m_queue_family; }
 
 private:
     std::mutex m_lock;
     VkQueue m_queue;
     uint32_t m_queue_family;
 };
-

@@ -17,7 +17,7 @@
 static const size_t BUFFER_SIZE = 1024;
 static const size_t LOCAL_SIZE = 2;
 
-static const char *program_source = R"(
+static const char* program_source = R"(
 __kernel void test_lws(__global uint* out)
 {
     size_t gid = get_global_id(0);
@@ -25,8 +25,7 @@ __kernel void test_lws(__global uint* out)
 }
 )";
 
-TEST_F(WithCommandQueue, LWS)
-{
+TEST_F(WithCommandQueue, LWS) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_lws");
 
@@ -45,13 +44,15 @@ TEST_F(WithCommandQueue, LWS)
     Finish();
 
     // Map the buffer
-    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_WRITE, 0, BUFFER_SIZE);
+    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_WRITE, 0,
+                                          BUFFER_SIZE);
 
     // Check the expected result
     bool success = true;
-    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_uint); ++i) {
+    for (cl_uint i = 0; i < BUFFER_SIZE / sizeof(cl_uint); ++i) {
         if (data[i] != static_cast<cl_uint>(i % LOCAL_SIZE)) {
-            printf("Failed comparison at data[%u]: expected %u != got %u\n", i, i, data[i]);
+            printf("Failed comparison at data[%u]: expected %u != got %u\n", i,
+                   i, data[i]);
             success = false;
         }
     }

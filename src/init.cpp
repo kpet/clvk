@@ -23,7 +23,7 @@
 #include "utils.hpp"
 
 VkInstance gVkInstance;
-cvk_platform *gPlatform;
+cvk_platform* gPlatform;
 int gLoggingLevel = loglevel::fatal;
 bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
@@ -37,16 +37,11 @@ std::string gCLSPVOptions;
 
 static VkDebugReportCallbackEXT gVkDebugCallback;
 
-VkBool32 debugCallback(
-    VkDebugReportFlagsEXT                       flags,
-    VkDebugReportObjectTypeEXT                  objectType,
-    uint64_t                                    object,
-    size_t                                      location,
-    int32_t                                     messageCode,
-    const char*                                 pLayerPrefix,
-    const char*                                 pMessage,
-    void*                                       pUserData
-){
+VkBool32 debugCallback(VkDebugReportFlagsEXT flags,
+                       VkDebugReportObjectTypeEXT objectType, uint64_t object,
+                       size_t location, int32_t messageCode,
+                       const char* pLayerPrefix, const char* pMessage,
+                       void* pUserData) {
     UNUSED(objectType);
     UNUSED(object);
     UNUSED(location);
@@ -56,7 +51,8 @@ VkBool32 debugCallback(
 
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
         cvk_error("%s", pMessage);
-    } else if ((flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) || (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)) {
+    } else if ((flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) ||
+               (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)) {
         cvk_warn("%s", pMessage);
     } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
         cvk_info("%s", pMessage);
@@ -69,8 +65,7 @@ VkBool32 debugCallback(
     return VK_FALSE;
 }
 
-static void init_vulkan()
-{
+static void init_vulkan() {
     VkResult res;
 
     // Print layer info
@@ -80,24 +75,28 @@ static void init_vulkan()
     cvk_info("%u layer properties are available", numLayerProperties);
 
     std::vector<VkLayerProperties> layerProperties(numLayerProperties);
-    res = vkEnumerateInstanceLayerProperties(&numLayerProperties, layerProperties.data());
+    res = vkEnumerateInstanceLayerProperties(&numLayerProperties,
+                                             layerProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query layers");
 
     for (uint32_t i = 0; i < numLayerProperties; i++) {
         cvk_info("Found layer %s, spec version %s, impl version %u",
-                layerProperties[i].layerName,
-                vulkan_version_string(layerProperties[i].specVersion).c_str(),
-                layerProperties[i].implementationVersion);
+                 layerProperties[i].layerName,
+                 vulkan_version_string(layerProperties[i].specVersion).c_str(),
+                 layerProperties[i].implementationVersion);
     }
 
     // Print extension info
     uint32_t numExtensionProperties;
-    res = vkEnumerateInstanceExtensionProperties(nullptr, &numExtensionProperties, nullptr);
+    res = vkEnumerateInstanceExtensionProperties(
+        nullptr, &numExtensionProperties, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
     cvk_info("%u extension properties are available", numExtensionProperties);
 
-    std::vector<VkExtensionProperties> extensionProperties(numExtensionProperties);
-    res = vkEnumerateInstanceExtensionProperties(nullptr, &numExtensionProperties, extensionProperties.data());
+    std::vector<VkExtensionProperties> extensionProperties(
+        numExtensionProperties);
+    res = vkEnumerateInstanceExtensionProperties(
+        nullptr, &numExtensionProperties, extensionProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
 
     std::vector<const char*> enabledExtensions = {
@@ -106,10 +105,11 @@ static void init_vulkan()
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("Found extension %s, spec version %u",
-                extensionProperties[i].extensionName,
-                extensionProperties[i].specVersion);
+                 extensionProperties[i].extensionName,
+                 extensionProperties[i].specVersion);
 
-        if (!strcmp(extensionProperties[i].extensionName, "VK_EXT_debug_report")) {
+        if (!strcmp(extensionProperties[i].extensionName,
+                    "VK_EXT_debug_report")) {
             enabledExtensions.push_back("VK_EXT_debug_report");
             gDebugReportEnabled = true;
         }
@@ -118,7 +118,7 @@ static void init_vulkan()
     // Handle validation layers
     std::vector<const char*> enabledLayers;
 
-    char *enable_validation_layers = getenv("CLVK_VALIDATION_LAYERS");
+    char* enable_validation_layers = getenv("CLVK_VALIDATION_LAYERS");
     if (enable_validation_layers != nullptr) {
         int value = atoi(enable_validation_layers);
         if (value == 1) {
@@ -130,14 +130,15 @@ static void init_vulkan()
 
     // Create the instance
     VkInstanceCreateInfo info = {
-        VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
-        nullptr, // pApplicationInfo
+        VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,      // sType
+        nullptr,                                     // pNext
+        0,                                           // flags
+        nullptr,                                     // pApplicationInfo
         static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
-        enabledLayers.data(), // ppEnabledLayerNames
-        static_cast<uint32_t>(enabledExtensions.size()), // enabledExtensionCount
-        enabledExtensions.data(), // ppEnabledExtensionNames
+        enabledLayers.data(),                        // ppEnabledLayerNames
+        static_cast<uint32_t>(
+            enabledExtensions.size()), // enabledExtensionCount
+        enabledExtensions.data(),      // ppEnabledExtensionNames
     };
 
     res = vkCreateInstance(&info, nullptr, &gVkInstance);
@@ -146,40 +147,39 @@ static void init_vulkan()
 
     // Create debug callback
     VkDebugReportCallbackCreateInfoEXT callbackInfo = {
-            VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,    // sType
-            NULL,                                                       // pNext
-            VK_DEBUG_REPORT_ERROR_BIT_EXT |                             // flags
+        VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT, // sType
+        NULL,                                                    // pNext
+        VK_DEBUG_REPORT_ERROR_BIT_EXT |                          // flags
             VK_DEBUG_REPORT_DEBUG_BIT_EXT |
             VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
             VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
             VK_DEBUG_REPORT_WARNING_BIT_EXT,
-            debugCallback,                                        // pfnCallback
-            NULL                                                        // pUserData
+        debugCallback, // pfnCallback
+        NULL           // pUserData
     };
 
     if (gDebugReportEnabled) {
         CVK_VK_GET_INSTANCE_PROC(vkCreateDebugReportCallbackEXT);
 
-        res = fnvkCreateDebugReportCallbackEXT(gVkInstance, &callbackInfo, nullptr, &gVkDebugCallback);
+        res = fnvkCreateDebugReportCallbackEXT(gVkInstance, &callbackInfo,
+                                               nullptr, &gVkDebugCallback);
         CVK_VK_CHECK_FATAL(res, "Can't setup debug callback");
-    }
-    else {
+    } else {
         cvk_warn("VK_EXT_debug_report not enabled");
     }
 }
 
-static void term_vulkan()
-{
+static void term_vulkan() {
     if (gDebugReportEnabled) {
         CVK_VK_GET_INSTANCE_PROC(vkDestroyDebugReportCallbackEXT);
-        fnvkDestroyDebugReportCallbackEXT(gVkInstance, gVkDebugCallback, nullptr);
+        fnvkDestroyDebugReportCallbackEXT(gVkInstance, gVkDebugCallback,
+                                          nullptr);
     }
     vkDestroyInstance(gVkInstance, nullptr);
 }
 
-static void init_logging()
-{
-    char *logging = getenv("CLVK_LOG");
+static void init_logging() {
+    char* logging = getenv("CLVK_LOG");
     if (logging) {
         loglevel setting = static_cast<loglevel>(atoi(logging));
         if ((setting < loglevel::fatal) || (setting > loglevel::debug)) {
@@ -188,7 +188,7 @@ static void init_logging()
         gLoggingLevel = setting;
     }
 
-    char *logging_colour = getenv("CLVK_LOG_COLOUR");
+    char* logging_colour = getenv("CLVK_LOG_COLOUR");
     if (logging_colour) {
         int val = atoi(logging_colour);
         if (val == 0) {
@@ -197,14 +197,13 @@ static void init_logging()
     }
 }
 
-static void init_options()
-{
+static void init_options() {
 #ifndef CLSPV_ONLINE_COMPILER
-    char *llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
+    char* llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
     if (llvmspirv_binary != nullptr) {
         gLLVMSPIRVPath = llvmspirv_binary;
     }
-    char *clspv_binary = getenv("CLVK_CLSPV_BIN");
+    char* clspv_binary = getenv("CLVK_CLSPV_BIN");
     if (clspv_binary != nullptr) {
         gCLSPVPath = clspv_binary;
     }
@@ -222,17 +221,18 @@ static void init_options()
     }
 }
 
-static void init_platform()
-{
+static void init_platform() {
     gPlatform = new cvk_platform();
 
     uint32_t numDevices;
-    VkResult res = vkEnumeratePhysicalDevices(gVkInstance, &numDevices, nullptr);
+    VkResult res =
+        vkEnumeratePhysicalDevices(gVkInstance, &numDevices, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not enumerate physical devices");
     cvk_info("Found %u physical devices", numDevices);
 
     std::vector<VkPhysicalDevice> physicalDevices(numDevices);
-    res = vkEnumeratePhysicalDevices(gVkInstance, &numDevices, physicalDevices.data());
+    res = vkEnumeratePhysicalDevices(gVkInstance, &numDevices,
+                                     physicalDevices.data());
     CVK_VK_CHECK_FATAL(res, "Could not enumerate physical devices");
 
     for (uint32_t i = 0; i < numDevices; ++i) {
@@ -251,18 +251,15 @@ static void init_platform()
     }
 }
 
-static void term_platform()
-{
+static void term_platform() {
     for (auto d : gPlatform->devices) {
         delete d;
     }
 }
 
-
 class clvk_initializer {
 public:
-    clvk_initializer()
-    {
+    clvk_initializer() {
         init_logging();
         cvk_info("Starting initialisation");
         init_options();
@@ -271,8 +268,7 @@ public:
         cvk_info("Initialisation complete");
     }
 
-    ~clvk_initializer()
-    {
+    ~clvk_initializer() {
         term_platform();
         term_vulkan();
     }

@@ -14,8 +14,7 @@
 
 #include "memory.hpp"
 
-bool cvk_mem::map()
-{
+bool cvk_mem::map() {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::map", this);
 
@@ -28,7 +27,8 @@ bool cvk_mem::map()
     } else {
         if (m_map_count == 0) {
             auto vkdev = m_context->device()->vulkan_device();
-            VkResult res = vkMapMemory(vkdev, m_memory, 0, m_size, 0, &m_map_ptr);
+            VkResult res =
+                vkMapMemory(vkdev, m_memory, 0, m_size, 0, &m_map_ptr);
             if (res != VK_SUCCESS) {
                 return false;
             }
@@ -43,8 +43,7 @@ bool cvk_mem::map()
     return true;
 }
 
-void cvk_mem::unmap()
-{
+void cvk_mem::unmap() {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::unmap", this);
 
@@ -63,12 +62,12 @@ void cvk_mem::unmap()
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
 }
 
-std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context *context,
+std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context* context,
                                                cl_mem_flags flags, size_t size,
-                                               void *host_ptr,
-                                               cl_int *errcode_ret
-){
-    auto buffer = std::make_unique<cvk_buffer>(context, flags, size, host_ptr, nullptr, 0);
+                                               void* host_ptr,
+                                               cl_int* errcode_ret) {
+    auto buffer = std::make_unique<cvk_buffer>(context, flags, size, host_ptr,
+                                               nullptr, 0);
 
     if (!buffer->init()) {
         *errcode_ret = CL_OUT_OF_RESOURCES;
@@ -79,20 +78,19 @@ std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context *context,
     return buffer;
 }
 
-bool cvk_buffer::init()
-{
+bool cvk_buffer::init() {
     auto device = m_context->device();
     auto vkdev = device->vulkan_device();
 
     // Create the buffer
     const VkBufferCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
+        nullptr,                              // pNext
+        0,                                    // flags
         m_size,
         cvk_buffer::USAGE_FLAGS, // usage
         VK_SHARING_MODE_EXCLUSIVE,
-        0, // queueFamilyIndexCount
+        0,       // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
     };
 
@@ -137,7 +135,7 @@ bool cvk_buffer::init()
 
     // Bind the buffer to memory
     res = vkBindBufferMemory(vkdev, m_buffer, m_memory, 0);
-    
+
     if (res != VK_SUCCESS) {
         return false;
     }
@@ -151,11 +149,10 @@ bool cvk_buffer::init()
     return true;
 }
 
-
-
-cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin, size_t size)
-{
-    auto buffer = std::make_unique<cvk_buffer>(m_context, flags, size, nullptr, this, origin);
+cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin,
+                                      size_t size) {
+    auto buffer = std::make_unique<cvk_buffer>(m_context, flags, size, nullptr,
+                                               this, origin);
 
     if (!buffer->init_subbuffer()) {
         return nullptr;
@@ -169,12 +166,12 @@ bool cvk_buffer::init_subbuffer() {
     // Create the buffer
     const VkBufferCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
+        nullptr,                              // pNext
+        0,                                    // flags
         m_size,
         cvk_buffer::USAGE_FLAGS, // usage
         VK_SHARING_MODE_EXCLUSIVE,
-        0, // queueFamilyIndexCount
+        0,       // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
     };
 
@@ -192,32 +189,35 @@ bool cvk_buffer::init_subbuffer() {
     vkGetBufferMemoryRequirements(vkdev, m_buffer, &memreqs);
 
     if (m_size != memreqs.size) {
-        cvk_warn_fn("Sub-buffer %p requires more memory (%lu) than its size (%zu), "
-                    "you're on your own!", this, memreqs.size, m_size);
+        cvk_warn_fn(
+            "Sub-buffer %p requires more memory (%lu) than its size (%zu), "
+            "you're on your own!",
+            this, memreqs.size, m_size);
     }
 
     if (m_parent_offset % memreqs.alignment != 0) {
         cvk_warn_fn("Sub-buffer %p offset (%zu) does not satisfy the alignment "
                     "requirements (%lu) of the Vulkan implementation, "
-                    "you're on your own!", this, m_parent_offset, memreqs.alignment);
+                    "you're on your own!",
+                    this, m_parent_offset, memreqs.alignment);
     }
 
     // Bind the buffer to memory
-    cvk_mem *parent = m_parent;
+    cvk_mem* parent = m_parent;
     auto parent_buffer = static_cast<cvk_buffer*>(parent);
-    res = vkBindBufferMemory(vkdev, m_buffer, parent_buffer->m_memory, m_parent_offset);
+    res = vkBindBufferMemory(vkdev, m_buffer, parent_buffer->m_memory,
+                             m_parent_offset);
 
-    if(res != VK_SUCCESS) {
+    if (res != VK_SUCCESS) {
         return false;
     }
 
     return true;
 }
 
-cvk_sampler*
-cvk_sampler::create(cvk_context *context, bool normalized_coords,
-                    cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
-{
+cvk_sampler* cvk_sampler::create(cvk_context* context, bool normalized_coords,
+                                 cl_addressing_mode addressing_mode,
+                                 cl_filter_mode filter_mode) {
     auto sampler = std::make_unique<cvk_sampler>(context, normalized_coords,
                                                  addressing_mode, filter_mode);
 
@@ -228,8 +228,7 @@ cvk_sampler::create(cvk_context *context, bool normalized_coords,
     return sampler.release();
 }
 
-bool cvk_sampler::init()
-{
+bool cvk_sampler::init() {
     auto vkdev = context()->device()->vulkan_device();
 
     // Translate addressing mode
@@ -279,23 +278,23 @@ bool cvk_sampler::init()
     // TODO this is a rough first pass, dig into the details
     const VkSamplerCreateInfo create_info = {
         VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        nullptr, // pNext
-        0, // flags
-        filter, // magFilter
-        filter, // minFilter
-        mipmap_mode, // mipmapMode
-        address_mode, // addressModeU
-        address_mode, // addressModeV
-        address_mode, // addressModeW
-        0.0f, // mipLodBias
-        VK_FALSE, // anisotropyEnable
-        0.0f, // maxAnisotropy
-        VK_FALSE, // compareEnable
-        VK_COMPARE_OP_NEVER, // compareOp
-        0.0f, // minLod
-        0.0f, // maxLod
+        nullptr,                               // pNext
+        0,                                     // flags
+        filter,                                // magFilter
+        filter,                                // minFilter
+        mipmap_mode,                           // mipmapMode
+        address_mode,                          // addressModeU
+        address_mode,                          // addressModeV
+        address_mode,                          // addressModeW
+        0.0f,                                  // mipLodBias
+        VK_FALSE,                              // anisotropyEnable
+        0.0f,                                  // maxAnisotropy
+        VK_FALSE,                              // compareEnable
+        VK_COMPARE_OP_NEVER,                   // compareOp
+        0.0f,                                  // minLod
+        0.0f,                                  // maxLod
         VK_BORDER_COLOR_INT_TRANSPARENT_BLACK, // borderColor
-        unnormalized_coordinates, // unnormalizedCoordinates
+        unnormalized_coordinates,              // unnormalizedCoordinates
     };
 
     auto res = vkCreateSampler(vkdev, &create_info, nullptr, &m_sampler);
@@ -303,11 +302,11 @@ bool cvk_sampler::init()
     return (res == VK_SUCCESS);
 }
 
-cvk_image* cvk_image::create(cvk_context *ctx, cl_mem_flags flags,
-                             const cl_image_desc *desc,
-                             const cl_image_format *format, void *host_ptr)
-{
-    auto image = std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr);
+cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
+                             const cl_image_desc* desc,
+                             const cl_image_format* format, void* host_ptr) {
+    auto image =
+        std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr);
 
     if (!image->init()) {
         return nullptr;
@@ -316,10 +315,10 @@ cvk_image* cvk_image::create(cvk_context *ctx, cl_mem_flags flags,
     return image.release();
 }
 
-extern bool cl_image_format_to_vulkan_format(const cl_image_format &clfmt, VkFormat &format);
+extern bool cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
+                                             VkFormat& format);
 
-bool cvk_image::init()
-{
+bool cvk_image::init() {
     // Translate image type and size
     VkImageType image_type;
     VkImageViewType view_type;
@@ -380,20 +379,20 @@ bool cvk_image::init()
     // Create Image
     VkImageCreateInfo imageCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        nullptr, // pNext
-        0, // flags
-        image_type, // imageType
-        format, // format
-        extent, // extent
-        1, // mipLevels
-        array_layers, // arrayLayers
-        VK_SAMPLE_COUNT_1_BIT, // samples
+        nullptr,                 // pNext
+        0,                       // flags
+        image_type,              // imageType
+        format,                  // format
+        extent,                  // extent
+        1,                       // mipLevels
+        array_layers,            // arrayLayers
+        VK_SAMPLE_COUNT_1_BIT,   // samples
         VK_IMAGE_TILING_OPTIMAL, // tiling
         VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         VK_SHARING_MODE_EXCLUSIVE, // sharingMode
-        0, // queueFamilyIndexCount
-        nullptr, // pQueueFamilyIndices
+        0,                         // queueFamilyIndexCount
+        nullptr,                   // pQueueFamilyIndices
         VK_IMAGE_LAYOUT_UNDEFINED, // initialLayout
     };
 
@@ -412,7 +411,8 @@ bool cvk_image::init()
     cvk_debug_fn("Required memory type bits: %x", memreqs.memoryTypeBits);
 
     // Select memory type
-    uint32_t memoryTypeIndex = device->memory_type_index_for_image(memreqs.memoryTypeBits);
+    uint32_t memoryTypeIndex =
+        device->memory_type_index_for_image(memreqs.memoryTypeBits);
 
     if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
         cvk_error_fn("Could not get memory type!");
@@ -450,37 +450,37 @@ bool cvk_image::init()
 
     // Create image view
     VkComponentMapping components = {
-        VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY
-    };
+        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
 
     VkImageSubresourceRange subresource = {
         VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
-        0, // baseMipLevel
-        1, // levelCount
-        0, // baseArrayLayer
-        array_layers, // layerCount
+        0,                         // baseMipLevel
+        1,                         // levelCount
+        0,                         // baseArrayLayer
+        array_layers,              // layerCount
     };
 
     VkImageViewCreateInfo imageViewCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        nullptr, // pNext
-        0, // flags
-        m_image, // image
-        view_type, // viewType;
-        format, // format
-        components, // components
+        nullptr,     // pNext
+        0,           // flags
+        m_image,     // image
+        view_type,   // viewType;
+        format,      // format
+        components,  // components
         subresource, // subresourceRange
     };
 
-    res = vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr, &m_image_view);
+    res =
+        vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr, &m_image_view);
 
     return res == VK_SUCCESS;
 }
 
-void cvk_image::prepare_fill_pattern(const void *input_pattern, fill_pattern_array &pattern, size_t *size_ret) const {
+void cvk_image::prepare_fill_pattern(const void* input_pattern,
+                                     fill_pattern_array& pattern,
+                                     size_t* size_ret) const {
 
     auto pat_float = static_cast<const cl_float*>(input_pattern);
     auto pat_int = static_cast<const cl_int*>(input_pattern);
@@ -514,32 +514,26 @@ void cvk_image::prepare_fill_pattern(const void *input_pattern, fill_pattern_arr
     size_t size = element_size();
     *size_ret = size;
 
-    cl_uchar pat_unorm_int8[4] = {
-        static_cast<cl_uchar>(pat_float[0] * 255.0f),
-        static_cast<cl_uchar>(pat_float[1] * 255.0f),
-        static_cast<cl_uchar>(pat_float[2] * 255.0f),
-        static_cast<cl_uchar>(pat_float[3] * 255.0f)
-    };
-    cl_uchar pat_snorm_int8[4] = {
-        static_cast<cl_uchar>(pat_float[0] * 127.0f),
-        static_cast<cl_uchar>(pat_float[1] * 127.0f),
-        static_cast<cl_uchar>(pat_float[2] * 127.0f),
-        static_cast<cl_uchar>(pat_float[3] * 127.0f)
-    };
+    cl_uchar pat_unorm_int8[4] = {static_cast<cl_uchar>(pat_float[0] * 255.0f),
+                                  static_cast<cl_uchar>(pat_float[1] * 255.0f),
+                                  static_cast<cl_uchar>(pat_float[2] * 255.0f),
+                                  static_cast<cl_uchar>(pat_float[3] * 255.0f)};
+    cl_uchar pat_snorm_int8[4] = {static_cast<cl_uchar>(pat_float[0] * 127.0f),
+                                  static_cast<cl_uchar>(pat_float[1] * 127.0f),
+                                  static_cast<cl_uchar>(pat_float[2] * 127.0f),
+                                  static_cast<cl_uchar>(pat_float[3] * 127.0f)};
     cl_ushort pat_unorm_int16[4] = {
         static_cast<cl_ushort>(pat_float[0] * 65535.0f),
         static_cast<cl_ushort>(pat_float[1] * 65535.0f),
         static_cast<cl_ushort>(pat_float[2] * 65535.0f),
-        static_cast<cl_ushort>(pat_float[3] * 65535.0f)
-    };
+        static_cast<cl_ushort>(pat_float[3] * 65535.0f)};
     cl_ushort pat_snorm_int16[4] = {
         static_cast<cl_ushort>(pat_float[0] * 32767.0f),
         static_cast<cl_ushort>(pat_float[1] * 32767.0f),
         static_cast<cl_ushort>(pat_float[2] * 32767.0f),
-        static_cast<cl_ushort>(pat_float[3] * 32767.0f)
-    };
+        static_cast<cl_ushort>(pat_float[3] * 32767.0f)};
 
-    const void *cast_pattern = nullptr;
+    const void* cast_pattern = nullptr;
     switch (format().image_channel_data_type) {
     case CL_UNSIGNED_INT8:
         cast_pattern = &pat_uchar;
@@ -585,12 +579,15 @@ void cvk_image::prepare_fill_pattern(const void *input_pattern, fill_pattern_arr
         memcpy(pattern.data(), cast_pattern, size);
         break;
     case CL_BGRA:
-        memcpy(pattern.data() + 0 * csize, pointer_offset(cast_pattern, 2 * csize), csize);
-        memcpy(pattern.data() + 1 * csize, pointer_offset(cast_pattern, 1 * csize), csize);
-        memcpy(pattern.data() + 2 * csize, pointer_offset(cast_pattern, 0 * csize), csize);
-        memcpy(pattern.data() + 3 * csize, pointer_offset(cast_pattern, 3 * csize), csize);
+        memcpy(pattern.data() + 0 * csize,
+               pointer_offset(cast_pattern, 2 * csize), csize);
+        memcpy(pattern.data() + 1 * csize,
+               pointer_offset(cast_pattern, 1 * csize), csize);
+        memcpy(pattern.data() + 2 * csize,
+               pointer_offset(cast_pattern, 0 * csize), csize);
+        memcpy(pattern.data() + 3 * csize,
+               pointer_offset(cast_pattern, 3 * csize), csize);
     default:
         CVK_ASSERT(false);
     }
 }
-

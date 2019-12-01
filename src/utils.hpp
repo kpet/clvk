@@ -27,28 +27,29 @@
 #define CHECK_PRINTF(index, first)
 #endif
 
-enum loglevel {
+enum loglevel
+{
     fatal = 0,
     error = 1,
-    warn  = 2,
-    info  = 3,
+    warn = 2,
+    info = 3,
     debug = 4
 };
 
 char* cvk_mkdtemp(std::string& tmpl);
 
-void cvk_log(loglevel level, const char *fmt, ...) CHECK_PRINTF(2, 3);
+void cvk_log(loglevel level, const char* fmt, ...) CHECK_PRINTF(2, 3);
 
 #define cvk_fatal(fmt, ...) cvk_log(loglevel::fatal, fmt "\n", ##__VA_ARGS__)
 #define cvk_error(fmt, ...) cvk_log(loglevel::error, fmt "\n", ##__VA_ARGS__)
-#define cvk_warn(fmt, ...)  cvk_log(loglevel::warn,  fmt "\n", ##__VA_ARGS__)
-#define cvk_info(fmt, ...)  cvk_log(loglevel::info,  fmt "\n", ##__VA_ARGS__)
+#define cvk_warn(fmt, ...) cvk_log(loglevel::warn, fmt "\n", ##__VA_ARGS__)
+#define cvk_info(fmt, ...) cvk_log(loglevel::info, fmt "\n", ##__VA_ARGS__)
 #define cvk_debug(fmt, ...) cvk_log(loglevel::debug, fmt "\n", ##__VA_ARGS__)
 
 #define cvk_fatal_fn(fmt, ...) cvk_fatal("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_error_fn(fmt, ...) cvk_error("%s: " fmt, __func__, ##__VA_ARGS__)
-#define cvk_warn_fn(fmt, ...)  cvk_warn("%s: "  fmt, __func__, ##__VA_ARGS__)
-#define cvk_info_fn(fmt, ...)  cvk_info("%s: "  fmt, __func__, ##__VA_ARGS__)
+#define cvk_warn_fn(fmt, ...) cvk_warn("%s: " fmt, __func__, ##__VA_ARGS__)
+#define cvk_info_fn(fmt, ...) cvk_info("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_debug_fn(fmt, ...) cvk_debug("%s: " fmt, __func__, ##__VA_ARGS__)
 
 const char* vulkan_error_string(VkResult result);
@@ -63,34 +64,37 @@ static inline std::string vulkan_version_string(uint32_t version) {
     return ret;
 }
 
-#define CVK_VK_CHECK_INTERNAL(logfn, res, msg) do {                       \
-            if (res != VK_SUCCESS) {                                           \
-                logfn(msg " : %s", vulkan_error_string(res)); \
-            }                                                                  \
-        } while (0);
+#define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \
+    do {                                                                       \
+        if (res != VK_SUCCESS) {                                               \
+            logfn(msg " : %s", vulkan_error_string(res));                      \
+        }                                                                      \
+    } while (0);
 
-#define CVK_VK_CHECK_INTERNAL_RET(logfn, res, ret, msg) do {                       \
-            if (res != VK_SUCCESS) {                                           \
-                logfn(msg " : %s", vulkan_error_string(res)); \
-                return ret;                                                    \
-            }                                                                  \
-        } while (0);
+#define CVK_VK_CHECK_INTERNAL_RET(logfn, res, ret, msg)                        \
+    do {                                                                       \
+        if (res != VK_SUCCESS) {                                               \
+            logfn(msg " : %s", vulkan_error_string(res));                      \
+            return ret;                                                        \
+        }                                                                      \
+    } while (0);
 
 #define CVK_VK_CHECK_FATAL(res, msg) CVK_VK_CHECK_INTERNAL(cvk_fatal, res, msg)
 #define CVK_VK_CHECK_ERROR(res, msg) CVK_VK_CHECK_INTERNAL(cvk_error, res, msg)
-#define CVK_VK_CHECK_ERROR_RET(res, ret, msg) CVK_VK_CHECK_INTERNAL_RET(cvk_error, res, ret, msg)
+#define CVK_VK_CHECK_ERROR_RET(res, ret, msg)                                  \
+    CVK_VK_CHECK_INTERNAL_RET(cvk_error, res, ret, msg)
 
 #define CVK_ASSERT(cond) assert(cond)
 
-#define CVK_VK_GET_INSTANCE_PROC(name) \
-        PFN_##name fn##name = reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(gVkInstance, #name))
+#define CVK_VK_GET_INSTANCE_PROC(name)                                         \
+    PFN_##name fn##name = reinterpret_cast<PFN_##name>(                        \
+        vkGetInstanceProcAddr(gVkInstance, #name))
 
 #define UNUSED(X) ((void)(X))
 
 std::string pretty_size(uint64_t size);
 
-static inline void* pointer_offset(const void *ptr, size_t offset) {
+static inline void* pointer_offset(const void* ptr, size_t offset) {
     auto ptrint = reinterpret_cast<uintptr_t>(ptr);
     return reinterpret_cast<void*>(ptrint + offset);
 }
-

@@ -16,7 +16,7 @@
 
 static const size_t BUFFER_SIZE = 1024;
 
-static const char *program_source = R"(
+static const char* program_source = R"(
 kernel void test_simple(global uint4* out, constant uint4* c_data)
 {
     size_t gid = get_global_id(0);
@@ -24,8 +24,7 @@ kernel void test_simple(global uint4* out, constant uint4* c_data)
 }
 )";
 
-TEST_F(WithCommandQueue, SimpleUBO)
-{
+TEST_F(WithCommandQueue, SimpleUBO) {
     // Create kernel
     auto kernel = CreateKernel(program_source,
                                " -constant-args-ubo -inline-entry-points ",
@@ -34,7 +33,7 @@ TEST_F(WithCommandQueue, SimpleUBO)
     auto num_items = BUFFER_SIZE / sizeof(cl_uint);
     cl_int c_data[num_items];
     for (auto i = 0; i != num_items; ++i) {
-      c_data[i] = 1;
+        c_data[i] = 1;
     }
     auto c_buffer = CreateBuffer(CL_MEM_READ_ONLY, BUFFER_SIZE, nullptr);
 
@@ -59,15 +58,16 @@ TEST_F(WithCommandQueue, SimpleUBO)
     Finish();
 
     // Map the buffer
-    auto data = EnqueueMapBuffer<cl_int>(buffer, CL_TRUE, CL_MAP_READ, 0, BUFFER_SIZE);
+    auto data =
+        EnqueueMapBuffer<cl_int>(buffer, CL_TRUE, CL_MAP_READ, 0, BUFFER_SIZE);
 
     // Check the expected result
     bool success = true;
-    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_uint4); ++i) {
+    for (cl_uint i = 0; i < BUFFER_SIZE / sizeof(cl_uint4); ++i) {
         auto expected = i / 4 + 1;
         if (data[i] != static_cast<cl_uint>(expected)) {
-            printf("Failed comparison at data[%u]: expected %u but got %u\n",
-                   i, expected, data[i]);
+            printf("Failed comparison at data[%u]: expected %u but got %u\n", i,
+                   expected, data[i]);
             success = false;
         }
     }
@@ -78,4 +78,3 @@ TEST_F(WithCommandQueue, SimpleUBO)
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
-

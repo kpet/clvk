@@ -32,7 +32,8 @@
 
 const int SPIR_WORD_SIZE = 4;
 
-enum class kernel_argument_kind {
+enum class kernel_argument_kind
+{
     buffer,
     buffer_ubo,
     pod,
@@ -55,7 +56,8 @@ struct kernel_argument {
     uint32_t local_elem_size;
 
     bool is_pod() const {
-        return (kind == kernel_argument_kind::pod) || (kind == kernel_argument_kind::pod_ubo);
+        return (kind == kernel_argument_kind::pod) ||
+               (kind == kernel_argument_kind::pod_ubo);
     }
 };
 
@@ -69,47 +71,52 @@ struct sampler_desc {
 
 class spir_binary {
 
-    using kernels_arguments_map = std::unordered_map<std::string, std::vector<kernel_argument>>;
+    using kernels_arguments_map =
+        std::unordered_map<std::string, std::vector<kernel_argument>>;
     const uint32_t MAGIC = 0x00BEEF00;
 
 public:
     spir_binary(spv_target_env env) : m_loaded_from_binary(false) {
         m_context = spvContextCreate(env);
     }
-    ~spir_binary() {
-        spvContextDestroy(m_context);
-    }
-    CHECK_RETURN bool load_spir(const char *fname);
-    CHECK_RETURN bool load_spir(std::istream &istream, uint32_t size);
-    CHECK_RETURN bool load_descriptor_map(const char *fname);
-    CHECK_RETURN bool load_descriptor_map(std::istream &istream);
+    ~spir_binary() { spvContextDestroy(m_context); }
+    CHECK_RETURN bool load_spir(const char* fname);
+    CHECK_RETURN bool load_spir(std::istream& istream, uint32_t size);
+    CHECK_RETURN bool load_descriptor_map(const char* fname);
+    CHECK_RETURN bool load_descriptor_map(std::istream& istream);
 #ifdef CLSPV_ONLINE_COMPILER
-    CHECK_RETURN bool load_descriptor_map(const std::vector<clspv::version0::DescriptorMapEntry> &entries);
+    CHECK_RETURN bool load_descriptor_map(
+        const std::vector<clspv::version0::DescriptorMapEntry>& entries);
 #endif
-    void insert_descriptor_map(const spir_binary &other);
-    CHECK_RETURN bool save_spir(const char *fname) const;
-    CHECK_RETURN bool load(std::istream &istream);
-    CHECK_RETURN bool save(std::ostream &ostream) const;
-    CHECK_RETURN bool save(const char *fname) const;
-    CHECK_RETURN bool read(const unsigned char *src, size_t size);
-    CHECK_RETURN bool write(unsigned char *dst) const;
+    void insert_descriptor_map(const spir_binary& other);
+    CHECK_RETURN bool save_spir(const char* fname) const;
+    CHECK_RETURN bool load(std::istream& istream);
+    CHECK_RETURN bool save(std::ostream& ostream) const;
+    CHECK_RETURN bool save(const char* fname) const;
+    CHECK_RETURN bool read(const unsigned char* src, size_t size);
+    CHECK_RETURN bool write(unsigned char* dst) const;
     size_t size() const;
     bool loaded_from_binary() const { return m_loaded_from_binary; }
     size_t spir_size() const { return m_code.size() * sizeof(uint32_t); }
     const uint32_t* spir_data() const { return m_code.data(); }
-    void use(std::vector<uint32_t> &&src);
+    void use(std::vector<uint32_t>&& src);
     void set_target_env(spv_target_env env);
     const std::vector<uint32_t>& code() const { return m_code; };
     CHECK_RETURN bool validate() const;
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
-    std::vector<uint32_t> *raw_binary() { return &m_code; }
-    const std::vector<sampler_desc>& literal_samplers() { return m_literal_samplers; }
-    CHECK_RETURN bool get_capabilities(std::vector<spv::Capability> &capabilities) const;
+    std::vector<uint32_t>* raw_binary() { return &m_code; }
+    const std::vector<sampler_desc>& literal_samplers() {
+        return m_literal_samplers;
+    }
+    CHECK_RETURN bool
+    get_capabilities(std::vector<spv::Capability>& capabilities) const;
 
 private:
-    CHECK_RETURN bool parse_sampler(const std::vector<std::string> &tokens, int toknum);
-    CHECK_RETURN bool parse_kernel(const std::vector<std::string> &tokens, int toknum);
+    CHECK_RETURN bool parse_sampler(const std::vector<std::string>& tokens,
+                                    int toknum);
+    CHECK_RETURN bool parse_kernel(const std::vector<std::string>& tokens,
+                                   int toknum);
 
     spv_context m_context;
     std::vector<uint32_t> m_code;
@@ -119,7 +126,8 @@ private:
     bool m_loaded_from_binary;
 };
 
-enum class build_operation {
+enum class build_operation
+{
     build,
     compile,
     link
@@ -131,18 +139,15 @@ typedef struct _cl_program cvk_program;
 
 typedef struct _cl_program : public api_object {
 
-    _cl_program(cvk_context *ctx) :
-        api_object(ctx),
-        m_num_devices(1U),
-        m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
-        m_shader_module(VK_NULL_HANDLE)
-    {
+    _cl_program(cvk_context* ctx)
+        : api_object(ctx), m_num_devices(1U),
+          m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
+          m_shader_module(VK_NULL_HANDLE) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
 
-    _cl_program(cvk_context *ctx, const void *il, size_t length) :
-        _cl_program(ctx)
-    {
+    _cl_program(cvk_context* ctx, const void* il, size_t length)
+        : _cl_program(ctx) {
         m_il.resize(length);
         memcpy(m_il.data(), il, length);
     }
@@ -154,7 +159,7 @@ typedef struct _cl_program : public api_object {
         }
     }
 
-    void append_source(const char *src, size_t len) {
+    void append_source(const char* src, size_t len) {
         if (len != 0) {
             m_source.append(src, len);
         } else {
@@ -162,17 +167,13 @@ typedef struct _cl_program : public api_object {
         }
     }
 
-    const std::string& source() const {
-        return m_source;
-    }
+    const std::string& source() const { return m_source; }
 
-    const std::vector<uint8_t>& il() const {
-        return m_il;
-    }
+    const std::vector<uint8_t>& il() const { return m_il; }
 
     uint32_t num_devices() const { return m_num_devices; }
 
-    cl_program_binary_type binary_type(const cvk_device *) const {
+    cl_program_binary_type binary_type(const cvk_device*) const {
         return m_binary_type;
     }
 
@@ -183,11 +184,16 @@ typedef struct _cl_program : public api_object {
                  (binary_type(dev) == CL_PROGRAM_BINARY_TYPE_LIBRARY)));
     }
 
-    CHECK_RETURN bool build(build_operation operation, cl_uint num_devices, const cvk_device *const*device_list, const char *options, cl_uint num_input_programs, const cvk_program *const*input_programs, const char **header_include_names, cvk_program_callback cb, void *data);
+    CHECK_RETURN bool build(build_operation operation, cl_uint num_devices,
+                            const cvk_device* const* device_list,
+                            const char* options, cl_uint num_input_programs,
+                            const cvk_program* const* input_programs,
+                            const char** header_include_names,
+                            cvk_program_callback cb, void* data);
 
     const std::string& build_options() const { return m_build_options; }
 
-    cl_build_status build_status(const cvk_device *device) const {
+    cl_build_status build_status(const cvk_device* device) const {
         return m_dev_status.at(device);
     }
 
@@ -204,23 +210,21 @@ typedef struct _cl_program : public api_object {
     std::vector<const cvk_device*> devices() const {
         std::vector<const cvk_device*> ret;
 
-        for (auto &dev_st : m_dev_status) {
+        for (auto& dev_st : m_dev_status) {
             ret.push_back(dev_st.first);
         }
 
         return ret;
     }
 
-    VkShaderModule shader_module() const {
-        return m_shader_module;
-    }
+    VkShaderModule shader_module() const { return m_shader_module; }
 
     void wait_for_operation() {
         m_thread->join();
         delete m_thread;
     }
 
-    void complete_operation(cvk_device *device, cl_build_status status) {
+    void complete_operation(cvk_device* device, cl_build_status status) {
         m_dev_status[device] = status;
         m_lock.unlock();
         if (m_operation_callback != nullptr) {
@@ -233,7 +237,7 @@ typedef struct _cl_program : public api_object {
     bool loaded_from_binary() const { return m_binary.loaded_from_binary(); }
 
     const std::vector<kernel_argument>* args_for_kernel(std::string& name) {
-        auto const &args = m_binary.kernels_arguments().find(name);
+        auto const& args = m_binary.kernels_arguments().find(name);
         if (args != m_binary.kernels_arguments().end()) {
             return &args->second;
         } else {
@@ -241,21 +245,19 @@ typedef struct _cl_program : public api_object {
         }
     }
 
-    CHECK_RETURN bool read(const unsigned char *src, size_t size) {
+    CHECK_RETURN bool read(const unsigned char* src, size_t size) {
         return m_binary.read(src, size);
     }
 
-    CHECK_RETURN bool write(unsigned char *dst) const {
+    CHECK_RETURN bool write(unsigned char* dst) const {
         return m_binary.write(dst);
     }
 
-    size_t binary_size() const {
-        return m_binary.size();
-    }
+    size_t binary_size() const { return m_binary.size(); }
 
     std::vector<const char*> kernel_names() const {
         std::vector<const char*> ret;
-        for (auto &kname_args : m_binary.kernels_arguments()) {
+        for (auto& kname_args : m_binary.kernels_arguments()) {
             ret.push_back(kname_args.first.c_str());
         }
         return ret;
@@ -272,18 +274,18 @@ private:
 
     /// Check if all of the capabilities required by the SPIR-V module are
     /// supported by `device`.
-    CHECK_RETURN bool check_capabilities(const cvk_device *device) const;
+    CHECK_RETURN bool check_capabilities(const cvk_device* device) const;
 
     uint32_t m_num_devices;
     cl_uint m_num_input_programs;
     std::vector<const cvk_program*> m_input_programs;
-    std::vector<const char *> m_header_include_names;
+    std::vector<const char*> m_header_include_names;
     build_operation m_operation;
     cl_program_binary_type m_binary_type;
     cvk_program_callback m_operation_callback;
-    void *m_operation_callback_data;
+    void* m_operation_callback_data;
     std::mutex m_lock;
-    std::thread *m_thread;
+    std::thread* m_thread;
     std::string m_source;
     std::vector<uint8_t> m_il;
     VkShaderModule m_shader_module;
@@ -293,4 +295,3 @@ private:
     std::vector<cvk_sampler_holder> m_literal_samplers;
 
 } cvk_program;
-

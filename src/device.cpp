@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #include "device.hpp"
 #include "memory.hpp"
 #include "utils.hpp"
 
-cvk_device* cvk_device::create(VkPhysicalDevice pdev)
-{
-    cvk_device *device = new cvk_device(pdev);
+cvk_device* cvk_device::create(VkPhysicalDevice pdev) {
+    cvk_device* device = new cvk_device(pdev);
 
     if (!device->init()) {
         delete device;
@@ -29,19 +27,20 @@ cvk_device* cvk_device::create(VkPhysicalDevice pdev)
     return device;
 }
 
-bool cvk_device::init_queues(uint32_t *num_queues, uint32_t *queue_family)
-{
+bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     // Get number of queue families
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families, nullptr);
 
-    cvk_info_fn("physical device (%s) has %u queue families:",
-             vulkan_physical_device_type_string(m_properties.deviceType).c_str(),
-             num_families);
+    cvk_info_fn(
+        "physical device (%s) has %u queue families:",
+        vulkan_physical_device_type_string(m_properties.deviceType).c_str(),
+        num_families);
 
     // Get their properties
     std::vector<VkQueueFamilyProperties> families(num_families);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families, families.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families,
+                                             families.data());
 
     // Look for suitable queues
     bool found_queues = false;
@@ -49,9 +48,8 @@ bool cvk_device::init_queues(uint32_t *num_queues, uint32_t *queue_family)
     for (uint32_t i = 0; i < num_families; i++) {
 
         cvk_info_fn("queue family %u: %2u queues | %s", i,
-                families[i].queueCount,
-                vulkan_queue_flags_string(families[i].queueFlags).c_str()
-        );
+                    families[i].queueCount,
+                    vulkan_queue_flags_string(families[i].queueFlags).c_str());
 
         if (!found_queues && (families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
             *queue_family = i;
@@ -71,24 +69,29 @@ bool cvk_device::init_queues(uint32_t *num_queues, uint32_t *queue_family)
     return true;
 }
 
-bool cvk_device::init_extensions()
-{
+bool cvk_device::init_extensions() {
     uint32_t numext;
-    VkResult res = vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext, nullptr);
-    CVK_VK_CHECK_ERROR_RET(res, false, "Failed to get the number of device extension properties");
+    VkResult res =
+        vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext, nullptr);
+    CVK_VK_CHECK_ERROR_RET(
+        res, false, "Failed to get the number of device extension properties");
 
     cvk_info("%u device extension properties reported.", numext);
 
     std::vector<VkExtensionProperties> extensions(numext);
-    res = vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext, extensions.data());
-    CVK_VK_CHECK_ERROR_RET(res, false, "Could not enumerate device extension properties");
+    res = vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext,
+                                               extensions.data());
+    CVK_VK_CHECK_ERROR_RET(res, false,
+                           "Could not enumerate device extension properties");
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
-        m_vulkan_device_extensions.push_back(VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
-        m_vulkan_device_extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        m_vulkan_device_extensions.push_back(
+            VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
+        m_vulkan_device_extensions.push_back(
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
-    const std::vector<const char *> desired_extensions = {
+    const std::vector<const char*> desired_extensions = {
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
@@ -96,8 +99,7 @@ bool cvk_device::init_extensions()
 
     for (size_t i = 0; i < numext; i++) {
         cvk_info("Found extension %s, spec version %u",
-                 extensions[i].extensionName,
-                 extensions[i].specVersion);
+                 extensions[i].extensionName, extensions[i].specVersion);
 
         for (auto de : desired_extensions) {
             if (!strcmp(de, extensions[i].extensionName)) {
@@ -110,13 +112,14 @@ bool cvk_device::init_extensions()
     return true;
 }
 
-void cvk_device::init_features()
-{
+void cvk_device::init_features() {
     // Query supported features.
-    m_features_float16_int8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
+    m_features_float16_int8.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
     m_features_float16_int8.pNext = nullptr;
 
-    m_features_variable_pointer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;
+    m_features_variable_pointer.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;
     m_features_variable_pointer.pNext = &m_features_float16_int8;
 
     VkPhysicalDeviceFeatures2 supported_features;
@@ -159,33 +162,32 @@ void cvk_device::construct_extension_string() {
     m_extensions += "cl_khr_il_program ";
 }
 
-bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues, uint32_t queue_family)
-{
+bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
+                                                 uint32_t queue_family) {
     // Give all queues the same priority
     std::vector<float> queuePriorities(num_queues, 1.0f);
 
     VkDeviceQueueCreateInfo queueCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
         nullptr,
-        0, //flags
+        0, // flags
         queue_family,
         num_queues, // queueCount
-        queuePriorities.data()
-    };
-
+        queuePriorities.data()};
 
     // Create logical device
     const VkDeviceCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO, // sType
-        &m_features, // pNext
-        0, // flags
-        1, // queueCreateInfoCount
-        &queueCreateInfo, // pQueueCreateInfos,
-        0, // enabledLayerCount
-        nullptr, // ppEnabledLayerNames
-        static_cast<uint32_t>(m_vulkan_device_extensions.size()), // enabledExtensionCount
-        m_vulkan_device_extensions.data(), // ppEnabledExtensionNames
-        nullptr, // pEnabledFeatures
+        &m_features,                          // pNext
+        0,                                    // flags
+        1,                                    // queueCreateInfoCount
+        &queueCreateInfo,                     // pQueueCreateInfos,
+        0,                                    // enabledLayerCount
+        nullptr,                              // ppEnabledLayerNames
+        static_cast<uint32_t>(
+            m_vulkan_device_extensions.size()), // enabledExtensionCount
+        m_vulkan_device_extensions.data(),      // ppEnabledExtensionNames
+        nullptr,                                // pEnabledFeatures
     };
 
     VkResult res = vkCreateDevice(m_pdev, &createInfo, nullptr, &m_dev);
@@ -196,23 +198,23 @@ bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues, uint32_t q
         VkQueue queue;
 
         vkGetDeviceQueue(m_dev, queue_family, i, &queue);
-        m_vulkan_queues.emplace_back(cvk_vulkan_queue_wrapper(queue, queue_family));
+        m_vulkan_queues.emplace_back(
+            cvk_vulkan_queue_wrapper(queue, queue_family));
     }
 
     return true;
 }
 
-bool cvk_device::compute_buffer_alignement_requirements()
-{
+bool cvk_device::compute_buffer_alignement_requirements() {
     // Work out the required alignment for buffers
     const VkBufferCreateInfo bufferCreateInfo = {
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
-        nullptr, // pNext
-        0, // flags
-        1, // size
-        cvk_buffer::USAGE_FLAGS, // usage
+        nullptr,                              // pNext
+        0,                                    // flags
+        1,                                    // size
+        cvk_buffer::USAGE_FLAGS,              // usage
         VK_SHARING_MODE_EXCLUSIVE,
-        0, // queueFamilyIndexCount
+        0,       // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
     };
 
@@ -231,37 +233,40 @@ bool cvk_device::compute_buffer_alignement_requirements()
     return true;
 }
 
-void cvk_device::log_limits_and_memory_information()
-{
+void cvk_device::log_limits_and_memory_information() {
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
     cvk_info_fn("device's resources per stage limits:");
     cvk_info_fn("    total = %u", limits.maxPerStageResources);
-    cvk_info_fn("    uniform buffers = %u", limits.maxPerStageDescriptorUniformBuffers);
-    cvk_info_fn("    storage buffers = %u", limits.maxPerStageDescriptorStorageBuffers);
-    cvk_info_fn("device's max buffer size = %s", pretty_size(limits.maxStorageBufferRange).c_str());
+    cvk_info_fn("    uniform buffers = %u",
+                limits.maxPerStageDescriptorUniformBuffers);
+    cvk_info_fn("    storage buffers = %u",
+                limits.maxPerStageDescriptorStorageBuffers);
+    cvk_info_fn("device's max buffer size = %s",
+                pretty_size(limits.maxStorageBufferRange).c_str());
 
     // Print memoy information
-    cvk_info_fn("device has %u memory types:", m_mem_properties.memoryTypeCount);
+    cvk_info_fn("device has %u memory types:",
+                m_mem_properties.memoryTypeCount);
     for (uint32_t i = 0; i < m_mem_properties.memoryTypeCount; i++) {
         VkMemoryType memtype = m_mem_properties.memoryTypes[i];
         auto heapsize = m_mem_properties.memoryHeaps[memtype.heapIndex].size;
-        cvk_info_fn("    %u: heap = %u, %s | %s", i, memtype.heapIndex,
+        cvk_info_fn(
+            "    %u: heap = %u, %s | %s", i, memtype.heapIndex,
             pretty_size(heapsize).c_str(),
             vulkan_memory_property_flags_string(memtype.propertyFlags).c_str());
     }
-    
-    cvk_info_fn("device has %u memory heaps:", m_mem_properties.memoryHeapCount);
+
+    cvk_info_fn("device has %u memory heaps:",
+                m_mem_properties.memoryHeapCount);
     for (uint32_t i = 0; i < m_mem_properties.memoryHeapCount; i++) {
         VkMemoryHeap memheap = m_mem_properties.memoryHeaps[i];
-        cvk_info_fn("    %u: %s | %s", i,
-            pretty_size(memheap.size).c_str(),
-            vulkan_memory_property_flags_string(memheap.flags).c_str());
+        cvk_info_fn("    %u: %s | %s", i, pretty_size(memheap.size).c_str(),
+                    vulkan_memory_property_flags_string(memheap.flags).c_str());
     }
 }
 
-bool cvk_device::init()
-{
+bool cvk_device::init() {
     cvk_info_fn("Initialising device %s", m_properties.deviceName);
 
     uint32_t num_queues, queue_family;

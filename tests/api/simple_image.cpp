@@ -17,7 +17,7 @@
 static const size_t IMAGE_HEIGHT = 128;
 static const size_t IMAGE_WIDTH = 128;
 
-static const char *program_source = R"(
+static const char* program_source = R"(
 kernel void write(image2d_t write_only img)
 {
     int2 coord = {(int)get_global_id(0), (int)get_global_id(1)};
@@ -34,8 +34,7 @@ kernel void copy(image2d_t read_only img, sampler_t sampler, global float4 *buff
 }
 )";
 
-TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
-{
+TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage)) {
     // Create and build program
     auto program = CreateAndBuildProgram(program_source);
 
@@ -47,15 +46,15 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
     cl_image_format format = {CL_RGBA, CL_FLOAT};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE2D, // image_type
-        IMAGE_WIDTH, // image_width
-        IMAGE_HEIGHT, // image_height
-        1,   // image_depth
-        1,   // image_array_size
-        0,   // image_row_pitch
-        0,   // image_slice_pitch
-        0,   // num_mip_levels
-        0,   // num_samples
-        nullptr, // buffer
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
     };
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
 
@@ -65,7 +64,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
     // Create buffer
     auto buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(cl_float4);
     auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-                                         buffer_size, nullptr);
+                               buffer_size, nullptr);
 
     // Dispatch kernels
     size_t gws[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 0};
@@ -85,13 +84,15 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
     Finish();
 
     // Map the buffer
-    auto data = EnqueueMapBuffer<cl_float4>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+    auto data = EnqueueMapBuffer<cl_float4>(buffer, CL_TRUE, CL_MAP_READ, 0,
+                                            buffer_size);
 
     // Check the expected result
     bool success = true;
     for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
         auto val = data[i];
-        if ((val.x != 1.0f) || (val.y != 2.0f) || (val.z != 3.0f) || (val.w != 4.0f)) {
+        if ((val.x != 1.0f) || (val.y != 2.0f) || (val.z != 3.0f) ||
+            (val.w != 4.0f)) {
             printf("Failed comparison at data[%d]: "
                    "expected {1.0,2.0,3.0,4.0} but got {%f,%f,%f,%f}\n",
                    i, val.x, val.y, val.z, val.w);
@@ -104,4 +105,3 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(SimpleImage))
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
-

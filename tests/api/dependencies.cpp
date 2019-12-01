@@ -16,8 +16,7 @@
 
 static const size_t BUFFER_SIZE = 1024;
 
-TEST_F(WithCommandQueue, FailedAndCompleteDependencies)
-{
+TEST_F(WithCommandQueue, FailedAndCompleteDependencies) {
     // Create buffer
     auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
                                BUFFER_SIZE, nullptr);
@@ -31,7 +30,7 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies)
     SetUserEventStatus(event2, CL_COMPLETE);
 
     cl_int err;
-    void *ptr;
+    void* ptr;
 
     // Test fail then complete
     std::vector<cl_event> failedThenComplete = {event1, event2};
@@ -49,4 +48,3 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies)
 
     ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
 }
-

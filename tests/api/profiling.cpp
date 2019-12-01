@@ -14,14 +14,13 @@
 
 #include "testcl.hpp"
 
-static const char *program_source = R"(
+static const char* program_source = R"(
 kernel void donothing(int dummy)
 {
 }
 )";
 
-TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity)
-{
+TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "donothing");
 
@@ -52,7 +51,7 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity)
 
     // Check the delay between timestamps is less than a threshold.
     // This is meant to help with catching obvious time base differences.
-    auto max_diff = 500*1000*1000;
+    auto max_diff = 500 * 1000 * 1000;
     ASSERT_LT(ts_submit - ts_queued, max_diff);
     ASSERT_LT(ts_start - ts_submit, max_diff);
     ASSERT_LT(ts_end - ts_start, max_diff);

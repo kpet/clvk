@@ -16,9 +16,8 @@
 
 #include "testcl.hpp"
 
-TEST_F(WithContext, CreateImageLegacy)
-{
-    cl_image_format format = { CL_RGBA, CL_UNORM_INT8 };
+TEST_F(WithContext, CreateImageLegacy) {
+    cl_image_format format = {CL_RGBA, CL_UNORM_INT8};
 
     size_t width = 97, height = 135, depth = 7;
     size_t row_pitch = 128, slice_pitch = row_pitch * height;
@@ -48,13 +47,14 @@ TEST_F(WithContext, CreateImageLegacy)
     cl_mem_object_type qtype;
     GetMemObjectInfo(im2d, CL_MEM_TYPE, sizeof(qtype), &qtype, nullptr);
     EXPECT_EQ(qtype, CL_MEM_OBJECT_IMAGE2D);
-    void *qptr;
+    void* qptr;
     GetMemObjectInfo(im2d, CL_MEM_HOST_PTR, sizeof(qptr), &qptr, nullptr);
     EXPECT_EQ(qptr, static_cast<void*>(data));
 
     // Do the same for 3D images
-    auto im3d = clCreateImage3D(m_context, CL_MEM_READ_WRITE, &format, width,
-                                height, depth, row_pitch, slice_pitch, data, &err);
+    auto im3d =
+        clCreateImage3D(m_context, CL_MEM_READ_WRITE, &format, width, height,
+                        depth, row_pitch, slice_pitch, data, &err);
     ASSERT_CL_SUCCESS(err);
     GetImageInfo(im3d, CL_IMAGE_WIDTH, sizeof(qval), &qval, nullptr);
     EXPECT_EQ(qval, width);
@@ -79,8 +79,7 @@ TEST_F(WithContext, CreateImageLegacy)
     clReleaseMemObject(im3d);
 }
 
-TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
-{
+TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap)) {
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
 
@@ -88,15 +87,15 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
     cl_image_format format = {CL_RGBA, CL_FLOAT};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE2D, // image_type
-        IMAGE_WIDTH, // image_width
-        IMAGE_HEIGHT, // image_height
-        1,   // image_depth
-        1,   // image_array_size
-        0,   // image_row_pitch
-        0,   // image_slice_pitch
-        0,   // num_mip_levels
-        0,   // num_samples
-        nullptr, // buffer
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
     };
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
 
@@ -106,8 +105,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
     size_t row_pitch;
     auto data = EnqueueMapImage<cl_float4>(image, CL_BLOCKING,
                                            CL_MAP_WRITE_INVALIDATE_REGION,
-                                           origin, region,
-                                           &row_pitch, nullptr);
+                                           origin, region, &row_pitch, nullptr);
     size_t row_pitch_pixels = row_pitch / sizeof(cl_float4);
     // Fill with pattern
     for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
@@ -126,10 +124,10 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
     // Create a buffer
     auto buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(cl_float4);
     auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-                                         buffer_size, nullptr);
+                               buffer_size, nullptr);
 
     // Enqueue kernel to copy to a buffer
-    static const char *source = R"(
+    static const char* source = R"(
     kernel void copy(image2d_t read_only img, sampler_t sampler, uint row_pitch, global float4 *buffer)
 {
     uint x = get_global_id(0);
@@ -153,13 +151,15 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
     EnqueueNDRangeKernel(kernel, 2, nullptr, gws, lws);
 
     // Map the buffer
-    auto bdata = EnqueueMapBuffer<cl_float4>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+    auto bdata = EnqueueMapBuffer<cl_float4>(buffer, CL_TRUE, CL_MAP_READ, 0,
+                                             buffer_size);
 
     // Verify the content
     bool success = true;
     for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
         auto val = bdata[i];
-        if ((val.x != 1.0f) || (val.y != 2.0f) || (val.z != 3.0f) || (val.w != 4.0f)) {
+        if ((val.x != 1.0f) || (val.y != 2.0f) || (val.z != 3.0f) ||
+            (val.w != 4.0f)) {
             printf("Failed comparison at data[%d]: "
                    "expected {1.0,2.0,3.0,4.0} but got {%f,%f,%f,%f}\n",
                    i, val.x, val.y, val.z, val.w);
@@ -173,8 +173,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap))
     Finish();
 }
 
-TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
-{
+TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage) {
     // Create image
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
@@ -182,15 +181,15 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE2D, // image_type
-        IMAGE_WIDTH, // image_width
-        IMAGE_HEIGHT, // image_height
-        1,   // image_depth
-        1,   // image_array_size
-        0,   // image_row_pitch
-        0,   // image_slice_pitch
-        0,   // num_mip_levels
-        0,   // num_samples
-        nullptr, // buffer
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
     };
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
 
@@ -201,8 +200,7 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     size_t row_pitch;
     auto data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
                                           CL_MAP_WRITE_INVALIDATE_REGION,
-                                          origin, region,
-                                          &row_pitch, nullptr);
+                                          origin, region, &row_pitch, nullptr);
     size_t row_pitch_pixels = row_pitch / sizeof(int8_t);
 
     for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
@@ -215,10 +213,8 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     Finish();
 
     // Map for reading a region
-    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
-                                     CL_MAP_READ,
-                                     origin, region,
-                                     &row_pitch, nullptr);
+    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING, CL_MAP_READ, origin,
+                                     region, &row_pitch, nullptr);
     // Change pattern
     for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
         for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
@@ -231,10 +227,8 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     Finish();
 
     // Map again
-    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
-                                     CL_MAP_READ,
-                                     origin, region,
-                                     &row_pitch, nullptr);
+    data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING, CL_MAP_READ, origin,
+                                     region, &row_pitch, nullptr);
 
     // Check the new pattern isn't in the image
     bool success = true;
@@ -250,8 +244,8 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage)
     Finish();
 }
 
-TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyImageContent))
-{
+TEST_F(WithCommandQueue,
+       DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyImageContent)) {
     // Create an image
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
@@ -259,15 +253,15 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyIm
     cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE2D, // image_type
-        IMAGE_WIDTH, // image_width
-        IMAGE_HEIGHT, // image_height
-        1,   // image_depth
-        1,   // image_array_size
-        0,   // image_row_pitch
-        0,   // image_slice_pitch
-        0,   // num_mip_levels
-        0,   // num_samples
-        nullptr, // buffer
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
     };
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
 
@@ -278,8 +272,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyIm
     size_t row_pitch;
     auto data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
                                           CL_MAP_WRITE_INVALIDATE_REGION,
-                                          origin, region,
-                                          &row_pitch, nullptr);
+                                          origin, region, &row_pitch, nullptr);
     size_t row_pitch_pixels = row_pitch / sizeof(int8_t);
 
     for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
@@ -293,9 +286,8 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyIm
 
     // Map with CL_MAP_WRITE_INVALIDATE_REGION
     data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
-                                     CL_MAP_WRITE_INVALIDATE_REGION,
-                                     origin, region,
-                                     &row_pitch, nullptr);
+                                     CL_MAP_WRITE_INVALIDATE_REGION, origin,
+                                     region, &row_pitch, nullptr);
 
     // Check the pattern isn't visible
     bool success = false;
@@ -310,4 +302,3 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyIm
     EnqueueUnmapMemObject(image, data);
     Finish();
 }
-

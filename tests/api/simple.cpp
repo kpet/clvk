@@ -16,7 +16,7 @@
 
 static const size_t BUFFER_SIZE = 1024;
 
-static const char *program_source = R"(
+static const char* program_source = R"(
 kernel void test_simple(global uint* out)
 {
     size_t gid = get_global_id(0);
@@ -24,8 +24,7 @@ kernel void test_simple(global uint* out)
 }
 )";
 
-TEST_F(WithCommandQueue, Simple)
-{
+TEST_F(WithCommandQueue, Simple) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");
 
@@ -44,13 +43,15 @@ TEST_F(WithCommandQueue, Simple)
     Finish();
 
     // Map the buffer
-    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_WRITE, 0, BUFFER_SIZE);
+    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_WRITE, 0,
+                                          BUFFER_SIZE);
 
     // Check the expected result
-    for (cl_uint i = 0; i < BUFFER_SIZE/sizeof(cl_uint); ++i) {
+    for (cl_uint i = 0; i < BUFFER_SIZE / sizeof(cl_uint); ++i) {
         EXPECT_EQ(data[i], static_cast<cl_uint>(i));
         if (data[i] != static_cast<cl_uint>(i)) {
-            printf("Failed comparison at data[%u]: expected %u != got %u\n", i, i, data[i]);
+            printf("Failed comparison at data[%u]: expected %u != got %u\n", i,
+                   i, data[i]);
         }
     }
 
@@ -58,4 +59,3 @@ TEST_F(WithCommandQueue, Simple)
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
-

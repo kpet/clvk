@@ -35,7 +35,7 @@
 
 struct refcounted {
 
-    refcounted() : m_refcount(1) { }
+    refcounted() : m_refcount(1) {}
 
     virtual ~refcounted() = default;
 
@@ -53,33 +53,30 @@ struct refcounted {
         }
     }
 
-    unsigned int refcount() const {
-        return m_refcount.load();
-    }
+    unsigned int refcount() const { return m_refcount.load(); }
 
 private:
     std::atomic<unsigned int> m_refcount;
 };
 
-template<typename T>
-struct refcounted_holder {
+template <typename T> struct refcounted_holder {
 
     refcounted_holder() : m_refcounted(nullptr) {}
 
-    refcounted_holder(T *refcounted) : m_refcounted(refcounted) {
+    refcounted_holder(T* refcounted) : m_refcounted(refcounted) {
         if (m_refcounted != nullptr) {
             m_refcounted->retain();
         }
     }
 
-    refcounted_holder(const refcounted_holder &other) :
-        m_refcounted(other.m_refcounted) {
+    refcounted_holder(const refcounted_holder& other)
+        : m_refcounted(other.m_refcounted) {
         if (m_refcounted != nullptr) {
             m_refcounted->retain();
         }
     }
 
-    refcounted_holder(const refcounted_holder &&other) = delete;
+    refcounted_holder(const refcounted_holder&& other) = delete;
 
     ~refcounted_holder() {
         if (m_refcounted != nullptr) {
@@ -87,15 +84,11 @@ struct refcounted_holder {
         }
     }
 
-    T* operator->() const {
-        return m_refcounted;
-    }
+    T* operator->() const { return m_refcounted; }
 
-    operator T*() const {
-        return m_refcounted;
-    }
+    operator T*() const { return m_refcounted; }
 
-    refcounted_holder& operator=(const refcounted_holder& ) = delete;
+    refcounted_holder& operator=(const refcounted_holder&) = delete;
     refcounted_holder& operator=(const refcounted_holder&&) = delete;
 
     void reset(T* refc) {
@@ -109,12 +102,12 @@ struct refcounted_holder {
     }
 
 private:
-    T *m_refcounted;
+    T* m_refcounted;
 };
 
 typedef struct _cl_context : public refcounted {
 
-    _cl_context(cvk_device *device, const cl_context_properties* props)
+    _cl_context(cvk_device* device, const cl_context_properties* props)
         : m_device(device) {
 
         if (props) {
@@ -122,7 +115,7 @@ typedef struct _cl_context : public refcounted {
                 // Save name
                 m_properties.push_back(*props);
                 // Save value
-                m_properties.push_back(*(props+1));
+                m_properties.push_back(*(props + 1));
                 props += 2;
             }
             m_properties.push_back(*props);
@@ -139,7 +132,7 @@ typedef struct _cl_context : public refcounted {
     unsigned num_devices() const { return 1u; }
 
 private:
-    cvk_device *m_device;
+    cvk_device* m_device;
     std::vector<cl_context_properties> m_properties;
 
 } cvk_context;
@@ -148,10 +141,9 @@ using cvk_context_holder = refcounted_holder<cvk_context>;
 
 struct api_object : public refcounted {
 
-    api_object(cvk_context *context) : m_context(context) {}
+    api_object(cvk_context* context) : m_context(context) {}
     cvk_context* context() const { return m_context; }
 
 protected:
     cvk_context_holder m_context;
 };
-

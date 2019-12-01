@@ -17,12 +17,13 @@
 
 #include "testcl.hpp"
 
-#define RETURN_ON_CL_FAILURE(err, ret) do {                               \
-    if (err != CL_SUCCESS) {                                              \
-        printf("%s:%d Error after CL call: %d (%s)\n", __FILE__, __LINE__,\
-        err, cl_code_to_string(err));                                     \
-        return ret;                                                       \
-    }                                                                     \
+#define RETURN_ON_CL_FAILURE(err, ret)                                         \
+    do {                                                                       \
+        if (err != CL_SUCCESS) {                                               \
+            printf("%s:%d Error after CL call: %d (%s)\n", __FILE__, __LINE__, \
+                   err, cl_code_to_string(err));                               \
+            return ret;                                                        \
+        }                                                                      \
     } while (0)
 
 cl_device_id get_device() {
@@ -34,7 +35,7 @@ cl_device_id get_device() {
     RETURN_ON_CL_FAILURE(err, nullptr);
 
     size_t platform_name_len;
-    err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 0 , nullptr,
+    err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 0, nullptr,
                             &platform_name_len);
     RETURN_ON_CL_FAILURE(err, nullptr);
 

@@ -25,9 +25,7 @@
 #include "utils.hpp"
 #include "vkutils.hpp"
 
-static constexpr bool devices_support_images() {
-    return true;
-}
+static constexpr bool devices_support_images() { return true; }
 
 typedef struct _cl_device_id cvk_device;
 
@@ -40,29 +38,29 @@ typedef struct _cl_device_id {
 
     static cvk_device* create(VkPhysicalDevice pdev);
 
-    virtual ~_cl_device_id() {
-        vkDestroyDevice(m_dev, nullptr);
-    }
+    virtual ~_cl_device_id() { vkDestroyDevice(m_dev, nullptr); }
 
-    const VkPhysicalDeviceLimits& vulkan_limits() const { return m_properties.limits; }
+    const VkPhysicalDeviceLimits& vulkan_limits() const {
+        return m_properties.limits;
+    }
     const char* name() const { return m_properties.deviceName; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
-
 
     CHECK_RETURN uint32_t memory_type_index() const {
 
         uint32_t desiredMemoryTypes[] = {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         };
 
         for (auto mt : desiredMemoryTypes) {
             for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
-                if ((m_mem_properties.memoryTypes[k].propertyFlags & mt) == mt) {
+                if ((m_mem_properties.memoryTypes[k].propertyFlags & mt) ==
+                    mt) {
                     return k;
                 }
             }
@@ -71,7 +69,8 @@ typedef struct _cl_device_id {
         return VK_MAX_MEMORY_TYPES;
     }
 
-    CHECK_RETURN uint32_t memory_type_index_for_image(uint32_t memory_type_bits) const {
+    CHECK_RETURN uint32_t
+    memory_type_index_for_image(uint32_t memory_type_bits) const {
         for (auto i = 0u; i < 31; i++) {
             if ((1ULL << i) & memory_type_bits) {
                 return i;
@@ -96,17 +95,13 @@ typedef struct _cl_device_id {
         return std::min(max_buffer_size, actual_memory_size());
     }
 
-    cl_uint mem_base_addr_align() const {
-        return m_mem_base_addr_align;
-    }
+    cl_uint mem_base_addr_align() const { return m_mem_base_addr_align; }
 
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
 
-    CHECK_RETURN const std::string& extensions() const {
-        return m_extensions;
-    }
+    CHECK_RETURN const std::string& extensions() const { return m_extensions; }
 
     /// Returns true if the device supports the given SPIR-V capability.
     CHECK_RETURN bool supports_capability(spv::Capability capability) const;
@@ -156,7 +151,7 @@ typedef struct _cl_device_id {
     cvk_vulkan_queue_wrapper& vulkan_queue_allocate() {
         // Simple round-robin allocation for now
 
-        auto &queue = m_vulkan_queues[m_vulkan_queue_alloc_index++];
+        auto& queue = m_vulkan_queues[m_vulkan_queue_alloc_index++];
 
         if (m_vulkan_queue_alloc_index == m_vulkan_queues.size()) {
             m_vulkan_queue_alloc_index = 0;
@@ -170,7 +165,8 @@ typedef struct _cl_device_id {
             return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN;
         }
 
-        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && m_features.features.shaderFloat64) {
+        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) &&
+            m_features.features.shaderFloat64) {
             return CL_FP_FMA | CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
                    CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_DENORM;
         }
@@ -178,20 +174,17 @@ typedef struct _cl_device_id {
         return 0;
     }
 
-    VkPhysicalDevice vulkan_physical_device() const {
-        return m_pdev;
-    }
+    VkPhysicalDevice vulkan_physical_device() const { return m_pdev; }
 
-    VkDevice vulkan_device() const {
-        return m_dev;
-    }
+    VkDevice vulkan_device() const { return m_dev; }
 
 private:
-    CHECK_RETURN bool init_queues(uint32_t *num_queues, uint32_t *queue_family);
+    CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
     void init_features();
     void construct_extension_string();
-    CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues, uint32_t queue_family);
+    CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
+                                                      uint32_t queue_family);
     CHECK_RETURN bool compute_buffer_alignement_requirements();
     void log_limits_and_memory_information();
     CHECK_RETURN bool init();
@@ -216,4 +209,3 @@ private:
 typedef struct _cl_platform_id {
     std::vector<cvk_device*> devices;
 } cvk_platform;
-

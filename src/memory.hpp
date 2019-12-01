@@ -18,11 +18,11 @@
 
 #include "objects.hpp"
 
-using cvk_mem_callback_pointer_type = void (*) (cl_mem mem, void *user_data);
+using cvk_mem_callback_pointer_type = void (*)(cl_mem mem, void* user_data);
 
 struct cvk_mem_callback {
     cvk_mem_callback_pointer_type pointer;
-    void *data;
+    void* data;
 };
 
 typedef struct _cl_mem cvk_mem;
@@ -30,24 +30,16 @@ using cvk_mem_holder = refcounted_holder<cvk_mem>;
 
 typedef struct _cl_mem : public api_object {
 
-    _cl_mem(cvk_context *ctx, cl_mem_flags flags, size_t size, void *host_ptr,
-            cvk_mem *parent, size_t parent_offset, cl_mem_object_type type) :
-        api_object(ctx),
-        m_type(type),
-        m_flags(flags),
-        m_map_count(0),
-        m_size(size),
-        m_host_ptr(host_ptr),
-        m_parent(parent),
-        m_parent_offset(parent_offset),
-        m_memory(VK_NULL_HANDLE)
-{
+    _cl_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
+            cvk_mem* parent, size_t parent_offset, cl_mem_object_type type)
+        : api_object(ctx), m_type(type), m_flags(flags), m_map_count(0),
+          m_size(size), m_host_ptr(host_ptr), m_parent(parent),
+          m_parent_offset(parent_offset), m_memory(VK_NULL_HANDLE) {
         if (m_parent != nullptr) {
 
             // Handle flag inheritance
-            cl_mem_flags access_flags = CL_MEM_READ_WRITE |
-                                        CL_MEM_READ_ONLY |
-                                        CL_MEM_WRITE_ONLY;
+            cl_mem_flags access_flags =
+                CL_MEM_READ_WRITE | CL_MEM_READ_ONLY | CL_MEM_WRITE_ONLY;
 
             if ((m_flags & access_flags) == 0) {
                 m_flags |= m_parent->m_flags & access_flags;
@@ -72,7 +64,6 @@ typedef struct _cl_mem : public api_object {
         }
     }
 
-
     virtual ~_cl_mem() {
         auto device = m_context->device()->vulkan_device();
 
@@ -80,7 +71,8 @@ typedef struct _cl_mem : public api_object {
             vkFreeMemory(device, m_memory, nullptr);
         }
 
-        for (auto cbi = m_callbacks.rbegin(); cbi != m_callbacks.rend(); ++cbi) {
+        for (auto cbi = m_callbacks.rbegin(); cbi != m_callbacks.rend();
+             ++cbi) {
             auto cb = *cbi;
             cb.pointer(this, cb.data);
         }
@@ -103,13 +95,9 @@ typedef struct _cl_mem : public api_object {
                 (type == CL_MEM_OBJECT_IMAGE3D));
     }
 
-    bool is_image_type() const {
-        return is_image_type(type());
-    }
+    bool is_image_type() const { return is_image_type(type()); }
 
-    bool is_buffer_type() const {
-        return type() == CL_MEM_OBJECT_BUFFER;
-    }
+    bool is_buffer_type() const { return type() == CL_MEM_OBJECT_BUFFER; }
 
     bool is_sub_buffer() const {
         return is_buffer_type() && (parent() != nullptr);
@@ -123,7 +111,8 @@ typedef struct _cl_mem : public api_object {
         return (m_flags & flags) != 0;
     }
 
-    void add_destructor_callback(cvk_mem_callback_pointer_type ptr, void *user_data) {
+    void add_destructor_callback(cvk_mem_callback_pointer_type ptr,
+                                 void* user_data) {
         cvk_mem_callback cb = {ptr, user_data};
         m_callbacks.push_back(cb);
     }
@@ -136,9 +125,9 @@ typedef struct _cl_mem : public api_object {
     bool CHECK_RETURN map();
     void unmap();
 
-    bool CHECK_RETURN copy_to(void *dst, size_t offset, size_t size) {
+    bool CHECK_RETURN copy_to(void* dst, size_t offset, size_t size) {
         if (map()) {
-            void *src = pointer_offset(m_map_ptr, offset);
+            void* src = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
             unmap();
             return true;
@@ -146,10 +135,11 @@ typedef struct _cl_mem : public api_object {
         return false;
     }
 
-    bool CHECK_RETURN copy_to(cvk_mem *dst, size_t src_offset, size_t dst_offset, size_t size) {
+    bool CHECK_RETURN copy_to(cvk_mem* dst, size_t src_offset,
+                              size_t dst_offset, size_t size) {
         if (map() && dst->map()) {
-            void *src_ptr = pointer_offset(m_map_ptr, src_offset);
-            void *dst_ptr = pointer_offset(dst->host_va(), dst_offset);
+            void* src_ptr = pointer_offset(m_map_ptr, src_offset);
+            void* dst_ptr = pointer_offset(dst->host_va(), dst_offset);
             memcpy(dst_ptr, src_ptr, size);
             dst->unmap();
             unmap();
@@ -158,9 +148,9 @@ typedef struct _cl_mem : public api_object {
         return false;
     }
 
-    bool CHECK_RETURN copy_from(const void *src, size_t offset, size_t size) {
+    bool CHECK_RETURN copy_from(const void* src, size_t offset, size_t size) {
         if (map()) {
-            void *dst = pointer_offset(m_map_ptr, offset);
+            void* dst = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
             unmap();
             return true;
@@ -169,16 +159,16 @@ typedef struct _cl_mem : public api_object {
     }
 
 private:
-
     cl_mem_object_type m_type;
     std::mutex m_map_lock;
     cl_mem_flags m_flags;
     uint32_t m_map_count;
-    void *m_map_ptr;
+    void* m_map_ptr;
     std::vector<cvk_mem_callback> m_callbacks;
+
 protected:
     size_t m_size;
-    void *m_host_ptr;
+    void* m_host_ptr;
     cvk_mem_holder m_parent;
     size_t m_parent_offset;
     VkDeviceMemory m_memory;
@@ -187,14 +177,12 @@ protected:
 
 struct cvk_buffer : public cvk_mem {
 
-    static const VkBufferUsageFlags USAGE_FLAGS = \
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | \
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | \
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | \
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    static const VkBufferUsageFlags USAGE_FLAGS =
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-    cvk_buffer(cvk_context *ctx, cl_mem_flags flags, size_t size, void *host_ptr,
-               cvk_mem *parent, size_t parent_offset)
+    cvk_buffer(cvk_context* ctx, cl_mem_flags flags, size_t size,
+               void* host_ptr, cvk_mem* parent, size_t parent_offset)
         : cvk_mem(ctx, flags, size, host_ptr, parent, parent_offset,
                   CL_MEM_OBJECT_BUFFER),
           m_buffer(VK_NULL_HANDLE) {}
@@ -204,15 +192,16 @@ struct cvk_buffer : public cvk_mem {
         vkDestroyBuffer(vkdev, m_buffer, nullptr);
     }
 
-    static std::unique_ptr<cvk_buffer> create(cvk_context *context, cl_mem_flags,
-                                           size_t size, void *host_ptr,
-                                           cl_int *errcode_ret);
+    static std::unique_ptr<cvk_buffer> create(cvk_context* context,
+                                              cl_mem_flags, size_t size,
+                                              void* host_ptr,
+                                              cl_int* errcode_ret);
     cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
 
     VkBuffer vulkan_buffer() const { return m_buffer; }
 
     void* map_ptr(size_t offset) const {
-        void *ptr;
+        void* ptr;
         if (has_flags(CL_MEM_USE_HOST_PTR)) {
             ptr = host_ptr();
         } else {
@@ -235,13 +224,11 @@ using cvk_sampler_holder = refcounted_holder<cvk_sampler>;
 
 typedef struct _cl_sampler : public api_object {
 
-    _cl_sampler(cvk_context *context, bool normalized_coords,
-                cl_addressing_mode addressing_mode, cl_filter_mode filter_mode) :
-        api_object(context),
-        m_normalized_coords(normalized_coords),
-        m_addressing_mode(addressing_mode),
-        m_filter_mode(filter_mode),
-        m_sampler(VK_NULL_HANDLE) {}
+    _cl_sampler(cvk_context* context, bool normalized_coords,
+                cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
+        : api_object(context), m_normalized_coords(normalized_coords),
+          m_addressing_mode(addressing_mode), m_filter_mode(filter_mode),
+          m_sampler(VK_NULL_HANDLE) {}
 
     ~_cl_sampler() {
         if (m_sampler != VK_NULL_HANDLE) {
@@ -250,7 +237,7 @@ typedef struct _cl_sampler : public api_object {
         }
     }
 
-    static cvk_sampler* create(cvk_context *context, bool normalized_coords,
+    static cvk_sampler* create(cvk_context* context, bool normalized_coords,
                                cl_addressing_mode addressing_mode,
                                cl_filter_mode filter_mode);
 
@@ -271,20 +258,18 @@ struct cvk_image_mapping {
     cvk_buffer* buffer;
     std::array<size_t, 3> origin;
     std::array<size_t, 3> region;
-    void *ptr;
+    void* ptr;
     cl_map_flags flags;
 };
 
 struct cvk_image : public cvk_mem {
 
-    cvk_image(cvk_context *ctx, cl_mem_flags flags, const cl_image_desc *desc,
-              const cl_image_format *format, void *host_ptr)
-        : cvk_mem(ctx, flags, /* FIXME size */ 0,
-                  host_ptr, /* FIXME parent */ nullptr,
+    cvk_image(cvk_context* ctx, cl_mem_flags flags, const cl_image_desc* desc,
+              const cl_image_format* format, void* host_ptr)
+        : cvk_mem(ctx, flags, /* FIXME size */ 0, host_ptr,
+                  /* FIXME parent */ nullptr,
                   /* FIXME parent_offset */ 0, desc->image_type),
-          m_desc(*desc),
-          m_format(*format),
-          m_image(VK_NULL_HANDLE),
+          m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
           m_image_view(VK_NULL_HANDLE) {}
 
     ~cvk_image() {
@@ -297,9 +282,9 @@ struct cvk_image : public cvk_mem {
         }
     }
 
-    static cvk_image* create(cvk_context *ctx, cl_mem_flags flags,
-                             const cl_image_desc *desc,
-                             const cl_image_format *format, void *host_ptr);
+    static cvk_image* create(cvk_context* ctx, cl_mem_flags flags,
+                             const cl_image_desc* desc,
+                             const cl_image_format* format, void* host_ptr);
 
     VkImage vulkan_image() const { return m_image; }
     VkImageView vulkan_image_view() const { return m_image_view; }
@@ -317,7 +302,6 @@ struct cvk_image : public cvk_mem {
     cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
     cl_uint num_samples() const { return m_desc.num_samples; }
 
-
     bool has_same_format(const cvk_image* other) const {
         auto fmt = format();
         auto ofmt = other->format();
@@ -325,7 +309,7 @@ struct cvk_image : public cvk_mem {
                fmt.image_channel_data_type == ofmt.image_channel_data_type;
     }
 
-    bool find_or_create_mapping(cvk_image_mapping &mapping,
+    bool find_or_create_mapping(cvk_image_mapping& mapping,
                                 std::array<size_t, 3> origin,
                                 std::array<size_t, 3> region,
                                 cl_map_flags flags) {
@@ -336,7 +320,8 @@ struct cvk_image : public cvk_mem {
         // TODO adapt flags depending on the map flags
         auto buffer_size = element_size() * region[0] * region[1] * region[2];
         cl_int err;
-        auto buffer = cvk_buffer::create(context(), CL_MEM_READ_WRITE, buffer_size, nullptr, &err);
+        auto buffer = cvk_buffer::create(context(), CL_MEM_READ_WRITE,
+                                         buffer_size, nullptr, &err);
 
         if (err != CL_SUCCESS) {
             return false;
@@ -358,7 +343,7 @@ struct cvk_image : public cvk_mem {
         return true;
     }
 
-    cvk_image_mapping remove_mapping(void *ptr) {
+    cvk_image_mapping remove_mapping(void* ptr) {
         CVK_ASSERT(m_mappings.count(ptr) > 0);
         auto mapping = m_mappings.at(ptr);
         m_mappings.erase(ptr);
@@ -369,7 +354,7 @@ struct cvk_image : public cvk_mem {
         return mapping;
     }
 
-    cvk_image_mapping mapping_for(void *ptr) {
+    cvk_image_mapping mapping_for(void* ptr) {
         CVK_ASSERT(m_mappings.count(ptr) > 0);
         auto mapping = m_mappings.at(ptr);
         return mapping;
@@ -377,12 +362,14 @@ struct cvk_image : public cvk_mem {
 
     static constexpr int MAX_NUM_CHANNELS = 4;
     static constexpr int MAX_CHANNEL_SIZE = 4;
-    static constexpr int FILL_PATTERN_MAX_SIZE = MAX_NUM_CHANNELS * MAX_CHANNEL_SIZE;
+    static constexpr int FILL_PATTERN_MAX_SIZE =
+        MAX_NUM_CHANNELS * MAX_CHANNEL_SIZE;
     using fill_pattern_array = std::array<char, FILL_PATTERN_MAX_SIZE>;
-    void prepare_fill_pattern(const void *input_pattern, fill_pattern_array& pattern, size_t *size_ret) const;
+    void prepare_fill_pattern(const void* input_pattern,
+                              fill_pattern_array& pattern,
+                              size_t* size_ret) const;
 
 private:
-
     bool init();
 
     size_t num_channels() const {
@@ -442,4 +429,3 @@ private:
 };
 
 using cvk_image_holder = refcounted_holder<cvk_image>;
-

@@ -20,15 +20,11 @@
 
 cvk_executor_thread_pool gThreadPool;
 
-_cl_command_queue::_cl_command_queue(cvk_context *ctx, cvk_device *device,
-                                     cl_command_queue_properties properties) :
-    api_object(ctx),
-    m_device(device),
-    m_properties(properties),
-    m_executor(nullptr),
-    m_vulkan_queue(device->vulkan_queue_allocate()),
-    m_command_pool(device->vulkan_device(), m_vulkan_queue.queue_family())
-{
+_cl_command_queue::_cl_command_queue(cvk_context* ctx, cvk_device* device,
+                                     cl_command_queue_properties properties)
+    : api_object(ctx), m_device(device), m_properties(properties),
+      m_executor(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
+      m_command_pool(device->vulkan_device(), m_vulkan_queue.queue_family()) {
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
@@ -51,7 +47,7 @@ _cl_command_queue::~_cl_command_queue() {
     }
 }
 
-void cvk_command_queue::enqueue_command(cvk_command *cmd, cvk_event **event) {
+void cvk_command_queue::enqueue_command(cvk_command* cmd, cvk_event** event) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -59,7 +55,8 @@ void cvk_command_queue::enqueue_command(cvk_command *cmd, cvk_event **event) {
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
 
-    cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_QUEUED);
+    cmd->event()->set_profiling_info_from_monotonic_clock(
+        CL_PROFILING_COMMAND_QUEUED);
 
     if (event != nullptr) {
         // The event will be returned to the app, retain it for the user
@@ -69,17 +66,20 @@ void cvk_command_queue::enqueue_command(cvk_command *cmd, cvk_event **event) {
     }
 }
 
-void cvk_command_queue::enqueue_command_with_deps(cvk_command *cmd, cl_uint num_dep_events,
-                                                  cvk_event *const* dep_events, cvk_event **event) {
+void cvk_command_queue::enqueue_command_with_deps(cvk_command* cmd,
+                                                  cl_uint num_dep_events,
+                                                  cvk_event* const* dep_events,
+                                                  cvk_event** event) {
     cmd->set_dependencies(num_dep_events, dep_events);
     enqueue_command(cmd, event);
 }
 
-cl_int cvk_command_queue::enqueue_command_with_deps(cvk_command *cmd, bool blocking, cl_uint num_dep_events,
-                                                    cvk_event *const* dep_events, cvk_event **event) {
+cl_int cvk_command_queue::enqueue_command_with_deps(
+    cvk_command* cmd, bool blocking, cl_uint num_dep_events,
+    cvk_event* const* dep_events, cvk_event** event) {
     cmd->set_dependencies(num_dep_events, dep_events);
 
-    cvk_event *evt;
+    cvk_event* evt;
     enqueue_command(cmd, &evt);
 
     cl_int err = CL_SUCCESS;
@@ -98,13 +98,13 @@ cl_int cvk_command_queue::enqueue_command_with_deps(cvk_command *cmd, bool block
 }
 
 cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
-                                          const cl_event *event_list){
+                                          const cl_event* event_list) {
     cl_int ret = CL_SUCCESS;
 
     // Create set of queues to flush
     std::unordered_set<cvk_command_queue*> queues_to_flush;
     for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event *event = event_list[i];
+        cvk_event* event = event_list[i];
 
         if (!event->is_user_event()) {
             queues_to_flush.insert(event->queue());
@@ -121,7 +121,7 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 
     // Now wait for all the events
     for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event *event = event_list[i];
+        cvk_event* event = event_list[i];
         if (event->wait() != CL_COMPLETE) {
             ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
         }
@@ -153,18 +153,20 @@ void cvk_executor_thread::executor() {
 
         while (group->commands.size() > 0) {
 
-            cvk_command *cmd = group->commands.front();
+            cvk_command* cmd = group->commands.front();
             cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
 
             if (m_profiling && cmd->is_profiled_by_executor()) {
-                cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_START);
+                cmd->event()->set_profiling_info_from_monotonic_clock(
+                    CL_PROFILING_COMMAND_START);
             }
 
             cl_int status = cmd->execute();
             cvk_debug_fn("command returned %d", status);
 
             if (m_profiling && cmd->is_profiled_by_executor()) {
-                cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_END);
+                cmd->event()->set_profiling_info_from_monotonic_clock(
+                    CL_PROFILING_COMMAND_END);
             }
 
             cmd->event()->set_status(status);
@@ -201,7 +203,8 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     for (auto cmd : group->commands) {
         cmd->event()->set_status(CL_SUBMITTED);
         if (has_property(CL_QUEUE_PROFILING_ENABLE)) {
-            cmd->event()->set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_SUBMIT);
+            cmd->event()->set_profiling_info_from_monotonic_clock(
+                CL_PROFILING_COMMAND_SUBMIT);
         }
     }
 
@@ -226,19 +229,18 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     return CL_SUCCESS;
 }
 
-VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer *cmdbuf) {
+VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
     VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
-      VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-      0,
-      m_command_pool,
-      VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      1 // commandBufferCount
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, 0, m_command_pool,
+        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        1 // commandBufferCount
     };
 
-    return vkAllocateCommandBuffers(m_device, &commandBufferAllocateInfo, cmdbuf);
+    return vkAllocateCommandBuffers(m_device, &commandBufferAllocateInfo,
+                                    cmdbuf);
 }
 
 void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
@@ -255,8 +257,7 @@ bool cvk_command_buffer::begin() {
     m_queue->command_pool_lock();
 
     VkCommandBufferBeginInfo beginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        nullptr,
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr,
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
         nullptr // pInheritanceInfo
     };
@@ -270,7 +271,7 @@ bool cvk_command_buffer::begin() {
 }
 
 bool cvk_command_buffer::submit_and_wait() {
-    auto &queue = m_queue->vulkan_queue();
+    auto& queue = m_queue->vulkan_queue();
 
     VkResult res = queue.submit(m_command_buffer);
 
@@ -301,7 +302,8 @@ cl_int cvk_command_kernel::build() {
         }
     }
 
-    if (m_wg_size[0] * m_wg_size[1] * m_wg_size[2] > vklimits.maxComputeWorkGroupInvocations) {
+    if (m_wg_size[0] * m_wg_size[1] * m_wg_size[2] >
+        vklimits.maxComputeWorkGroupInvocations) {
         return CL_INVALID_WORK_GROUP_SIZE;
     }
 
@@ -312,7 +314,8 @@ cl_int cvk_command_kernel::build() {
     }
 
     // TODO check against the size specified at compile time, if any
-    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been specified.
+    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
+    // specified.
 
     // Setup descriptors
     if (!m_kernel->setup_descriptor_set(&m_descriptor_set, m_argument_values)) {
@@ -323,10 +326,10 @@ cl_int cvk_command_kernel::build() {
     VkQueryPoolCreateInfo query_pool_create_info = {
         VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
         nullptr,
-        0, // flags
-        VK_QUERY_TYPE_TIMESTAMP, // queryType
+        0,                           // flags
+        VK_QUERY_TYPE_TIMESTAMP,     // queryType
         NUM_POOL_QUERIES_PER_KERNEL, // queryCount
-        0, // pipelineStatistics
+        0,                           // pipelineStatistics
     };
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
@@ -350,20 +353,15 @@ cl_int cvk_command_kernel::build() {
         {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
     };
 
-    std::vector<uint32_t> specConstantData = {
-        m_wg_size[0],
-        m_wg_size[1],
-        m_wg_size[2]
-    };
+    std::vector<uint32_t> specConstantData = {m_wg_size[0], m_wg_size[1],
+                                              m_wg_size[2]};
 
     uint32_t constantDataOffset = specConstantData.size() * sizeof(uint32_t);
 
-    for (auto const &spec_value : m_argument_values->specialization_constants()) {
-        VkSpecializationMapEntry entry = {
-            spec_value.first,
-            constantDataOffset,
-            sizeof(uint32_t)
-        };
+    for (auto const& spec_value :
+         m_argument_values->specialization_constants()) {
+        VkSpecializationMapEntry entry = {spec_value.first, constantDataOffset,
+                                          sizeof(uint32_t)};
         mapEntries.push_back(entry);
         specConstantData.push_back(spec_value.second);
         constantDataOffset += sizeof(uint32_t);
@@ -382,7 +380,8 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
+    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                      m_pipeline);
 
     if (profiling && !is_profiled_by_executor()) {
         vkCmdResetQueryPool(m_command_buffer, m_query_pool, 0,
@@ -393,26 +392,23 @@ cl_int cvk_command_kernel::build() {
     }
 
     vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                            m_kernel->pipeline_layout(), 0, 1, &m_descriptor_set, 0, 0);
+                            m_kernel->pipeline_layout(), 0, 1,
+                            &m_descriptor_set, 0, 0);
 
     vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
 
     VkMemoryBarrier memoryBarrier = {
-        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-        nullptr,
-        VK_ACCESS_MEMORY_WRITE_BIT,
-        VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT
-    };
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_MEMORY_WRITE_BIT,
+        VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
 
-    vkCmdPipelineBarrier(m_command_buffer,
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                          VK_PIPELINE_STAGE_HOST_BIT,
                          0, // dependencyFlags
                          1, // memoryBarrierCount
                          &memoryBarrier,
-                         0, // bufferMemoryBarrierCount
-                         nullptr, // pBufferMemoryBarriers
-                         0, // imageMemoryBarrierCount
+                         0,        // bufferMemoryBarrierCount
+                         nullptr,  // pBufferMemoryBarriers
+                         0,        // imageMemoryBarrierCount
                          nullptr); // pImageMemoryBarriers
 
     if (profiling && !is_profiled_by_executor()) {
@@ -428,8 +424,7 @@ cl_int cvk_command_kernel::build() {
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_kernel::do_action()
-{
+cl_int cvk_command_kernel::do_action() {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -439,10 +434,10 @@ cl_int cvk_command_kernel::do_action()
     if (profiling && !is_profiled_by_executor()) {
         uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
         auto dev = m_queue->device();
-        vkGetQueryPoolResults(dev->vulkan_device(), m_query_pool, 0,
-                              NUM_POOL_QUERIES_PER_KERNEL,
-                              sizeof(timestamps), timestamps, sizeof(uint64_t),
-                              VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
+        vkGetQueryPoolResults(
+            dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_KERNEL,
+            sizeof(timestamps), timestamps, sizeof(uint64_t),
+            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
         auto nsPerTick = dev->vulkan_limits().timestampPeriod;
 
@@ -466,8 +461,7 @@ cl_int cvk_command_kernel::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_copy::do_action()
-{
+cl_int cvk_command_copy::do_action() {
     bool success = false;
 
     switch (m_type) {
@@ -487,7 +481,8 @@ cl_int cvk_command_copy::do_action()
 
 struct rectangle {
 public:
-    void set_params(size_t *origin, size_t slicep, size_t rowp, size_t elem_size) {
+    void set_params(size_t* origin, size_t slicep, size_t rowp,
+                    size_t elem_size) {
         m_origin[0] = origin[0];
         m_origin[1] = origin[1];
         m_origin[2] = origin[2];
@@ -498,9 +493,9 @@ public:
 
     size_t get_row_offset(size_t slice, size_t row) {
         return m_slice_pitch * (m_origin[2] + slice) +
-               m_row_pitch * (m_origin[1] + row) +
-               m_origin[0] * m_elem_size;
+               m_row_pitch * (m_origin[1] + row) + m_origin[0] * m_elem_size;
     }
+
 private:
     size_t m_origin[3];
     size_t m_slice_pitch;
@@ -509,7 +504,7 @@ private:
 };
 
 struct memobj_map_holder {
-    memobj_map_holder(cvk_mem *memobj) : m_mem(memobj), m_mapped(false) {
+    memobj_map_holder(cvk_mem* memobj) : m_mem(memobj), m_mapped(false) {
         CVK_ASSERT(memobj != nullptr);
     }
     ~memobj_map_holder() {
@@ -524,12 +519,12 @@ struct memobj_map_holder {
     }
 
 private:
-    cvk_mem *m_mem;
+    cvk_mem* m_mem;
     bool m_mapped;
 };
 
-void cvk_rectangle_copier::do_copy(direction dir, void *src_base, void *dst_base)
-{
+void cvk_rectangle_copier::do_copy(direction dir, void* src_base,
+                                   void* dst_base) {
     rectangle ra, rb;
 
     ra.set_params(m_a_origin, m_a_slice_pitch, m_a_row_pitch, m_elem_size);
@@ -546,18 +541,19 @@ void cvk_rectangle_copier::do_copy(direction dir, void *src_base, void *dst_base
     }
 
     for (size_t slice = 0; slice < m_region[2]; slice++) {
-        //cvk_debug_fn("slice = %zu", slice);
+        // cvk_debug_fn("slice = %zu", slice);
         for (size_t row = 0; row < m_region[1]; row++) {
-            //cvk_debug_fn("row = %zu (size = %zu)", row, m_region[0]);
-            auto dst = pointer_offset(dst_base, rdst->get_row_offset(slice, row));
-            auto src = pointer_offset(src_base, rsrc->get_row_offset(slice, row));
+            // cvk_debug_fn("row = %zu (size = %zu)", row, m_region[0]);
+            auto dst =
+                pointer_offset(dst_base, rdst->get_row_offset(slice, row));
+            auto src =
+                pointer_offset(src_base, rsrc->get_row_offset(slice, row));
             memcpy(dst, src, m_region[0] * m_elem_size);
         }
     }
 }
 
-cl_int cvk_command_copy_host_buffer_rect::do_action()
-{
+cl_int cvk_command_copy_host_buffer_rect::do_action() {
     memobj_map_holder map_holder{m_buffer};
 
     if (!map_holder.map()) {
@@ -589,8 +585,7 @@ cl_int cvk_command_copy_host_buffer_rect::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_copy_buffer_rect::do_action()
-{
+cl_int cvk_command_copy_buffer_rect::do_action() {
     memobj_map_holder src_map_holder{m_src_buffer};
     memobj_map_holder dst_map_holder{m_dst_buffer};
 
@@ -611,15 +606,14 @@ cl_int cvk_command_copy_buffer_rect::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_copy_buffer::do_action()
-{
-    bool success = m_src_buffer->copy_to(m_dst_buffer, m_src_offset, m_dst_offset, m_size);
+cl_int cvk_command_copy_buffer::do_action() {
+    bool success =
+        m_src_buffer->copy_to(m_dst_buffer, m_src_offset, m_dst_offset, m_size);
 
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
-cl_int cvk_command_fill_buffer::do_action()
-{
+cl_int cvk_command_fill_buffer::do_action() {
     memobj_map_holder map_holder{m_mem};
 
     if (!map_holder.map()) {
@@ -638,8 +632,7 @@ cl_int cvk_command_fill_buffer::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_map_buffer::do_action()
-{
+cl_int cvk_command_map_buffer::do_action() {
     bool success = true;
     if (m_mem->has_flags(CL_MEM_USE_HOST_PTR)) {
         success = m_mem->copy_to(m_mem->host_ptr(), m_offset, m_size);
@@ -648,14 +641,12 @@ cl_int cvk_command_map_buffer::do_action()
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
-cl_int cvk_command_unmap_buffer::do_action()
-{
+cl_int cvk_command_unmap_buffer::do_action() {
     m_mem->unmap();
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_unmap_image::do_action()
-{
+cl_int cvk_command_unmap_image::do_action() {
     // TODO flush caches on non-coherent memory
     m_image->remove_mapping(m_mapped_ptr);
 
@@ -669,13 +660,13 @@ cl_int cvk_command_unmap_image::do_action()
     return CL_COMPLETE;
 }
 
-VkImageSubresourceLayers prepare_subresource(cvk_image *image,
+VkImageSubresourceLayers prepare_subresource(cvk_image* image,
                                              std::array<size_t, 3> origin,
                                              std::array<size_t, 3> region) {
     uint32_t baseArrayLayer = 0;
     uint32_t layerCount = 1;
 
-    switch(image->type()) {
+    switch (image->type()) {
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         baseArrayLayer = origin[1];
         layerCount = region[1];
@@ -686,23 +677,20 @@ VkImageSubresourceLayers prepare_subresource(cvk_image *image,
         break;
     }
 
-    VkImageSubresourceLayers ret = {
-        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
-        0, // mipLevel
-        baseArrayLayer,
-        layerCount
-    };
+    VkImageSubresourceLayers ret = {VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+                                    0,                         // mipLevel
+                                    baseArrayLayer, layerCount};
 
     return ret;
 }
 
-VkOffset3D prepare_offset(cvk_image *image, std::array<size_t, 3> origin) {
+VkOffset3D prepare_offset(cvk_image* image, std::array<size_t, 3> origin) {
 
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
     auto z = static_cast<int32_t>(origin[2]);
 
-    switch(image->type()) {
+    switch (image->type()) {
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         y = 0;
         z = 0;
@@ -717,12 +705,11 @@ VkOffset3D prepare_offset(cvk_image *image, std::array<size_t, 3> origin) {
     return offset;
 }
 
-VkExtent3D prepare_extent(cvk_image *image,
-                          std::array<size_t, 3> region) {
+VkExtent3D prepare_extent(cvk_image* image, std::array<size_t, 3> region) {
     uint32_t extentHeight = region[1];
     uint32_t extentDepth = region[2];
 
-    switch(image->type()) {
+    switch (image->type()) {
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         extentHeight = 1;
         extentDepth = 1;
@@ -732,11 +719,8 @@ VkExtent3D prepare_extent(cvk_image *image,
         break;
     }
 
-    VkExtent3D extent = {
-        static_cast<uint32_t>(region[0]),
-        extentHeight,
-        extentDepth
-    };
+    VkExtent3D extent = {static_cast<uint32_t>(region[0]), extentHeight,
+                         extentDepth};
 
     return extent;
 }
@@ -749,7 +733,7 @@ VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
     uint32_t extentDepth = region[2];
     uint32_t baseArrayLayer = 0;
     uint32_t layerCount = 1;
-    switch(image->type()) {
+    switch (image->type()) {
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         baseArrayLayer = origin[1];
         layerCount = region[1];
@@ -764,37 +748,33 @@ VkBufferImageCopy prepare_buffer_image_copy(cvk_image* image,
     }
     VkImageSubresourceLayers subResource = {
         VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
-        0, // mipLevel
-        baseArrayLayer,
-        layerCount
-    };
+        0,                         // mipLevel
+        baseArrayLayer, layerCount};
 
     VkOffset3D offset = prepare_offset(image, origin);
     cvk_debug_fn("offset: %d, %d, %d", offset.x, offset.y, offset.z);
 
-    VkExtent3D extent = {
-        static_cast<uint32_t>(region[0]),
-        extentHeight,
-        extentDepth
-    };
-    cvk_debug_fn("extent: %u, %u, %u", extent.width, extent.height, extent.depth);
+    VkExtent3D extent = {static_cast<uint32_t>(region[0]), extentHeight,
+                         extentDepth};
+    cvk_debug_fn("extent: %u, %u, %u", extent.width, extent.height,
+                 extent.depth);
 
     // Tightly pack the data in the destination buffer
     VkBufferImageCopy ret = {
         bufferOffset, // bufferOffset
-        0, // bufferRowLength
-        0, // bufferImageHeight
-        subResource, // imageSubresource
-        offset, // imageOffset
-        extent, // imageExtent
+        0,            // bufferRowLength
+        0,            // bufferImageHeight
+        subResource,  // imageSubresource
+        offset,       // imageOffset
+        extent,       // imageExtent
     };
     return ret;
 }
 
-cl_int cvk_command_map_image::build(void **map_ptr)
-{
+cl_int cvk_command_map_image::build(void** map_ptr) {
     // Get a mapping
-    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region, m_flags)) {
+    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region,
+                                         m_flags)) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -804,8 +784,8 @@ cl_int cvk_command_map_image::build(void **map_ptr)
 
     if (needs_copy()) {
         m_cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
-                        CL_COMMAND_MAP_IMAGE, m_queue, m_mapping.buffer,
-                        m_image, 0, m_origin, m_region);
+            CL_COMMAND_MAP_IMAGE, m_queue, m_mapping.buffer, m_image, 0,
+            m_origin, m_region);
 
         cl_int err = m_cmd_copy->build();
         if (err != CL_SUCCESS) {
@@ -816,8 +796,7 @@ cl_int cvk_command_map_image::build(void **map_ptr)
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_map_image::do_action()
-{
+cl_int cvk_command_map_image::do_action() {
     if (needs_copy()) {
         auto err = m_cmd_copy->do_action();
         if (err != CL_COMPLETE) {
@@ -830,48 +809,46 @@ cl_int cvk_command_map_image::do_action()
     return CL_COMPLETE;
 }
 
-void cvk_command_buffer_image_copy::build_inner_image_to_buffer(const VkBufferImageCopy &region)
-{
+void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
+    const VkBufferImageCopy& region) {
     VkImageSubresourceRange subresourceRange = {
         VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
-        0, // baseMipLevel
-        VK_REMAINING_MIP_LEVELS, // levelCount
-        0, // baseArrayLayer
+        0,                         // baseMipLevel
+        VK_REMAINING_MIP_LEVELS,   // levelCount
+        0,                         // baseArrayLayer
         VK_REMAINING_ARRAY_LAYERS, // layerCount
     };
 
     VkImageMemoryBarrier imageBarrier = {
         VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
         nullptr,
-        VK_ACCESS_MEMORY_WRITE_BIT, // srcAccessMask
+        VK_ACCESS_MEMORY_WRITE_BIT,  // srcAccessMask
         VK_ACCESS_TRANSFER_READ_BIT, // dstAccessMask
-        VK_IMAGE_LAYOUT_GENERAL, // oldLayout
-        VK_IMAGE_LAYOUT_GENERAL, // newLayout
-        0, // srcQueueFamilyIndex
-        0, // dstQueueFamilyIndex
-        m_image->vulkan_image(), // image
+        VK_IMAGE_LAYOUT_GENERAL,     // oldLayout
+        VK_IMAGE_LAYOUT_GENERAL,     // newLayout
+        0,                           // srcQueueFamilyIndex
+        0,                           // dstQueueFamilyIndex
+        m_image->vulkan_image(),     // image
         subresourceRange,
     };
 
-    vkCmdPipelineBarrier(m_command_buffer,
-                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         0, // dependencyFlags
-                         0, // memoryBarrierCount
-                         nullptr, // pMemoryBarriers
-                         0, // bufferMemoryBarrierCount
-                         nullptr, // pBufferMemoryBarriers
-                         1, // imageMemoryBarrierCount
+                         0,              // dependencyFlags
+                         0,              // memoryBarrierCount
+                         nullptr,        // pMemoryBarriers
+                         0,              // bufferMemoryBarrierCount
+                         nullptr,        // pBufferMemoryBarriers
+                         1,              // imageMemoryBarrierCount
                          &imageBarrier); // pImageMemoryBarriers
 
     vkCmdCopyImageToBuffer(m_command_buffer, m_image->vulkan_image(),
-                           VK_IMAGE_LAYOUT_GENERAL,
-                           m_buffer->vulkan_buffer(),
+                           VK_IMAGE_LAYOUT_GENERAL, m_buffer->vulkan_buffer(),
                            1, &region);
 }
 
-void cvk_command_buffer_image_copy::build_inner_buffer_to_image(const VkBufferImageCopy &region)
-{
+void cvk_command_buffer_image_copy::build_inner_buffer_to_image(
+    const VkBufferImageCopy& region) {
     VkBufferMemoryBarrier bufferBarrier = {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         nullptr,
@@ -881,35 +858,32 @@ void cvk_command_buffer_image_copy::build_inner_buffer_to_image(const VkBufferIm
         0, // dstQueueFamilyIndex
         m_buffer->vulkan_buffer(),
         0, // offset
-        VK_WHOLE_SIZE
-    };
+        VK_WHOLE_SIZE};
 
-    vkCmdPipelineBarrier(m_command_buffer,
-                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         0, // dependencyFlags
-                         0, // memoryBarrierCount
-                         nullptr, // pMemoryBarriers
-                         1, // bufferMemoryBarrierCount
+                         0,              // dependencyFlags
+                         0,              // memoryBarrierCount
+                         nullptr,        // pMemoryBarriers
+                         1,              // bufferMemoryBarrierCount
                          &bufferBarrier, // pBufferMemoryBarriers
-                         0, // imageMemoryBarrierCount
-                         nullptr); // pImageMemoryBarriers
+                         0,              // imageMemoryBarrierCount
+                         nullptr);       // pImageMemoryBarriers
 
-    vkCmdCopyBufferToImage(m_command_buffer, m_buffer->vulkan_buffer(), m_image->vulkan_image(),
-                           VK_IMAGE_LAYOUT_GENERAL,
-                           1, &region);
-
+    vkCmdCopyBufferToImage(m_command_buffer, m_buffer->vulkan_buffer(),
+                           m_image->vulkan_image(), VK_IMAGE_LAYOUT_GENERAL, 1,
+                           &region);
 }
 
-cl_int cvk_command_buffer_image_copy::build()
-{
+cl_int cvk_command_buffer_image_copy::build() {
     if (!m_command_buffer.begin()) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    VkBufferImageCopy region = prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
+    VkBufferImageCopy region =
+        prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
 
-    switch(type()) {
+    switch (type()) {
     case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
     case CL_COMMAND_MAP_IMAGE:
         build_inner_image_to_buffer(region);
@@ -924,23 +898,20 @@ cl_int cvk_command_buffer_image_copy::build()
     }
 
     VkMemoryBarrier memoryBarrier = {
-        VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-        nullptr,
-        VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT
-    };
+        VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
 
-    vkCmdPipelineBarrier(m_command_buffer,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         // TODO HOST only when the dest buffer is an image mapping buffer
-                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                         0, // dependencyFlags
-                         1, // memoryBarrierCount
-                         &memoryBarrier,
-                         0, // bufferMemoryBarrierCount
-                         nullptr, // pBufferMemoryBarriers
-                         0, // imageMemoryBarrierCount
-                         nullptr); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(
+        m_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        // TODO HOST only when the dest buffer is an image mapping buffer
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0, // dependencyFlags
+        1, // memoryBarrierCount
+        &memoryBarrier,
+        0,        // bufferMemoryBarrierCount
+        nullptr,  // pBufferMemoryBarriers
+        0,        // imageMemoryBarrierCount
+        nullptr); // pImageMemoryBarriers
 
     if (!m_command_buffer.end()) {
         return CL_OUT_OF_RESOURCES;
@@ -949,8 +920,7 @@ cl_int cvk_command_buffer_image_copy::build()
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_buffer_image_copy::do_action()
-{
+cl_int cvk_command_buffer_image_copy::do_action() {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -958,37 +928,29 @@ cl_int cvk_command_buffer_image_copy::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_image_image_copy::build()
-{
+cl_int cvk_command_image_image_copy::build() {
     if (!m_command_buffer.begin()) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    VkImageSubresourceLayers srcSubresource = prepare_subresource(m_src_image, m_src_origin, m_region);
+    VkImageSubresourceLayers srcSubresource =
+        prepare_subresource(m_src_image, m_src_origin, m_region);
 
     VkOffset3D srcOffset = prepare_offset(m_src_image, m_src_origin);
 
-    VkImageSubresourceLayers dstSubresource = prepare_subresource(m_dst_image, m_dst_origin, m_region);
+    VkImageSubresourceLayers dstSubresource =
+        prepare_subresource(m_dst_image, m_dst_origin, m_region);
 
     VkOffset3D dstOffset = prepare_offset(m_dst_image, m_dst_origin);
 
     VkExtent3D extent = prepare_extent(m_src_image, m_region);
 
-    VkImageCopy region = {
-        srcSubresource,
-        srcOffset,
-        dstSubresource,
-        dstOffset,
-        extent
-    };
+    VkImageCopy region = {srcSubresource, srcOffset, dstSubresource, dstOffset,
+                          extent};
 
-    vkCmdCopyImage(m_command_buffer,
-                   m_src_image->vulkan_image(),
-                   VK_IMAGE_LAYOUT_GENERAL,
-                   m_dst_image->vulkan_image(),
-                   VK_IMAGE_LAYOUT_GENERAL,
-                   1,
-                   &region);
+    vkCmdCopyImage(m_command_buffer, m_src_image->vulkan_image(),
+                   VK_IMAGE_LAYOUT_GENERAL, m_dst_image->vulkan_image(),
+                   VK_IMAGE_LAYOUT_GENERAL, 1, &region);
 
     if (!m_command_buffer.end()) {
         return CL_OUT_OF_RESOURCES;
@@ -997,8 +959,7 @@ cl_int cvk_command_image_image_copy::build()
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_image_image_copy::do_action()
-{
+cl_int cvk_command_image_image_copy::do_action() {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -1006,8 +967,7 @@ cl_int cvk_command_image_image_copy::do_action()
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_fill_image::do_action()
-{
+cl_int cvk_command_fill_image::do_action() {
     // TODO use bigger memcpy's when possible
     size_t num_elems = m_region[2] * m_region[1] * m_region[0];
     for (size_t elem = 0; elem < num_elems; elem++) {
@@ -1017,4 +977,3 @@ cl_int cvk_command_fill_image::do_action()
 
     return CL_COMPLETE;
 }
-
