@@ -37,8 +37,10 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
 
 # clspv
-set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv)
-add_subdirectory(${CLSPV_SOURCE_DIR} EXCLUDE_FROM_ALL)
+set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
+    CACHE STRING "Clspv source directory")
+add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
+                 EXCLUDE_FROM_ALL)
 
 # SPIRV-LLVM-Translator
 set(LLVM_DIR

@@ -102,6 +102,9 @@ separate process.
 * `-DCLVK_CLSPV_ONLINE_COMPILER=1` will cause clvk to compile kernels
 in the same process via the Clspv C++ API.
 
+You can build clvk using an external Clspv source tree by setting
+`-DCLSPV_SOURCE_DIR=/path/to/clspv/source/`.
+
 # Using
 
 To use clvk to run an OpenCL application, you just need to make sure
