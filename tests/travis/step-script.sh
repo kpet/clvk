@@ -2,6 +2,11 @@
 
 set -ex
 
+if [ "${JOB_CHECK_FORMAT}" -eq 1 ]; then
+    ./tests/travis/check-format.sh
+    exit $?
+fi
+
 if [ "${TRAVIS_OS_NAME}" != "windows" ]; then
     ccache --max-size=2G
     ccache --show-stats

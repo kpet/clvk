@@ -21,6 +21,11 @@ env:
     - JOB_CMAKE_CONFIG="-DCLVK_CLSPV_ONLINE_COMPILER=1"
     - JOB_CMAKE_CONFIG="-DCLVK_CLSPV_ONLINE_COMPILER=0"
 
+jobs:
+  include:
+  - os: linux
+    env: JOB_CHECK_FORMAT=1
+
 branches:
   only:
     - master
