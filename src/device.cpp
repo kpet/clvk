@@ -299,6 +299,7 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     switch (capability) {
     // Capabilities required by all Vulkan implementations:
     case spv::CapabilityShader:
+    case spv::CapabilityImageQuery:
         return true;
     // Optional capabilities:
     case spv::CapabilityFloat16:
