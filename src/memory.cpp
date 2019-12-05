@@ -587,6 +587,7 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
                pointer_offset(cast_pattern, 0 * csize), csize);
         memcpy(pattern.data() + 3 * csize,
                pointer_offset(cast_pattern, 3 * csize), csize);
+        break;
     default:
         CVK_ASSERT(false);
     }
