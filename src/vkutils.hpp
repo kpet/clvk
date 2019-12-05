@@ -18,6 +18,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "utils.hpp"
+
 struct cvk_vulkan_queue_wrapper {
     cvk_vulkan_queue_wrapper(VkQueue queue, uint32_t family)
         : m_queue(queue), m_queue_family(family) {}
