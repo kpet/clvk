@@ -17,6 +17,7 @@
 #include <array>
 #include <memory>
 
+#include "init.hpp"
 #include "kernel.hpp"
 #include "objects.hpp"
 
