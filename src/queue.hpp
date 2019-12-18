@@ -347,6 +347,7 @@ struct cvk_command {
             if (ev->wait() != CL_COMPLETE) {
                 status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
             }
+            ev->release();
         }
 
         // Then execute the action if no dependencies failed
