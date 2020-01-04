@@ -23,7 +23,7 @@ computer crashes and burns, don't blame me! You've been warned.
 
 # Supported applications
 
-[Full list](doc/supported-applications.md)
+[Full list](docs/supported-applications.md)
 
 # Getting dependencies
 
