@@ -159,7 +159,9 @@ void cvk_device::construct_extension_string() {
                    "cl_khr_byte_addressable_store ";
 
     // Add always supported extension
+#ifndef CLSPV_ONLINE_COMPILER
     m_extensions += "cl_khr_il_program ";
+#endif
 }
 
 bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
