@@ -6,6 +6,8 @@ cache:
 
 language: cpp
 
+dist: bionic
+
 os:
   - linux
   - osx
