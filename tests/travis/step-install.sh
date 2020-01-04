@@ -3,8 +3,7 @@
 set -ex
 
 if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
-    sudo apt-get install -qq g++-7 clang-format
-    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 90
+    sudo apt-get install -qq clang-format
 fi
 
 if [ "${TRAVIS_OS_NAME}" == "osx" ]; then
