@@ -17,9 +17,34 @@
 #include "kernel.hpp"
 #include "memory.hpp"
 
-void cvk_kernel::build_descriptor_sets_layout_bindings() {
+bool cvk_kernel::build_descriptor_set_layout(
+    VkDevice vkdev, const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+    VkDescriptorSetLayoutCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr,
+        0,                                      // flags
+        static_cast<uint32_t>(bindings.size()), // bindingCount
+        bindings.data()                         // pBindings
+    };
+
+    VkResult res;
+    if (bindings.size() > 0) {
+        VkDescriptorSetLayout setLayout;
+        res = vkCreateDescriptorSetLayout(vkdev, &createInfo, 0, &setLayout);
+        if (res != VK_SUCCESS) {
+            cvk_error("Could not create descriptor set layout");
+            return false;
+        }
+        m_descriptor_set_layouts.push_back(setLayout);
+    }
+
+    return true;
+}
+
+bool cvk_kernel::build_descriptor_sets_layout_bindings_for_arguments(
+    VkDevice vkdev, binding_stat_map& smap, uint32_t& num_resources) {
     bool pod_found = false;
 
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
     for (auto& arg : m_args) {
         VkDescriptorType dt = VK_DESCRIPTOR_TYPE_MAX_ENUM;
 
@@ -66,8 +91,40 @@ void cvk_kernel::build_descriptor_sets_layout_bindings() {
             nullptr                      // pImmutableSamplers
         };
 
-        m_layout_bindings.push_back(binding);
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
     }
+
+    num_resources = layoutBindings.size();
+
+    if (!build_descriptor_set_layout(vkdev, layoutBindings)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool cvk_kernel::build_descriptor_sets_layout_bindings_for_literal_samplers(
+    VkDevice vkdev, binding_stat_map& smap) {
+
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    for (auto& desc : m_program->literal_sampler_descs()) {
+        VkDescriptorSetLayoutBinding binding = {
+            desc.binding,                // binding
+            VK_DESCRIPTOR_TYPE_SAMPLER,  // descriptorType
+            1,                           // decriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT, // stageFlags
+            nullptr                      // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+    }
+
+    if (!build_descriptor_set_layout(vkdev, layoutBindings)) {
+        return false;
+    }
+
+    return true;
 }
 
 std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer() {
@@ -109,21 +166,19 @@ cl_int cvk_kernel::init() {
         m_args.begin(), m_args.end(),
         [](kernel_argument a, kernel_argument b) { return a.pos < b.pos; });
 
-    // Create Descriptor Sets Layout Bindings
-    build_descriptor_sets_layout_bindings();
-
     // Create Descriptor Sets Layout
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, 0, 0,
-        static_cast<uint32_t>(m_layout_bindings.size()),
-        m_layout_bindings.data()};
-
+    VkResult res;
     auto vkdev = m_context->device()->vulkan_device();
 
-    auto res = vkCreateDescriptorSetLayout(
-        vkdev, &descriptorSetLayoutCreateInfo, 0, &m_descriptor_set_layout);
-    if (res != VK_SUCCESS) {
-        cvk_error("Could not create descriptor set layout");
+    std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
+    if (!build_descriptor_sets_layout_bindings_for_literal_samplers(
+            vkdev, bindingTypes)) {
+        return CL_INVALID_VALUE;
+    }
+
+    uint32_t num_resources;
+    if (!build_descriptor_sets_layout_bindings_for_arguments(
+            vkdev, bindingTypes, num_resources)) {
         return CL_INVALID_VALUE;
     }
 
@@ -140,12 +195,12 @@ cl_int cvk_kernel::init() {
         // Find out POD binding
         for (auto& arg : m_args) {
             if (arg.is_pod()) {
-                m_pod_binding = arg.binding;
+                m_pod_arg = &arg;
                 break;
             }
         }
 
-        if (m_pod_binding == INVALID_POD_BINDING) {
+        if (m_pod_arg == nullptr) {
             return CL_INVALID_PROGRAM;
         }
 
@@ -169,18 +224,21 @@ cl_int cvk_kernel::init() {
     }
 
     // Init argument values
-    m_argument_values = cvk_kernel_argument_values::create(this);
+    m_argument_values = cvk_kernel_argument_values::create(this, num_resources);
     if (m_argument_values == nullptr) {
         return CL_OUT_OF_RESOURCES;
     }
 
     // Create pipeline layout
+    cvk_debug("about to create pipeline layout, number of descriptor set "
+              "layouts: %zu",
+              m_descriptor_set_layouts.size());
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         0,
         0,
-        1,
-        &m_descriptor_set_layout,
+        static_cast<uint32_t>(m_descriptor_set_layouts.size()),
+        m_descriptor_set_layouts.data(),
         0,
         0};
 
@@ -192,17 +250,12 @@ cl_int cvk_kernel::init() {
     }
 
     // Determine number and types of bindings
-    std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
-    for (auto& lb : m_layout_bindings) {
-        bindingTypes[lb.descriptorType]++;
-    }
-
     std::vector<VkDescriptorPoolSize> poolSizes(bindingTypes.size());
 
     int bidx = 0;
     for (auto& bt : bindingTypes) {
         poolSizes[bidx].type = bt.first;
-        poolSizes[bidx].descriptorCount = bt.second * cvk_kernel::MAX_INSTANCES;
+        poolSizes[bidx].descriptorCount = bt.second;
         bidx++;
     }
 
@@ -252,8 +305,9 @@ bool cvk_kernel::setup_descriptor_set(
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
         m_descriptor_pool,
-        1, // descriptorSetCount
-        &m_descriptor_set_layout};
+        static_cast<uint32_t>(
+            m_descriptor_set_layouts.size()), // descriptorSetCount
+        m_descriptor_set_layouts.data()};
 
     auto dev = m_context->device()->vulkan_device();
 
@@ -286,8 +340,8 @@ bool cvk_kernel::setup_descriptor_set(
         VkWriteDescriptorSet writeDescriptorSet = {
             VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             nullptr,
-            *ds,
-            m_pod_binding,         // dstBinding
+            ds[m_pod_arg->descriptorSet],
+            m_pod_arg->binding,    // dstBinding
             0,                     // dstArrayElement
             1,                     // descriptorCount
             m_pod_descriptor_type, // descriptorType
@@ -298,9 +352,8 @@ bool cvk_kernel::setup_descriptor_set(
         vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
     }
 
-    // Setup other descriptors
+    // Setup other kernel argument descriptors
     for (cl_uint i = 0; i < m_args.size(); i++) {
-
         auto const& arg = m_args[i];
 
         switch (arg.kind) {
@@ -321,7 +374,7 @@ bool cvk_kernel::setup_descriptor_set(
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 nullptr,
-                *ds,
+                ds[arg.descriptorSet],
                 arg.binding, // dstBinding
                 0,           // dstArrayElement
                 1,           // descriptorCount
@@ -347,7 +400,7 @@ bool cvk_kernel::setup_descriptor_set(
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 nullptr,
-                *ds,
+                ds[arg.descriptorSet],
                 arg.binding, // dstBinding
                 0,           // dstArrayElement
                 1,           // descriptorCount
@@ -377,7 +430,7 @@ bool cvk_kernel::setup_descriptor_set(
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 nullptr,
-                *ds,
+                ds[arg.descriptorSet],
                 arg.binding, // dstBinding
                 0,           // dstArrayElement
                 1,           // descriptorCount
@@ -398,6 +451,34 @@ bool cvk_kernel::setup_descriptor_set(
             cvk_error_fn("unsupported argument type");
             return false;
         }
+    }
+
+    // Setup literal samplers
+    for (size_t i = 0; i < program()->literal_sampler_descs().size(); i++) {
+        auto desc = program()->literal_sampler_descs()[i];
+        auto clsampler =
+            static_cast<cvk_sampler*>(program()->literal_samplers()[i]);
+        auto sampler = clsampler->vulkan_sampler();
+
+        VkDescriptorImageInfo imageInfo = {
+            sampler,
+            VK_NULL_HANDLE,           // imageView
+            VK_IMAGE_LAYOUT_UNDEFINED // imageLayout
+        };
+
+        VkWriteDescriptorSet writeDescriptorSet = {
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            nullptr,
+            ds[desc.descriptorSet],
+            desc.binding, // dstBinding
+            0,            // dstArrayElement
+            1,            // descriptorCount
+            VK_DESCRIPTOR_TYPE_SAMPLER,
+            &imageInfo, // pImageInfo
+            nullptr,    // pBufferInfo
+            nullptr,    // pTexelBufferView
+        };
+        vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
     }
 
     return true;

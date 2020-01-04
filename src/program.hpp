@@ -111,6 +111,7 @@ public:
     }
     CHECK_RETURN bool
     get_capabilities(std::vector<spv::Capability>& capabilities) const;
+    static constexpr uint32_t MAX_DESCRIPTOR_SETS = 2;
 
 private:
     CHECK_RETURN bool parse_sampler(const std::vector<std::string>& tokens,
@@ -156,6 +157,9 @@ typedef struct _cl_program : public api_object {
         if (m_shader_module != VK_NULL_HANDLE) {
             auto vkdev = m_context->device()->vulkan_device();
             vkDestroyShaderModule(vkdev, m_shader_module, nullptr);
+        }
+        for (auto& s : m_literal_samplers) {
+            s->release();
         }
     }
 
@@ -263,8 +267,12 @@ typedef struct _cl_program : public api_object {
         return ret;
     }
 
-    const std::vector<sampler_desc>& literal_samplers() {
+    const std::vector<sampler_desc>& literal_sampler_descs() {
         return m_binary.literal_samplers();
+    }
+
+    const std::vector<cvk_sampler_holder>& literal_samplers() {
+        return m_literal_samplers;
     }
 
 private:

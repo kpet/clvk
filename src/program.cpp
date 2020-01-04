@@ -224,6 +224,10 @@ bool parse_arg(kernel_argument& arg, const std::vector<std::string>& tokens,
 
     arg.descriptorSet = atoi(tokens[toknum++].c_str());
 
+    if (arg.descriptorSet >= spir_binary::MAX_DESCRIPTOR_SETS) {
+        return false;
+    }
+
     if (tokens[toknum++] != "binding") {
         return false;
     }
@@ -308,6 +312,10 @@ bool spir_binary::parse_sampler(const std::vector<std::string>& tokens,
     }
 
     desc.descriptorSet = atoi(tokens[toknum++].c_str());
+
+    if (desc.descriptorSet >= spir_binary::MAX_DESCRIPTOR_SETS) {
+        return false;
+    }
 
     if (tokens[toknum++] != "binding") {
         return false;
@@ -855,6 +863,17 @@ void cvk_program::do_build() {
         cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
+    }
+
+    // Create literal samplers
+    for (auto const& desc : literal_sampler_descs()) {
+        auto sampler =
+            cvk_sampler::create(context(), desc.normalized_coords,
+                                desc.addressing_mode, desc.filter_mode);
+        if (sampler == nullptr) {
+            complete_operation(device, CL_BUILD_ERROR);
+        }
+        m_literal_samplers.emplace_back(sampler);
     }
 
     // Create a shader module
