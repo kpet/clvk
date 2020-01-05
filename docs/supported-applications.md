@@ -21,7 +21,7 @@
 | [clBLAS](https://github.com/clMathLibraries/clBLAS) | Untested |
 | [clSPARSE](https://github.com/clMathLibraries/clSPARSE) | Untested |
 | [clRNG](https://github.com/clMathLibraries/clRNG) | Untested |
-| [x264](https://github.com/mirror/x264) | Untested |
+| [x264](https://github.com/mirror/x264) | Not supported: needs long vectors and saturating conversions |
 | [OpenCV](https://github.com/opencv/opencv) | Untested |
 | [libav](https://github.com/libav/libav) | Untested |
 | [HandBrake](https://github.com/HandBrake/HandBrake) | Untested |
@@ -29,6 +29,8 @@
 | [Blender](https://github.com/sobotka/blender) | Untested |
 | [LuxMark](https://github.com/LuxCoreRender/LuxMark) | Untested |
 | [darktable](https://github.com/darktable-org/darktable) | Untested |
+| [MACE](https://github.com/XiaoMi/mace) | Untested |
+| [KNLMeansCL](https://github.com/Khanattila/KNLMeansCL) | Untested |
 
 If you've tested an application or want an application to be tested,
 please send a PR and add it to this file :).
