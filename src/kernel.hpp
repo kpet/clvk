@@ -60,6 +60,7 @@ typedef struct _cl_kernel : public api_object {
         std::unique_ptr<cvk_kernel_argument_values>& arg_values);
 
     void free_descriptor_set(VkDescriptorSet ds) {
+        std::lock_guard<std::mutex> lock(m_lock);
         auto vkdev = m_context->device()->vulkan_device();
         vkFreeDescriptorSets(vkdev, m_descriptor_pool, 1, &ds);
     }
