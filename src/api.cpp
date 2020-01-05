@@ -2835,6 +2835,7 @@ cl_int clEnqueueNDRangeKernel(
     LOG_API_CALL("command_queue = %p, kernel = %p", command_queue, kernel);
     LOG_API_CALL("work_dim = %u", work_dim);
 
+    uint32_t goff[3] = {0, 0, 0};
     uint32_t gws[3] = {1, 1, 1};
     uint32_t lws[3] = {1, 1, 1}; // FIXME pick a sensible default
 
@@ -2843,19 +2844,18 @@ cl_int clEnqueueNDRangeKernel(
         if (local_work_size != nullptr) {
             lws[i] = local_work_size[i];
         }
+        if (global_work_offset != nullptr) {
+            goff[i] = global_work_offset[i];
+        }
     }
 
-    for (int i = 0; i < 3; i++) {
-        LOG_API_CALL("gws[%d] = %u", i, gws[i]);
-    }
-
-    for (int i = 0; i < 3; i++) {
-        LOG_API_CALL("lws[%d] = %u", i, lws[i]);
-    }
+    LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);
+    LOG_API_CALL("gws = {%u,%u,%u}", gws[0], gws[1], gws[2]);
+    LOG_API_CALL("lws = {%u,%u,%u}", lws[0], lws[1], lws[2]);
 
     // TODO support global offset
-    if (global_work_offset != nullptr) {
-        cvk_error_fn("global offset unsupported");
+    if (goff[0] != 0 || goff[1] != 0 || goff[2] != 0) {
+        cvk_error_fn("non-zero global offset unsupported");
         return CL_INVALID_GLOBAL_OFFSET;
     }
 

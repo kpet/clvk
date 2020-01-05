@@ -162,9 +162,9 @@
     "total": 9
   },
   "Multiple Device/Context": {
-    "duration": "00:00:00.905654",
-    "passed": 3,
-    "retcode": 4,
+    "duration": "00:01:33.940844",
+    "passed": 7,
+    "retcode": 0,
     "total": 7
   },
   "Printf": {
