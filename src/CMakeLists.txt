@@ -18,6 +18,11 @@ if(NOT MSVC)
     add_compile_options(-Wno-ignored-attributes)
 endif()
 
+if (UNIX AND NOT APPLE)
+    set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
+        "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
+endif()
+
 option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
 if (CLVK_CLSPV_ONLINE_COMPILER)
   add_compile_options(-DCLSPV_ONLINE_COMPILER)
@@ -36,6 +41,7 @@ add_library(OpenCL-objects OBJECT
   program.cpp
   queue.cpp
   utils.cpp
+  exports.map
 )
 set_property(TARGET OpenCL-objects PROPERTY POSITION_INDEPENDENT_CODE 1)
 target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
