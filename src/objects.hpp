@@ -76,8 +76,6 @@ template <typename T> struct refcounted_holder {
         }
     }
 
-    refcounted_holder(const refcounted_holder&& other) = delete;
-
     ~refcounted_holder() {
         if (m_refcounted != nullptr) {
             m_refcounted->release();
@@ -88,7 +86,6 @@ template <typename T> struct refcounted_holder {
 
     operator T*() const { return m_refcounted; }
 
-    refcounted_holder& operator=(const refcounted_holder&) = delete;
     refcounted_holder& operator=(const refcounted_holder&&) = delete;
 
     void reset(T* refc) {
