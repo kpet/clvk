@@ -140,7 +140,7 @@ def run_conformance_binary(path, args):
     start = datetime.datetime.utcnow()
     dirname = os.path.dirname(path)
     binary = os.path.basename(path)
-    path = os.path.join(dirname, 'conformance_' + binary)
+    path = os.path.join(dirname, binary)
     p = subprocess.Popen(
         [path] + args,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
