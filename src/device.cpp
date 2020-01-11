@@ -152,19 +152,42 @@ void cvk_device::init_features() {
     m_features.pNext = &m_features_variable_pointer;
 }
 
-void cvk_device::construct_extension_string() {
+void cvk_device::build_extension_ils_list() {
 
-    // Start with required extensions
-    m_extensions = "cl_khr_global_int32_base_atomics "
-                   "cl_khr_global_int32_extended_atomics "
-                   "cl_khr_local_int32_base_atomics "
-                   "cl_khr_local_int32_extended_atomics "
-                   "cl_khr_byte_addressable_store ";
+    m_extensions = {
+        // Start with required extensions
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_global_int32_base_atomics"),
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_global_int32_extended_atomics"),
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_local_int32_base_atomics"),
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_local_int32_extended_atomics"),
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_byte_addressable_store"),
 
-    // Add always supported extension
+        // Add always supported extension
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_extended_versioning"),
 #ifndef CLSPV_ONLINE_COMPILER
-    m_extensions += "cl_khr_il_program ";
+        MAKE_NAME_VERSION(1,0,0,"cl_khr_il_program"),
 #endif
+    };
+
+    // Build extension string
+    for (auto &ext : m_extensions) {
+        m_extension_string += ext.name;
+        m_extension_string += " ";
+    }
+
+    // Build list of ILs
+    m_ils = {
+        MAKE_NAME_VERSION(1,0,0,"SPIR-V"),
+    };
+
+    for (auto &il : m_ils) {
+        m_ils_string += il.name;
+        m_ils_string += "_";
+        m_ils_string += std::to_string(CL_VERSION_MAJOR_KHR(il.version));
+        m_ils_string += ".";
+        m_ils_string += std::to_string(CL_VERSION_MINOR_KHR(il.version));
+        m_ils_string += " ";
+    }
 }
 
 bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
@@ -285,7 +308,7 @@ bool cvk_device::init() {
 
     init_features();
 
-    construct_extension_string();
+    build_extension_ils_list();
 
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
         return false;

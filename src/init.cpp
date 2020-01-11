@@ -244,25 +244,21 @@ static void init_platform() {
     CVK_VK_CHECK_FATAL(res, "Could not enumerate physical devices");
 
     for (uint32_t i = 0; i < numDevices; ++i) {
-
-        auto dev = cvk_device::create(physicalDevices[i]);
-
-        if (dev != nullptr) {
-            gPlatform->devices.push_back(dev);
+        if (!gPlatform->create_device(physicalDevices[i])) {
+            cvk_error("Could not create CL device from Vulkan device!");
         }
     }
 
-    if (gPlatform->devices.size() == 0) {
+    auto num_devices = gPlatform->devices().size();
+    if (num_devices == 0) {
         cvk_fatal("Could not initialise any device!");
     } else {
-        cvk_info("Initialised %zu devices", gPlatform->devices.size());
+        cvk_info("Initialised %zu devices", num_devices);
     }
 }
 
 static void term_platform() {
-    for (auto d : gPlatform->devices) {
-        delete d;
-    }
+    delete gPlatform;
 }
 
 class clvk_initializer {
