@@ -106,6 +106,11 @@ typedef struct _cl_device_id {
     /// Returns true if the device supports the given SPIR-V capability.
     CHECK_RETURN bool supports_capability(spv::Capability capability) const;
 
+    /// Returns true if std430 layout is supported for uniform buffers.
+    CHECK_RETURN bool supports_ubo_stdlayout() const {
+        return m_features_ubo_stdlayout.uniformBufferStandardLayout;
+    }
+
     std::string version_string() const {
         std::string ret = "CLVK on Vulkan v";
         ret += vulkan_version_string(m_properties.apiVersion);
@@ -195,6 +200,8 @@ private:
     VkPhysicalDeviceFeatures2 m_features;
     VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer;
     VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8;
+    VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR
+        m_features_ubo_stdlayout;
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
     cl_uint m_mem_base_addr_align;

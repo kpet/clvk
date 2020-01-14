@@ -534,7 +534,7 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
     return ofile.good();
 }
 
-cl_build_status cvk_program::compile_source() {
+cl_build_status cvk_program::compile_source(const cvk_device* device) {
     bool use_tmp_folder = true;
     bool save_headers = true;
 #ifdef CLSPV_ONLINE_COMPILER
@@ -631,6 +631,9 @@ cl_build_status cvk_program::compile_source() {
     }
     options += " -pod-ubo ";
     options += " -int8 ";
+    if (device->supports_ubo_stdlayout()) {
+        options += " -std430-ubo-layout ";
+    }
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
@@ -834,7 +837,7 @@ void cvk_program::do_build() {
     case build_operation::build:
         // Compile source and load binary
         if (!m_binary.loaded_from_binary()) {
-            status = compile_source();
+            status = compile_source(device);
         }
         break;
     case build_operation::link:
