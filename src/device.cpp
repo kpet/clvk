@@ -95,6 +95,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+        VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numext; i++) {
@@ -114,9 +115,13 @@ bool cvk_device::init_extensions() {
 
 void cvk_device::init_features() {
     // Query supported features.
+    m_features_ubo_stdlayout.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR;
+    m_features_ubo_stdlayout.pNext = nullptr;
+
     m_features_float16_int8.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
-    m_features_float16_int8.pNext = nullptr;
+    m_features_float16_int8.pNext = &m_features_ubo_stdlayout;
 
     m_features_variable_pointer.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;

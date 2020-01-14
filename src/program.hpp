@@ -277,7 +277,7 @@ typedef struct _cl_program : public api_object {
 
 private:
     void do_build();
-    CHECK_RETURN cl_build_status compile_source();
+    CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
     CHECK_RETURN cl_build_status link();
 
     /// Check if all of the capabilities required by the SPIR-V module are
