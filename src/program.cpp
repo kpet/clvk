@@ -415,6 +415,61 @@ bool spir_binary::load_descriptor_map(
             str << entry;
             cvk_debug("DMAP line: %s", str.str().c_str());
         }
+
+        if (entry.kind == clspv::version0::DescriptorMapEntry::Kind::Sampler) {
+            sampler_desc desc;
+            desc.descriptorSet = entry.descriptor_set;
+            desc.binding = entry.binding;
+
+            desc.normalized_coords =
+                (entry.sampler_data.mask &
+                 clspv::version0::kSamplerNormalizedCoordsMask) ==
+                clspv::version0::CLK_NORMALIZED_COORDS_TRUE;
+
+            switch (entry.sampler_data.mask &
+                    clspv::version0::kSamplerAddressMask) {
+            case clspv::version0::CLK_ADDRESS_NONE:
+                desc.addressing_mode = CL_ADDRESS_NONE;
+                break;
+            case clspv::version0::CLK_ADDRESS_CLAMP_TO_EDGE:
+                desc.addressing_mode = CL_ADDRESS_CLAMP_TO_EDGE;
+                break;
+            case clspv::version0::CLK_ADDRESS_CLAMP:
+                desc.addressing_mode = CL_ADDRESS_CLAMP;
+                break;
+            case clspv::version0::CLK_ADDRESS_MIRRORED_REPEAT:
+                desc.addressing_mode = CL_ADDRESS_MIRRORED_REPEAT;
+                break;
+            case clspv::version0::CLK_ADDRESS_REPEAT:
+                desc.addressing_mode = CL_ADDRESS_REPEAT;
+                break;
+            default:
+                cvk_error("Invalid sampler addressing mode: %d",
+                          entry.sampler_data.mask &
+                              clspv::version0::kSamplerAddressMask);
+                return false;
+            }
+
+            switch (entry.sampler_data.mask &
+                    clspv::version0::kSamplerFilterMask) {
+            case clspv::version0::CLK_FILTER_NEAREST:
+                desc.addressing_mode = CL_FILTER_NEAREST;
+                break;
+            case clspv::version0::CLK_FILTER_LINEAR:
+                desc.addressing_mode = CL_FILTER_LINEAR;
+                break;
+            default:
+                cvk_error("Invalid sampler filter mode: %d",
+                          entry.sampler_data.mask &
+                              clspv::version0::kSamplerFilterMask);
+                return false;
+            }
+
+            m_literal_samplers.push_back(desc);
+
+            continue;
+        }
+
         if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
             return false;
 
