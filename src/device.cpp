@@ -87,8 +87,6 @@ bool cvk_device::init_extensions() {
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
         m_vulkan_device_extensions.push_back(
             VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
-        m_vulkan_device_extensions.push_back(
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     }
 
     const std::vector<const char*> desired_extensions = {
