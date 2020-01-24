@@ -23,6 +23,11 @@ if (UNIX AND NOT APPLE)
         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
 endif()
 
+if (UNIX)
+    set(CMAKE_SHARED_LINKER_FLAGS
+        "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic")
+endif()
+
 option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
 if (CLVK_CLSPV_ONLINE_COMPILER)
   add_compile_options(-DCLSPV_ONLINE_COMPILER)

@@ -106,9 +106,9 @@ private:
     T* m_refcounted;
 };
 
-typedef struct _cl_context : public refcounted {
+struct cvk_context : public _cl_context, refcounted {
 
-    _cl_context(cvk_device* device, const cl_context_properties* props)
+    cvk_context(cvk_device* device, const cl_context_properties* props)
         : m_device(device) {
 
         if (props) {
@@ -123,7 +123,7 @@ typedef struct _cl_context : public refcounted {
         }
     }
 
-    virtual ~_cl_context() {}
+    virtual ~cvk_context() {}
 
     const std::vector<cl_context_properties>& properties() const {
         return m_properties;
@@ -135,8 +135,11 @@ typedef struct _cl_context : public refcounted {
 private:
     cvk_device* m_device;
     std::vector<cl_context_properties> m_properties;
+};
 
-} cvk_context;
+static inline cvk_context* icd_downcast(cl_context context) {
+    return static_cast<cvk_context*>(context);
+}
 
 using cvk_context_holder = refcounted_holder<cvk_context>;
 

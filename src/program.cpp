@@ -958,9 +958,9 @@ void cvk_program::do_build() {
 }
 
 bool cvk_program::build(build_operation operation, cl_uint num_devices,
-                        const cvk_device* const* device_list,
-                        const char* options, cl_uint num_input_programs,
-                        const cvk_program* const* input_programs,
+                        const cl_device_id* device_list, const char* options,
+                        cl_uint num_input_programs,
+                        const cl_program* input_programs,
                         const char** header_include_names,
                         cvk_program_callback cb, void* data) {
     if (!m_lock.try_lock()) {
@@ -970,7 +970,8 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     retain();
 
     for (cl_uint i = 0; i < num_input_programs; i++) {
-        cvk_program* iprog = const_cast<cvk_program*>(input_programs[i]);
+        cvk_program* iprog =
+            const_cast<cvk_program*>(icd_downcast(input_programs[i]));
         iprog->retain();
         m_input_programs.push_back(iprog);
         if (header_include_names != nullptr) {
@@ -985,7 +986,7 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     } else {
         m_num_devices = num_devices;
         for (cl_uint i = 0; i < num_devices; i++) {
-            m_dev_status[device_list[i]] = CL_BUILD_IN_PROGRESS;
+            m_dev_status[icd_downcast(device_list[i])] = CL_BUILD_IN_PROGRESS;
         }
     }
 

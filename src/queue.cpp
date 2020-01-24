@@ -20,11 +20,12 @@
 
 cvk_executor_thread_pool gThreadPool;
 
-_cl_command_queue::_cl_command_queue(cvk_context* ctx, cvk_device* device,
+cvk_command_queue::cvk_command_queue(cvk_context* ctx, cvk_device* device,
                                      cl_command_queue_properties properties)
     : api_object(ctx), m_device(device), m_properties(properties),
       m_executor(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device->vulkan_device(), m_vulkan_queue.queue_family()) {
+
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
@@ -41,13 +42,13 @@ cl_int cvk_command_queue::init() {
     return CL_SUCCESS;
 }
 
-_cl_command_queue::~_cl_command_queue() {
+cvk_command_queue::~cvk_command_queue() {
     if (m_executor != nullptr) {
         gThreadPool.return_executor(m_executor);
     }
 }
 
-void cvk_command_queue::enqueue_command(cvk_command* cmd, cvk_event** event) {
+void cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -68,18 +69,18 @@ void cvk_command_queue::enqueue_command(cvk_command* cmd, cvk_event** event) {
 
 void cvk_command_queue::enqueue_command_with_deps(cvk_command* cmd,
                                                   cl_uint num_dep_events,
-                                                  cvk_event* const* dep_events,
-                                                  cvk_event** event) {
+                                                  _cl_event* const* dep_events,
+                                                  _cl_event** event) {
     cmd->set_dependencies(num_dep_events, dep_events);
     enqueue_command(cmd, event);
 }
 
 cl_int cvk_command_queue::enqueue_command_with_deps(
     cvk_command* cmd, bool blocking, cl_uint num_dep_events,
-    cvk_event* const* dep_events, cvk_event** event) {
+    _cl_event* const* dep_events, _cl_event** event) {
     cmd->set_dependencies(num_dep_events, dep_events);
 
-    cvk_event* evt;
+    _cl_event* evt;
     enqueue_command(cmd, &evt);
 
     cl_int err = CL_SUCCESS;
@@ -91,7 +92,7 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     if (event != nullptr) {
         *event = evt;
     } else {
-        evt->release();
+        icd_downcast(evt)->release();
     }
 
     return err;
@@ -104,7 +105,7 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     // Create set of queues to flush
     std::unordered_set<cvk_command_queue*> queues_to_flush;
     for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event* event = event_list[i];
+        cvk_event* event = icd_downcast(event_list[i]);
 
         if (!event->is_user_event()) {
             queues_to_flush.insert(event->queue());
@@ -121,7 +122,7 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 
     // Now wait for all the events
     for (cl_uint i = 0; i < num_events; i++) {
-        cvk_event* event = event_list[i];
+        cvk_event* event = icd_downcast(event_list[i]);
         if (event->wait() != CL_COMPLETE) {
             ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
         }

@@ -136,24 +136,22 @@ enum class build_operation
 
 using cvk_program_callback = void (*)(cl_program, void*);
 
-typedef struct _cl_program cvk_program;
+struct cvk_program : public _cl_program, api_object {
 
-typedef struct _cl_program : public api_object {
-
-    _cl_program(cvk_context* ctx)
+    cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),
           m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
           m_shader_module(VK_NULL_HANDLE) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
 
-    _cl_program(cvk_context* ctx, const void* il, size_t length)
-        : _cl_program(ctx) {
+    cvk_program(cvk_context* ctx, const void* il, size_t length)
+        : cvk_program(ctx) {
         m_il.resize(length);
         memcpy(m_il.data(), il, length);
     }
 
-    virtual ~_cl_program() {
+    virtual ~cvk_program() {
         if (m_shader_module != VK_NULL_HANDLE) {
             auto vkdev = m_context->device()->vulkan_device();
             vkDestroyShaderModule(vkdev, m_shader_module, nullptr);
@@ -189,9 +187,9 @@ typedef struct _cl_program : public api_object {
     }
 
     CHECK_RETURN bool build(build_operation operation, cl_uint num_devices,
-                            const cvk_device* const* device_list,
+                            const cl_device_id* device_list,
                             const char* options, cl_uint num_input_programs,
-                            const cvk_program* const* input_programs,
+                            const cl_program* input_programs,
                             const char** header_include_names,
                             cvk_program_callback cb, void* data);
 
@@ -301,5 +299,8 @@ private:
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
+};
 
-} cvk_program;
+static inline cvk_program* icd_downcast(cl_program program) {
+    return static_cast<cvk_program*>(program);
+}

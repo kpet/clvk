@@ -23,11 +23,11 @@
 
 struct cvk_kernel_argument_values;
 
-typedef struct _cl_kernel : public api_object {
+struct cvk_kernel : public _cl_kernel, api_object {
 
     const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition
 
-    _cl_kernel(cvk_program* program, const char* name)
+    cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program), m_name(name),
           m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
           m_pod_arg(nullptr), m_pod_buffer_size(0u), m_has_pod_arguments(false),
@@ -38,7 +38,7 @@ typedef struct _cl_kernel : public api_object {
 
     CHECK_RETURN cl_int init();
 
-    virtual ~_cl_kernel() {
+    virtual ~cvk_kernel() {
         VkDevice dev = m_context->device()->vulkan_device();
         if (m_pipeline_cache != VK_NULL_HANDLE) {
             vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
@@ -106,7 +106,11 @@ private:
     std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
     VkPipelineLayout m_pipeline_layout;
     VkPipelineCache m_pipeline_cache;
-} cvk_kernel;
+};
+
+static inline cvk_kernel* icd_downcast(cl_kernel kernel) {
+    return static_cast<cvk_kernel*>(kernel);
+}
 
 using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 
@@ -192,10 +196,13 @@ struct cvk_kernel_argument_values {
             if (size != sizeof(void*)) {
                 return CL_INVALID_ARG_SIZE;
             }
-
-            auto refc = *reinterpret_cast<refcounted* const*>(value);
-
-            m_kernel_resources[arg.binding].reset(refc);
+            if (arg.kind == kernel_argument_kind::sampler) {
+                auto sampler = *reinterpret_cast<const cl_sampler*>(value);
+                m_kernel_resources[arg.binding].reset(icd_downcast(sampler));
+            } else {
+                auto mem = *reinterpret_cast<const cl_mem*>(value);
+                m_kernel_resources[arg.binding].reset(icd_downcast(mem));
+            }
         }
 
         return CL_SUCCESS;
