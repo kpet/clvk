@@ -453,10 +453,10 @@ bool spir_binary::load_descriptor_map(
             switch (entry.sampler_data.mask &
                     clspv::version0::kSamplerFilterMask) {
             case clspv::version0::CLK_FILTER_NEAREST:
-                desc.addressing_mode = CL_FILTER_NEAREST;
+                desc.filter_mode = CL_FILTER_NEAREST;
                 break;
             case clspv::version0::CLK_FILTER_LINEAR:
-                desc.addressing_mode = CL_FILTER_LINEAR;
+                desc.filter_mode = CL_FILTER_LINEAR;
                 break;
             default:
                 cvk_error("Invalid sampler filter mode: %d",
