@@ -272,6 +272,8 @@ void cvk_device::log_limits_and_memory_information() {
                 limits.maxPerStageDescriptorStorageBuffers);
     cvk_info_fn("device's max buffer size = %s",
                 pretty_size(limits.maxStorageBufferRange).c_str());
+    cvk_info_fn("device's max push constant size = %s",
+                pretty_size(limits.maxPushConstantsSize).c_str());
 
     // Print memoy information
     cvk_info_fn("device has %u memory types:",

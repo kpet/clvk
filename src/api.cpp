@@ -2902,14 +2902,15 @@ cl_int clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
     return CL_SUCCESS;
 }
 
-cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
-                                  cvk_kernel* kernel, uint32_t* num_workgroups,
-                                  uint32_t* workgroup_size,
-                                  cl_uint num_events_in_wait_list,
-                                  const cl_event* event_wait_list,
-                                  cl_event* event) {
-    auto cmd = new cvk_command_kernel(command_queue, kernel, num_workgroups,
-                                      workgroup_size);
+cl_int
+cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue, cvk_kernel* kernel,
+                           uint32_t dims, uint32_t* global_offsets,
+                           uint32_t* num_workgroups, uint32_t* workgroup_size,
+                           cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list, cl_event* event) {
+    auto cmd =
+        new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
+                               num_workgroups, workgroup_size);
 
     cl_int err = cmd->build();
 
@@ -2933,10 +2934,12 @@ cl_int clEnqueueTask(cl_command_queue command_queue, cl_kernel kernel,
 
     uint32_t num_workgroups[] = {1, 1, 1};
     uint32_t workgroup_size[] = {1, 1, 1};
+    uint32_t global_offsets[] = {0, 0, 0};
 
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), num_workgroups,
-        workgroup_size, num_events_in_wait_list, event_wait_list, event);
+        icd_downcast(command_queue), icd_downcast(kernel), 1, global_offsets,
+        num_workgroups, workgroup_size, num_events_in_wait_list,
+        event_wait_list, event);
 }
 
 cl_int clEnqueueNDRangeKernel(
@@ -2965,12 +2968,6 @@ cl_int clEnqueueNDRangeKernel(
     LOG_API_CALL("gws = {%u,%u,%u}", gws[0], gws[1], gws[2]);
     LOG_API_CALL("lws = {%u,%u,%u}", lws[0], lws[1], lws[2]);
 
-    // TODO support global offset
-    if (goff[0] != 0 || goff[1] != 0 || goff[2] != 0) {
-        cvk_error_fn("non-zero global offset unsupported");
-        return CL_INVALID_GLOBAL_OFFSET;
-    }
-
     // TODO CL_INVALID_WORK_GROUP_SIZE lws does not match the work-group size
     // specified for kernel using the __attribute__ ((reqd_work_group_size(X, Y,
     // Z))) qualifier in program source.
@@ -2989,8 +2986,8 @@ cl_int clEnqueueNDRangeKernel(
     };
 
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), num_workgroups, lws,
-        num_events_in_wait_list, event_wait_list, event);
+        icd_downcast(command_queue), icd_downcast(kernel), work_dim, goff,
+        num_workgroups, lws, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int clEnqueueNativeKernel(cl_command_queue command_queue,

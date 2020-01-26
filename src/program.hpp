@@ -69,6 +69,17 @@ struct sampler_desc {
     cl_filter_mode filter_mode;
 };
 
+enum class pushconstant
+{
+    dimensions,
+    global_offset,
+};
+
+struct pushconstant_desc {
+    uint32_t offset;
+    uint32_t size;
+};
+
 class spir_binary {
 
     using kernels_arguments_map =
@@ -113,15 +124,31 @@ public:
     get_capabilities(std::vector<spv::Capability>& capabilities) const;
     static constexpr uint32_t MAX_DESCRIPTOR_SETS = 2;
 
+    const std::unordered_map<pushconstant, pushconstant_desc>&
+    push_constants() const {
+        return m_push_constants;
+    }
+
+    CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
+        if (m_push_constants.count(pc) != 0) {
+            return &m_push_constants.at(pc);
+        } else {
+            return nullptr;
+        }
+    }
+
 private:
     CHECK_RETURN bool parse_sampler(const std::vector<std::string>& tokens,
                                     int toknum);
     CHECK_RETURN bool parse_kernel(const std::vector<std::string>& tokens,
                                    int toknum);
+    CHECK_RETURN bool parse_pushconstant(const std::vector<std::string>& tokens,
+                                         int toknum);
 
     spv_context m_context;
     std::vector<uint32_t> m_code;
     std::vector<sampler_desc> m_literal_samplers;
+    std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     kernels_arguments_map m_dmaps;
     std::string m_dmaps_text;
     bool m_loaded_from_binary;
@@ -273,6 +300,14 @@ struct cvk_program : public _cl_program, api_object {
         return m_literal_samplers;
     }
 
+    const std::vector<VkPushConstantRange>& push_constant_ranges() const {
+        return m_push_constant_ranges;
+    }
+
+    CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
+        return m_binary.push_constant(pc);
+    }
+
 private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
@@ -299,6 +334,7 @@ private:
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
+    std::vector<VkPushConstantRange> m_push_constant_ranges;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {
