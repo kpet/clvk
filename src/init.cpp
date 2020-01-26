@@ -68,6 +68,11 @@ VkBool32 debugCallback(VkDebugReportFlagsEXT flags,
 static void init_vulkan() {
     VkResult res;
 
+    // Get version information
+    uint32_t version;
+    res = vkEnumerateInstanceVersion(&version);
+    CVK_VK_CHECK_FATAL(res, "Could not query supported instance version");
+
     // Print layer info
     uint32_t numLayerProperties;
     res = vkEnumerateInstanceLayerProperties(&numLayerProperties, nullptr);
@@ -99,8 +104,11 @@ static void init_vulkan() {
         nullptr, &numExtensionProperties, extensionProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
 
-    std::vector<const char*> enabledExtensions = {
-        "VK_KHR_get_physical_device_properties2",
+    std::vector<const char*> enabledExtensions;
+
+    if (version < VK_MAKE_VERSION(1, 1, 0)) {
+        enabledExtensions.push_back(
+            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
     };
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
@@ -109,8 +117,8 @@ static void init_vulkan() {
                  extensionProperties[i].specVersion);
 
         if (!strcmp(extensionProperties[i].extensionName,
-                    "VK_EXT_debug_report")) {
-            enabledExtensions.push_back("VK_EXT_debug_report");
+                    VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
+            enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             gDebugReportEnabled = true;
         }
     }
