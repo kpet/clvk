@@ -22,7 +22,7 @@
 #include "objects.hpp"
 
 struct cvk_command;
-typedef struct _cl_command_queue cvk_command_queue;
+struct cvk_command_queue;
 using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 using cvk_event_callback_pointer_type =
@@ -33,9 +33,9 @@ struct cvk_event_callback {
     void* data;
 };
 
-typedef struct _cl_event : public api_object {
+struct cvk_event : public _cl_event, api_object {
 
-    _cl_event(cvk_context* ctx, cl_int status, cl_command_type type,
+    cvk_event(cvk_context* ctx, cl_int status, cl_command_type type,
               cvk_command_queue* queue)
         : api_object(ctx), m_status(status), m_command_type(type),
           m_queue(queue) {}
@@ -120,8 +120,11 @@ private:
     cl_command_type m_command_type;
     cvk_command_queue* m_queue;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
+};
 
-} cvk_event;
+static inline cvk_event* icd_downcast(cl_event event) {
+    return static_cast<cvk_event*>(event);
+}
 
 struct cvk_command_group {
     std::deque<cvk_command*> commands;
@@ -206,27 +209,27 @@ private:
     std::mutex m_lock;
 };
 
-typedef struct _cl_command_queue : public api_object {
+struct cvk_command_queue : public _cl_command_queue, api_object {
 
-    _cl_command_queue(cvk_context* ctx, cvk_device* dev,
+    cvk_command_queue(cvk_context* ctx, cvk_device* dev,
                       cl_command_queue_properties props);
 
     cl_int init();
 
-    virtual ~_cl_command_queue();
+    virtual ~cvk_command_queue();
 
     bool has_property(cl_command_queue_properties prop) const {
         return (m_properties & prop) == prop;
     }
 
     void enqueue_command_with_deps(cvk_command* cmd, cl_uint num_dep_events,
-                                   cvk_event* const* dep_events,
-                                   cvk_event** event);
+                                   _cl_event* const* dep_events,
+                                   _cl_event** event);
     CHECK_RETURN cl_int enqueue_command_with_deps(cvk_command* cmd,
                                                   bool blocking,
                                                   cl_uint num_dep_events,
-                                                  cvk_event* const* dep_events,
-                                                  cvk_event** event);
+                                                  _cl_event* const* dep_events,
+                                                  _cl_event** event);
 
     CHECK_RETURN static cl_int wait_for_events(cl_uint num_events,
                                                const cl_event* event_list);
@@ -252,7 +255,7 @@ typedef struct _cl_command_queue : public api_object {
     cl_command_queue_properties properties() const { return m_properties; }
 
 private:
-    void enqueue_command(cvk_command* cmd, cvk_event** event);
+    void enqueue_command(cvk_command* cmd, _cl_event** event);
     void executor();
 
     cvk_device* m_device;
@@ -265,8 +268,11 @@ private:
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
+};
 
-} cvk_command_queue;
+static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
+    return static_cast<cvk_command_queue*>(queue);
+}
 
 struct cvk_executor_thread_pool {
 
@@ -329,13 +335,14 @@ struct cvk_command {
     virtual ~cvk_command() { m_event->release(); }
 
     void set_dependencies(cl_uint num_event_deps,
-                          cvk_event* const* event_deps) {
+                          _cl_event* const* event_deps) {
         CVK_ASSERT(m_event_deps.size() == 0);
 
         for (cl_uint i = 0; i < num_event_deps; i++) {
-            event_deps[i]->retain();
-            cvk_debug_fn("adding dep on event %p", event_deps[i]);
-            m_event_deps.push_back(event_deps[i]);
+            auto evt = icd_downcast(event_deps[i]);
+            evt->retain();
+            cvk_debug_fn("adding dep on event %p", evt);
+            m_event_deps.push_back(evt);
         }
     }
 

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cl_headers.hpp"
+#include "icd.hpp"
 #include "init.hpp"
 #include "kernel.hpp"
 #include "memory.hpp"
@@ -41,11 +42,11 @@ bool is_valid_sampler(cl_sampler sampler) { return sampler != nullptr; }
 bool is_valid_mem_object(cl_mem mem) { return mem != nullptr; }
 
 bool is_valid_buffer(cl_mem mem) {
-    return is_valid_mem_object(mem) && mem->is_buffer_type();
+    return is_valid_mem_object(mem) && icd_downcast(mem)->is_buffer_type();
 }
 
 bool is_valid_image(cl_mem mem) {
-    return is_valid_mem_object(mem) && mem->is_image_type();
+    return is_valid_mem_object(mem) && icd_downcast(mem)->is_image_type();
 }
 
 bool is_valid_command_queue(cl_command_queue queue) { return queue != nullptr; }
@@ -53,13 +54,14 @@ bool is_valid_command_queue(cl_command_queue queue) { return queue != nullptr; }
 bool is_valid_event(cl_event event) { return event != nullptr; }
 
 bool is_same_context(cl_command_queue queue, cl_mem mem) {
-    return queue->context() == mem->context();
+    return icd_downcast(queue)->context() == icd_downcast(mem)->context();
 }
 
 bool is_same_context(cl_command_queue queue, cl_uint num_events,
                      const cl_event* event_list) {
     for (cl_uint i = 0; i < num_events; i++) {
-        if (queue->context() != event_list[i]->context()) {
+        if (icd_downcast(queue)->context() !=
+            icd_downcast(event_list[i])->context()) {
             return false;
         }
     }
@@ -87,11 +89,9 @@ struct api_query_string : public std::string {
 } // namespace
 
 // Platform API
-cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id* platforms,
-                        cl_uint* num_platforms) {
-    LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
-                 num_entries, platforms, num_platforms);
 
+cl_int cvk_get_platform_ids(cl_uint num_entries, cl_platform_id* platforms,
+                            cl_uint* num_platforms) {
     if ((num_platforms == nullptr) && (platforms == nullptr)) {
         return CL_INVALID_VALUE;
     }
@@ -111,6 +111,14 @@ cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id* platforms,
     return CL_SUCCESS;
 }
 
+cl_int clGetPlatformIDs(cl_uint num_entries, cl_platform_id* platforms,
+                        cl_uint* num_platforms) {
+    LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
+                 num_entries, platforms, num_platforms);
+
+    return cvk_get_platform_ids(num_entries, platforms, num_platforms);
+}
+
 cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
                          size_t param_value_size, void* param_value,
                          size_t* param_value_size_ret) {
@@ -127,7 +135,8 @@ cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
     const api_query_string platform_version{"OpenCL 1.2 clvk"};
     const api_query_string platform_vendor{"clvk"};
     const api_query_string platform_profile{"FULL_PROFILE"};
-    const api_query_string platform_extensions{""};
+    const api_query_string platform_extensions{"cl_khr_icd"};
+    const api_query_string platform_icd_suffix{"clvk"};
 
     switch (param_name) {
     case CL_PLATFORM_NAME:
@@ -150,6 +159,10 @@ cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
         copy_ptr = platform_extensions.c_str();
         size_ret = platform_extensions.size_with_null();
         break;
+    case CL_PLATFORM_ICD_SUFFIX_KHR:
+        copy_ptr = platform_icd_suffix.c_str();
+        size_ret = platform_icd_suffix.size_with_null();
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;
@@ -169,6 +182,7 @@ cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
 const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     {"clCreateProgramWithILKHR",
      reinterpret_cast<void*>(clCreateProgramWithILKHR)},
+    {"clIcdGetPlatformIDsKHR", reinterpret_cast<void*>(clIcdGetPlatformIDsKHR)},
 };
 
 void* cvk_get_extension_function_pointer(const char* funcname) {
@@ -220,7 +234,7 @@ cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
 
     cl_uint num = 0;
 
-    for (auto dev : platform->devices) {
+    for (auto dev : icd_downcast(platform)->devices) {
         if ((device_type == CL_DEVICE_TYPE_DEFAULT) ||
             (device_type == CL_DEVICE_TYPE_ALL) ||
             (dev->type() == device_type)) {
@@ -242,13 +256,12 @@ cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
     return CL_SUCCESS;
 }
 
-cl_int clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
+cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
                        size_t param_value_size, void* param_value,
                        size_t* param_value_size_ret) {
     LOG_API_CALL(
         "device = %p, param_name = %d, size = %zu, value = %p, size_ret = %p",
-        device, param_name, param_value_size, param_value,
-        param_value_size_ret);
+        dev, param_name, param_value_size, param_value, param_value_size_ret);
     cl_int ret = CL_SUCCESS;
 
     size_t size_ret = 0;
@@ -269,6 +282,8 @@ cl_int clGetDeviceInfo(cl_device_id device, cl_device_info param_name,
     cl_command_queue_properties val_queue_properties;
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
+
+    auto device = icd_downcast(dev);
 
     if (!is_valid_device(device)) {
         return CL_INVALID_DEVICE;
@@ -639,7 +654,7 @@ cl_context clCreateContext(const cl_context_properties* properties,
         return nullptr;
     }
 
-    cl_context context = new cvk_context(devices[0], properties);
+    cl_context context = new cvk_context(icd_downcast(devices[0]), properties);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;
@@ -658,7 +673,7 @@ cl_context clCreateContextFromType(
 
     cl_device_id device;
 
-    cl_int err = clGetDeviceIDs(nullptr, device_type, 1, &device, nullptr);
+    cl_int err = clGetDeviceIDs(gPlatform, device_type, 1, &device, nullptr);
 
     if (err == CL_SUCCESS) {
         return clCreateContext(properties, 1, &device, pfn_notify, user_data,
@@ -676,7 +691,7 @@ cl_int clRetainContext(cl_context context) {
         return CL_INVALID_CONTEXT;
     }
 
-    context->retain();
+    icd_downcast(context)->retain();
 
     return CL_SUCCESS;
 }
@@ -688,24 +703,25 @@ cl_int clReleaseContext(cl_context context) {
         return CL_INVALID_CONTEXT;
     }
 
-    context->release();
+    icd_downcast(context)->release();
 
     return CL_SUCCESS;
 }
 
-cl_int clGetContextInfo(cl_context context, cl_context_info param_name,
+cl_int clGetContextInfo(cl_context ctx, cl_context_info param_name,
                         size_t param_value_size, void* param_value,
                         size_t* param_value_size_ret) {
     LOG_API_CALL(
         "context = %p, param_name = %u, size = %zu, value = %p, size_ret = %p",
-        context, param_name, param_value_size, param_value,
-        param_value_size_ret);
+        ctx, param_name, param_value_size, param_value, param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
     size_t size_ret = 0;
     const void* copy_ptr = nullptr;
     cl_uint val_uint;
     cl_device_id val_device;
+
+    auto context = icd_downcast(ctx);
 
     switch (param_name) {
     case CL_CONTEXT_REFERENCE_COUNT:
@@ -782,7 +798,7 @@ cl_int clReleaseEvent(cl_event event) {
         return CL_INVALID_EVENT;
     }
 
-    event->release();
+    icd_downcast(event)->release();
 
     return CL_SUCCESS;
 }
@@ -794,7 +810,7 @@ cl_int clRetainEvent(cl_event event) {
         return CL_INVALID_EVENT;
     }
 
-    event->retain();
+    icd_downcast(event)->retain();
 
     return CL_SUCCESS;
 }
@@ -808,7 +824,8 @@ cl_event clCreateUserEvent(cl_context context, cl_int* errcode_ret) {
         }
     }
 
-    auto event = new cvk_event(context, CL_SUBMITTED, CL_COMMAND_USER, nullptr);
+    auto event = new cvk_event(icd_downcast(context), CL_SUBMITTED,
+                               CL_COMMAND_USER, nullptr);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;
@@ -824,7 +841,7 @@ cl_int clSetUserEventStatus(cl_event event, cl_int execution_status) {
         return CL_INVALID_EVENT;
     }
 
-    event->set_status(execution_status);
+    icd_downcast(event)->set_status(execution_status);
 
     return CL_SUCCESS;
 }
@@ -846,8 +863,8 @@ cl_int clSetEventCallback(cl_event event, cl_int command_exec_callback_type,
         return CL_INVALID_VALUE;
     }
 
-    event->register_callback(command_exec_callback_type, pfn_event_notify,
-                             user_data);
+    icd_downcast(event)->register_callback(command_exec_callback_type,
+                                           pfn_event_notify, user_data);
 
     return CL_SUCCESS;
 }
@@ -869,7 +886,7 @@ static bool event_wait_list_is_valid(cl_uint num_events_in_wait_list,
     return true;
 }
 
-cl_int cvk_enqueue_marker_with_wait_list(cl_command_queue command_queue,
+cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
                                          cl_uint num_events_in_wait_list,
                                          const cl_event* event_wait_list,
                                          cl_event* event) {
@@ -898,17 +915,19 @@ cl_int clEnqueueMarkerWithWaitList(cl_command_queue command_queue,
                  command_queue, num_events_in_wait_list, event_wait_list,
                  event);
 
-    return cvk_enqueue_marker_with_wait_list(
-        command_queue, num_events_in_wait_list, event_wait_list, event);
+    return cvk_enqueue_marker_with_wait_list(icd_downcast(command_queue),
+                                             num_events_in_wait_list,
+                                             event_wait_list, event);
 }
 
 cl_int clEnqueueMarker(cl_command_queue command_queue, cl_event* event) {
     LOG_API_CALL("command_queue = %p, event = %p", command_queue, event);
 
-    return cvk_enqueue_marker_with_wait_list(command_queue, 0, nullptr, event);
+    return cvk_enqueue_marker_with_wait_list(icd_downcast(command_queue), 0,
+                                             nullptr, event);
 }
 
-cl_int cvk_enqueue_barrier_with_wait_list(cl_command_queue command_queue,
+cl_int cvk_enqueue_barrier_with_wait_list(cvk_command_queue* command_queue,
                                           cl_uint num_events_in_wait_list,
                                           const cl_event* event_wait_list,
                                           cl_event* event) {
@@ -937,23 +956,24 @@ cl_int clEnqueueBarrierWithWaitList(cl_command_queue command_queue,
                  command_queue, num_events_in_wait_list, event_wait_list,
                  event);
 
-    return cvk_enqueue_barrier_with_wait_list(
-        command_queue, num_events_in_wait_list, event_wait_list, event);
+    return cvk_enqueue_barrier_with_wait_list(icd_downcast(command_queue),
+                                              num_events_in_wait_list,
+                                              event_wait_list, event);
 }
 
 cl_int clEnqueueBarrier(cl_command_queue command_queue) {
     LOG_API_CALL("command_queue = %p", command_queue);
 
-    return cvk_enqueue_barrier_with_wait_list(command_queue, 0, nullptr,
-                                              nullptr);
+    return cvk_enqueue_barrier_with_wait_list(icd_downcast(command_queue), 0,
+                                              nullptr, nullptr);
 }
 
-cl_int clGetEventInfo(cl_event event, cl_event_info param_name,
+cl_int clGetEventInfo(cl_event evt, cl_event_info param_name,
                       size_t param_value_size, void* param_value,
                       size_t* param_value_size_ret) {
     LOG_API_CALL("event = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 event, param_name, param_value_size, param_value,
+                 evt, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -964,6 +984,8 @@ cl_int clGetEventInfo(cl_event event, cl_event_info param_name,
     cl_context val_context;
     cl_command_type val_command_type;
     cl_command_queue val_command_queue;
+
+    auto event = icd_downcast(evt);
 
     if (!is_valid_event(event)) {
         return CL_INVALID_VALUE;
@@ -1036,8 +1058,8 @@ cl_command_queue clCreateCommandQueue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
-    auto queue =
-        std::make_unique<cvk_command_queue>(context, device, properties);
+    auto queue = std::make_unique<cvk_command_queue>(
+        icd_downcast(context), icd_downcast(device), properties);
 
     cl_int err = queue->init();
 
@@ -1059,7 +1081,7 @@ cl_int clReleaseCommandQueue(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    command_queue->release();
+    icd_downcast(command_queue)->release();
     return CL_SUCCESS;
 }
 
@@ -1070,17 +1092,17 @@ cl_int clRetainCommandQueue(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    command_queue->retain();
+    icd_downcast(command_queue)->retain();
     return CL_SUCCESS;
 }
 
-cl_int clGetCommandQueueInfo(cl_command_queue command_queue,
+cl_int clGetCommandQueueInfo(cl_command_queue cq,
                              cl_command_queue_info param_name,
                              size_t param_value_size, void* param_value,
                              size_t* param_value_size_ret) {
     LOG_API_CALL("command_queue = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 command_queue, param_name, param_value_size, param_value,
+                 cq, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -1090,6 +1112,8 @@ cl_int clGetCommandQueueInfo(cl_command_queue command_queue,
     cl_context val_context;
     cl_device_id val_device;
     cl_command_queue_properties val_properties;
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -1142,7 +1166,8 @@ cl_mem clCreateBuffer(cl_context context, cl_mem_flags flags, size_t size,
                  context, flags, size, host_ptr, errcode_ret);
 
     cl_int err;
-    auto buffer = cvk_buffer::create(context, flags, size, host_ptr, &err);
+    auto buffer =
+        cvk_buffer::create(icd_downcast(context), flags, size, host_ptr, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1155,13 +1180,15 @@ cl_mem clCreateBuffer(cl_context context, cl_mem_flags flags, size_t size,
     }
 }
 
-cl_mem clCreateSubBuffer(cl_mem buffer, cl_mem_flags flags,
+cl_mem clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
                          cl_buffer_create_type buffer_create_type,
                          const void* buffer_create_info, cl_int* errcode_ret) {
     LOG_API_CALL("buffer = %p, flags = %lu, buffer_create_type = %u, "
                  "buffer_create_info = %p, errcode_ret = %p",
-                 buffer, flags, buffer_create_type, buffer_create_info,
+                 buf, flags, buffer_create_type, buffer_create_info,
                  errcode_ret);
+
+    auto buffer = static_cast<cvk_buffer*>(buf);
 
     if (!is_valid_buffer(buffer) || buffer->is_sub_buffer()) {
         if (errcode_ret != nullptr) {
@@ -1204,8 +1231,7 @@ cl_mem clCreateSubBuffer(cl_mem buffer, cl_mem_flags flags,
                  region->origin, region->size);
 
     cl_int err = CL_SUCCESS;
-    auto buf = static_cast<cvk_buffer*>(buffer);
-    auto sub = buf->create_subbuffer(flags, region->origin, region->size);
+    auto sub = buffer->create_subbuffer(flags, region->origin, region->size);
 
     if (sub == nullptr) {
         err = CL_OUT_OF_RESOURCES;
@@ -1225,7 +1251,7 @@ cl_int clRetainMemObject(cl_mem memobj) {
         return CL_INVALID_MEM_OBJECT;
     }
 
-    memobj->retain();
+    icd_downcast(memobj)->retain();
 
     return CL_SUCCESS;
 }
@@ -1237,7 +1263,7 @@ cl_int clReleaseMemObject(cl_mem memobj) {
         return CL_INVALID_MEM_OBJECT;
     }
 
-    memobj->release();
+    icd_downcast(memobj)->release();
 
     return CL_SUCCESS;
 }
@@ -1257,13 +1283,12 @@ cl_int clSetMemObjectDestructorCallback(
         return CL_INVALID_VALUE;
     }
 
-    memobj->add_destructor_callback(pfn_notify, user_data);
+    icd_downcast(memobj)->add_destructor_callback(pfn_notify, user_data);
 
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueMigrateMemObjects(cl_command_queue command_queue,
-                                  cl_uint num_mem_objects,
+cl_int clEnqueueMigrateMemObjects(cl_command_queue cq, cl_uint num_mem_objects,
                                   const cl_mem* mem_objects,
                                   cl_mem_migration_flags flags,
                                   cl_uint num_events_in_wait_list,
@@ -1272,7 +1297,7 @@ cl_int clEnqueueMigrateMemObjects(cl_command_queue command_queue,
     LOG_API_CALL("command_queue = %p, num_mem_objects = %u, mem_objects = %p, "
                  "flags = %lx, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
-                 command_queue, num_mem_objects, mem_objects, flags,
+                 cq, num_mem_objects, mem_objects, flags,
                  num_events_in_wait_list, event_wait_list, event);
 
     if ((num_mem_objects == 0) || (mem_objects == nullptr)) {
@@ -1289,6 +1314,8 @@ cl_int clEnqueueMigrateMemObjects(cl_command_queue command_queue,
     // described in the table above.
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for the specified set of memory objects in mem_objects.
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -1318,12 +1345,12 @@ cl_int clEnqueueMigrateMemObjects(cl_command_queue command_queue,
     return CL_SUCCESS;
 }
 
-cl_int clGetMemObjectInfo(cl_mem memobj, cl_mem_info param_name,
+cl_int clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
                           size_t param_value_size, void* param_value,
                           size_t* param_value_size_ret) {
     LOG_API_CALL("memobj = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 memobj, param_name, param_value_size, param_value,
+                 mem, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -1336,6 +1363,8 @@ cl_int clGetMemObjectInfo(cl_mem memobj, cl_mem_info param_name,
     size_t val_sizet;
     cl_mem val_memobj;
     void* val_ptr;
+
+    auto memobj = icd_downcast(mem);
 
     if (!is_valid_mem_object(memobj)) {
         return CL_INVALID_MEM_OBJECT;
@@ -1420,7 +1449,7 @@ cl_program clCreateProgramWithSource(cl_context context, cl_uint count,
         return nullptr;
     }
 
-    cl_program prog = new cvk_program(context);
+    cvk_program* prog = new cvk_program(icd_downcast(context));
 
     for (cl_uint i = 0; i < count; i++) {
         size_t len = (lengths != nullptr) ? lengths[i] : 0;
@@ -1436,7 +1465,7 @@ cl_program clCreateProgramWithSource(cl_context context, cl_uint count,
     return prog;
 }
 
-cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices,
+cl_program clCreateProgramWithBinary(cl_context ctx, cl_uint num_devices,
                                      const cl_device_id* device_list,
                                      const size_t* lengths,
                                      const unsigned char** binaries,
@@ -1444,8 +1473,10 @@ cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices,
                                      cl_int* errcode_ret) {
     LOG_API_CALL("context = %p, num_devices = %u, device_list = %p, lengths = "
                  "%p, binaries = %p, binary_status = %p, errcode_ret = %p",
-                 context, num_devices, device_list, lengths, binaries,
+                 ctx, num_devices, device_list, lengths, binaries,
                  binary_status, errcode_ret);
+
+    auto context = icd_downcast(ctx);
 
     if (!is_valid_context(context)) {
         if (errcode_ret != nullptr) {
@@ -1461,7 +1492,7 @@ cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices,
         return nullptr;
     }
 
-    if (device_list[0] != context->device()) {
+    if (icd_downcast(device_list[0]) != context->device()) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_DEVICE;
         }
@@ -1484,7 +1515,7 @@ cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices,
         }
     }
 
-    cl_program prog = new cvk_program(context);
+    cvk_program* prog = new cvk_program(icd_downcast(context));
 
     cl_int load_status = CL_SUCCESS;
     if (!prog->read(binaries[0], lengths[0])) {
@@ -1502,15 +1533,17 @@ cl_program clCreateProgramWithBinary(cl_context context, cl_uint num_devices,
     return prog;
 }
 
-cl_int clBuildProgram(cl_program program, cl_uint num_devices,
+cl_int clBuildProgram(cl_program prog, cl_uint num_devices,
                       const cl_device_id* device_list, const char* options,
                       void(CL_CALLBACK* pfn_notify)(cl_program /* program */,
                                                     void* /* user_data */),
                       void* user_data) {
     LOG_API_CALL("program = %p, num_device = %d, device_list = %p, options = "
                  "%s, pfn_notify = %p, user_data = %p",
-                 program, num_devices, device_list, options, pfn_notify,
+                 prog, num_devices, device_list, options, pfn_notify,
                  user_data);
+
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
@@ -1563,7 +1596,7 @@ cl_int clBuildProgram(cl_program program, cl_uint num_devices,
 }
 
 cl_int clCompileProgram(
-    cl_program program, cl_uint num_devices, const cl_device_id* device_list,
+    cl_program prog, cl_uint num_devices, const cl_device_id* device_list,
     const char* options, cl_uint num_input_headers,
     const cl_program* input_headers, const char** header_include_names,
     void(CL_CALLBACK* pfn_notify)(cl_program program, void* user_data),
@@ -1571,8 +1604,10 @@ cl_int clCompileProgram(
     LOG_API_CALL("program = %p, num_devices = %u, device_list = %p, options = "
                  "%p, num_input_headers = %u, input_headers = %p, "
                  "header_include_names = %p, pfn_notify = %p, user_data = %p",
-                 program, num_devices, device_list, options, num_input_headers,
+                 prog, num_devices, device_list, options, num_input_headers,
                  input_headers, header_include_names, pfn_notify, user_data);
+
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
@@ -1691,7 +1726,7 @@ cl_program clLinkProgram(cl_context context, cl_uint num_devices,
     // binaries or libraries as described in input_programs argument above are
     // not followed.
     for (cl_uint i = 0; i < num_input_programs; i++) {
-        if (!input_programs[i]->can_be_linked()) {
+        if (!icd_downcast(input_programs[i])->can_be_linked()) {
             if (errcode_ret != nullptr) {
                 *errcode_ret = CL_INVALID_OPERATION;
             }
@@ -1699,7 +1734,7 @@ cl_program clLinkProgram(cl_context context, cl_uint num_devices,
         }
     }
 
-    cvk_program* prog_ret = new cvk_program(context);
+    cvk_program* prog_ret = new cvk_program(icd_downcast(context));
 
     if (!prog_ret->build(build_operation::link, num_devices, device_list,
                          options, num_input_programs, input_programs, nullptr,
@@ -1745,12 +1780,12 @@ cl_int clUnloadCompiler() {
     return CL_SUCCESS;
 }
 
-cl_int clGetProgramInfo(cl_program program, cl_program_info param_name,
+cl_int clGetProgramInfo(cl_program prog, cl_program_info param_name,
                         size_t param_value_size, void* param_value,
                         size_t* param_value_size_ret) {
     LOG_API_CALL("program = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 program, param_name, param_value_size, param_value,
+                 prog, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -1761,7 +1796,9 @@ cl_int clGetProgramInfo(cl_program program, cl_program_info param_name,
     size_t val_sizet;
     api_query_string val_string;
     std::vector<size_t> val_sizet_vec;
-    std::vector<const cvk_device*> val_devices;
+    std::vector<cl_device_id> val_devices;
+
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
@@ -1789,7 +1826,9 @@ cl_int clGetProgramInfo(cl_program program, cl_program_info param_name,
         ret_size = sizeof(val_context);
         break;
     case CL_PROGRAM_DEVICES:
-        val_devices = program->devices();
+        for (auto dev : program->devices()) {
+            val_devices.push_back(const_cast<cvk_device*>(dev));
+        }
         copy_ptr = val_devices.data();
         ret_size = sizeof(cl_device_id) * val_devices.size();
         break;
@@ -1858,13 +1897,13 @@ cl_int clGetProgramInfo(cl_program program, cl_program_info param_name,
     return ret;
 }
 
-cl_int clGetProgramBuildInfo(cl_program program, cl_device_id device,
+cl_int clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
                              cl_program_build_info param_name,
                              size_t param_value_size, void* param_value,
                              size_t* param_value_size_ret) {
     LOG_API_CALL("program = %p, device = %p, param_name = %x, param_value_size "
                  "= %zu, param_value = %p, param_value_size_ret = %p",
-                 program, device, param_name, param_value_size, param_value,
+                 prog, dev, param_name, param_value_size, param_value,
                  param_value_size_ret);
     cl_int ret = CL_SUCCESS;
     size_t ret_size = 0;
@@ -1872,6 +1911,9 @@ cl_int clGetProgramBuildInfo(cl_program program, cl_device_id device,
     cl_build_status val_status;
     api_query_string val_string;
     cl_program_binary_type val_binarytype;
+
+    auto device = icd_downcast(dev);
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
@@ -1923,7 +1965,7 @@ cl_int clRetainProgram(cl_program program) {
         return CL_INVALID_PROGRAM;
     }
 
-    program->retain();
+    icd_downcast(program)->retain();
     return CL_SUCCESS;
 }
 
@@ -1934,14 +1976,15 @@ cl_int clReleaseProgram(cl_program program) {
         return CL_INVALID_PROGRAM;
     }
 
-    program->release();
+    icd_downcast(program)->release();
     return CL_SUCCESS;
 }
 
 // Kernel Object APIs
 cl_kernel cvk_create_kernel(cl_program program, const char* kernel_name,
                             cl_int* errcode_ret) {
-    auto kernel = std::make_unique<cvk_kernel>(program, kernel_name);
+    auto kernel =
+        std::make_unique<cvk_kernel>(icd_downcast(program), kernel_name);
 
     *errcode_ret = kernel->init();
 
@@ -1952,9 +1995,11 @@ cl_kernel cvk_create_kernel(cl_program program, const char* kernel_name,
     }
 }
 
-cl_kernel clCreateKernel(cl_program program, const char* kernel_name,
+cl_kernel clCreateKernel(cl_program prog, const char* kernel_name,
                          cl_int* errcode_ret) {
-    LOG_API_CALL("program = %p, kernel_name = %s", program, kernel_name);
+    LOG_API_CALL("program = %p, kernel_name = %s", prog, kernel_name);
+
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         if (errcode_ret != nullptr) {
@@ -1971,7 +2016,7 @@ cl_kernel clCreateKernel(cl_program program, const char* kernel_name,
     }
 
     cl_int err;
-    cl_kernel ret = cvk_create_kernel(program, kernel_name, &err);
+    cl_kernel ret = cvk_create_kernel(prog, kernel_name, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1980,11 +2025,13 @@ cl_kernel clCreateKernel(cl_program program, const char* kernel_name,
     return ret;
 }
 
-cl_int clCreateKernelsInProgram(cl_program program, cl_uint num_kernels,
+cl_int clCreateKernelsInProgram(cl_program prog, cl_uint num_kernels,
                                 cl_kernel* kernels, cl_uint* num_kernels_ret) {
     LOG_API_CALL(
         "program = %p, num_kernels = %u, kernels = %p, num_kernels_ret = %p",
-        program, num_kernels, kernels, num_kernels_ret);
+        prog, num_kernels, kernels, num_kernels_ret);
+
+    auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
         return CL_INVALID_PROGRAM;
@@ -2019,11 +2066,13 @@ cl_int clCreateKernelsInProgram(cl_program program, cl_uint num_kernels,
     return CL_SUCCESS;
 }
 
-cl_int clSetKernelArg(cl_kernel kernel, cl_uint arg_index, size_t arg_size,
+cl_int clSetKernelArg(cl_kernel kern, cl_uint arg_index, size_t arg_size,
                       const void* arg_value) {
 
     LOG_API_CALL("kernel = %p, arg_index = %u, arg_size = %zu, arg_value = %p",
-                 kernel, arg_index, arg_size, arg_value);
+                 kern, arg_index, arg_size, arg_value);
+
+    auto kernel = icd_downcast(kern);
 
     if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
@@ -2064,12 +2113,12 @@ cl_int clSetKernelArg(cl_kernel kernel, cl_uint arg_index, size_t arg_size,
     return kernel->set_arg(arg_index, arg_size, arg_value);
 }
 
-cl_int clGetKernelInfo(cl_kernel kernel, cl_kernel_info param_name,
+cl_int clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
                        size_t param_value_size, void* param_value,
                        size_t* param_value_size_ret) {
     LOG_API_CALL("kernel = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 kernel, param_name, param_value_size, param_value,
+                 kern, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -2078,6 +2127,8 @@ cl_int clGetKernelInfo(cl_kernel kernel, cl_kernel_info param_name,
     cl_uint val_uint;
     cl_context val_context;
     cl_program val_program;
+
+    auto kernel = icd_downcast(kern);
 
     if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
@@ -2140,20 +2191,23 @@ cl_int clGetKernelArgInfo(cl_kernel kernel, cl_uint arg_indx,
     return CL_INVALID_OPERATION;
 }
 
-cl_int clGetKernelWorkGroupInfo(cl_kernel kernel, cl_device_id device,
+cl_int clGetKernelWorkGroupInfo(cl_kernel kern, cl_device_id dev,
                                 cl_kernel_work_group_info param_name,
                                 size_t param_value_size, void* param_value,
                                 size_t* param_value_size_ret) {
     LOG_API_CALL(
         "kernel = %p, device = %p, param_name = %x, param_value_size = %zu, "
         "param_value = %p, param_value_size_ret = %p",
-        kernel, device, param_name, param_value_size, param_value,
+        kern, dev, param_name, param_value_size, param_value,
         param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
     const void* copy_ptr = nullptr;
     size_t val_sizet, ret_size = 0;
     cl_ulong val_ulong;
+
+    auto device = icd_downcast(dev);
+    auto kernel = icd_downcast(kern);
 
     if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
@@ -2205,7 +2259,7 @@ cl_int clRetainKernel(cl_kernel kernel) {
         return CL_INVALID_KERNEL;
     }
 
-    kernel->retain();
+    icd_downcast(kernel)->retain();
 
     return CL_SUCCESS;
 }
@@ -2217,19 +2271,21 @@ cl_int clReleaseKernel(cl_kernel kernel) {
         return CL_INVALID_KERNEL;
     }
 
-    kernel->release();
+    icd_downcast(kernel)->release();
 
     return CL_SUCCESS;
 }
 
 /* Profiling APIs  */
-cl_int clGetEventProfilingInfo(cl_event event, cl_profiling_info param_name,
+cl_int clGetEventProfilingInfo(cl_event evt, cl_profiling_info param_name,
                                size_t param_value_size, void* param_value,
                                size_t* param_value_size_ret) {
     LOG_API_CALL("event = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 event, param_name, param_value_size, param_value,
+                 evt, param_name, param_value_size, param_value,
                  param_value_size_ret);
+
+    auto event = icd_downcast(evt);
 
     if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
@@ -2277,7 +2333,7 @@ cl_int clFlush(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    return command_queue->flush();
+    return icd_downcast(command_queue)->flush();
 }
 
 cl_int clFinish(cl_command_queue command_queue) {
@@ -2288,7 +2344,7 @@ cl_int clFinish(cl_command_queue command_queue) {
     }
 
     cvk_event* event = nullptr;
-    cl_int status = command_queue->flush(&event);
+    cl_int status = icd_downcast(command_queue)->flush(&event);
 
     if ((status == CL_SUCCESS) && (event != nullptr)) {
         event->wait();
@@ -2300,13 +2356,16 @@ cl_int clFinish(cl_command_queue command_queue) {
 
 /* Enqueued Commands APIs */
 
-cl_int clEnqueueReadBuffer(cl_command_queue command_queue, cl_mem buffer,
+cl_int clEnqueueReadBuffer(cl_command_queue cq, cl_mem buf,
                            cl_bool blocking_read, size_t offset, size_t size,
                            void* ptr, cl_uint num_events_in_wait_list,
                            const cl_event* event_wait_list, cl_event* event) {
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = "
                  "%zu, size = %zu, ptr = %p",
-                 command_queue, buffer, blocking_read, offset, size, ptr);
+                 cq, buf, blocking_read, offset, size, ptr);
+
+    auto buffer = icd_downcast(buf);
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2333,13 +2392,16 @@ cl_int clEnqueueReadBuffer(cl_command_queue command_queue, cl_mem buffer,
     return err;
 }
 
-cl_int clEnqueueWriteBuffer(cl_command_queue command_queue, cl_mem buffer,
+cl_int clEnqueueWriteBuffer(cl_command_queue cq, cl_mem buf,
                             cl_bool blocking_write, size_t offset, size_t size,
                             const void* ptr, cl_uint num_events_in_wait_list,
                             const cl_event* event_wait_list, cl_event* event) {
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = "
                  "%zu, size = %zu, ptr = %p",
-                 command_queue, buffer, blocking_write, offset, size, ptr);
+                 cq, buf, blocking_write, offset, size, ptr);
+
+    auto buffer = icd_downcast(buf);
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2369,15 +2431,15 @@ cl_int clEnqueueWriteBuffer(cl_command_queue command_queue, cl_mem buffer,
 }
 
 cl_int
-clEnqueueReadBufferRect(cl_command_queue command_queue, cl_mem buffer,
-                        cl_bool blocking_read, const size_t* buffer_origin,
-                        const size_t* host_origin, const size_t* region,
-                        size_t buffer_row_pitch, size_t buffer_slice_pitch,
-                        size_t host_row_pitch, size_t host_slice_pitch,
-                        void* ptr, cl_uint num_events_in_wait_list,
+clEnqueueReadBufferRect(cl_command_queue cq, cl_mem buf, cl_bool blocking_read,
+                        const size_t* buffer_origin, const size_t* host_origin,
+                        const size_t* region, size_t buffer_row_pitch,
+                        size_t buffer_slice_pitch, size_t host_row_pitch,
+                        size_t host_slice_pitch, void* ptr,
+                        cl_uint num_events_in_wait_list,
                         const cl_event* event_wait_list, cl_event* event) {
-    LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d",
-                 command_queue, buffer, blocking_read);
+    LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
+                 blocking_read);
     LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
                  "region = {%zu,%zu,%zu}",
                  buffer_origin[0], buffer_origin[1], buffer_origin[2],
@@ -2389,6 +2451,9 @@ clEnqueueReadBufferRect(cl_command_queue command_queue, cl_mem buffer,
                  host_slice_pitch);
     LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
                  ptr, num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
+    auto buffer = static_cast<cvk_buffer*>(buf);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2406,10 +2471,8 @@ clEnqueueReadBufferRect(cl_command_queue command_queue, cl_mem buffer,
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto buf = static_cast<cvk_buffer*>(buffer);
-
     auto cmd = new cvk_command_copy_host_buffer_rect(
-        command_queue, CL_COMMAND_READ_BUFFER_RECT, buf, ptr, host_origin,
+        command_queue, CL_COMMAND_READ_BUFFER_RECT, buffer, ptr, host_origin,
         buffer_origin, region, host_row_pitch, host_slice_pitch,
         buffer_row_pitch, buffer_slice_pitch);
 
@@ -2420,15 +2483,15 @@ clEnqueueReadBufferRect(cl_command_queue command_queue, cl_mem buffer,
 }
 
 cl_int
-clEnqueueWriteBufferRect(cl_command_queue command_queue, cl_mem buffer,
+clEnqueueWriteBufferRect(cl_command_queue cq, cl_mem buf,
                          cl_bool blocking_write, const size_t* buffer_origin,
                          const size_t* host_origin, const size_t* region,
                          size_t buffer_row_pitch, size_t buffer_slice_pitch,
                          size_t host_row_pitch, size_t host_slice_pitch,
                          const void* ptr, cl_uint num_events_in_wait_list,
                          const cl_event* event_wait_list, cl_event* event) {
-    LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d",
-                 command_queue, buffer, blocking_write);
+    LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
+                 blocking_write);
     LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
                  "region = {%zu,%zu,%zu}",
                  buffer_origin[0], buffer_origin[1], buffer_origin[2],
@@ -2440,6 +2503,9 @@ clEnqueueWriteBufferRect(cl_command_queue command_queue, cl_mem buffer,
                  host_slice_pitch);
     LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
                  ptr, num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
+    auto buffer = static_cast<cvk_buffer*>(buf);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2457,10 +2523,8 @@ clEnqueueWriteBufferRect(cl_command_queue command_queue, cl_mem buffer,
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto buf = static_cast<cvk_buffer*>(buffer);
-
     auto cmd = new cvk_command_copy_host_buffer_rect(
-        command_queue, CL_COMMAND_WRITE_BUFFER_RECT, buf,
+        command_queue, CL_COMMAND_WRITE_BUFFER_RECT, buffer,
         const_cast<void*>(ptr), host_origin, buffer_origin, region,
         host_row_pitch, host_slice_pitch, buffer_row_pitch, buffer_slice_pitch);
 
@@ -2470,17 +2534,19 @@ clEnqueueWriteBufferRect(cl_command_queue command_queue, cl_mem buffer,
     return err;
 }
 
-cl_int clEnqueueFillBuffer(cl_command_queue command_queue, cl_mem buffer,
-                           const void* pattern, size_t pattern_size,
-                           size_t offset, size_t size,
+cl_int clEnqueueFillBuffer(cl_command_queue cq, cl_mem buf, const void* pattern,
+                           size_t pattern_size, size_t offset, size_t size,
                            cl_uint num_events_in_wait_list,
                            const cl_event* event_wait_list, cl_event* event) {
     LOG_API_CALL(
         "command_queue = %p, buffer = %p, pattern = %p, pattern_size = %zu,"
         "offset = %zu, size = %zu, num_events = %u, event_wait_list = %p, "
         "event = %p",
-        command_queue, buffer, pattern, pattern_size, offset, size,
-        num_events_in_wait_list, event_wait_list, event);
+        cq, buf, pattern, pattern_size, offset, size, num_events_in_wait_list,
+        event_wait_list, event);
+
+    auto buffer = icd_downcast(buf);
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2530,17 +2596,20 @@ cl_int clEnqueueFillBuffer(cl_command_queue command_queue, cl_mem buffer,
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueCopyBuffer(cl_command_queue command_queue, cl_mem src_buffer,
-                           cl_mem dst_buffer, size_t src_offset,
-                           size_t dst_offset, size_t size,
+cl_int clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf, cl_mem dstbuf,
+                           size_t src_offset, size_t dst_offset, size_t size,
                            cl_uint num_events_in_wait_list,
                            const cl_event* event_wait_list, cl_event* event) {
     LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_buffer = %p, "
                  "src_offset = %zu,"
                  "dst_offset = %zu, size = %zu, num_events = %u, "
                  "event_wait_list = %p, event = %p",
-                 command_queue, src_buffer, dst_buffer, src_offset, dst_offset,
-                 size, num_events_in_wait_list, event_wait_list, event);
+                 cq, srcbuf, dstbuf, src_offset, dst_offset, size,
+                 num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
+    auto src_buffer = icd_downcast(srcbuf);
+    auto dst_buffer = icd_downcast(dstbuf);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2566,23 +2635,27 @@ cl_int clEnqueueCopyBuffer(cl_command_queue command_queue, cl_mem src_buffer,
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueCopyBufferRect(
-    cl_command_queue command_queue, cl_mem src_buffer, cl_mem dst_buffer,
-    const size_t* src_origin, const size_t* dst_origin, const size_t* region,
-    size_t src_row_pitch, size_t src_slice_pitch, size_t dst_row_pitch,
-    size_t dst_slice_pitch, cl_uint num_events_in_wait_list,
-    const cl_event* event_wait_list, cl_event* event) {
+cl_int clEnqueueCopyBufferRect(cl_command_queue cq, cl_mem src_buffer,
+                               cl_mem dst_buffer, const size_t* src_origin,
+                               const size_t* dst_origin, const size_t* region,
+                               size_t src_row_pitch, size_t src_slice_pitch,
+                               size_t dst_row_pitch, size_t dst_slice_pitch,
+                               cl_uint num_events_in_wait_list,
+                               const cl_event* event_wait_list,
+                               cl_event* event) {
     LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_buffer = %p, "
                  "src_origin = {%zu,%zu,%zu}, dst_origin = {%zu,%zu,%zu}, "
                  "region = {%zu,%zu,%zu}, src_row_pitch = %zu, "
                  "src_slice_pitch = %zu, dst_row_pitch = %zu, "
                  "dst_slice_pitch = %zu, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
-                 command_queue, src_buffer, dst_buffer, src_origin[0],
-                 src_origin[1], src_origin[2], dst_origin[0], dst_origin[1],
-                 dst_origin[2], region[0], region[1], region[2], src_row_pitch,
+                 cq, src_buffer, dst_buffer, src_origin[0], src_origin[1],
+                 src_origin[2], dst_origin[0], dst_origin[1], dst_origin[2],
+                 region[0], region[1], region[2], src_row_pitch,
                  src_slice_pitch, dst_row_pitch, dst_slice_pitch,
                  num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
 
     // TODO CL_INVALID_COMMAND_QUEUE if command_queue is not a valid
     // command-queue.
@@ -2648,14 +2721,16 @@ cl_int clEnqueueCopyBufferRect(
     return CL_SUCCESS;
 }
 
-void* clEnqueueMapBuffer(cl_command_queue command_queue, cl_mem buffer,
-                         cl_bool blocking_map, cl_map_flags map_flags,
-                         size_t offset, size_t size,
+void* clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf, cl_bool blocking_map,
+                         cl_map_flags map_flags, size_t offset, size_t size,
                          cl_uint num_events_in_wait_list,
                          const cl_event* event_wait_list, cl_event* event,
                          cl_int* errcode_ret) {
     LOG_API_CALL("command_queue = %p, buffer = %p, offset = %zu, size = %zu",
-                 command_queue, buffer, offset, size);
+                 cq, buf, offset, size);
+
+    auto command_queue = icd_downcast(cq);
+    auto buffer = static_cast<cvk_buffer*>(buf);
 
     if (!is_valid_command_queue(command_queue)) {
         if (errcode_ret != nullptr) {
@@ -2733,9 +2808,8 @@ void* clEnqueueMapBuffer(cl_command_queue command_queue, cl_mem buffer,
         return nullptr;
     }
 
-    auto buf = static_cast<cvk_buffer*>(buffer);
-    auto map_ptr = buf->map_ptr(offset);
-    auto cmd = new cvk_command_map_buffer(command_queue, buf, offset, size);
+    auto map_ptr = buffer->map_ptr(offset);
+    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size);
 
     auto err = command_queue->enqueue_command_with_deps(
         cmd, blocking_map, num_events_in_wait_list, event_wait_list, event);
@@ -2751,13 +2825,16 @@ void* clEnqueueMapBuffer(cl_command_queue command_queue, cl_mem buffer,
     return map_ptr;
 }
 
-cl_int clEnqueueUnmapMemObject(cl_command_queue command_queue, cl_mem memobj,
+cl_int clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
                                void* mapped_ptr,
                                cl_uint num_events_in_wait_list,
                                const cl_event* event_wait_list,
                                cl_event* event) {
-    LOG_API_CALL("command_queue = %p, memobj = %p, mapped_ptr = %p",
-                 command_queue, memobj, mapped_ptr);
+    LOG_API_CALL("command_queue = %p, memobj = %p, mapped_ptr = %p", cq, mem,
+                 mapped_ptr);
+
+    auto command_queue = icd_downcast(cq);
+    auto memobj = icd_downcast(mem);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -2790,8 +2867,8 @@ cl_int clEnqueueUnmapMemObject(cl_command_queue command_queue, cl_mem memobj,
     return CL_SUCCESS;
 }
 
-cl_int cvk_enqueue_ndrange_kernel(cl_command_queue command_queue,
-                                  cl_kernel kernel, uint32_t* num_workgroups,
+cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
+                                  cvk_kernel* kernel, uint32_t* num_workgroups,
                                   uint32_t* workgroup_size,
                                   cl_uint num_events_in_wait_list,
                                   const cl_event* event_wait_list,
@@ -2822,9 +2899,9 @@ cl_int clEnqueueTask(cl_command_queue command_queue, cl_kernel kernel,
     uint32_t num_workgroups[] = {1, 1, 1};
     uint32_t workgroup_size[] = {1, 1, 1};
 
-    return cvk_enqueue_ndrange_kernel(command_queue, kernel, num_workgroups,
-                                      workgroup_size, num_events_in_wait_list,
-                                      event_wait_list, event);
+    return cvk_enqueue_ndrange_kernel(
+        icd_downcast(command_queue), icd_downcast(kernel), num_workgroups,
+        workgroup_size, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int clEnqueueNDRangeKernel(
@@ -2876,9 +2953,9 @@ cl_int clEnqueueNDRangeKernel(
         num_workgroups[i] = gws[i] / lws[i];
     };
 
-    return cvk_enqueue_ndrange_kernel(command_queue, kernel, num_workgroups,
-                                      lws, num_events_in_wait_list,
-                                      event_wait_list, event);
+    return cvk_enqueue_ndrange_kernel(
+        icd_downcast(command_queue), icd_downcast(kernel), num_workgroups, lws,
+        num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int clEnqueueNativeKernel(cl_command_queue command_queue,
@@ -2912,7 +2989,7 @@ cl_sampler clCreateSampler(cl_context context, cl_bool normalized_coords,
         return nullptr;
     }
 
-    auto sampler = cvk_sampler::create(context, normalized_coords,
+    auto sampler = cvk_sampler::create(icd_downcast(context), normalized_coords,
                                        addressing_mode, filter_mode);
 
     cl_int err = CL_SUCCESS;
@@ -2935,7 +3012,7 @@ cl_int clRetainSampler(cl_sampler sampler) {
         return CL_INVALID_SAMPLER;
     }
 
-    sampler->retain();
+    icd_downcast(sampler)->retain();
 
     return CL_SUCCESS;
 }
@@ -2947,17 +3024,17 @@ cl_int clReleaseSampler(cl_sampler sampler) {
         return CL_INVALID_SAMPLER;
     }
 
-    sampler->release();
+    icd_downcast(sampler)->release();
 
     return CL_SUCCESS;
 }
 
-cl_int clGetSamplerInfo(cl_sampler sampler, cl_sampler_info param_name,
+cl_int clGetSamplerInfo(cl_sampler samp, cl_sampler_info param_name,
                         size_t param_value_size, void* param_value,
                         size_t* param_value_size_ret) {
     LOG_API_CALL("sampler = %p, param_name = %d, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
-                 sampler, param_name, param_value_size, param_value,
+                 samp, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
     cl_int ret = CL_SUCCESS;
@@ -2968,6 +3045,8 @@ cl_int clGetSamplerInfo(cl_sampler sampler, cl_sampler_info param_name,
     cl_bool val_bool;
     cl_addressing_mode val_addressing_mode;
     cl_filter_mode val_filter_mode;
+
+    auto sampler = icd_downcast(samp);
 
     if (!is_valid_sampler(sampler)) {
         return CL_INVALID_SAMPLER;
@@ -3051,8 +3130,8 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for image object.
 
-    auto image =
-        cvk_image::create(context, flags, image_desc, image_format, host_ptr);
+    auto image = cvk_image::create(icd_downcast(context), flags, image_desc,
+                                   image_format, host_ptr);
 
     *errcode_ret = (image != nullptr)
                        ? CL_SUCCESS
@@ -3365,7 +3444,7 @@ cl_int clGetSupportedImageFormats(cl_context context, cl_mem_flags flags,
 
     cl_uint num_formats_found = 0;
 
-    auto pdev = context->device()->vulkan_physical_device();
+    auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
     // Iterate over all vulkan formats
     for (int fmt = VK_FORMAT_BEGIN_RANGE; fmt < VK_FORMAT_END_RANGE; fmt++) {
@@ -3470,7 +3549,7 @@ cl_int cvk_enqueue_image_copy(
         cmd, blocking, num_events_in_wait_list, event_wait_list, event);
 }
 
-cl_int clEnqueueReadImage(cl_command_queue command_queue, cl_mem image,
+cl_int clEnqueueReadImage(cl_command_queue cq, cl_mem img,
                           cl_bool blocking_read, const size_t* origin,
                           const size_t* region, size_t row_pitch,
                           size_t slice_pitch, void* ptr,
@@ -3481,10 +3560,12 @@ cl_int clEnqueueReadImage(cl_command_queue command_queue, cl_mem image,
                  "row_pitch = %zu, slice_pitch = %zu, ptr = %p, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p",
-                 command_queue, image, blocking_read, origin[0], origin[1],
-                 origin[2], region[0], region[1], region[2], row_pitch,
-                 slice_pitch, ptr, num_events_in_wait_list, event_wait_list,
-                 event);
+                 cq, img, blocking_read, origin[0], origin[1], origin[2],
+                 region[0], region[1], region[2], row_pitch, slice_pitch, ptr,
+                 num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
+    auto image = icd_downcast(img);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3528,7 +3609,7 @@ cl_int clEnqueueReadImage(cl_command_queue command_queue, cl_mem image,
                                   event_wait_list, event);
 }
 
-cl_int clEnqueueWriteImage(cl_command_queue command_queue, cl_mem image,
+cl_int clEnqueueWriteImage(cl_command_queue cq, cl_mem img,
                            cl_bool blocking_write, const size_t* origin,
                            const size_t* region, size_t input_row_pitch,
                            size_t input_slice_pitch, const void* ptr,
@@ -3539,10 +3620,13 @@ cl_int clEnqueueWriteImage(cl_command_queue command_queue, cl_mem image,
                  "input_row_pitch = %zu, input_slice_pitch = %zu, ptr = %p, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p",
-                 command_queue, image, blocking_write, origin[0], origin[1],
-                 origin[2], region[0], region[1], region[2], input_row_pitch,
+                 cq, img, blocking_write, origin[0], origin[1], origin[2],
+                 region[0], region[1], region[2], input_row_pitch,
                  input_slice_pitch, ptr, num_events_in_wait_list,
                  event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
+    auto image = icd_downcast(img);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3587,7 +3671,7 @@ cl_int clEnqueueWriteImage(cl_command_queue command_queue, cl_mem image,
         num_events_in_wait_list, event_wait_list, event);
 }
 
-cl_int clEnqueueCopyImage(cl_command_queue command_queue, cl_mem src_image,
+cl_int clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image,
                           cl_mem dst_image, const size_t* src_origin,
                           const size_t* dst_origin, const size_t* region,
                           cl_uint num_events_in_wait_list,
@@ -3597,10 +3681,12 @@ cl_int clEnqueueCopyImage(cl_command_queue command_queue, cl_mem src_image,
                  "region = {%zu, %zu, %zu}, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p",
-                 command_queue, src_image, dst_image, src_origin[0],
-                 src_origin[1], src_origin[2], dst_origin[0], dst_origin[1],
-                 dst_origin[2], region[0], region[1], region[2],
-                 num_events_in_wait_list, event_wait_list, event);
+                 cq, src_image, dst_image, src_origin[0], src_origin[1],
+                 src_origin[2], dst_origin[0], dst_origin[1], dst_origin[2],
+                 region[0], region[1], region[2], num_events_in_wait_list,
+                 event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3620,6 +3706,9 @@ cl_int clEnqueueCopyImage(cl_command_queue command_queue, cl_mem src_image,
     if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
+
+    auto src_img = static_cast<cvk_image*>(src_image);
+    auto dst_img = static_cast<cvk_image*>(dst_image);
 
     // TODO CL_INVALID_VALUE if the 2D or 3D rectangular region specified by
     // src_origin and src_origin + region refers to a region outside src_image,
@@ -3642,9 +3731,6 @@ cl_int clEnqueueCopyImage(cl_command_queue command_queue, cl_mem src_image,
 
     // TODO CL_MEM_COPY_OVERLAP if src_image and dst_image are the same image
     // object and the source and destination regions overlap.
-
-    auto src_img = static_cast<cvk_image*>(src_image);
-    auto dst_img = static_cast<cvk_image*>(dst_image);
 
     if (!src_img->has_same_format(dst_img)) {
         return CL_IMAGE_FORMAT_MISMATCH;
@@ -3669,7 +3755,7 @@ cl_int clEnqueueCopyImage(cl_command_queue command_queue, cl_mem src_image,
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueFillImage(cl_command_queue command_queue, cl_mem image,
+cl_int clEnqueueFillImage(cl_command_queue cq, cl_mem image,
                           const void* fill_color, const size_t* origin,
                           const size_t* region, cl_uint num_events_in_wait_list,
                           const cl_event* event_wait_list, cl_event* event) {
@@ -3677,9 +3763,11 @@ cl_int clEnqueueFillImage(cl_command_queue command_queue, cl_mem image,
                  "origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p",
-                 command_queue, image, fill_color, origin[0], origin[1],
-                 origin[2], region[0], region[1], region[2],
-                 num_events_in_wait_list, event_wait_list, event);
+                 cq, image, fill_color, origin[0], origin[1], origin[2],
+                 region[0], region[1], region[2], num_events_in_wait_list,
+                 event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3761,9 +3849,8 @@ cl_int clEnqueueFillImage(cl_command_queue command_queue, cl_mem image,
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueCopyImageToBuffer(cl_command_queue command_queue,
-                                  cl_mem src_image, cl_mem dst_buffer,
-                                  const size_t* src_origin,
+cl_int clEnqueueCopyImageToBuffer(cl_command_queue cq, cl_mem src_image,
+                                  cl_mem dst_buffer, const size_t* src_origin,
                                   const size_t* region, size_t dst_offset,
                                   cl_uint num_events_in_wait_list,
                                   const cl_event* event_wait_list,
@@ -3772,9 +3859,11 @@ cl_int clEnqueueCopyImageToBuffer(cl_command_queue command_queue,
                  "src_origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "dst_offset = %zu, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
-                 command_queue, src_image, dst_buffer, src_origin[0],
-                 src_origin[1], src_origin[2], region[0], region[1], region[2],
-                 dst_offset, num_events_in_wait_list, event_wait_list, event);
+                 cq, src_image, dst_buffer, src_origin[0], src_origin[1],
+                 src_origin[2], region[0], region[1], region[2], dst_offset,
+                 num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3815,13 +3904,13 @@ cl_int clEnqueueCopyImageToBuffer(cl_command_queue command_queue,
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for data store associated with src_image or dst_buffer.
 
+    auto image = static_cast<cvk_image*>(src_image);
+    auto buffer = static_cast<cvk_buffer*>(dst_buffer);
+
     if (!command_queue->device()->supports_images()) {
         return CL_INVALID_OPERATION;
     }
 
-    //
-    auto image = static_cast<cvk_image*>(src_image);
-    auto buffer = static_cast<cvk_buffer*>(dst_buffer);
     std::array<size_t, 3> origin = {src_origin[0], src_origin[1],
                                     src_origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
@@ -3840,9 +3929,9 @@ cl_int clEnqueueCopyImageToBuffer(cl_command_queue command_queue,
     return CL_SUCCESS;
 }
 
-cl_int clEnqueueCopyBufferToImage(cl_command_queue command_queue,
-                                  cl_mem src_buffer, cl_mem dst_image,
-                                  size_t src_offset, const size_t* dst_origin,
+cl_int clEnqueueCopyBufferToImage(cl_command_queue cq, cl_mem src_buffer,
+                                  cl_mem dst_image, size_t src_offset,
+                                  const size_t* dst_origin,
                                   const size_t* region,
                                   cl_uint num_events_in_wait_list,
                                   const cl_event* event_wait_list,
@@ -3852,10 +3941,11 @@ cl_int clEnqueueCopyBufferToImage(cl_command_queue command_queue,
                  "dst_origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p",
-                 command_queue, src_buffer, dst_image, src_offset,
-                 dst_origin[0], dst_origin[1], dst_origin[2], region[0],
-                 region[1], region[2], num_events_in_wait_list, event_wait_list,
-                 event);
+                 cq, src_buffer, dst_image, src_offset, dst_origin[0],
+                 dst_origin[1], dst_origin[2], region[0], region[1], region[2],
+                 num_events_in_wait_list, event_wait_list, event);
+
+    auto command_queue = icd_downcast(cq);
 
     if (!is_valid_command_queue(command_queue)) {
         return CL_INVALID_COMMAND_QUEUE;
@@ -3894,12 +3984,14 @@ cl_int clEnqueueCopyBufferToImage(cl_command_queue command_queue,
     // queue.
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for data store associated with src_buffer or dst_image.
+
+    auto image = static_cast<cvk_image*>(dst_image);
+    auto buffer = static_cast<cvk_buffer*>(src_buffer);
+
     if (!command_queue->device()->supports_images()) {
         return CL_INVALID_OPERATION;
     }
 
-    auto image = static_cast<cvk_image*>(dst_image);
-    auto buffer = static_cast<cvk_buffer*>(src_buffer);
     std::array<size_t, 3> origin = {dst_origin[0], dst_origin[1],
                                     dst_origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
@@ -3918,13 +4010,16 @@ cl_int clEnqueueCopyBufferToImage(cl_command_queue command_queue,
     return CL_SUCCESS;
 }
 
-void* cvk_enqueue_map_image(cl_command_queue command_queue, cl_mem image,
+void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
                             cl_bool blocking_map, cl_map_flags map_flags,
                             const size_t* origin, const size_t* region,
                             size_t* image_row_pitch, size_t* image_slice_pitch,
                             cl_uint num_events_in_wait_list,
                             const cl_event* event_wait_list, cl_event* event,
                             cl_int* errcode_ret) {
+    auto command_queue = icd_downcast(cq);
+    auto image = static_cast<cvk_image*>(img);
+
     if (!is_valid_command_queue(command_queue)) {
         *errcode_ret = CL_INVALID_COMMAND_QUEUE;
         return nullptr;
@@ -4003,9 +4098,8 @@ void* cvk_enqueue_map_image(cl_command_queue command_queue, cl_mem image,
 
     std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
-    auto img = static_cast<cvk_image*>(image);
-    auto cmd = std::make_unique<cvk_command_map_image>(command_queue, img, orig,
-                                                       reg, map_flags);
+    auto cmd = std::make_unique<cvk_command_map_image>(command_queue, image,
+                                                       orig, reg, map_flags);
 
     void* map_ptr;
     cl_int err = cmd->build(&map_ptr);
@@ -4029,10 +4123,10 @@ void* cvk_enqueue_map_image(cl_command_queue command_queue, cl_mem image,
     return map_ptr;
 }
 
-void* clEnqueueMapImage(cl_command_queue command_queue, cl_mem image,
-                        cl_bool blocking_map, cl_map_flags map_flags,
-                        const size_t* origin, const size_t* region,
-                        size_t* image_row_pitch, size_t* image_slice_pitch,
+void* clEnqueueMapImage(cl_command_queue cq, cl_mem image, cl_bool blocking_map,
+                        cl_map_flags map_flags, const size_t* origin,
+                        const size_t* region, size_t* image_row_pitch,
+                        size_t* image_slice_pitch,
                         cl_uint num_events_in_wait_list,
                         const cl_event* event_wait_list, cl_event* event,
                         cl_int* errcode_ret) {
@@ -4042,10 +4136,12 @@ void* clEnqueueMapImage(cl_command_queue command_queue, cl_mem image,
                  "image_row_pitch = %p, image_slice_pitch = %p, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
                  "event = %p, errcode_ret = %p",
-                 command_queue, image, blocking_map, map_flags, origin[0],
-                 origin[1], origin[2], region[0], region[1], region[2],
-                 image_row_pitch, image_slice_pitch, num_events_in_wait_list,
-                 event_wait_list, event, errcode_ret);
+                 cq, image, blocking_map, map_flags, origin[0], origin[1],
+                 origin[2], region[0], region[1], region[2], image_row_pitch,
+                 image_slice_pitch, num_events_in_wait_list, event_wait_list,
+                 event, errcode_ret);
+
+    auto command_queue = icd_downcast(cq);
 
     cl_int err;
     auto ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
@@ -4075,7 +4171,7 @@ cl_program cvk_create_program_with_il_khr(cl_context context, const void* il,
     // TODO CL_INVALID_VALUE if the length-byte block of memory pointed to by il
     // does not contain well-formed intermediate language.
 
-    auto program = new cvk_program(context, il, length);
+    auto program = new cvk_program(icd_downcast(context), il, length);
 
     *errcode_ret = CL_SUCCESS;
     return program;
@@ -4095,4 +4191,189 @@ cl_program clCreateProgramWithILKHR(cl_context context, const void* il,
     }
 
     return program;
+}
+
+// clang-format off
+cl_icd_dispatch gDispatchTable = {
+    // OpenCL 1.0
+    clGetPlatformIDs,
+    clGetPlatformInfo,
+    clGetDeviceIDs,
+    clGetDeviceInfo,
+    clCreateContext,
+    clCreateContextFromType,
+    clRetainContext,
+    clReleaseContext,
+    clGetContextInfo,
+    clCreateCommandQueue,
+    clRetainCommandQueue,
+    clReleaseCommandQueue,
+    clGetCommandQueueInfo,
+    nullptr, // clSetCommandQueueProperty;
+    clCreateBuffer,
+    clCreateImage2D,
+    clCreateImage3D,
+    clRetainMemObject,
+    clReleaseMemObject,
+    clGetSupportedImageFormats,
+    clGetMemObjectInfo,
+    clGetImageInfo,
+    clCreateSampler,
+    clRetainSampler,
+    clReleaseSampler,
+    clGetSamplerInfo,
+    clCreateProgramWithSource,
+    clCreateProgramWithBinary,
+    clRetainProgram,
+    clReleaseProgram,
+    clBuildProgram,
+    clUnloadCompiler,
+    clGetProgramInfo,
+    clGetProgramBuildInfo,
+    clCreateKernel,
+    clCreateKernelsInProgram,
+    clRetainKernel,
+    clReleaseKernel,
+    clSetKernelArg,
+    clGetKernelInfo,
+    clGetKernelWorkGroupInfo,
+    clWaitForEvents,
+    clGetEventInfo,
+    clRetainEvent,
+    clReleaseEvent,
+    clGetEventProfilingInfo,
+    clFlush,
+    clFinish,
+    clEnqueueReadBuffer,
+    clEnqueueWriteBuffer,
+    clEnqueueCopyBuffer,
+    clEnqueueReadImage,
+    clEnqueueWriteImage,
+    clEnqueueCopyImage,
+    clEnqueueCopyImageToBuffer,
+    clEnqueueCopyBufferToImage,
+    clEnqueueMapBuffer,
+    clEnqueueMapImage,
+    clEnqueueUnmapMemObject,
+    clEnqueueNDRangeKernel,
+    clEnqueueTask,
+    clEnqueueNativeKernel,
+    clEnqueueMarker,
+    clEnqueueWaitForEvents,
+    clEnqueueBarrier,
+    clGetExtensionFunctionAddress,
+    nullptr, // clCreateFromGLBuffer;
+    nullptr, // clCreateFromGLTexture2D;
+    nullptr, // clCreateFromGLTexture3D;
+    nullptr, // clCreateFromGLRenderbuffer;
+    nullptr, // clGetGLObjectInfo;
+    nullptr, // clGetGLTextureInfo;
+    nullptr, // clEnqueueAcquireGLObjects;
+    nullptr, // clEnqueueReleaseGLObjects;
+    nullptr, // clGetGLContextInfoKHR;
+
+    nullptr, // clGetDeviceIDsFromD3D10KHR;
+    nullptr, // clCreateFromD3D10BufferKHR;
+    nullptr, // clCreateFromD3D10Texture2DKHR;
+    nullptr, // clCreateFromD3D10Texture3DKHR;
+    nullptr, // clEnqueueAcquireD3D10ObjectsKHR;
+    nullptr, // clEnqueueReleaseD3D10ObjectsKHR;
+
+    // OpenCL 1.1
+    clSetEventCallback,
+    clCreateSubBuffer,
+    clSetMemObjectDestructorCallback,
+    clCreateUserEvent,
+    clSetUserEventStatus,
+    clEnqueueReadBufferRect,
+    clEnqueueWriteBufferRect,
+    clEnqueueCopyBufferRect,
+
+    /* cl_ext_device_fission */
+    nullptr, // clCreateSubDevicesEXT;
+    nullptr, // clRetainDeviceEXT;
+    nullptr, // clReleaseDeviceEXT;
+
+    /* cl_khr_gl_event */
+    nullptr, // clCreateEventFromGLsyncKHR;
+
+    // OpenCL 1.2
+    clCreateSubDevices,
+    clRetainDevice,
+    clReleaseDevice,
+    clCreateImage,
+    nullptr, // clCreateProgramWithBuiltInKernels;
+    clCompileProgram,
+    clLinkProgram,
+    clUnloadPlatformCompiler,
+    clGetKernelArgInfo,
+    clEnqueueFillBuffer,
+    clEnqueueFillImage,
+    clEnqueueMigrateMemObjects,
+    clEnqueueMarkerWithWaitList,
+    clEnqueueBarrierWithWaitList,
+    clGetExtensionFunctionAddressForPlatform,
+    nullptr, // clCreateFromGLTexture;
+
+    /* cl_khr_d3d11_sharing */
+    nullptr, // clGetDeviceIDsFromD3D11KHR;
+    nullptr, // clCreateFromD3D11BufferKHR;
+    nullptr, // clCreateFromD3D11Texture2DKHR;
+    nullptr, // clCreateFromD3D11Texture3DKHR;
+    nullptr, // clCreateFromDX9MediaSurfaceKHR;
+    nullptr, // clEnqueueAcquireD3D11ObjectsKHR;
+    nullptr, // clEnqueueReleaseD3D11ObjectsKHR;
+
+    /* cl_khr_dx9_media_sharing */
+    nullptr, // clGetDeviceIDsFromDX9MediaAdapterKHR;
+    nullptr, // clEnqueueAcquireDX9MediaSurfacesKHR;
+    nullptr, // clEnqueueReleaseDX9MediaSurfacesKHR;
+
+    /* cl_khr_egl_image */
+    nullptr, // clCreateFromEGLImageKHR;
+    nullptr, // clEnqueueAcquireEGLObjectsKHR;
+    nullptr, // clEnqueueReleaseEGLObjectsKHR;
+
+    /* cl_khr_egl_event */
+    nullptr, // clCreateEventFromEGLSyncKHR;
+
+    /* OpenCL 2.0 */
+    nullptr, // clCreateCommandQueueWithProperties;
+    nullptr, // clCreatePipe;
+    nullptr, // clGetPipeInfo;
+    nullptr, // clSVMAlloc;
+    nullptr, // clSVMFree;
+    nullptr, // clEnqueueSVMFree;
+    nullptr, // clEnqueueSVMMemcpy;
+    nullptr, // clEnqueueSVMMemFill;
+    nullptr, // clEnqueueSVMMap;
+    nullptr, // clEnqueueSVMUnmap;
+    nullptr, // clCreateSamplerWithProperties;
+    nullptr, // clSetKernelArgSVMPointer;
+    nullptr, // clSetKernelExecInfo;
+
+    /* cl_khr_sub_groups */
+    nullptr, // clGetKernelSubGroupInfoKHR;
+
+    /* OpenCL 2.1 */
+    nullptr, // clCloneKernel;
+    nullptr, // clCreateProgramWithIL;
+    nullptr, // clEnqueueSVMMigrateMem;
+    nullptr, // clGetDeviceAndHostTimer;
+    nullptr, // clGetHostTimer;
+    nullptr, // clGetKernelSubGroupInfo;
+    nullptr, // clSetDefaultDeviceCommandQueue;
+
+    /* OpenCL 2.2 */
+    nullptr, // clSetProgramReleaseCallback;
+    nullptr, // clSetProgramSpecializationConstant;
+};
+// clang-format on
+
+cl_int clIcdGetPlatformIDsKHR(cl_uint num_entries, cl_platform_id* platforms,
+                              cl_uint* num_platforms) {
+    LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
+                 num_entries, platforms, num_platforms);
+
+    return cvk_get_platform_ids(num_entries, platforms, num_platforms);
 }

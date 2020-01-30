@@ -25,16 +25,17 @@ struct cvk_mem_callback {
     void* data;
 };
 
-typedef struct _cl_mem cvk_mem;
+struct cvk_mem;
 using cvk_mem_holder = refcounted_holder<cvk_mem>;
 
-typedef struct _cl_mem : public api_object {
+struct cvk_mem : public _cl_mem, api_object {
 
-    _cl_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
+    cvk_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
             cvk_mem* parent, size_t parent_offset, cl_mem_object_type type)
         : api_object(ctx), m_type(type), m_flags(flags), m_map_count(0),
           m_size(size), m_host_ptr(host_ptr), m_parent(parent),
           m_parent_offset(parent_offset), m_memory(VK_NULL_HANDLE) {
+
         if (m_parent != nullptr) {
 
             // Handle flag inheritance
@@ -64,7 +65,7 @@ typedef struct _cl_mem : public api_object {
         }
     }
 
-    virtual ~_cl_mem() {
+    virtual ~cvk_mem() {
         auto device = m_context->device()->vulkan_device();
 
         if (m_parent == nullptr) {
@@ -172,8 +173,11 @@ protected:
     cvk_mem_holder m_parent;
     size_t m_parent_offset;
     VkDeviceMemory m_memory;
+};
 
-} cvk_mem;
+static inline cvk_mem* icd_downcast(cl_mem mem) {
+    return static_cast<cvk_mem*>(mem);
+}
 
 struct cvk_buffer : public cvk_mem {
 
@@ -219,18 +223,18 @@ private:
 
 using cvk_buffer_holder = refcounted_holder<cvk_buffer>;
 
-typedef struct _cl_sampler cvk_sampler;
+struct cvk_sampler;
 using cvk_sampler_holder = refcounted_holder<cvk_sampler>;
 
-typedef struct _cl_sampler : public api_object {
+struct cvk_sampler : public _cl_sampler, api_object {
 
-    _cl_sampler(cvk_context* context, bool normalized_coords,
+    cvk_sampler(cvk_context* context, bool normalized_coords,
                 cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
         : api_object(context), m_normalized_coords(normalized_coords),
           m_addressing_mode(addressing_mode), m_filter_mode(filter_mode),
           m_sampler(VK_NULL_HANDLE) {}
 
-    ~_cl_sampler() {
+    ~cvk_sampler() {
         if (m_sampler != VK_NULL_HANDLE) {
             auto vkdev = context()->device()->vulkan_device();
             vkDestroySampler(vkdev, m_sampler, nullptr);
@@ -252,7 +256,11 @@ private:
     cl_addressing_mode m_addressing_mode;
     cl_filter_mode m_filter_mode;
     VkSampler m_sampler;
-} cvk_sampler;
+};
+
+static inline cvk_sampler* icd_downcast(cl_sampler sampler) {
+    return static_cast<cvk_sampler*>(sampler);
+}
 
 struct cvk_image_mapping {
     cvk_buffer* buffer;
@@ -298,7 +306,7 @@ struct cvk_image : public cvk_mem {
     size_t height() const { return m_desc.image_height; }
     size_t depth() const { return m_desc.image_depth; }
     size_t array_size() const { return m_desc.image_array_size; }
-    cvk_mem* buffer() const { return m_desc.buffer; }
+    cvk_mem* buffer() const { return icd_downcast(m_desc.buffer); }
     cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
     cl_uint num_samples() const { return m_desc.num_samples; }
 

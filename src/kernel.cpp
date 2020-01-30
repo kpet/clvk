@@ -456,8 +456,7 @@ bool cvk_kernel::setup_descriptor_set(
     // Setup literal samplers
     for (size_t i = 0; i < program()->literal_sampler_descs().size(); i++) {
         auto desc = program()->literal_sampler_descs()[i];
-        auto clsampler =
-            static_cast<cvk_sampler*>(program()->literal_samplers()[i]);
+        auto clsampler = icd_downcast(program()->literal_samplers()[i]);
         auto sampler = clsampler->vulkan_sampler();
 
         VkDescriptorImageInfo imageInfo = {

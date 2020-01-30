@@ -22,23 +22,22 @@
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
+#include "icd.hpp"
 #include "utils.hpp"
 #include "vkutils.hpp"
 
 static constexpr bool devices_support_images() { return true; }
 
-typedef struct _cl_device_id cvk_device;
+struct cvk_device : public _cl_device_id {
 
-typedef struct _cl_device_id {
-
-    _cl_device_id(VkPhysicalDevice pd) : m_pdev(pd) {
+    cvk_device(VkPhysicalDevice pd) : m_pdev(pd) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
 
     static cvk_device* create(VkPhysicalDevice pdev);
 
-    virtual ~_cl_device_id() { vkDestroyDevice(m_dev, nullptr); }
+    virtual ~cvk_device() { vkDestroyDevice(m_dev, nullptr); }
 
     const VkPhysicalDeviceLimits& vulkan_limits() const {
         return m_properties.limits;
@@ -210,9 +209,16 @@ private:
     uint32_t m_vulkan_queue_alloc_index;
 
     std::string m_extensions;
+};
 
-} cvk_device;
+static inline cvk_device* icd_downcast(cl_device_id device) {
+    return static_cast<cvk_device*>(device);
+}
 
-typedef struct _cl_platform_id {
+struct cvk_platform : public _cl_platform_id {
     std::vector<cvk_device*> devices;
-} cvk_platform;
+};
+
+static inline cvk_platform* icd_downcast(cl_platform_id platform) {
+    return static_cast<cvk_platform*>(platform);
+}

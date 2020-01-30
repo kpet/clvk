@@ -46,3 +46,10 @@ fi
 ./simple_test
 ./simple_test_static
 ./api_tests
+
+if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
+    echo $PWD/libOpenCL.so >clvk.icd
+    export OCL_ICD_VENDORS=$PWD
+    LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH ./simple_test
+    LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH ./api_tests
+fi
