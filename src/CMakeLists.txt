@@ -23,7 +23,9 @@ if (UNIX AND NOT APPLE)
         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/exports.map")
 endif()
 
-if (UNIX)
+if (UNIX AND NOT APPLE)
+    # Bind global symbol references to definitions within the shared library,
+    # to allow the ICD dispatch table to be statically defined.
     set(CMAKE_SHARED_LINKER_FLAGS
         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic")
 endif()
