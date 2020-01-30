@@ -255,7 +255,7 @@ cl_int cvk_kernel::init() {
     int bidx = 0;
     for (auto& bt : bindingTypes) {
         poolSizes[bidx].type = bt.first;
-        poolSizes[bidx].descriptorCount = bt.second;
+        poolSizes[bidx].descriptorCount = bt.second * cvk_kernel::MAX_INSTANCES;
         bidx++;
     }
 
