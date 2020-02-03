@@ -560,7 +560,7 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_MAX_SAMPLERS:
-        val_uint = device->vulkan_limits().maxPerStageDescriptorSamplers;
+        val_uint = device->max_samplers();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;

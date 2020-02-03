@@ -96,6 +96,14 @@ struct cvk_device : public _cl_device_id {
 
     cl_uint mem_base_addr_align() const { return m_mem_base_addr_align; }
 
+    cl_uint max_samplers() const {
+        // There are only 20 different possible samplers in OpenCL 1.2, cap the
+        // number of supported samplers to that to help with negative testing of
+        // the limit against Vulkan implementations that report a very large
+        // number for maxPerStageDescriptorSamplers.
+        return std::min(20u, vulkan_limits().maxPerStageDescriptorSamplers);
+    }
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
