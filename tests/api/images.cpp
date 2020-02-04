@@ -21,13 +21,12 @@ TEST_F(WithContext, CreateImageLegacy) {
 
     size_t width = 97, height = 135, depth = 7;
     size_t row_pitch = 128, slice_pitch = row_pitch * height;
-    char data[slice_pitch * depth * 4];
 
     cl_int err;
 
     // Create 2D image
     auto im2d = clCreateImage2D(m_context, CL_MEM_READ_WRITE, &format, width,
-                                height, row_pitch, data, &err);
+                                height, row_pitch, nullptr, &err);
     ASSERT_CL_SUCCESS(err);
 
     size_t qval;
@@ -47,14 +46,11 @@ TEST_F(WithContext, CreateImageLegacy) {
     cl_mem_object_type qtype;
     GetMemObjectInfo(im2d, CL_MEM_TYPE, sizeof(qtype), &qtype, nullptr);
     EXPECT_EQ(qtype, CL_MEM_OBJECT_IMAGE2D);
-    void* qptr;
-    GetMemObjectInfo(im2d, CL_MEM_HOST_PTR, sizeof(qptr), &qptr, nullptr);
-    EXPECT_EQ(qptr, static_cast<void*>(data));
 
     // Do the same for 3D images
     auto im3d =
         clCreateImage3D(m_context, CL_MEM_READ_WRITE, &format, width, height,
-                        depth, row_pitch, slice_pitch, data, &err);
+                        depth, row_pitch, slice_pitch, nullptr, &err);
     ASSERT_CL_SUCCESS(err);
     GetImageInfo(im3d, CL_IMAGE_WIDTH, sizeof(qval), &qval, nullptr);
     EXPECT_EQ(qval, width);
@@ -72,8 +68,6 @@ TEST_F(WithContext, CreateImageLegacy) {
 
     GetMemObjectInfo(im3d, CL_MEM_TYPE, sizeof(qtype), &qtype, nullptr);
     EXPECT_EQ(qtype, CL_MEM_OBJECT_IMAGE3D);
-    GetMemObjectInfo(im3d, CL_MEM_HOST_PTR, sizeof(qptr), &qptr, nullptr);
-    EXPECT_EQ(qptr, static_cast<void*>(data));
 
     clReleaseMemObject(im2d);
     clReleaseMemObject(im3d);

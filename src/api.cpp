@@ -3100,7 +3100,10 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
                         const cl_image_format* image_format,
                         const cl_image_desc* image_desc, void* host_ptr,
                         cl_int* errcode_ret) {
-    // TODO CL_INVALID_CONTEXT if context is not a valid context.
+    if (!is_valid_context(context)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
     // TODO CL_INVALID_VALUE if values specified in flags are not valid.
     // TODO CL_INVALID_IMAGE_FORMAT_DESCRIPTOR if values specified in
     // image_format are not valid or if image_format is NULL.
@@ -3129,6 +3132,13 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for image object.
+
+    if ((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) ||
+        (host_ptr != nullptr)) {
+        cvk_error("Creating an image with a host_ptr is not supported yet");
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
 
     auto image = cvk_image::create(icd_downcast(context), flags, image_desc,
                                    image_format, host_ptr);
