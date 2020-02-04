@@ -3523,9 +3523,9 @@ cl_int cvk_enqueue_image_copy(
         spitch = img->height() * rpitch;
     }
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
-        queue, command_type, map_buffer, ptr, origin, origin, region,
-        cmd_map->map_buffer_row_pitch(), cmd_map->map_buffer_slice_pitch(),
-        rpitch, spitch, img->element_size());
+        queue, command_type, map_buffer, ptr, origin, origin, region, rpitch,
+        spitch, cmd_map->map_buffer_row_pitch(),
+        cmd_map->map_buffer_slice_pitch(), img->element_size());
 
     // Create unmap command
     auto cmd_unmap =
