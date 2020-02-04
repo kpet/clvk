@@ -130,7 +130,7 @@ def timedelta_to_string(duration):
     duration_as_date = datetime.datetime(
         year=1900, month=1, day=d.days+1,
         hour=int(d.seconds / 3600),
-        minute=int(d.seconds / 60),
+        minute=int((d.seconds / 60) % 60),
         second=int(d.seconds % 60),
         microsecond=d.microseconds
     )
