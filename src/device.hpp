@@ -45,7 +45,8 @@ struct cvk_device : public _cl_device_id {
     const char* name() const { return m_properties.deviceName; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
 
-    CHECK_RETURN uint32_t memory_type_index() const {
+    CHECK_RETURN uint32_t
+    memory_type_index_for_buffer(uint32_t memory_type_bits) const {
 
         uint32_t desiredMemoryTypes[] = {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -58,8 +59,8 @@ struct cvk_device : public _cl_device_id {
 
         for (auto mt : desiredMemoryTypes) {
             for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
-                if ((m_mem_properties.memoryTypes[k].propertyFlags & mt) ==
-                    mt) {
+                if (((m_mem_properties.memoryTypes[k].propertyFlags & mt) ==
+                    mt) && ((1ULL << k) & memory_type_bits)) {
                     return k;
                 }
             }
@@ -80,9 +81,12 @@ struct cvk_device : public _cl_device_id {
     }
 
     uint64_t actual_memory_size() const {
-        uint32_t type = memory_type_index();
-        auto memprop = m_mem_properties.memoryTypes[type];
-        return m_mem_properties.memoryHeaps[memprop.heapIndex].size;
+        // Be conservative for now and return the size of the smallest memory heap
+        uint64_t size = UINT64_MAX;
+        for (uint32_t i = 0; i < m_mem_properties.memoryHeapCount; i++) {
+            size = std::min(size, m_mem_properties.memoryHeaps[i].size);
+        }
+        return size;
     }
 
     uint64_t memory_size() const {

@@ -107,15 +107,9 @@ bool cvk_buffer::init() {
     vkGetBufferMemoryRequirements(vkdev, m_buffer, &memreqs);
 
     // Select memory type
-    uint32_t memoryTypeIndex = device->memory_type_index();
+    uint32_t memoryTypeIndex = device->memory_type_index_for_buffer(memreqs.memoryTypeBits);
 
     if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
-        return false;
-    }
-
-    // Check against the memory requirements
-    // TODO get the type index from the requirements
-    if (!((1 << memoryTypeIndex) & memreqs.memoryTypeBits)) {
         return false;
     }
 
@@ -416,13 +410,6 @@ bool cvk_image::init() {
 
     if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
         cvk_error_fn("Could not get memory type!");
-        return false;
-    }
-
-    // Check against the memory requirements
-    // TODO get the type index from the requirements
-    if (!((1 << memoryTypeIndex) & memreqs.memoryTypeBits)) {
-        cvk_error_fn("Could not find compatible memory type!");
         return false;
     }
 
