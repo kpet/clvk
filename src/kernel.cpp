@@ -263,10 +263,10 @@ cl_int cvk_kernel::init() {
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         nullptr,
-        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
-        cvk_kernel::MAX_INSTANCES,                         // maxSets
-        static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
-        poolSizes.data(),                                  // pPoolSizes
+        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,            // flags
+        cvk_kernel::MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS, // maxSets
+        static_cast<uint32_t>(poolSizes.size()), // poolSizeCount
+        poolSizes.data(),                        // pPoolSizes
     };
 
     res = vkCreateDescriptorPool(vkdev, &descriptorPoolCreateInfo, 0,
@@ -296,7 +296,7 @@ cl_int cvk_kernel::init() {
     return CL_SUCCESS;
 }
 
-bool cvk_kernel::setup_descriptor_set(
+bool cvk_kernel::setup_descriptor_sets(
     VkDescriptorSet* ds,
     std::unique_ptr<cvk_kernel_argument_values>& arg_values) {
     std::lock_guard<std::mutex> lock(m_lock);

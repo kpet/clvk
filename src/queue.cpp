@@ -319,8 +319,8 @@ cl_int cvk_command_kernel::build() {
     // specified.
 
     // Setup descriptors
-    if (!m_kernel->setup_descriptor_set(m_descriptor_sets.data(),
-                                        m_argument_values)) {
+    if (!m_kernel->setup_descriptor_sets(m_descriptor_sets.data(),
+                                         m_argument_values)) {
         return CL_OUT_OF_RESOURCES;
     }
 
