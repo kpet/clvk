@@ -94,6 +94,15 @@ static inline const char* cl_code_to_string(cl_int code) {
 }
 // clang-format on
 
+#include <chrono>
+
+static inline uint64_t sampleTime() {
+    auto now = std::chrono::steady_clock::now();
+    auto duration = now.time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(duration)
+        .count();
+}
+
 extern cl_device_id gDevice;
 
 #include "gtest/gtest.h"
@@ -309,6 +318,10 @@ protected:
     }
 
     void SetKernelArg(cl_kernel kernel, cl_uint arg_index, cl_int* val) {
+        SetKernelArg(kernel, arg_index, sizeof(*val), val);
+    }
+
+    void SetKernelArg(cl_kernel kernel, cl_uint arg_index, cl_uint* val) {
         SetKernelArg(kernel, arg_index, sizeof(*val), val);
     }
 };

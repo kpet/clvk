@@ -55,7 +55,7 @@ struct cvk_kernel : public _cl_kernel, api_object {
         m_program->release();
     }
 
-    CHECK_RETURN bool setup_descriptor_set(
+    CHECK_RETURN bool setup_descriptor_sets(
         VkDescriptorSet* ds,
         std::unique_ptr<cvk_kernel_argument_values>& arg_values);
 
