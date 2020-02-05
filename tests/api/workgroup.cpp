@@ -44,7 +44,7 @@ TEST_F(WithCommandQueue, LWS) {
     Finish();
 
     // Map the buffer
-    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_WRITE, 0,
+    auto data = EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0,
                                           BUFFER_SIZE);
 
     // Check the expected result

@@ -34,7 +34,7 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies) {
 
     // Test fail then complete
     std::vector<cl_event> failedThenComplete = {event1, event2};
-    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE, 0,
+    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0,
                              BUFFER_SIZE, failedThenComplete.size(),
                              failedThenComplete.data(), nullptr, &err);
 
@@ -42,7 +42,7 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies) {
 
     // Test complete then fail
     std::vector<cl_event> completeThenFailed = {event2, event1};
-    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE, 0,
+    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0,
                              BUFFER_SIZE, completeThenFailed.size(),
                              completeThenFailed.data(), nullptr, &err);
 
