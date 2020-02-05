@@ -23,56 +23,76 @@
 #define CL_TARGET_OPENCL_VERSION 120
 #include "CL/cl.h"
 
+// clang-format off
 static inline const char* cl_code_to_string(cl_int code) {
 #define code_case(X)                                                           \
     case X:                                                                    \
         return #X;
     switch (code) {
-        code_case(CL_SUCCESS) code_case(CL_DEVICE_NOT_FOUND) code_case(CL_DEVICE_NOT_AVAILABLE) code_case(
-            CL_COMPILER_NOT_AVAILABLE) code_case(CL_MEM_OBJECT_ALLOCATION_FAILURE) code_case(CL_OUT_OF_RESOURCES)
-            code_case(CL_OUT_OF_HOST_MEMORY) code_case(CL_PROFILING_INFO_NOT_AVAILABLE) code_case(
-                CL_MEM_COPY_OVERLAP) code_case(CL_IMAGE_FORMAT_MISMATCH) code_case(CL_IMAGE_FORMAT_NOT_SUPPORTED)
-                code_case(CL_BUILD_PROGRAM_FAILURE) code_case(CL_MAP_FAILURE) code_case(
-                    CL_MISALIGNED_SUB_BUFFER_OFFSET) code_case(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST)
-                    code_case(CL_COMPILE_PROGRAM_FAILURE) code_case(CL_LINKER_NOT_AVAILABLE) code_case(
-                        CL_LINK_PROGRAM_FAILURE) code_case(CL_DEVICE_PARTITION_FAILED) code_case(CL_KERNEL_ARG_INFO_NOT_AVAILABLE)
-
-                        code_case(CL_INVALID_VALUE) code_case(CL_INVALID_DEVICE_TYPE) code_case(
-                            CL_INVALID_PLATFORM) code_case(CL_INVALID_DEVICE) code_case(CL_INVALID_CONTEXT)
-                            code_case(CL_INVALID_QUEUE_PROPERTIES) code_case(
-                                CL_INVALID_COMMAND_QUEUE) code_case(CL_INVALID_HOST_PTR)
-                                code_case(CL_INVALID_MEM_OBJECT) code_case(
-                                    CL_INVALID_IMAGE_FORMAT_DESCRIPTOR) code_case(CL_INVALID_IMAGE_SIZE)
-                                    code_case(CL_INVALID_SAMPLER) code_case(CL_INVALID_BINARY) code_case(
-                                        CL_INVALID_BUILD_OPTIONS) code_case(CL_INVALID_PROGRAM)
-                                        code_case(CL_INVALID_PROGRAM_EXECUTABLE) code_case(
-                                            CL_INVALID_KERNEL_NAME) code_case(CL_INVALID_KERNEL_DEFINITION)
-                                            code_case(CL_INVALID_KERNEL) code_case(
-                                                CL_INVALID_ARG_INDEX) code_case(CL_INVALID_ARG_VALUE)
-                                                code_case(CL_INVALID_ARG_SIZE) code_case(
-                                                    CL_INVALID_KERNEL_ARGS) code_case(CL_INVALID_WORK_DIMENSION)
-                                                    code_case(CL_INVALID_WORK_GROUP_SIZE) code_case(
-                                                        CL_INVALID_WORK_ITEM_SIZE) code_case(CL_INVALID_GLOBAL_OFFSET)
-                                                        code_case(CL_INVALID_EVENT_WAIT_LIST) code_case(
-                                                            CL_INVALID_EVENT) code_case(CL_INVALID_OPERATION)
-                                                            code_case(CL_INVALID_GL_OBJECT) code_case(
-                                                                CL_INVALID_BUFFER_SIZE)
-                                                                code_case(CL_INVALID_MIP_LEVEL) code_case(
-                                                                    CL_INVALID_GLOBAL_WORK_SIZE)
-                                                                    code_case(
-                                                                        CL_INVALID_PROPERTY)
-                                                                        code_case(
-                                                                            CL_INVALID_IMAGE_DESCRIPTOR)
-                                                                            code_case(
-                                                                                CL_INVALID_COMPILER_OPTIONS)
-                                                                                code_case(
-                                                                                    CL_INVALID_LINKER_OPTIONS)
-                                                                                    code_case(
-                                                                                        CL_INVALID_DEVICE_PARTITION_COUNT)
+    code_case(CL_SUCCESS)
+    code_case(CL_DEVICE_NOT_FOUND)
+    code_case(CL_DEVICE_NOT_AVAILABLE)
+    code_case(CL_COMPILER_NOT_AVAILABLE)
+    code_case(CL_MEM_OBJECT_ALLOCATION_FAILURE)
+    code_case(CL_OUT_OF_RESOURCES)
+    code_case(CL_OUT_OF_HOST_MEMORY)
+    code_case(CL_PROFILING_INFO_NOT_AVAILABLE)
+    code_case(CL_MEM_COPY_OVERLAP)
+    code_case(CL_IMAGE_FORMAT_MISMATCH)
+    code_case(CL_IMAGE_FORMAT_NOT_SUPPORTED)
+    code_case(CL_BUILD_PROGRAM_FAILURE)
+    code_case(CL_MAP_FAILURE)
+    code_case(CL_MISALIGNED_SUB_BUFFER_OFFSET)
+    code_case(CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST)
+    code_case(CL_COMPILE_PROGRAM_FAILURE)
+    code_case(CL_LINKER_NOT_AVAILABLE)
+    code_case(CL_LINK_PROGRAM_FAILURE)
+    code_case(CL_DEVICE_PARTITION_FAILED)
+    code_case(CL_KERNEL_ARG_INFO_NOT_AVAILABLE)
+    code_case(CL_INVALID_VALUE)
+    code_case(CL_INVALID_DEVICE_TYPE)
+    code_case(CL_INVALID_PLATFORM)
+    code_case(CL_INVALID_DEVICE)
+    code_case(CL_INVALID_CONTEXT)
+    code_case(CL_INVALID_QUEUE_PROPERTIES)
+    code_case(CL_INVALID_COMMAND_QUEUE)
+    code_case(CL_INVALID_HOST_PTR)
+    code_case(CL_INVALID_MEM_OBJECT)
+    code_case(CL_INVALID_IMAGE_FORMAT_DESCRIPTOR)
+    code_case(CL_INVALID_IMAGE_SIZE)
+    code_case(CL_INVALID_SAMPLER)
+    code_case(CL_INVALID_BINARY)
+    code_case(CL_INVALID_BUILD_OPTIONS)
+    code_case(CL_INVALID_PROGRAM)
+    code_case(CL_INVALID_PROGRAM_EXECUTABLE)
+    code_case(CL_INVALID_KERNEL_NAME)
+    code_case(CL_INVALID_KERNEL_DEFINITION)
+    code_case(CL_INVALID_KERNEL)
+    code_case(CL_INVALID_ARG_INDEX)
+    code_case(CL_INVALID_ARG_VALUE)
+    code_case(CL_INVALID_ARG_SIZE)
+    code_case(CL_INVALID_KERNEL_ARGS)
+    code_case(CL_INVALID_WORK_DIMENSION)
+    code_case(CL_INVALID_WORK_GROUP_SIZE)
+    code_case(CL_INVALID_WORK_ITEM_SIZE)
+    code_case(CL_INVALID_GLOBAL_OFFSET)
+    code_case(CL_INVALID_EVENT_WAIT_LIST)
+    code_case(CL_INVALID_EVENT)
+    code_case(CL_INVALID_OPERATION)
+    code_case(CL_INVALID_GL_OBJECT)
+    code_case(CL_INVALID_BUFFER_SIZE)
+    code_case(CL_INVALID_MIP_LEVEL)
+    code_case(CL_INVALID_GLOBAL_WORK_SIZE)
+    code_case(CL_INVALID_PROPERTY)
+    code_case(CL_INVALID_IMAGE_DESCRIPTOR)
+    code_case(CL_INVALID_COMPILER_OPTIONS)
+    code_case(CL_INVALID_LINKER_OPTIONS)
+    code_case(CL_INVALID_DEVICE_PARTITION_COUNT)
     }
 #undef code_case
     return "Unknown";
 }
+// clang-format on
 
 extern cl_device_id gDevice;
 
