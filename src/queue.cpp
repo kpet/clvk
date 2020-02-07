@@ -442,7 +442,7 @@ cl_int cvk_command_kernel::do_action() {
             sizeof(timestamps), timestamps, sizeof(uint64_t),
             VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
 
-        auto nsPerTick = dev->vulkan_limits().timestampPeriod;
+        double nsPerTick = dev->vulkan_limits().timestampPeriod;
 
         auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
         auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
@@ -455,7 +455,7 @@ cl_int cvk_command_kernel::do_action() {
             ts_end = ts_end_raw;
         } else {
             ts_start = ts_start_raw * nsPerTick;
-            ts_end = ts_start_raw * nsPerTick;
+            ts_end = ts_end_raw * nsPerTick;
         }
         m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
         m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
