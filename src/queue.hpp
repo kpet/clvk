@@ -384,21 +384,22 @@ private:
     std::vector<cvk_event*> m_event_deps;
 };
 
-struct cvk_command_memobj : public cvk_command {
+struct cvk_command_buffer_base : public cvk_command {
 
-    cvk_command_memobj(cvk_command_queue* queue, cl_command_type type,
-                       cvk_mem* memobj)
-        : cvk_command(type, queue), m_mem(memobj) {}
+    cvk_command_buffer_base(cvk_command_queue* queue, cl_command_type type,
+                            cvk_buffer* buffer)
+        : cvk_command(type, queue), m_buffer(buffer) {}
 
 protected:
-    cvk_mem_holder m_mem;
+    cvk_buffer_holder m_buffer;
 };
 
-struct cvk_command_memobj_region : public cvk_command_memobj {
+struct cvk_command_buffer_base_region : public cvk_command_buffer_base {
 
-    cvk_command_memobj_region(cvk_command_queue* queue, cl_command_type type,
-                              cvk_mem* memobj, size_t offset, size_t size)
-        : cvk_command_memobj(queue, type, memobj), m_offset(offset),
+    cvk_command_buffer_base_region(cvk_command_queue* queue,
+                                   cl_command_type type, cvk_buffer* buffer,
+                                   size_t offset, size_t size)
+        : cvk_command_buffer_base(queue, type, buffer), m_offset(offset),
           m_size(size) {}
 
 protected:
@@ -406,12 +407,12 @@ protected:
     size_t m_size;
 };
 
-struct cvk_command_copy : public cvk_command_memobj_region {
+struct cvk_command_buffer_host_copy : public cvk_command_buffer_base_region {
 
-    cvk_command_copy(cvk_command_queue* q, cl_command_type type,
-                     cvk_mem* memobj, const void* ptr, size_t offset,
-                     size_t size)
-        : cvk_command_memobj_region(q, type, memobj, offset, size),
+    cvk_command_buffer_host_copy(cvk_command_queue* q, cl_command_type type,
+                                 cvk_buffer* buffer, const void* ptr,
+                                 size_t offset, size_t size)
+        : cvk_command_buffer_base_region(q, type, buffer, offset, size),
           m_ptr(const_cast<void*>(ptr)) {}
 
     virtual cl_int do_action() override;
@@ -487,7 +488,7 @@ private:
 struct cvk_command_copy_buffer : public cvk_command {
 
     cvk_command_copy_buffer(cvk_command_queue* q, cl_command_type type,
-                            cvk_mem* src, cvk_mem* dst, size_t src_offset,
+                            cvk_buffer* src, cvk_buffer* dst, size_t src_offset,
                             size_t dst_offset, size_t size)
         : cvk_command(type, q), m_src_buffer(src), m_dst_buffer(dst),
           m_src_offset(src_offset), m_dst_offset(dst_offset), m_size(size) {}
@@ -495,8 +496,8 @@ struct cvk_command_copy_buffer : public cvk_command {
     virtual cl_int do_action() override;
 
 private:
-    cvk_mem_holder m_src_buffer;
-    cvk_mem_holder m_dst_buffer;
+    cvk_buffer_holder m_src_buffer;
+    cvk_buffer_holder m_dst_buffer;
     size_t m_src_offset;
     size_t m_dst_offset;
     size_t m_size;
@@ -518,17 +519,17 @@ struct cvk_command_copy_buffer_rect : public cvk_command {
 
 private:
     cvk_rectangle_copier m_copier;
-    cvk_mem_holder m_src_buffer;
-    cvk_mem_holder m_dst_buffer;
+    cvk_buffer_holder m_src_buffer;
+    cvk_buffer_holder m_dst_buffer;
 };
 
-struct cvk_command_fill_buffer : public cvk_command_memobj_region {
+struct cvk_command_fill_buffer : public cvk_command_buffer_base_region {
 
-    cvk_command_fill_buffer(cvk_command_queue* q, cvk_mem* memobj,
+    cvk_command_fill_buffer(cvk_command_queue* q, cvk_buffer* buffer,
                             size_t offset, size_t size, const void* pattern,
                             size_t pattern_size)
-        : cvk_command_memobj_region(q, CL_COMMAND_FILL_BUFFER, memobj, offset,
-                                    size),
+        : cvk_command_buffer_base_region(q, CL_COMMAND_FILL_BUFFER, buffer,
+                                         offset, size),
           m_pattern_size(pattern_size) {
         memcpy(m_pattern.data(), pattern, pattern_size);
     }
@@ -634,19 +635,19 @@ private:
     static const int POOL_QUERY_KERNEL_END = 1;
 };
 
-struct cvk_command_map_buffer : public cvk_command_memobj_region {
+struct cvk_command_map_buffer : public cvk_command_buffer_base_region {
 
     cvk_command_map_buffer(cvk_command_queue* queue, cvk_buffer* buffer,
                            size_t offset, size_t size)
-        : cvk_command_memobj_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
-                                    offset, size) {}
+        : cvk_command_buffer_base_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
+                                         offset, size) {}
     virtual cl_int do_action() override;
 };
 
-struct cvk_command_unmap_buffer : public cvk_command_memobj {
+struct cvk_command_unmap_buffer : public cvk_command_buffer_base {
 
     cvk_command_unmap_buffer(cvk_command_queue* queue, cvk_buffer* buffer)
-        : cvk_command_memobj(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer) {}
+        : cvk_command_buffer_base(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer) {}
     virtual cl_int do_action() override;
 };
 

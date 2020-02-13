@@ -2418,8 +2418,9 @@ cl_int clEnqueueReadBuffer(cl_command_queue cq, cl_mem buf,
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto cmd = new cvk_command_copy(command_queue, CL_COMMAND_READ_BUFFER,
-                                    buffer, ptr, offset, size);
+    auto cmd = new cvk_command_buffer_host_copy(
+        command_queue, CL_COMMAND_READ_BUFFER, static_cast<cvk_buffer*>(buffer),
+        ptr, offset, size);
 
     auto err = command_queue->enqueue_command_with_deps(
         cmd, blocking_read, num_events_in_wait_list, event_wait_list, event);
@@ -2456,8 +2457,9 @@ cl_int clEnqueueWriteBuffer(cl_command_queue cq, cl_mem buf,
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
-    auto cmd = new cvk_command_copy(command_queue, CL_COMMAND_WRITE_BUFFER,
-                                    buffer, ptr, offset, size);
+    auto cmd = new cvk_command_buffer_host_copy(
+        command_queue, CL_COMMAND_WRITE_BUFFER,
+        static_cast<cvk_buffer*>(buffer), ptr, offset, size);
 
     auto err = command_queue->enqueue_command_with_deps(
         cmd, blocking_write, num_events_in_wait_list, event_wait_list, event);
@@ -2622,8 +2624,9 @@ cl_int clEnqueueFillBuffer(cl_command_queue cq, cl_mem buf, const void* pattern,
 
     // TODO check sub-buffer alignment
 
-    auto cmd = new cvk_command_fill_buffer(command_queue, buffer, offset, size,
-                                           pattern, pattern_size);
+    auto cmd = new cvk_command_fill_buffer(command_queue,
+                                           static_cast<cvk_buffer*>(buffer),
+                                           offset, size, pattern, pattern_size);
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
                                              event_wait_list, event);
@@ -2661,8 +2664,9 @@ cl_int clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf, cl_mem dstbuf,
     }
 
     auto cmd = new cvk_command_copy_buffer(
-        command_queue, CL_COMMAND_COPY_BUFFER, src_buffer, dst_buffer,
-        src_offset, dst_offset, size);
+        command_queue, CL_COMMAND_COPY_BUFFER,
+        static_cast<cvk_buffer*>(src_buffer),
+        static_cast<cvk_buffer*>(dst_buffer), src_offset, dst_offset, size);
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
                                              event_wait_list, event);

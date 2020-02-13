@@ -480,15 +480,15 @@ cl_int cvk_command_kernel::do_action() {
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_copy::do_action() {
+cl_int cvk_command_buffer_host_copy::do_action() {
     bool success = false;
 
     switch (m_type) {
     case CL_COMMAND_WRITE_BUFFER:
-        success = m_mem->copy_from(m_ptr, m_offset, m_size);
+        success = m_buffer->copy_from(m_ptr, m_offset, m_size);
         break;
     case CL_COMMAND_READ_BUFFER:
-        success = m_mem->copy_to(m_ptr, m_offset, m_size);
+        success = m_buffer->copy_to(m_ptr, m_offset, m_size);
         break;
     default:
         CVK_ASSERT(false);
@@ -633,13 +633,13 @@ cl_int cvk_command_copy_buffer::do_action() {
 }
 
 cl_int cvk_command_fill_buffer::do_action() {
-    memobj_map_holder map_holder{m_mem};
+    memobj_map_holder map_holder{m_buffer};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    auto begin = pointer_offset(m_mem->host_va(), m_offset);
+    auto begin = pointer_offset(m_buffer->host_va(), m_offset);
     auto end = pointer_offset(begin, m_size);
 
     auto address = begin;
@@ -653,15 +653,15 @@ cl_int cvk_command_fill_buffer::do_action() {
 
 cl_int cvk_command_map_buffer::do_action() {
     bool success = true;
-    if (m_mem->has_flags(CL_MEM_USE_HOST_PTR)) {
-        success = m_mem->copy_to(m_mem->host_ptr(), m_offset, m_size);
+    if (m_buffer->has_flags(CL_MEM_USE_HOST_PTR)) {
+        success = m_buffer->copy_to(m_buffer->host_ptr(), m_offset, m_size);
     }
 
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
 cl_int cvk_command_unmap_buffer::do_action() {
-    m_mem->unmap();
+    m_buffer->unmap();
     return CL_COMPLETE;
 }
 
