@@ -209,7 +209,7 @@ def run_tests(test_set):
 
     return results
 
-def check_reference(results, reference):
+def check_reference(results, reference, args):
     print("")
     print("Difference w.r.t. reference results:")
     for name in sorted(results):
@@ -230,13 +230,15 @@ def check_reference(results, reference):
                 differences.append((k, ref[k], res[k]))
 
         # Calculate time difference
-        refdur = timedelta_from_string(ref['duration']).total_seconds()
-        resdur = timedelta_from_string(res['duration']).total_seconds()
-        timediff = resdur - refdur
-        reltimediff = timediff / refdur
-        duration_threshold = 0.10
-        if abs(reltimediff) > duration_threshold:
-            time_msg = '\t\tduration, expected {} (+/- {}%) but got {} ({}%)'.format(refdur, duration_threshold * 100, resdur, reltimediff * 100)
+        if args.compare_duration:
+            refdur = timedelta_from_string(ref['duration']).total_seconds()
+            resdur = timedelta_from_string(res['duration']).total_seconds()
+            timediff = resdur - refdur
+            reltimediff = timediff / refdur
+            duration_threshold = 0.10
+            if abs(reltimediff) > duration_threshold:
+                time_msg = '\t\tduration, expected {} (+/- {}%) but got {} ({}%)'.format(refdur, duration_threshold * 100, resdur, reltimediff * 100)
+
         # Print differences if any
         if differences or time_msg:
             print("\t{}".format(name))
@@ -303,7 +305,7 @@ def report(results, args):
     if args.reference_results:
         with open(args.reference_results) as f:
             reference = json.load(f)
-        check_reference(results, reference)
+        check_reference(results, reference, args)
 
 def main():
 
@@ -323,6 +325,11 @@ def main():
     parser.add_argument(
         '--test-set', choices=TEST_SETS.keys(), default='wimpy',
         help='The set of tests to run',
+    )
+
+    parser.add_argument(
+        '--compare-duration', action='store_true',
+        help="Compare tests' execution time with reference values",
     )
 
     args = parser.parse_args()
