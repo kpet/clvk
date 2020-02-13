@@ -148,65 +148,7 @@ cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin,
     auto buffer = std::make_unique<cvk_buffer>(m_context, flags, size, nullptr,
                                                this, origin);
 
-    if (!buffer->init_subbuffer()) {
-        return nullptr;
-    }
-
     return buffer.release();
-}
-
-bool cvk_buffer::init_subbuffer() {
-
-    // Create the buffer
-    const VkBufferCreateInfo createInfo = {
-        VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
-        nullptr,                              // pNext
-        0,                                    // flags
-        m_size,
-        cvk_buffer::USAGE_FLAGS, // usage
-        VK_SHARING_MODE_EXCLUSIVE,
-        0,       // queueFamilyIndexCount
-        nullptr, // pQueueFamilyIndices
-    };
-
-    auto vkdev = m_context->device()->vulkan_device();
-    VkResult res = vkCreateBuffer(vkdev, &createInfo, nullptr, &m_buffer);
-
-    if (res != VK_SUCCESS) {
-        return false;
-    }
-
-    cvk_debug_fn("created Vk buffer handle = %p", m_buffer);
-
-    // Get memory requirements
-    VkMemoryRequirements memreqs;
-    vkGetBufferMemoryRequirements(vkdev, m_buffer, &memreqs);
-
-    if (m_size != memreqs.size) {
-        cvk_warn_fn(
-            "Sub-buffer %p requires more memory (%lu) than its size (%zu), "
-            "you're on your own!",
-            this, memreqs.size, m_size);
-    }
-
-    if (m_parent_offset % memreqs.alignment != 0) {
-        cvk_warn_fn("Sub-buffer %p offset (%zu) does not satisfy the alignment "
-                    "requirements (%lu) of the Vulkan implementation, "
-                    "you're on your own!",
-                    this, m_parent_offset, memreqs.alignment);
-    }
-
-    // Bind the buffer to memory
-    cvk_mem* parent = m_parent;
-    auto parent_buffer = static_cast<cvk_buffer*>(parent);
-    res = vkBindBufferMemory(vkdev, m_buffer, parent_buffer->m_memory,
-                             m_parent_offset);
-
-    if (res != VK_SUCCESS) {
-        return false;
-    }
-
-    return true;
 }
 
 cvk_sampler* cvk_sampler::create(cvk_context* context, bool normalized_coords,

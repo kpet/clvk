@@ -365,8 +365,8 @@ bool cvk_kernel::setup_descriptor_sets(
             auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
             VkDescriptorBufferInfo bufferInfo = {vkbuf,
-                                                 0, // offset
-                                                 VK_WHOLE_SIZE};
+                                                 buffer->vulkan_buffer_offset(), // offset
+                                                 buffer->size()};
 
             auto descriptor_type = arg.kind == kernel_argument_kind::buffer
                                        ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER

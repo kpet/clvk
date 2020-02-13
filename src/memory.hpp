@@ -202,7 +202,18 @@ struct cvk_buffer : public cvk_mem {
                                               cl_int* errcode_ret);
     cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
 
-    VkBuffer vulkan_buffer() const { return m_buffer; }
+    VkBuffer vulkan_buffer() const {
+        if (m_parent == nullptr) {
+            return m_buffer;
+        } else {
+            const cvk_mem *parent = m_parent;
+            return static_cast<const cvk_buffer*>(parent)->vulkan_buffer();
+        }
+    }
+
+    size_t vulkan_buffer_offset() const {
+        return m_parent_offset;
+    }
 
     void* map_ptr(size_t offset) const {
         void* ptr;
@@ -216,7 +227,6 @@ struct cvk_buffer : public cvk_mem {
 
 private:
     bool init();
-    bool init_subbuffer();
 
     VkBuffer m_buffer;
 };
