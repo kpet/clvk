@@ -257,9 +257,7 @@ static void init_platform() {
     }
 }
 
-static void term_platform() {
-    delete gPlatform;
-}
+static void term_platform() { delete gPlatform; }
 
 class clvk_initializer {
 public:

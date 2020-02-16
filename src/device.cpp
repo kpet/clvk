@@ -156,31 +156,31 @@ void cvk_device::build_extension_ils_list() {
 
     m_extensions = {
         // Start with required extensions
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_global_int32_base_atomics"),
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_global_int32_extended_atomics"),
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_local_int32_base_atomics"),
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_local_int32_extended_atomics"),
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_byte_addressable_store"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_global_int32_base_atomics"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_global_int32_extended_atomics"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_local_int32_base_atomics"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_local_int32_extended_atomics"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_byte_addressable_store"),
 
         // Add always supported extension
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_extended_versioning"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_extended_versioning"),
 #ifndef CLSPV_ONLINE_COMPILER
-        MAKE_NAME_VERSION(1,0,0,"cl_khr_il_program"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
     };
 
     // Build extension string
-    for (auto &ext : m_extensions) {
+    for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
         m_extension_string += " ";
     }
 
     // Build list of ILs
     m_ils = {
-        MAKE_NAME_VERSION(1,0,0,"SPIR-V"),
+        MAKE_NAME_VERSION(1, 0, 0, "SPIR-V"),
     };
 
-    for (auto &il : m_ils) {
+    for (auto& il : m_ils) {
         m_ils_string += il.name;
         m_ils_string += "_";
         m_ils_string += std::to_string(CL_VERSION_MAJOR_KHR(il.version));
