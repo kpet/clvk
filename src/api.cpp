@@ -130,38 +130,53 @@ cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
 
     size_t size_ret = 0;
     const void* copy_ptr = nullptr;
+    cl_version_khr val_version;
+    api_query_string val_string;
 
-    const api_query_string platform_name{"clvk"};
-    const api_query_string platform_version{"OpenCL 1.2 clvk"};
-    const api_query_string platform_vendor{"clvk"};
-    const api_query_string platform_profile{"FULL_PROFILE"};
-    const api_query_string platform_extensions{"cl_khr_icd"};
-    const api_query_string platform_icd_suffix{"clvk"};
+    const cvk_platform* plat = gPlatform;
+    if (platform != nullptr) {
+        plat = icd_downcast(platform);
+    }
 
     switch (param_name) {
     case CL_PLATFORM_NAME:
-        copy_ptr = platform_name.c_str();
-        size_ret = platform_name.size_with_null();
+        val_string = plat->name();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
         break;
     case CL_PLATFORM_VERSION:
-        copy_ptr = platform_version.c_str();
-        size_ret = platform_version.size_with_null();
+        val_string = plat->version_string();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
         break;
     case CL_PLATFORM_VENDOR:
-        copy_ptr = platform_vendor.c_str();
-        size_ret = platform_vendor.size_with_null();
+        val_string = plat->vendor();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
         break;
     case CL_PLATFORM_PROFILE:
-        copy_ptr = platform_profile.c_str();
-        size_ret = platform_profile.size_with_null();
+        val_string = plat->profile();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
         break;
     case CL_PLATFORM_EXTENSIONS:
-        copy_ptr = platform_extensions.c_str();
-        size_ret = platform_extensions.size_with_null();
+        val_string = plat->extension_string();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
         break;
     case CL_PLATFORM_ICD_SUFFIX_KHR:
-        copy_ptr = platform_icd_suffix.c_str();
-        size_ret = platform_icd_suffix.size_with_null();
+        val_string = plat->icd_suffix();
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
+        break;
+    case CL_PLATFORM_NUMERIC_VERSION_KHR:
+        val_version = plat->version();
+        copy_ptr = &val_version;
+        size_ret = sizeof(val_version);
+        break;
+    case CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR:
+        copy_ptr = plat->extensions().data();
+        size_ret = plat->extensions().size() * sizeof(cl_name_version_khr);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -234,7 +249,7 @@ cl_int clGetDeviceIDs(cl_platform_id platform, cl_device_type device_type,
 
     cl_uint num = 0;
 
-    for (auto dev : icd_downcast(platform)->devices) {
+    for (auto dev : icd_downcast(platform)->devices()) {
         if ((device_type == CL_DEVICE_TYPE_DEFAULT) ||
             (device_type == CL_DEVICE_TYPE_ALL) ||
             (dev->type() == device_type)) {
@@ -282,6 +297,7 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
     cl_command_queue_properties val_queue_properties;
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
+    cl_version_khr val_version;
 
     auto device = icd_downcast(dev);
 
@@ -316,25 +332,22 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
         size_ret = sizeof(val_uint);
         break;
     case CL_DRIVER_VERSION:
-        val_string = "1.2 ";
-        val_string += device->version_string();
+        val_string = device->driver_version();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_VERSION:
-        val_string = "OpenCL 1.2 ";
-        val_string += device->version_string();
+        val_string = device->version_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_OPENCL_C_VERSION:
-        val_string = "OpenCL C 1.2 ";
-        val_string += device->version_string();
+        val_string = device->c_version_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_PROFILE:
-        val_string = "FULL_PROFILE";
+        val_string = device->profile();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
@@ -344,7 +357,7 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_EXTENSIONS:
-        val_string = device->extensions();
+        val_string = device->extension_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
@@ -585,9 +598,31 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_IL_VERSION_KHR:
-        val_string = "SPIR-V_1.0";
+        val_string = device->ils_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
+        break;
+    case CL_DEVICE_NUMERIC_VERSION_KHR:
+        val_version = device->version();
+        copy_ptr = &val_version;
+        size_ret = sizeof(val_version);
+        break;
+    case CL_DEVICE_OPENCL_C_NUMERIC_VERSION_KHR:
+        val_version = device->c_version();
+        copy_ptr = &val_version;
+        size_ret = sizeof(val_version);
+        break;
+    case CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR:
+        copy_ptr = device->extensions().data();
+        size_ret = device->extensions().size() * sizeof(cl_name_version_khr);
+        break;
+    case CL_DEVICE_ILS_WITH_VERSION_KHR:
+        copy_ptr = device->ils().data();
+        size_ret = device->ils().size() * sizeof(cl_name_version_khr);
+        break;
+    case CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR:
+        copy_ptr = nullptr;
+        size_ret = 0;
         break;
     default:
         ret = CL_INVALID_VALUE;
