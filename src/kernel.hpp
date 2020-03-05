@@ -81,6 +81,12 @@ struct cvk_kernel : public _cl_kernel, api_object {
 
     cl_ulong local_mem_size() const;
 
+    // Retain all the refcounted arguments for this kernel.
+    void retain_arguments() const;
+
+    // Release all the refcounted arguments for this kernel.
+    void release_arguments() const;
+
 private:
     using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
     bool build_descriptor_set_layout(
@@ -198,10 +204,10 @@ struct cvk_kernel_argument_values {
             }
             if (arg.kind == kernel_argument_kind::sampler) {
                 auto sampler = *reinterpret_cast<const cl_sampler*>(value);
-                m_kernel_resources[arg.binding].reset(icd_downcast(sampler));
+                m_kernel_resources[arg.binding] = icd_downcast(sampler);
             } else {
                 auto mem = *reinterpret_cast<const cl_mem*>(value);
-                m_kernel_resources[arg.binding].reset(icd_downcast(mem));
+                m_kernel_resources[arg.binding] = icd_downcast(mem);
             }
         }
 
@@ -224,7 +230,7 @@ struct cvk_kernel_argument_values {
 private:
     cvk_kernel* m_kernel;
     std::unique_ptr<cvk_buffer> m_pod_buffer;
-    std::vector<refcounted_holder<refcounted>> m_kernel_resources;
+    std::vector<refcounted*> m_kernel_resources;
     std::vector<size_t> m_local_args_size;
     std::unordered_map<uint32_t, uint32_t> m_specialization_constants;
 };
