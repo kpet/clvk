@@ -322,6 +322,7 @@ bool cvk_kernel::setup_descriptor_sets(
 
     // Transfer ownership of the argument values to the command
     arg_values = std::move(m_argument_values);
+    arg_values->retain_resources();
 
     // Create a new set, copy the argument values
     m_argument_values = cvk_kernel_argument_values::create(*arg_values.get());
@@ -481,40 +482,6 @@ bool cvk_kernel::setup_descriptor_sets(
     }
 
     return true;
-}
-
-void cvk_kernel::retain_arguments() const {
-    for (cl_uint i = 0; i < m_args.size(); i++) {
-        auto const& arg = m_args[i];
-        switch (arg.kind) {
-        case kernel_argument_kind::buffer:
-        case kernel_argument_kind::buffer_ubo:
-        case kernel_argument_kind::sampler:
-        case kernel_argument_kind::ro_image:
-        case kernel_argument_kind::wo_image:
-            m_argument_values->get_arg_value(arg)->retain();
-            break;
-        default:
-            break;
-        }
-    }
-}
-
-void cvk_kernel::release_arguments() const {
-    for (cl_uint i = 0; i < m_args.size(); i++) {
-        auto const& arg = m_args[i];
-        switch (arg.kind) {
-        case kernel_argument_kind::buffer:
-        case kernel_argument_kind::buffer_ubo:
-        case kernel_argument_kind::sampler:
-        case kernel_argument_kind::ro_image:
-        case kernel_argument_kind::wo_image:
-            m_argument_values->get_arg_value(arg)->release();
-            break;
-        default:
-            break;
-        }
-    }
 }
 
 VkPipeline

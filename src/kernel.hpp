@@ -81,12 +81,6 @@ struct cvk_kernel : public _cl_kernel, api_object {
 
     cl_ulong local_mem_size() const;
 
-    // Retain all the refcounted arguments for this kernel.
-    void retain_arguments() const;
-
-    // Release all the refcounted arguments for this kernel.
-    void release_arguments() const;
-
 private:
     using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
     bool build_descriptor_set_layout(
@@ -123,14 +117,16 @@ using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 struct cvk_kernel_argument_values {
 
     cvk_kernel_argument_values(cvk_kernel* kernel, uint32_t num_resources)
-        : m_kernel(kernel), m_pod_buffer(nullptr),
+        : m_kernel(kernel), m_pod_buffer(nullptr), m_owns_resources(false),
           m_kernel_resources(num_resources),
           m_local_args_size(m_kernel->num_args(), 0) {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values& other)
         : m_kernel(other.m_kernel), m_pod_buffer(nullptr),
-          m_kernel_resources(other.m_kernel_resources),
+          m_owns_resources(false), m_kernel_resources(other.m_kernel_resources),
           m_local_args_size(other.m_local_args_size) {}
+
+    ~cvk_kernel_argument_values() { release_resources(); }
 
     static std::unique_ptr<cvk_kernel_argument_values>
     create(cvk_kernel* kernel, uint32_t num_resources) {
@@ -227,9 +223,31 @@ struct cvk_kernel_argument_values {
         return m_specialization_constants;
     }
 
+    // Take ownership of resources and retain them.
+    void retain_resources() {
+        if (!m_owns_resources) {
+            m_owns_resources = true;
+            for (auto& resource : m_kernel_resources) {
+                if (resource)
+                    resource->retain();
+            }
+        }
+    }
+
+    // Release all resources owned resources.
+    void release_resources() {
+        if (m_owns_resources) {
+            for (auto& resource : m_kernel_resources) {
+                if (resource)
+                    resource->release();
+            }
+        }
+    }
+
 private:
     cvk_kernel* m_kernel;
     std::unique_ptr<cvk_buffer> m_pod_buffer;
+    bool m_owns_resources;
     std::vector<refcounted*> m_kernel_resources;
     std::vector<size_t> m_local_args_size;
     std::unordered_map<uint32_t, uint32_t> m_specialization_constants;

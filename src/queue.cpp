@@ -318,10 +318,6 @@ cl_int cvk_command_kernel::build() {
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
     // specified.
 
-    // Retain all the refcounted arguments prior to setting up the descriptor
-    // sets and enqueueing the kernel.
-    m_kernel->retain_arguments();
-
     // Setup descriptors
     if (!m_kernel->setup_descriptor_sets(m_descriptor_sets.data(),
                                          m_argument_values)) {
@@ -435,9 +431,6 @@ cl_int cvk_command_kernel::do_action() {
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
-
-    // Kernel has completed, release the refcounted arguments.
-    m_kernel->release_arguments();
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
