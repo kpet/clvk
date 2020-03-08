@@ -651,6 +651,16 @@ cl_int cvk_command_fill_buffer::do_action() {
     return CL_COMPLETE;
 }
 
+cl_int cvk_command_map_buffer::build(void** map_ptr) {
+    if (!m_buffer->map()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    *map_ptr = m_buffer->map_ptr(m_offset);
+
+    return CL_SUCCESS;
+}
+
 cl_int cvk_command_map_buffer::do_action() {
     bool success = true;
     if (m_buffer->has_flags(CL_MEM_USE_HOST_PTR)) {

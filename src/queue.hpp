@@ -641,6 +641,7 @@ struct cvk_command_map_buffer : public cvk_command_buffer_base_region {
                            size_t offset, size_t size)
         : cvk_command_buffer_base_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
                                          offset, size) {}
+    CHECK_RETURN cl_int build(void** map_ptr);
     virtual cl_int do_action() override;
 };
 

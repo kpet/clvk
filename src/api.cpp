@@ -2835,27 +2835,24 @@ void* clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf, cl_bool blocking_map,
         return nullptr;
     }
 
-    // TODO enqueue barriers to VK command buffer
     // TODO handle map flags
+
+    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size);
+
+    void* map_ptr;
+    cl_int err = cmd->build(&map_ptr);
 
     // FIXME This error cannot occur for objects created with
     // CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
-    if (!buffer->map()) {
+    if (err != CL_SUCCESS) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_MAP_FAILURE;
         }
         return nullptr;
     }
 
-    auto map_ptr = buffer->map_ptr(offset);
-    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size);
-
-    auto err = command_queue->enqueue_command_with_deps(
+    err = command_queue->enqueue_command_with_deps(
         cmd, blocking_map, num_events_in_wait_list, event_wait_list, event);
-
-    if (err != CL_SUCCESS) {
-        buffer->unmap();
-    }
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
