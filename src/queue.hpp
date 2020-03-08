@@ -623,18 +623,28 @@ private:
 struct cvk_command_map_buffer : public cvk_command_buffer_base_region {
 
     cvk_command_map_buffer(cvk_command_queue* queue, cvk_buffer* buffer,
-                           size_t offset, size_t size)
+                           size_t offset, size_t size, cl_map_flags flags)
         : cvk_command_buffer_base_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
-                                         offset, size) {}
+                                         offset, size),
+          m_flags(flags) {}
     CHECK_RETURN cl_int build(void** map_ptr);
     virtual cl_int do_action() override;
+
+private:
+    cl_map_flags m_flags;
+    cvk_buffer_mapping m_mapping;
 };
 
 struct cvk_command_unmap_buffer : public cvk_command_buffer_base {
 
-    cvk_command_unmap_buffer(cvk_command_queue* queue, cvk_buffer* buffer)
-        : cvk_command_buffer_base(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer) {}
+    cvk_command_unmap_buffer(cvk_command_queue* queue, cvk_buffer* buffer,
+                             void* map_ptr)
+        : cvk_command_buffer_base(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer),
+          m_mapped_ptr(map_ptr) {}
     virtual cl_int do_action() override;
+
+private:
+    void* m_mapped_ptr;
 };
 
 struct cvk_command_dep : public cvk_command {

@@ -211,6 +211,19 @@ static inline cvk_mem* icd_downcast(cl_mem mem) {
     return static_cast<cvk_mem*>(mem);
 }
 
+struct cvk_buffer;
+
+struct cvk_memobj_mappping {
+    cvk_buffer* buffer;
+    void* ptr;
+    cl_map_flags flags;
+};
+
+struct cvk_buffer_mapping : public cvk_memobj_mappping {
+    size_t offset;
+    size_t size;
+};
+
 struct cvk_buffer : public cvk_mem {
 
     static const VkBufferUsageFlags USAGE_FLAGS =
@@ -252,15 +265,55 @@ struct cvk_buffer : public cvk_mem {
         if (has_flags(CL_MEM_USE_HOST_PTR)) {
             ptr = host_ptr();
         } else {
-            ptr = pointer_offset(host_va(), offset);
+            ptr = host_va();
         }
+
+        ptr = pointer_offset(ptr, offset);
+
         return ptr;
+    }
+
+    bool find_or_create_mapping(cvk_buffer_mapping& mapping, size_t offset,
+                                size_t size, cl_map_flags flags) {
+
+        if (!map()) {
+            return false;
+        }
+
+        mapping.buffer = this;
+        mapping.offset = offset;
+        mapping.size = size;
+        mapping.ptr = this->map_ptr(offset);
+        mapping.flags = flags;
+
+        return true;
+    }
+
+    bool insert_mapping(const cvk_buffer_mapping& mapping) {
+        auto num_mappings_with_same_pointer = m_mappings.count(mapping.ptr);
+        // TODO support multiple mappings with the same pointer
+        if (num_mappings_with_same_pointer != 0) {
+            return false;
+        }
+
+        m_mappings[mapping.ptr] = mapping;
+
+        return true;
+    }
+
+    cvk_buffer_mapping remove_mapping(void* ptr) {
+        CVK_ASSERT(m_mappings.count(ptr) > 0);
+        auto mapping = m_mappings.at(ptr);
+        m_mappings.erase(ptr);
+        mapping.buffer->unmap();
+        return mapping;
     }
 
 private:
     bool init();
 
     VkBuffer m_buffer;
+    std::unordered_map<void*, cvk_buffer_mapping> m_mappings;
 };
 
 using cvk_buffer_holder = refcounted_holder<cvk_buffer>;
@@ -304,12 +357,9 @@ static inline cvk_sampler* icd_downcast(cl_sampler sampler) {
     return static_cast<cvk_sampler*>(sampler);
 }
 
-struct cvk_image_mapping {
-    cvk_buffer* buffer;
+struct cvk_image_mapping : public cvk_memobj_mappping {
     std::array<size_t, 3> origin;
     std::array<size_t, 3> region;
-    void* ptr;
-    cl_map_flags flags;
 };
 
 struct cvk_image : public cvk_mem {
@@ -387,7 +437,12 @@ struct cvk_image : public cvk_mem {
         mapping.ptr = mapping.buffer->map_ptr(0);
         mapping.flags = flags;
 
-        CVK_ASSERT(m_mappings.count(mapping.ptr) == 0);
+        auto num_mappings_with_same_pointer = m_mappings.count(mapping.ptr);
+        // TODO support multiple mappings with the same pointer
+        if (num_mappings_with_same_pointer != 0) {
+            return false;
+        }
+
         m_mappings[mapping.ptr] = mapping;
 
         return true;
