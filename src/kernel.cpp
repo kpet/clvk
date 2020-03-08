@@ -233,14 +233,15 @@ cl_int cvk_kernel::init() {
     cvk_debug("about to create pipeline layout, number of descriptor set "
               "layouts: %zu",
               m_descriptor_set_layouts.size());
+
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         0,
         0,
         static_cast<uint32_t>(m_descriptor_set_layouts.size()),
         m_descriptor_set_layouts.data(),
-        0,
-        0};
+        static_cast<uint32_t>(m_program->push_constant_ranges().size()),
+        m_program->push_constant_ranges().data()};
 
     res = vkCreatePipelineLayout(vkdev, &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);

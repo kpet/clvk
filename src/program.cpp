@@ -362,6 +362,42 @@ bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
     return true;
 }
 
+bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
+                                     int toknum) {
+    pushconstant_desc pcd;
+
+    if (tokens[toknum++] != "name") {
+        return false;
+    }
+
+    auto& name = tokens[toknum++];
+    pushconstant pc;
+
+    if (name == "dimensions") {
+        pc = pushconstant::dimensions;
+    } else if (name == "global_offset") {
+        pc = pushconstant::global_offset;
+    } else {
+        return false;
+    }
+
+    if (tokens[toknum++] != "offset") {
+        return false;
+    }
+
+    pcd.offset = atoi(tokens[toknum++].c_str());
+
+    if (tokens[toknum++] != "size") {
+        return false;
+    }
+
+    pcd.size = atoi(tokens[toknum++].c_str());
+
+    m_push_constants[pc] = pcd;
+
+    return true;
+}
+
 bool spir_binary::load_descriptor_map(std::istream& istream) {
     m_dmaps.clear();
 
@@ -379,6 +415,10 @@ bool spir_binary::load_descriptor_map(std::istream& istream) {
             }
         } else if (tokens[toknum] == "sampler") {
             if (!parse_sampler(tokens, toknum + 1)) {
+                return false;
+            }
+        } else if (tokens[toknum] == "pushconstant") {
+            if (!parse_pushconstant(tokens, toknum + 1)) {
                 return false;
             }
         } else {
@@ -466,6 +506,31 @@ bool spir_binary::load_descriptor_map(
             }
 
             m_literal_samplers.push_back(desc);
+
+            continue;
+        }
+
+        if (entry.kind ==
+            clspv::version0::DescriptorMapEntry::Kind::PushConstant) {
+            pushconstant pc;
+            pushconstant_desc pcd;
+            switch (entry.push_constant_data.pc) {
+            case clspv::PushConstant::Dimensions:
+                pc = pushconstant::dimensions;
+                break;
+            case clspv::PushConstant::GlobalOffset:
+                pc = pushconstant::global_offset;
+                break;
+            default:
+                cvk_error("Invalid push constant: %d",
+                          static_cast<int>(entry.push_constant_data.pc));
+                return false;
+            }
+
+            pcd.offset = entry.push_constant_data.offset;
+            pcd.size = entry.push_constant_data.size;
+
+            m_push_constants[pc] = pcd;
 
             continue;
         }
@@ -689,6 +754,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
+    options += " -work-dim -global-offset ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
@@ -772,6 +838,19 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         return CL_BUILD_ERROR;
     }
 #endif
+
+    // Build push constant ranges
+    auto& pcs = m_binary.push_constants();
+
+    m_push_constant_ranges.reserve(pcs.size());
+
+    for (auto& pc_pcd : pcs) {
+        auto pcd = pc_pcd.second;
+        VkPushConstantRange range = {VK_SHADER_STAGE_COMPUTE_BIT, pcd.offset,
+                                     pcd.size};
+
+        m_push_constant_ranges.push_back(range);
+    }
 
     return CL_BUILD_SUCCESS;
 }
