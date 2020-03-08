@@ -117,14 +117,16 @@ using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 struct cvk_kernel_argument_values {
 
     cvk_kernel_argument_values(cvk_kernel* kernel, uint32_t num_resources)
-        : m_kernel(kernel), m_pod_buffer(nullptr),
+        : m_kernel(kernel), m_pod_buffer(nullptr), m_owns_resources(false),
           m_kernel_resources(num_resources),
           m_local_args_size(m_kernel->num_args(), 0) {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values& other)
         : m_kernel(other.m_kernel), m_pod_buffer(nullptr),
-          m_kernel_resources(other.m_kernel_resources),
+          m_owns_resources(false), m_kernel_resources(other.m_kernel_resources),
           m_local_args_size(other.m_local_args_size) {}
+
+    ~cvk_kernel_argument_values() { release_resources(); }
 
     static std::unique_ptr<cvk_kernel_argument_values>
     create(cvk_kernel* kernel, uint32_t num_resources) {
@@ -198,10 +200,10 @@ struct cvk_kernel_argument_values {
             }
             if (arg.kind == kernel_argument_kind::sampler) {
                 auto sampler = *reinterpret_cast<const cl_sampler*>(value);
-                m_kernel_resources[arg.binding].reset(icd_downcast(sampler));
+                m_kernel_resources[arg.binding] = icd_downcast(sampler);
             } else {
                 auto mem = *reinterpret_cast<const cl_mem*>(value);
-                m_kernel_resources[arg.binding].reset(icd_downcast(mem));
+                m_kernel_resources[arg.binding] = icd_downcast(mem);
             }
         }
 
@@ -221,10 +223,32 @@ struct cvk_kernel_argument_values {
         return m_specialization_constants;
     }
 
+    // Take ownership of resources and retain them.
+    void retain_resources() {
+        if (!m_owns_resources) {
+            m_owns_resources = true;
+            for (auto& resource : m_kernel_resources) {
+                if (resource)
+                    resource->retain();
+            }
+        }
+    }
+
+    // Release all resources owned resources.
+    void release_resources() {
+        if (m_owns_resources) {
+            for (auto& resource : m_kernel_resources) {
+                if (resource)
+                    resource->release();
+            }
+        }
+    }
+
 private:
     cvk_kernel* m_kernel;
     std::unique_ptr<cvk_buffer> m_pod_buffer;
-    std::vector<refcounted_holder<refcounted>> m_kernel_resources;
+    bool m_owns_resources;
+    std::vector<refcounted*> m_kernel_resources;
     std::vector<size_t> m_local_args_size;
     std::unordered_map<uint32_t, uint32_t> m_specialization_constants;
 };

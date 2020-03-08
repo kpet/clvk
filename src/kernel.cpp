@@ -322,6 +322,7 @@ bool cvk_kernel::setup_descriptor_sets(
 
     // Transfer ownership of the argument values to the command
     arg_values = std::move(m_argument_values);
+    arg_values->retain_resources();
 
     // Create a new set, copy the argument values
     m_argument_values = cvk_kernel_argument_values::create(*arg_values.get());
