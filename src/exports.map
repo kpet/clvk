@@ -100,6 +100,7 @@ OPENCL_1.2 {
 } OPENCL_1.1;
 
 OPENCL_2.0 {
+    clCreateCommandQueueWithProperties;
 } OPENCL_1.2;
 
 OPENCL_2.1 {
