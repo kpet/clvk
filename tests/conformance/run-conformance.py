@@ -140,10 +140,13 @@ def run_conformance_binary(path, args):
     dirname = os.path.dirname(path)
     binary = os.path.basename(path)
     path = os.path.join(dirname, os.path.basename(binary))
+    workdir = os.path.dirname(path)
+    result_json = os.path.join(workdir, 'conf.json')
+    os.environ['CL_CONFORMANCE_RESULTS_FILENAME'] = result_json
     p = subprocess.Popen(
         [path] + args,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        cwd=os.path.dirname(path)
+        cwd=workdir
     )
     stdout, stderr = p.communicate()
     stdout = stdout.decode('utf-8')
@@ -152,44 +155,40 @@ def run_conformance_binary(path, args):
     #print(stdout)
     duration = end - start
 
-    tests_info_found = False
+    has_results = False
+    results = {}
 
-    if not tests_info_found:
-        tinfo = re.findall(r'PASSED (\d+) of (\d+) tests.',stdout)
-        if tinfo:
-            tests_total = int(tinfo[0][1])
-            tests_passed = int(tinfo[0][0])
-            tests_info_found = True
+    try:
+        with open(result_json) as f:
+            data = json.load(f)
+        os.remove(result_json)
 
-    if not tests_info_found:
-        tinfo = re.findall(r'FAILED (\d+) of (\d+) tests.',stdout)
-        if tinfo:
-            tests_total = int(tinfo[0][1])
-            tests_passed = tests_total - int(tinfo[0][0])
-            tests_info_found = True
-
-    if not tests_info_found:
-        if re.search(r'PASSED \S+.', stdout):
-            tests_passed = 1
-            tests_total = 1
-            tests_info_found = True
-
-    if not tests_info_found:
-        if re.search(r'FAILED \S+.', stdout):
-            tests_passed = 0
-            tests_total = 1
-            tests_info_found = True
-
-    if not tests_info_found:
-        tests_total = 0
-        tests_passed = 0
+        for test, result in data['results'].items():
+            if result not in ('pass', 'skip', 'fail'):
+                raise Exception("Can't parse results")
+        results = data['results']
+        has_results = True
+    except Exception as e:
+        pass
 
     return {
-        'total': tests_total,
-        'passed': tests_passed,
+        'has_results': has_results,
+        'results': results,
         'retcode': p.returncode,
         'duration': timedelta_to_string(duration),
     }
+
+def get_totals(suite_results):
+    totals = {
+        'pass': 0,
+        'fail': 0,
+        'skip': 0,
+        'total': 0
+    }
+    for test, result in suite_results['results'].items():
+        totals[result] += 1
+    totals['total'] = totals['pass'] + totals['fail']
+    return totals
 
 def run_tests(test_set):
 
@@ -202,8 +201,9 @@ def run_tests(test_set):
         print("Running", name, "...")
         status = run_conformance_binary(os.path.join(CONFORMANCE_DIR, os.path.basename(binary)), list(args))
         results[name] = status
+        totals = get_totals(status)
         print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))
-        print(status['passed'], "test(s) out of", status['total'], "passed")
+        print(totals['pass'], "test(s) out of", totals['total'], "passed. ", totals['skip'], "were skipped.")
         print("")
 
     return results
@@ -219,14 +219,27 @@ def check_reference(results, reference, args):
 
         res = results[name]
         ref = reference[name]
-        keys = ('total', 'passed', 'retcode')
-        differences = []
-        time_msg = None
+        msgs = []
 
-        # Calculate differences on numeric keys
-        for k in keys:
-            if res[k] != ref[k]:
-                differences.append((k, ref[k], res[k]))
+        # Compare retcodes
+        if res['retcode'] != ref['retcode']:
+            msgs.append("Expected the return code to be {} but got {}".format(ref['retcode'], res['retcode']))
+
+        # Work out test status differences
+        for test, result in res['results'].items():
+
+            if test not in ref['results']:
+                msgs.append("No reference for test '{}'".format(test))
+                continue
+
+            expected_result = ref['results'][test]
+
+            if result != expected_result:
+                msgs.append("Expected the status of '{}' to be '{}' but got '{}'".format(test, expected_result, result))
+
+        for test in ref['results']:
+            if test not in res['results']:
+                msgs.append("Got reference for test '{}' but no result".format(test))
 
         # Calculate time difference
         if args.compare_duration:
@@ -236,42 +249,41 @@ def check_reference(results, reference, args):
             reltimediff = timediff / refdur
             duration_threshold = 0.10
             if abs(reltimediff) > duration_threshold:
-                time_msg = '\t\tduration, expected {} (+/- {}%) but got {} ({}%)'.format(refdur, duration_threshold * 100, resdur, reltimediff * 100)
+                msgs.append('duration, expected {} (+/- {}%) but got {} ({}%)'.format(refdur, duration_threshold * 100, resdur, reltimediff * 100))
 
         # Print differences if any
-        if differences or time_msg:
+        if msgs:
             print("\t{}".format(name))
-            for d in differences:
-                print("\t\t{}, expected {} but got {} ({:+d})".format(d[0], d[1], d[2], d[2] - d[1]))
-            if time_msg:
-                print(time_msg)
+            for msg in msgs:
+                print("\t\t{}".format(msg))
 
 def report(results, args):
-
     total = 0
     passed = 0
+    skipped = 0
     bin_success = 0
     with_results = 0
     time = datetime.timedelta()
 
-    tests_passed_template = '{:3d}/{:3d} tests passed'
+    tests_passed_template = '{:3d}/{:3d} tests passed, {:3d} skipped'
     line_template = '{name:{name-len}} {result_str:>{result_str-len}} [{duration}]'
     binary_summary_template = '{:2d}/{:2d} binaries produced results'
 
     # Work out the length of the fields
     len_binaries_summary = len(binary_summary_template.format(0,0))
     len_longest_name = max([len(n) for n in results]+[len_binaries_summary])
-    len_result_str = len(tests_passed_template.format(0,0))
+    len_result_str = len(tests_passed_template.format(0,0,0))
 
     # Print results
     for name in sorted(results):
         status = results[name]
+        suite_totals = get_totals(status)
         # Print status
-        if status['total'] == 0:
+        if not status['has_results']:
             result_str = 'NO RESULTS'
         else:
             with_results += 1
-            result_str = tests_passed_template.format(status['passed'], status['total'])
+            result_str = tests_passed_template.format(suite_totals['pass'], suite_totals['total'], suite_totals['skip'])
 
         line = line_template.format(**{
             'name': name,
@@ -284,8 +296,9 @@ def report(results, args):
         print(line)
 
         # Accumulate totals
-        total += status['total']
-        passed += status['passed']
+        total += suite_totals['total']
+        passed += suite_totals['pass']
+        skipped += suite_totals['skip']
         time += timedelta_from_string(status['duration'])
         if status['retcode'] == 0:
             bin_success += 1
@@ -293,7 +306,7 @@ def report(results, args):
     line = line_template.format(**{
         'name': binary_summary_template.format(with_results, len(results)),
         'name-len': len_longest_name,
-        'result_str': tests_passed_template.format(passed, total),
+        'result_str': tests_passed_template.format(passed, total, skipped),
         'result_str-len': len_result_str,
         'duration': time,
     })
