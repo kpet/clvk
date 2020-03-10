@@ -195,9 +195,12 @@ cl_int clGetPlatformInfo(cl_platform_id platform, cl_platform_info param_name,
 }
 
 const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
-    {"clCreateProgramWithILKHR",
-     reinterpret_cast<void*>(clCreateProgramWithILKHR)},
-    {"clIcdGetPlatformIDsKHR", reinterpret_cast<void*>(clIcdGetPlatformIDsKHR)},
+#define EXTENSION_ENTRYPOINT(X)                                                \
+    { #X, reinterpret_cast < void*>(X) }
+    EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
+    EXTENSION_ENTRYPOINT(clIcdGetPlatformIDsKHR),
+    EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
+#undef EXTENSION_ENTRYPOINT
 };
 
 void* cvk_get_extension_function_pointer(const char* funcname) {
@@ -1126,13 +1129,9 @@ cl_command_queue clCreateCommandQueue(cl_context context, cl_device_id device,
     return ret;
 }
 
-cl_command_queue
-clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
-                                   const cl_queue_properties* properties,
-                                   cl_int* errcode_ret) {
-    LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
-                 context, device, properties, errcode_ret);
-
+cl_command_queue cvk_create_command_queue_with_properties(
+    cl_context context, cl_device_id device,
+    const cl_queue_properties* properties, cl_int* errcode_ret) {
     cl_command_queue_properties props = 0;
 
     if (properties) {
@@ -1161,6 +1160,28 @@ clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
     }
 
     return ret;
+}
+
+cl_command_queue
+clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
+                                   const cl_queue_properties* properties,
+                                   cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
+                 context, device, properties, errcode_ret);
+
+    return cvk_create_command_queue_with_properties(context, device, properties,
+                                                    errcode_ret);
+}
+
+cl_command_queue
+clCreateCommandQueueWithPropertiesKHR(cl_context context, cl_device_id device,
+                                      const cl_queue_properties* properties,
+                                      cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
+                 context, device, properties, errcode_ret);
+
+    return cvk_create_command_queue_with_properties(context, device, properties,
+                                                    errcode_ret);
 }
 
 cl_int clReleaseCommandQueue(cl_command_queue command_queue) {
