@@ -399,6 +399,13 @@ cl_int cvk_command_kernel::build() {
                            &m_global_offsets);
     }
 
+    if (auto pc = program->push_constant(pushconstant::enqueued_local_size)) {
+        CVK_ASSERT(pc->size == 12);
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &m_wg_size);
+    }
+
     if (m_kernel->has_pod_arguments() &&
         !m_kernel->has_pod_buffer_arguments()) {
         for (auto& arg : m_kernel->arguments()) {

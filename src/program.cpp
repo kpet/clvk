@@ -422,6 +422,8 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
         pc = pushconstant::dimensions;
     } else if (name == "global_offset") {
         pc = pushconstant::global_offset;
+    } else if (name == "enqueued_local_size") {
+        pc = pushconstant::enqueued_local_size;
     } else {
         return false;
     }
@@ -569,6 +571,9 @@ bool spir_binary::load_descriptor_map(
                 break;
             case clspv::PushConstant::GlobalOffset:
                 pc = pushconstant::global_offset;
+                break;
+            case clspv::PushConstant::EnqueuedLocalSize:
+                pc = pushconstant::enqueued_local_size;
                 break;
             default:
                 cvk_error("Invalid push constant: %d",
@@ -783,6 +788,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         // Some applications pass this even when using uniform NDRanges
         // Swallow the flag to enable these use cases
         {"-cl-arm-non-uniform-work-group-size", ""},
+        // clspv require entrypoint inlining for OpenCL 2.0
+        {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
     };
 
     for (auto& subst : option_substitutions) {

@@ -81,6 +81,7 @@ enum class pushconstant
 {
     dimensions,
     global_offset,
+    enqueued_local_size,
 };
 
 struct pushconstant_desc {
