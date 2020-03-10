@@ -164,6 +164,7 @@ void cvk_device::build_extension_ils_list() {
 
         // Add always supported extension
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_extended_versioning"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_create_command_queue"),
 #ifndef CLSPV_ONLINE_COMPILER
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
