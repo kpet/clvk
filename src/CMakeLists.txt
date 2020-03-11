@@ -50,6 +50,13 @@ add_library(OpenCL-objects OBJECT
   utils.cpp
   exports.map
 )
+
+# Disable deprecation warnings on the file that has the entrypoints.
+if (NOT MSVC)
+set_source_files_properties(api.cpp PROPERTIES COMPILE_FLAGS
+    -Wno-deprecated-declarations)
+endif()
+
 set_property(TARGET OpenCL-objects PROPERTY POSITION_INDEPENDENT_CODE 1)
 target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
     ${SPIRV_HEADERS_SOURCE_DIR}/include

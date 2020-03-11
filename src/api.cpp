@@ -1079,17 +1079,19 @@ cl_int clGetEventInfo(cl_event evt, cl_event_info param_name,
 }
 
 // Command Queue APIs
-cl_command_queue clCreateCommandQueue(cl_context context, cl_device_id device,
-                                      cl_command_queue_properties properties,
-                                      cl_int* errcode_ret) {
-    LOG_API_CALL(
-        "context = %p, device = %p, properties = %lu, errcode_ret = %p",
-        context, device, properties, errcode_ret);
+cl_command_queue
+cvk_create_command_queue(cl_context context, cl_device_id device,
+                         cl_command_queue_properties properties,
+                         cl_int* errcode_ret) {
 
     if (!is_valid_context(context)) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_INVALID_CONTEXT;
-        }
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    if (!is_valid_device(device) ||
+        icd_downcast(context)->device() != icd_downcast(device)) {
+        *errcode_ret = CL_INVALID_DEVICE;
         return nullptr;
     }
 
@@ -1098,15 +1100,67 @@ cl_command_queue clCreateCommandQueue(cl_context context, cl_device_id device,
 
     cl_int err = queue->init();
 
-    if (errcode_ret != nullptr) {
-        *errcode_ret = err;
-    }
+    *errcode_ret = err;
 
     if (err != CL_SUCCESS) {
         return nullptr;
     } else {
         return queue.release();
     }
+}
+
+cl_command_queue clCreateCommandQueue(cl_context context, cl_device_id device,
+                                      cl_command_queue_properties properties,
+                                      cl_int* errcode_ret) {
+    LOG_API_CALL(
+        "context = %p, device = %p, properties = %lu, errcode_ret = %p",
+        context, device, properties, errcode_ret);
+
+    cl_int err;
+    auto ret = cvk_create_command_queue(context, device, properties, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return ret;
+}
+
+cl_command_queue
+clCreateCommandQueueWithProperties(cl_context context, cl_device_id device,
+                                   const cl_queue_properties* properties,
+                                   cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
+                 context, device, properties, errcode_ret);
+
+    cl_command_queue_properties props = 0;
+
+    if (properties) {
+        while (*properties) {
+            auto key = *properties;
+            auto value = *(properties + 1);
+
+            if (key == CL_QUEUE_PROPERTIES) {
+                props = value;
+            } else {
+                if (errcode_ret != nullptr) {
+                    *errcode_ret = CL_INVALID_VALUE;
+                }
+                return nullptr;
+            }
+
+            properties += 2;
+        }
+    }
+
+    cl_int err;
+    auto ret = cvk_create_command_queue(context, device, props, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return ret;
 }
 
 cl_int clReleaseCommandQueue(cl_command_queue command_queue) {
@@ -4381,7 +4435,7 @@ cl_icd_dispatch gDispatchTable = {
     nullptr, // clCreateEventFromEGLSyncKHR;
 
     /* OpenCL 2.0 */
-    nullptr, // clCreateCommandQueueWithProperties;
+    clCreateCommandQueueWithProperties,
     nullptr, // clCreatePipe;
     nullptr, // clGetPipeInfo;
     nullptr, // clSVMAlloc;
