@@ -3296,10 +3296,10 @@ cl_mem clCreateImage2D(cl_context context, cl_mem_flags flags,
         0, // image_depth
         0, // image_array_size
         image_row_pitch,
-        0,      // image_slice_pitch
-        0,      // num_mip_levels
-        0,      // num_samples
-        nullptr // buffer
+        0,        // image_slice_pitch
+        0,        // num_mip_levels
+        0,        // num_samples
+        {nullptr} // buffer
     };
 
     cl_int err;
@@ -3333,9 +3333,9 @@ cl_mem clCreateImage3D(cl_context context, cl_mem_flags flags,
         0, // image_array_size
         image_row_pitch,
         image_slice_pitch,
-        0,      // num_mip_levels
-        0,      // num_samples
-        nullptr // buffer
+        0,        // num_mip_levels
+        0,        // num_samples
+        {nullptr} // buffer
     };
 
     cl_int err;
