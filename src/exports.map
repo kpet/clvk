@@ -101,6 +101,7 @@ OPENCL_1.2 {
 
 OPENCL_2.0 {
     clCreateCommandQueueWithProperties;
+    clCreateSamplerWithProperties;
 } OPENCL_1.2;
 
 OPENCL_2.1 {

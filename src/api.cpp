@@ -3082,6 +3082,34 @@ cl_int clEnqueueNativeKernel(cl_command_queue command_queue,
     return CL_INVALID_OPERATION;
 }
 
+cl_sampler cvk_create_sampler(cl_context context, cl_bool normalized_coords,
+                              cl_addressing_mode addressing_mode,
+                              cl_filter_mode filter_mode, cl_int* errcode_ret) {
+
+    if (!is_valid_context(context)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    auto ctx = icd_downcast(context);
+
+    if (!ctx->device()->supports_images()) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
+
+    auto sampler = cvk_sampler::create(ctx, normalized_coords, addressing_mode,
+                                       filter_mode);
+
+    if (sampler == nullptr) {
+        *errcode_ret = CL_OUT_OF_RESOURCES;
+    } else {
+        *errcode_ret = CL_SUCCESS;
+    }
+
+    return sampler;
+}
+
 cl_sampler clCreateSampler(cl_context context, cl_bool normalized_coords,
                            cl_addressing_mode addressing_mode,
                            cl_filter_mode filter_mode, cl_int* errcode_ret) {
@@ -3090,21 +3118,58 @@ cl_sampler clCreateSampler(cl_context context, cl_bool normalized_coords,
                  context, normalized_coords, addressing_mode, filter_mode,
                  errcode_ret);
 
-    if (!is_valid_context(context)) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_INVALID_CONTEXT;
+    cl_int err;
+    auto sampler = cvk_create_sampler(context, normalized_coords,
+                                      addressing_mode, filter_mode, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return sampler;
+}
+
+cl_sampler
+clCreateSamplerWithProperties(cl_context context,
+                              const cl_sampler_properties* sampler_properties,
+                              cl_int* errcode_ret) {
+
+    LOG_API_CALL("context = %p, sampler_properties = %p, errcode_ret = %p",
+                 context, sampler_properties, errcode_ret);
+
+    cl_bool normalized_coords = CL_TRUE;
+    cl_addressing_mode addressing_mode = CL_ADDRESS_CLAMP;
+    cl_filter_mode filter_mode = CL_FILTER_NEAREST;
+
+    if (sampler_properties) {
+        while (*sampler_properties) {
+            auto key = *sampler_properties;
+            auto value = *(sampler_properties + 1);
+
+            switch (key) {
+            case CL_SAMPLER_NORMALIZED_COORDS:
+                normalized_coords = value;
+                break;
+            case CL_SAMPLER_ADDRESSING_MODE:
+                addressing_mode = value;
+                break;
+            case CL_SAMPLER_FILTER_MODE:
+                filter_mode = value;
+                break;
+            default:
+                if (errcode_ret != nullptr) {
+                    *errcode_ret = CL_INVALID_VALUE;
+                }
+                return nullptr;
+            }
+
+            sampler_properties += 2;
         }
-        return nullptr;
     }
 
-    auto sampler = cvk_sampler::create(icd_downcast(context), normalized_coords,
-                                       addressing_mode, filter_mode);
-
-    cl_int err = CL_SUCCESS;
-
-    if (sampler == nullptr) {
-        err = CL_OUT_OF_RESOURCES;
-    }
+    cl_int err;
+    auto sampler = cvk_create_sampler(context, normalized_coords,
+                                      addressing_mode, filter_mode, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4466,7 +4531,7 @@ cl_icd_dispatch gDispatchTable = {
     nullptr, // clEnqueueSVMMemFill;
     nullptr, // clEnqueueSVMMap;
     nullptr, // clEnqueueSVMUnmap;
-    nullptr, // clCreateSamplerWithProperties;
+    clCreateSamplerWithProperties,
     nullptr, // clSetKernelArgSVMPointer;
     nullptr, // clSetKernelExecInfo;
 
