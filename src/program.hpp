@@ -81,6 +81,10 @@ enum class pushconstant
 {
     global_offset,
     enqueued_local_size,
+    global_size,
+    region_offset,
+    num_workgroups,
+    region_group_offset,
 };
 
 struct pushconstant_desc {

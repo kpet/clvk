@@ -645,6 +645,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = nullptr;
         size_ret = 0;
         break;
+    case CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT:
+        val_bool = device->supports_non_uniform_workgroup();
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;
@@ -3114,22 +3119,18 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
 
-    // Check uniformity of the NDRange
-    for (cl_uint i = 0; i < 3; i++) {
-        if (global_size[i] % workgroup_size[i] != 0) {
-            return CL_INVALID_WORK_GROUP_SIZE;
+    // Check uniformity of the NDRange if needed
+    if (!command_queue->device()->supports_non_uniform_workgroup()) {
+        for (cl_uint i = 0; i < 3; i++) {
+            if (global_size[i] % workgroup_size[i] != 0) {
+                return CL_INVALID_WORK_GROUP_SIZE;
+            }
         }
     }
 
-    // Calculate dispatch size
-    std::array<uint32_t, 3> num_workgroups;
-    for (cl_uint i = 0; i < 3; i++) {
-        num_workgroups[i] = global_size[i] / workgroup_size[i];
-    };
-
     auto cmd =
         new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
-                               num_workgroups, workgroup_size);
+                               global_size, workgroup_size);
 
     cl_int err = cmd->build();
 

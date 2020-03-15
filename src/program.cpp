@@ -422,6 +422,14 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
         pc = pushconstant::global_offset;
     } else if (name == "enqueued_local_size") {
         pc = pushconstant::enqueued_local_size;
+    } else if (name == "global_size") {
+        pc = pushconstant::global_size;
+    } else if (name == "region_offset") {
+        pc = pushconstant::region_offset;
+    } else if (name == "num_workgroups") {
+        pc = pushconstant::num_workgroups;
+    } else if (name == "region_group_offset") {
+        pc = pushconstant::region_group_offset;
     } else {
         return false;
     }

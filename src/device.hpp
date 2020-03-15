@@ -273,6 +273,8 @@ struct cvk_device : public _cl_device_id {
         return m_properties.limits.maxPushConstantsSize;
     }
 
+    bool supports_non_uniform_workgroup() const { return true; }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
