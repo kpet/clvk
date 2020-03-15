@@ -26,7 +26,13 @@
 #define DISABLED_TALVOS_SWIFTSHADER(X) X
 #endif
 
-#define CL_TARGET_OPENCL_VERSION 120
+#define CL_TARGET_OPENCL_VERSION 300
+#define CL_USE_DEPRECATED_OPENCL_1_0_APIS
+#define CL_USE_DEPRECATED_OPENCL_1_1_APIS
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#define CL_USE_DEPRECATED_OPENCL_2_0_APIS
+#define CL_USE_DEPRECATED_OPENCL_2_1_APIS
+#define CL_USE_DEPRECATED_OPENCL_2_2_APIS
 #include "CL/cl.h"
 
 // clang-format off
@@ -110,6 +116,7 @@ static inline uint64_t sampleTime() {
 }
 
 extern cl_device_id gDevice;
+extern cl_platform_id gPlatform;
 
 #include "gtest/gtest.h"
 
@@ -162,6 +169,20 @@ template <> inline void holder<cl_event>::deleter() {
 
 template <> inline void holder<cl_command_queue>::deleter() {
     auto err = clReleaseCommandQueue(m_obj);
+    ASSERT_CL_SUCCESS(err);
+}
+
+template <typename T>
+T GetPlatformInfo(cl_platform_id platform, cl_platform_info info) {
+    T val;
+    auto err = clGetPlatformInfo(platform, info, sizeof(val), &val, nullptr);
+    EXPECT_CL_SUCCESS(err);
+    return val;
+}
+
+static void GetDeviceAndHostTimer(cl_device_id device, cl_ulong* device_ts,
+                                  cl_ulong* host_ts) {
+    auto err = clGetDeviceAndHostTimer(device, device_ts, host_ts);
     ASSERT_CL_SUCCESS(err);
 }
 
@@ -336,9 +357,12 @@ class WithCommandQueue : public WithContext {
 protected:
     cl_command_queue m_queue;
 
+    const cl_device_id device() const { return gDevice; }
+    const cl_platform_id platform() const { return gPlatform; }
+
     void SetUpQueue(cl_command_queue_properties properties) {
         WithContext::SetUp();
-        auto queue = CreateCommandQueue(gDevice, properties);
+        auto queue = CreateCommandQueue(device(), properties);
         m_queue = queue.release();
     }
 
@@ -353,6 +377,18 @@ protected:
         cl_int err = clFinish(m_queue);
         ASSERT_CL_SUCCESS(err);
     }
+
+    void Flush() {
+        cl_int err = clFlush(m_queue);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void WaitForEvents(cl_uint num_events, const cl_event* event_list) {
+        auto err = clWaitForEvents(num_events, event_list);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void WaitForEvent(cl_event event) { WaitForEvents(1, &event); }
 
     void GetEventProfilingInfo(cl_event event, cl_profiling_info param_name,
                                size_t param_value_size, void* param_value,

@@ -145,6 +145,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     const void* copy_ptr = nullptr;
     cl_version_khr val_version;
     api_query_string val_string;
+    cl_ulong val_ulong;
 
     const cvk_platform* plat = state->platform();
     if (platform != nullptr) {
@@ -190,6 +191,11 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     case CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR:
         copy_ptr = plat->extensions().data();
         size_ret = plat->extensions().size() * sizeof(cl_name_version_khr);
+        break;
+    case CL_PLATFORM_HOST_TIMER_RESOLUTION:
+        val_ulong = plat->host_timer_resolution();
+        copy_ptr = &val_ulong;
+        size_ret = sizeof(val_ulong);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -956,8 +962,12 @@ cl_int CLVK_API_CALL clSetUserEventStatus(cl_event event,
                                           cl_int execution_status) {
     LOG_API_CALL("event = %p, execution_status = %d", event, execution_status);
 
-    if (!is_valid_event(event)) {
+    if (!is_valid_event(event) || !icd_downcast(event)->is_user_event()) {
         return CL_INVALID_EVENT;
+    }
+
+    if (execution_status > CL_COMPLETE) {
+        return CL_INVALID_VALUE;
     }
 
     icd_downcast(event)->set_status(execution_status);
@@ -2487,11 +2497,10 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
     return ret;
 }
 
-cl_int clGetKernelSubGroupInfo(cl_kernel kernel, cl_device_id device,
-                               cl_kernel_sub_group_info param_name,
-                               size_t input_value_size, const void* input_value,
-                               size_t param_value_size, void* param_value,
-                               size_t* param_value_size_ret) {
+cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
+    cl_kernel kernel, cl_device_id device, cl_kernel_sub_group_info param_name,
+    size_t input_value_size, const void* input_value, size_t param_value_size,
+    void* param_value, size_t* param_value_size_ret) {
     LOG_API_CALL("kernel = %p, device = %p, param_name = %x, input_value_size "
                  "= %zu, input_value = %p, param_value_size = %zu, param_value "
                  "= %p, param_value_size_ret = %p",
@@ -4656,9 +4665,9 @@ cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
     return program;
 }
 
-cl_int clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
-                                          size_t spec_size,
-                                          const void* spec_value) {
+cl_int CLVK_API_CALL
+clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
+                                   size_t spec_size, const void* spec_value) {
     LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
                  program, spec_id, spec_size, spec_value);
     return CL_INVALID_OPERATION;
@@ -4812,6 +4821,53 @@ cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
                  pipe, param_name, param_value_size, param_value,
                  param_value_size_ret);
     return CL_INVALID_OPERATION;
+}
+
+// Timer functions
+cl_int CLVK_API_CALL clGetHostTimer(cl_device_id device,
+                                    cl_ulong* host_timestamp) {
+
+    LOG_API_CALL("device = %p, host_timestamp = %p", device, host_timestamp);
+
+    if (!is_valid_device(device)) {
+        return CL_INVALID_DEVICE;
+    }
+
+    auto dev = icd_downcast(device);
+
+    if (!dev->has_timer_support()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (host_timestamp == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    return dev->get_device_host_timer(nullptr, host_timestamp);
+}
+
+cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
+                                             cl_ulong* device_timestamp,
+                                             cl_ulong* host_timestamp) {
+
+    LOG_API_CALL("device = %p, device_timestamp = %p, host_timestamp = %p",
+                 device, device_timestamp, host_timestamp);
+
+    if (!is_valid_device(device)) {
+        return CL_INVALID_DEVICE;
+    }
+
+    auto dev = icd_downcast(device);
+
+    if (!dev->has_timer_support()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if ((device_timestamp == nullptr) || (host_timestamp == nullptr)) {
+        return CL_INVALID_VALUE;
+    }
+
+    return dev->get_device_host_timer(device_timestamp, host_timestamp);
 }
 
 // clang-format off
@@ -4980,8 +5036,8 @@ cl_icd_dispatch gDispatchTable = {
     nullptr, // clCloneKernel;
     clCreateProgramWithIL,
     clEnqueueSVMMigrateMem,
-    nullptr, // clGetDeviceAndHostTimer;
-    nullptr, // clGetHostTimer;
+    clGetDeviceAndHostTimer,
+    clGetHostTimer,
     clGetKernelSubGroupInfo,
     clSetDefaultDeviceCommandQueue,
 

@@ -45,8 +45,11 @@ struct cvk_event : public _cl_event, api_object {
     bool terminated() { return m_status < 0; }
 
     void set_status(cl_int status) {
+        cvk_debug("cvk_event::set_status: event = %p, status = %d", this,
+                  status);
         std::lock_guard<std::mutex> lock(m_lock);
 
+        CVK_ASSERT(status < m_status);
         m_status = status;
 
         if (completed() || terminated()) {

@@ -120,6 +120,8 @@ OPENCL_2.1 {
     clSetDefaultDeviceCommandQueue;
     clCreateProgramWithIL;
     clGetKernelSubGroupInfo;
+    clGetDeviceAndHostTimer;
+    clGetHostTimer;
 } OPENCL_2.0;
 
 OPENCL_2.2 {
