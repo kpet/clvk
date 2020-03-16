@@ -1,9 +1,9 @@
 {
   "API": {
-    "duration": "00:00:14.281396",
-    "passed": 64,
+    "duration": "00:00:15.222892",
+    "passed": 65,
     "retcode": 0,
-    "total": 74
+    "total": 75
   },
   "Atomics": {
     "duration": "00:00:08.223196",
@@ -36,10 +36,10 @@
     "total": 17
   },
   "Compiler": {
-    "duration": "00:00:29.230129",
+    "duration": "00:00:32.262372",
     "passed": 36,
     "retcode": 0,
-    "total": 56
+    "total": 55
   },
   "Compute Info": {
     "duration": "00:00:00.277565",
