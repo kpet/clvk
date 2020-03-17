@@ -150,8 +150,8 @@ struct cvk_executor_thread {
     void shutdown() {
 
         // Tell the executor to shutdown
-        m_shutdown = true;
         m_lock.lock();
+        m_shutdown = true;
         m_cv.notify_one();
         m_lock.unlock();
 
