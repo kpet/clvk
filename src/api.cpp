@@ -57,6 +57,10 @@ bool is_same_context(cl_command_queue queue, cl_mem mem) {
     return icd_downcast(queue)->context() == icd_downcast(mem)->context();
 }
 
+bool is_same_context(cl_command_queue queue, cl_kernel kernel) {
+    return icd_downcast(queue)->context() == icd_downcast(kernel)->context();
+}
+
 bool is_same_context(cl_command_queue queue, cl_uint num_events,
                      const cl_event* event_list) {
     for (cl_uint i = 0; i < num_events; i++) {
@@ -454,7 +458,7 @@ cl_int clGetDeviceInfo(cl_device_id dev, cl_device_info param_name,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS:
-        val_uint = 3;
+        val_uint = device->max_work_item_dimensions();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
@@ -2978,12 +2982,123 @@ cl_int clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
     return CL_SUCCESS;
 }
 
-cl_int
-cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue, cvk_kernel* kernel,
-                           uint32_t dims, uint32_t* global_offsets,
-                           uint32_t* num_workgroups, uint32_t* workgroup_size,
-                           cl_uint num_events_in_wait_list,
-                           const cl_event* event_wait_list, cl_event* event) {
+cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
+                                  cvk_kernel* kernel, uint32_t dims,
+                                  const std::array<uint32_t, 3>& global_offsets,
+                                  const std::array<uint32_t, 3>& global_size,
+                                  const std::array<uint32_t, 3>& workgroup_size,
+                                  cl_uint num_events_in_wait_list,
+                                  const cl_event* event_wait_list,
+                                  cl_event* event) {
+
+    // TODO check that it's a host command queue
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, kernel)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    auto device = command_queue->device();
+
+    if ((dims < 1) || (dims > device->max_work_item_dimensions())) {
+        return CL_INVALID_WORK_DIMENSION;
+    }
+
+    auto program = kernel->program();
+
+    if (program->binary_type(device) != CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
+        return CL_INVALID_PROGRAM_EXECUTABLE;
+    }
+
+    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
+    // specified or if a kernel argument declared to be a pointer to a type does
+    // not point to a named address space.
+    // TODO CL_INVALID_GLOBAL_WORK_SIZE if any of the values specified in
+    // global_work_size[0], … global_work_size[work_dim - 1] exceed the maximum
+    // value representable by size_t on the device on which the kernel-instance
+    // will be enqueued.
+    // TODO CL_INVALID_GLOBAL_OFFSET if the value specified in global_work_size
+    // + the corresponding values in global_work_offset for any dimensions is
+    // greater than the maximum value representable by size t on the device on
+    // which the kernel-instance will be enqueued.
+    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and does
+    // not match the required work-group size for kernel in the program source.
+    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and is
+    // not consistent with the required number of sub-groups for kernel in the
+    // program source.
+    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and the
+    // total number of work-items in the work-group computed as
+    // local_work_size[0] × … local_work_size[work_dim - 1] is greater than the
+    // value specified by CL_KERNEL_WORK_GROUP_SIZE in the Kernel Object Device
+    // Queries table.
+    // TODO CL_INVALID_WORK_GROUP_SIZE if the program was compiled with
+    // cl-uniform-work-group-size and the number of work-items specified by
+    // global_work_size is not evenly divisible by size of work-group given by
+    // local_work_size or by the required work-group size specified in the
+    // kernel source.
+    // TODO CL_INVALID_WORK_ITEM_SIZE if the number of work-items specified in
+    // any of local_work_size[0], … local_work_size[work_dim - 1] is greater
+    // than the corresponding values specified by
+    // CL_DEVICE_MAX_WORK_ITEM_SIZES[0], …,
+    // CL_DEVICE_MAX_WORK_ITEM_SIZES[work_dim - 1].
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if a sub-buffer object is specified
+    // as the value for an argument that is a buffer object and the offset
+    // specified when the sub-buffer object is created is not aligned to
+    // CL_DEVICE_MEM_BASE_ADDR_ALIGN value for device associated with queue.
+    // TODO CL_INVALID_IMAGE_SIZE if an image object is specified as an argument
+    // value and the image dimensions (image width, height, specified or compute
+    // row and/or slice pitch) are not supported by device associated with
+    // queue.
+    // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if an image object is specified as an
+    // argument value and the image format (image channel order and data type)
+    // is not supported by device associated with queue.
+    // TODO CL_OUT_OF_RESOURCES if there is a failure to queue the execution
+    // instance of kernel on the command-queue because of insufficient resources
+    // needed to execute the kernel. For example, the explicitly specified
+    // local_work_size causes a failure to execute the kernel because of
+    // insufficient resources such as registers or local memory. Another example
+    // would be the number of read-only image args used in kernel exceed the
+    // CL_DEVICE_MAX_READ_IMAGE_ARGS value for device or the number of
+    // write-only and read-write image args used in kernel exceed the
+    // CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS value for device or the number of
+    // samplers used in kernel exceed CL_DEVICE_MAX_SAMPLERS for device.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
+    // memory for data store associated with image or buffer objects specified
+    // as arguments to kernel.
+    // TODO CL_INVALID_OPERATION if SVM pointers are passed as arguments to a
+    // kernel and the device does not support SVM or if system pointers are
+    // passed as arguments to a kernel and/or stored inside SVM allocations
+    // passed as kernel arguments and the device does not support fine grain
+    // system SVM allocations.
+
+    // Check uniformity of the NDRange
+    for (cl_uint i = 0; i < 3; i++) {
+        if (global_size[i] % workgroup_size[i] != 0) {
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
+    // Calculate dispatch size
+    std::array<uint32_t, 3> num_workgroups;
+    for (cl_uint i = 0; i < 3; i++) {
+        num_workgroups[i] = global_size[i] / workgroup_size[i];
+    };
+
     auto cmd =
         new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
                                num_workgroups, workgroup_size);
@@ -3008,14 +3123,14 @@ cl_int clEnqueueTask(cl_command_queue command_queue, cl_kernel kernel,
         " event_wait_list = %p, event = %p",
         command_queue, kernel, num_events_in_wait_list, event_wait_list, event);
 
-    uint32_t num_workgroups[] = {1, 1, 1};
-    uint32_t workgroup_size[] = {1, 1, 1};
-    uint32_t global_offsets[] = {0, 0, 0};
+    std::array<uint32_t, 3> global_size = {1, 1, 1};
+    std::array<uint32_t, 3> workgroup_size = {1, 1, 1};
+    std::array<uint32_t, 3> global_offsets = {0, 0, 0};
 
     return cvk_enqueue_ndrange_kernel(
         icd_downcast(command_queue), icd_downcast(kernel), 1, global_offsets,
-        num_workgroups, workgroup_size, num_events_in_wait_list,
-        event_wait_list, event);
+        global_size, workgroup_size, num_events_in_wait_list, event_wait_list,
+        event);
 }
 
 cl_int clEnqueueNDRangeKernel(
@@ -3023,12 +3138,16 @@ cl_int clEnqueueNDRangeKernel(
     const size_t* global_work_offset, const size_t* global_work_size,
     const size_t* local_work_size, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
-    LOG_API_CALL("command_queue = %p, kernel = %p", command_queue, kernel);
-    LOG_API_CALL("work_dim = %u", work_dim);
 
-    uint32_t goff[3] = {0, 0, 0};
-    uint32_t gws[3] = {1, 1, 1};
-    uint32_t lws[3] = {1, 1, 1}; // FIXME pick a sensible default
+    LOG_API_CALL(
+        "command_queue = %p, kernel = %p, work_dim = %u, "
+        "num_events_in_wait_list = %u, event_wait_list = %p, event = %p",
+        command_queue, kernel, work_dim, num_events_in_wait_list,
+        event_wait_list, event);
+
+    std::array<uint32_t, 3> goff = {0, 0, 0};
+    std::array<uint32_t, 3> gws = {1, 1, 1};
+    std::array<uint32_t, 3> lws = {1, 1, 1}; // FIXME pick a sensible default
 
     for (cl_uint i = 0; i < work_dim; i++) {
         gws[i] = global_work_size[i];
@@ -3044,26 +3163,9 @@ cl_int clEnqueueNDRangeKernel(
     LOG_API_CALL("gws = {%u,%u,%u}", gws[0], gws[1], gws[2]);
     LOG_API_CALL("lws = {%u,%u,%u}", lws[0], lws[1], lws[2]);
 
-    // TODO CL_INVALID_WORK_GROUP_SIZE lws does not match the work-group size
-    // specified for kernel using the __attribute__ ((reqd_work_group_size(X, Y,
-    // Z))) qualifier in program source.
-
-    // Check uniformity of the NDRange
-    for (cl_uint i = 0; i < 3; i++) {
-        if (gws[i] % lws[i] != 0) {
-            return CL_INVALID_WORK_GROUP_SIZE;
-        }
-    }
-
-    // Calculate dispatch size
-    uint32_t num_workgroups[3];
-    for (cl_uint i = 0; i < 3; i++) {
-        num_workgroups[i] = gws[i] / lws[i];
-    };
-
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), work_dim, goff,
-        num_workgroups, lws, num_events_in_wait_list, event_wait_list, event);
+        icd_downcast(command_queue), icd_downcast(kernel), work_dim, goff, gws,
+        lws, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int clEnqueueNativeKernel(cl_command_queue command_queue,

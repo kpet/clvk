@@ -113,6 +113,8 @@ struct cvk_device : public _cl_device_id {
         return std::min(20u, vulkan_limits().maxPerStageDescriptorSamplers);
     }
 
+    cl_uint max_work_item_dimensions() const { return 3; }
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }

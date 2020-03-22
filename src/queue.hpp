@@ -572,25 +572,15 @@ protected:
 struct cvk_command_kernel : public cvk_command {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
-                       uint32_t* global_offsets, uint32_t* num_wg,
-                       uint32_t* wg_size)
+                       const std::array<uint32_t, 3>& global_offsets,
+                       const std::array<uint32_t, 3>& num_wg,
+                       const std::array<uint32_t, 3>& wg_size)
         : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims),
+          m_dimensions(dims), m_global_offsets(global_offsets),
+          m_num_wg(num_wg), m_wg_size(wg_size),
           m_command_buffer(q), m_descriptor_sets{VK_NULL_HANDLE},
           m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
-          m_argument_values(nullptr) {
-        m_num_wg[0] = num_wg[0];
-        m_num_wg[1] = num_wg[1];
-        m_num_wg[2] = num_wg[2];
-
-        m_wg_size[0] = wg_size[0];
-        m_wg_size[1] = wg_size[1];
-        m_wg_size[2] = wg_size[2];
-
-        m_global_offsets[0] = global_offsets[0];
-        m_global_offsets[1] = global_offsets[1];
-        m_global_offsets[2] = global_offsets[2];
-    }
+          m_argument_values(nullptr) {}
 
     ~cvk_command_kernel() {
         for (auto ds : m_descriptor_sets) {
@@ -618,11 +608,11 @@ struct cvk_command_kernel : public cvk_command {
     virtual cl_int do_action() override;
 
 private:
-    uint32_t m_num_wg[3];
-    uint32_t m_wg_size[3];
     cvk_kernel_holder m_kernel;
     uint32_t m_dimensions;
-    uint32_t m_global_offsets[3];
+    std::array<uint32_t, 3> m_global_offsets;
+    std::array<uint32_t, 3> m_num_wg;
+    std::array<uint32_t, 3> m_wg_size;
     cvk_command_buffer m_command_buffer;
     std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
         m_descriptor_sets;

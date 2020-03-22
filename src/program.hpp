@@ -275,7 +275,12 @@ struct cvk_program : public _cl_program, api_object {
     }
 
     CHECK_RETURN bool read(const unsigned char* src, size_t size) {
-        return m_binary.read(src, size);
+        bool success = m_binary.read(src, size);
+        if (success) {
+            // TODO support loading other program types
+            m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+        }
+        return success;
     }
 
     CHECK_RETURN bool write(unsigned char* dst) const {
