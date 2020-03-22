@@ -453,13 +453,13 @@ struct cvk_rectangle_copier {
     void do_copy(direction dir, void* src_base, void* dst_base);
 
 private:
-    size_t m_a_origin[3];
+    std::array<size_t, 3> m_a_origin;
     size_t m_a_row_pitch;
     size_t m_a_slice_pitch;
-    size_t m_b_origin[3];
+    std::array<size_t, 3> m_b_origin;
     size_t m_b_row_pitch;
     size_t m_b_slice_pitch;
-    size_t m_region[3];
+    std::array<size_t, 3> m_region;
     size_t m_elem_size;
 };
 
@@ -765,9 +765,9 @@ struct cvk_command_image_image_copy : public cvk_command {
 
     cvk_command_image_image_copy(cvk_command_queue* queue, cvk_image* src_image,
                                  cvk_image* dst_image,
-                                 std::array<size_t, 3> src_origin,
-                                 std::array<size_t, 3> dst_origin,
-                                 std::array<size_t, 3> region)
+                                 const std::array<size_t, 3>& src_origin,
+                                 const std::array<size_t, 3>& dst_origin,
+                                 const std::array<size_t, 3>& region)
         : cvk_command(CL_COMMAND_COPY_IMAGE, queue), m_src_image(src_image),
           m_dst_image(dst_image), m_src_origin(src_origin),
           m_dst_origin(dst_origin), m_region(region),
@@ -788,7 +788,8 @@ struct cvk_command_fill_image : public cvk_command {
 
     cvk_command_fill_image(cvk_command_queue* queue, void* ptr,
                            const cvk_image::fill_pattern_array& pattern,
-                           size_t pattern_size, std::array<size_t, 3> region)
+                           size_t pattern_size,
+                           const std::array<size_t, 3>& region)
         : cvk_command(CL_COMMAND_FILL_IMAGE, queue), m_ptr(ptr),
           m_pattern(pattern), m_pattern_size(pattern_size), m_region(region) {}
     cl_int do_action() override;

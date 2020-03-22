@@ -500,11 +500,9 @@ cl_int cvk_command_buffer_host_copy::do_action() {
 
 struct rectangle {
 public:
-    void set_params(size_t* origin, size_t slicep, size_t rowp,
-                    size_t elem_size) {
-        m_origin[0] = origin[0];
-        m_origin[1] = origin[1];
-        m_origin[2] = origin[2];
+    void set_params(const std::array<size_t, 3>& origin, size_t slicep,
+                    size_t rowp, size_t elem_size) {
+        m_origin = origin;
         m_slice_pitch = slicep;
         m_row_pitch = rowp;
         m_elem_size = elem_size;
@@ -516,7 +514,7 @@ public:
     }
 
 private:
-    size_t m_origin[3];
+    std::array<size_t, 3> m_origin;
     size_t m_slice_pitch;
     size_t m_row_pitch;
     size_t m_elem_size;
