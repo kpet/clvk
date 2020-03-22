@@ -630,6 +630,18 @@ cl_int cvk_command_copy_buffer::do_action() {
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
+namespace {
+template<typename T>
+void memset_multi(void *dst, void *pattern_ptr, size_t size) {
+    T pattern = *static_cast<T*>(pattern_ptr);
+    auto end = pointer_offset(dst, size);
+    while (dst < end) {
+        *static_cast<T*>(dst) = pattern;
+        dst = pointer_offset(dst, sizeof(pattern));
+    }
+}
+}
+
 cl_int cvk_command_fill_buffer::do_action() {
     memobj_map_holder map_holder{m_buffer};
 
@@ -640,10 +652,21 @@ cl_int cvk_command_fill_buffer::do_action() {
     auto begin = pointer_offset(m_buffer->host_va(), m_offset);
     auto end = pointer_offset(begin, m_size);
 
-    auto address = begin;
-    while (address < end) {
-        memcpy(address, m_pattern.data(), m_pattern_size);
-        address = pointer_offset(address, m_pattern_size);
+    if (m_pattern_size == 1) {
+        int pattern = *reinterpret_cast<uint8_t*>(m_pattern.data());
+        memset(begin, pattern, m_size);
+    } else if (m_pattern_size == 2) {
+        memset_multi<uint16_t>(begin, m_pattern.data(), m_size);
+    } else if (m_pattern_size == 4) {
+        memset_multi<uint32_t>(begin, m_pattern.data(), m_size);
+    } else if (m_pattern_size == 8) {
+        memset_multi<uint64_t>(begin, m_pattern.data(), m_size);
+    } else {
+        auto address = begin;
+        while (address < end) {
+            memcpy(address, m_pattern.data(), m_pattern_size);
+            address = pointer_offset(address, m_pattern_size);
+        }
     }
 
     return CL_COMPLETE;
