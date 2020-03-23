@@ -13,9 +13,9 @@
   },
   "Basic": {
     "duration": "00:03:18.812580",
-    "passed": 73,
+    "passed": 72,
     "retcode": 0,
-    "total": 92
+    "total": 91
   },
   "Buffers": {
     "duration": "00:04:50.084071",
