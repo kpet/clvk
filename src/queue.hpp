@@ -589,11 +589,6 @@ struct cvk_command_kernel : public cvk_command {
             }
         }
 
-        if (m_pipeline != VK_NULL_HANDLE) {
-            vkDestroyPipeline(m_queue->device()->vulkan_device(), m_pipeline,
-                              nullptr);
-        }
-
         if (m_query_pool != VK_NULL_HANDLE) {
             auto vkdev = m_queue->device()->vulkan_device();
             vkDestroyQueryPool(vkdev, m_query_pool, nullptr);

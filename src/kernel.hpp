@@ -25,35 +25,15 @@ struct cvk_kernel_argument_values;
 
 struct cvk_kernel : public _cl_kernel, api_object {
 
-    const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition
-
     cvk_kernel(cvk_program* program, const char* name)
-        : api_object(program->context()), m_program(program), m_name(name),
-          m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
-          m_pod_arg(nullptr), m_pod_buffer_size(0u), m_has_pod_arguments(false),
-          m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
-          m_pipeline_cache(VK_NULL_HANDLE) {
+        : api_object(program->context()), m_program(program),
+          m_entry_point(nullptr), m_name(name), m_pod_arg(nullptr) {
         m_program->retain();
     }
 
     CHECK_RETURN cl_int init();
 
-    virtual ~cvk_kernel() {
-        VkDevice dev = m_context->device()->vulkan_device();
-        if (m_pipeline_cache != VK_NULL_HANDLE) {
-            vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
-        }
-        if (m_descriptor_pool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(dev, m_descriptor_pool, nullptr);
-        }
-        if (m_pipeline_layout != VK_NULL_HANDLE) {
-            vkDestroyPipelineLayout(dev, m_pipeline_layout, nullptr);
-        }
-        for (auto layout : m_descriptor_set_layouts) {
-            vkDestroyDescriptorSetLayout(dev, layout, nullptr);
-        }
-        m_program->release();
-    }
+    virtual ~cvk_kernel() { m_program->release(); }
 
     CHECK_RETURN bool setup_descriptor_sets(
         VkDescriptorSet* ds,
@@ -62,17 +42,24 @@ struct cvk_kernel : public _cl_kernel, api_object {
     void free_descriptor_set(VkDescriptorSet ds) {
         std::lock_guard<std::mutex> lock(m_lock);
         auto vkdev = m_context->device()->vulkan_device();
-        vkFreeDescriptorSets(vkdev, m_descriptor_pool, 1, &ds);
+        vkFreeDescriptorSets(vkdev, m_entry_point->descriptor_pool(), 1, &ds);
     }
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
-    CHECK_RETURN VkPipeline create_pipeline(const VkSpecializationInfo& info);
+    CHECK_RETURN VkPipeline
+    create_pipeline(const cvk_spec_constant_map& spec_constants);
 
-    bool has_pod_arguments() const { return m_has_pod_arguments; }
+    bool has_pod_arguments() const {
+        return m_entry_point->has_pod_arguments();
+    }
     const std::string& name() const { return m_name; }
     uint32_t num_args() const { return m_args.size(); }
-    uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
-    VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
+    uint32_t num_set_layouts() const {
+        return m_entry_point->descriptor_set_layouts().size();
+    }
+    VkPipelineLayout pipeline_layout() const {
+        return m_entry_point->pipeline_layout();
+    }
     cvk_program* program() const { return m_program; }
 
     kernel_argument_kind arg_kind(int index) const {
@@ -82,30 +69,16 @@ struct cvk_kernel : public _cl_kernel, api_object {
     cl_ulong local_mem_size() const;
 
 private:
-    using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
-    bool build_descriptor_set_layout(
-        VkDevice vkdev,
-        const std::vector<VkDescriptorSetLayoutBinding>& bindings);
-    bool build_descriptor_sets_layout_bindings_for_arguments(
-        VkDevice vkdev, binding_stat_map& smap, uint32_t& num_resources);
-    bool build_descriptor_sets_layout_bindings_for_literal_samplers(
-        VkDevice vkdev, binding_stat_map& smap);
     std::unique_ptr<cvk_buffer> allocate_pod_buffer();
     friend cvk_kernel_argument_values;
 
     std::mutex m_lock;
     cvk_program* m_program;
+    cvk_entry_point* m_entry_point;
     std::string m_name;
-    VkDescriptorType m_pod_descriptor_type;
     const kernel_argument* m_pod_arg;
-    uint32_t m_pod_buffer_size;
-    bool m_has_pod_arguments;
     std::vector<kernel_argument> m_args;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
-    VkDescriptorPool m_descriptor_pool;
-    std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
-    VkPipelineLayout m_pipeline_layout;
-    VkPipelineCache m_pipeline_cache;
 };
 
 static inline cvk_kernel* icd_downcast(cl_kernel kernel) {

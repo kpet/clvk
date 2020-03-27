@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -163,6 +164,121 @@ enum class build_operation
 
 using cvk_program_callback = void (*)(cl_program, void*);
 
+using cvk_spec_constant_map = std::map<uint32_t, uint32_t>;
+
+struct cvk_program;
+
+class cvk_entry_point {
+public:
+    cvk_entry_point(VkDevice dev, cvk_program* program, const std::string& name)
+        : m_device(dev), m_program(program), m_name(name),
+          m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
+          m_pod_buffer_size(0u), m_has_pod_arguments(false),
+          m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+          m_pipeline_cache(VK_NULL_HANDLE) {}
+
+    ~cvk_entry_point() {
+        for (auto pipeline : m_pipelines) {
+            cvk_info("destroying pipeline %p for kernel %s", pipeline.second,
+                     m_name.c_str());
+            vkDestroyPipeline(m_device, pipeline.second, nullptr);
+        }
+        if (m_pipeline_cache != VK_NULL_HANDLE) {
+            vkDestroyPipelineCache(m_device, m_pipeline_cache, nullptr);
+        }
+        if (m_descriptor_pool != VK_NULL_HANDLE) {
+            vkDestroyDescriptorPool(m_device, m_descriptor_pool, nullptr);
+        }
+        if (m_pipeline_layout != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(m_device, m_pipeline_layout, nullptr);
+        }
+        for (auto layout : m_descriptor_set_layouts) {
+            vkDestroyDescriptorSetLayout(m_device, layout, nullptr);
+        }
+    }
+
+    CHECK_RETURN cl_int init();
+
+    CHECK_RETURN VkPipeline
+    create_pipeline(const cvk_spec_constant_map& spec_constants);
+
+    const std::vector<kernel_argument>& args() const { return m_args; }
+
+    VkDescriptorPool descriptor_pool() const { return m_descriptor_pool; }
+
+    const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts() const {
+        return m_descriptor_set_layouts;
+    }
+
+    bool has_pod_arguments() const { return m_has_pod_arguments; }
+
+    uint32_t num_resources() const { return m_num_resources; }
+
+    VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
+
+    uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
+
+    VkDescriptorType pod_descriptor_type() const {
+        return m_pod_descriptor_type;
+    }
+
+private:
+    const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition
+
+    VkDevice m_device;
+    cvk_program* m_program;
+    std::string m_name;
+    VkDescriptorType m_pod_descriptor_type;
+    uint32_t m_pod_buffer_size;
+    bool m_has_pod_arguments;
+    std::vector<kernel_argument> m_args;
+    uint32_t m_num_resources;
+    VkDescriptorPool m_descriptor_pool;
+    std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
+    VkPipelineLayout m_pipeline_layout;
+    VkPipelineCache m_pipeline_cache;
+
+    std::mutex m_lock;
+
+    using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
+    bool build_descriptor_set_layout(
+        const std::vector<VkDescriptorSetLayoutBinding>& bindings);
+    bool build_descriptor_sets_layout_bindings_for_arguments(
+        binding_stat_map& smap, uint32_t& num_resources);
+    bool build_descriptor_sets_layout_bindings_for_literal_samplers(
+        binding_stat_map& smap);
+
+    // Structures for caching pipelines based on specialization constants
+    struct SpecConstantMapHash {
+        size_t operator()(const cvk_spec_constant_map& spec_constants) const {
+            // TODO: better hash?
+            size_t result = 0;
+            for (auto& entry : spec_constants) {
+                result ^= std::hash<uint32_t>{}(entry.first) * 31;
+                result ^= std::hash<uint32_t>{}(entry.second) * 59;
+            }
+            return result;
+        }
+    };
+    struct SpecConstantMapEqual {
+        bool operator()(const cvk_spec_constant_map& lhs,
+                        const cvk_spec_constant_map& rhs) const {
+            if (lhs.size() != rhs.size())
+                return false;
+            for (auto& lhs_entry : lhs) {
+                if (!rhs.count(lhs_entry.first))
+                    return false;
+                if (lhs_entry.second != rhs.at(lhs_entry.first))
+                    return false;
+            }
+            return true;
+        }
+    };
+    std::unordered_map<cvk_spec_constant_map, VkPipeline, SpecConstantMapHash,
+                       SpecConstantMapEqual>
+        m_pipelines;
+};
+
 struct cvk_program : public _cl_program, api_object {
 
     cvk_program(cvk_context* ctx)
@@ -179,6 +295,9 @@ struct cvk_program : public _cl_program, api_object {
     }
 
     virtual ~cvk_program() {
+        for (auto& entry_point : m_entry_points) {
+            delete entry_point.second;
+        }
         if (m_shader_module != VK_NULL_HANDLE) {
             auto vkdev = m_context->device()->vulkan_device();
             vkDestroyShaderModule(vkdev, m_shader_module, nullptr);
@@ -313,6 +432,9 @@ struct cvk_program : public _cl_program, api_object {
         return m_binary.push_constant(pc);
     }
 
+    CHECK_RETURN cvk_entry_point* get_entry_point(std::string& name,
+                                                  cl_int* errcode_ret);
+
 private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
@@ -340,6 +462,7 @@ private:
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
     std::vector<VkPushConstantRange> m_push_constant_ranges;
+    std::unordered_map<std::string, cvk_entry_point*> m_entry_points;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {
