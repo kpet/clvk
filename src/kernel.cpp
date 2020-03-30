@@ -21,6 +21,11 @@ std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer() {
     return m_entry_point->allocate_pod_buffer();
 }
 
+std::unique_ptr<std::vector<uint8_t>>
+cvk_kernel::allocate_pod_pushconstant_buffer() {
+    return m_entry_point->allocate_pod_pushconstant_buffer();
+}
+
 cl_ulong cvk_kernel::local_mem_size() const {
     cl_ulong ret = 0; // FIXME take the compile-time allocations into account
 
@@ -91,7 +96,7 @@ bool cvk_kernel::setup_descriptor_sets(
     }
 
     // Setup descriptors for POD arguments
-    if (has_pod_arguments()) {
+    if (has_pod_buffer_arguments()) {
 
         // Update desciptors
         VkDescriptorBufferInfo bufferInfo = {arg_values->pod_vulkan_buffer(),
@@ -205,6 +210,7 @@ bool cvk_kernel::setup_descriptor_sets(
         }
         case kernel_argument_kind::pod: // skip POD arguments
         case kernel_argument_kind::pod_ubo:
+        case kernel_argument_kind::pod_pushconstant:
             break;
         case kernel_argument_kind::local: // nothing to do?
             break;

@@ -399,6 +399,19 @@ cl_int cvk_command_kernel::build() {
                            &m_global_offsets);
     }
 
+    if (m_kernel->has_pod_arguments() && !m_kernel->has_pod_buffer_arguments()) {
+        for (auto& arg : m_kernel->arguments()) {
+            if (arg.kind == kernel_argument_kind::pod_pushconstant) {
+                CVK_ASSERT(arg.offset + arg.size <=
+                           m_argument_values->pod_pushconstant_buffer().size());
+                vkCmdPushConstants(
+                    m_command_buffer, m_kernel->pipeline_layout(),
+                    VK_SHADER_STAGE_COMPUTE_BIT, arg.offset, arg.size,
+                    &m_argument_values->pod_pushconstant_buffer()[arg.offset]);
+            }
+        }
+    }
+
     vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
 
     VkMemoryBarrier memoryBarrier = {

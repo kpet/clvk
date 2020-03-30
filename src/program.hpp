@@ -39,6 +39,7 @@ enum class kernel_argument_kind
     buffer_ubo,
     pod,
     pod_ubo,
+    pod_pushconstant,
     ro_image,
     wo_image,
     sampler,
@@ -58,8 +59,15 @@ struct kernel_argument {
 
     bool is_pod() const {
         return (kind == kernel_argument_kind::pod) ||
+               (kind == kernel_argument_kind::pod_ubo) ||
+               (kind == kernel_argument_kind::pod_pushconstant);
+    }
+
+    bool is_pod_buffer() const {
+        return (kind == kernel_argument_kind::pod) ||
                (kind == kernel_argument_kind::pod_ubo);
     }
+
 };
 
 struct sampler_desc {
@@ -215,6 +223,8 @@ public:
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
 
+    bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
+
     uint32_t num_resources() const { return m_num_resources; }
 
     VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
@@ -233,6 +243,7 @@ private:
     VkDescriptorType m_pod_descriptor_type;
     uint32_t m_pod_buffer_size;
     bool m_has_pod_arguments;
+    bool m_has_pod_buffer_arguments;
     std::vector<kernel_argument> m_args;
     uint32_t m_num_resources;
     VkDescriptorPool m_descriptor_pool;

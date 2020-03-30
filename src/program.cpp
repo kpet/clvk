@@ -275,6 +275,35 @@ bool parse_arg(kernel_argument& arg, const std::vector<std::string>& tokens,
     return true;
 }
 
+bool parse_kernel_pushconstant(kernel_argument& arg, const std::vector<std::string>& tokens,
+                               int toknum) {
+    if (tokens[toknum++] != "offset") {
+      return false;
+    }
+
+    arg.offset = atoi(tokens[toknum++].c_str());
+
+    if (tokens[toknum++] != "argKind") {
+        return false;
+    }
+
+    std::string akind{tokens[toknum++]};
+
+    if (akind == "pod_pushconstant") {
+        arg.kind = kernel_argument_kind::pod;
+    } else {
+        return false;
+    }
+
+    if (tokens[toknum++] != "argSize") {
+      return false;
+    }
+
+    arg.size = atoi(tokens[toknum++].c_str());
+
+    return true;
+}
+
 static std::vector<std::string> tokenize(const std::string& str,
                                          const char* delim) {
     size_t start = str.find_first_not_of(delim), end;
@@ -351,6 +380,10 @@ bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
         }
     } else if (tokens[toknum] == "argKind") {
         if (!parse_local_arg(arg, tokens, toknum)) {
+            return false;
+        }
+    } else if (tokens[toknum] == "offset") {
+        if (!parse_kernel_pushconstant(arg, tokens, toknum)) {
             return false;
         }
     } else {
@@ -587,6 +620,9 @@ bool spir_binary::load_descriptor_map(
             case clspv::ArgKind::PodUBO:
                 arg.kind = kernel_argument_kind::pod_ubo;
                 break;
+            case clspv::ArgKind::PodPushConstant:
+                arg.kind = kernel_argument_kind::pod_pushconstant;
+                break;
             case clspv::ArgKind::ReadOnlyImage:
                 arg.kind = kernel_argument_kind::ro_image;
                 break;
@@ -774,12 +810,15 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (!devices_support_images()) {
         options += " -images=0 ";
     }
-    options += " -pod-ubo ";
+    options += " -pod-pushconstant ";
+    options += " -max-pushconstant-size=" +
+               std::to_string(device->vulkan_max_push_constants_size()) + " ";
+    //options += " -pod-ubo ";
     options += " -int8 ";
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
-    options += " -work-dim -global-offset ";
+    //options += " -work-dim -global-offset ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
@@ -1209,6 +1248,8 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             } else {
                 continue;
             }
+        case kernel_argument_kind::pod_pushconstant:
+            continue;
         }
 
         VkDescriptorSetLayoutBinding binding = {
@@ -1288,13 +1329,17 @@ cl_int cvk_entry_point::init() {
     for (auto& arg : m_args) {
         if (arg.is_pod()) {
             m_has_pod_arguments = true;
+            if (arg.is_pod_buffer()) {
+                m_has_pod_buffer_arguments = true;
+            }
         }
     }
 
     // Calculate POD buffer size
     if (m_has_pod_arguments) {
         // Check we know the POD buffer's descriptor type
-        if (m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
+        if (m_has_pod_buffer_arguments &&
+            m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
             return CL_INVALID_PROGRAM;
         }
 
@@ -1482,5 +1527,12 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
         return nullptr;
     }
 
+    return buffer;
+}
+
+std::unique_ptr<std::vector<uint8_t>>
+cvk_entry_point::allocate_pod_pushconstant_buffer() {
+    std::unique_ptr<std::vector<uint8_t>> buffer(
+        new std::vector<uint8_t>(m_pod_buffer_size));
     return buffer;
 }
