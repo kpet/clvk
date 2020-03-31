@@ -16,6 +16,8 @@
 if(NOT MSVC)
     add_compile_options(-Wall -W -Wextra)
     add_compile_options(-Wno-ignored-attributes)
+else()
+	set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 endif()
 
 if (UNIX AND NOT APPLE)
@@ -88,6 +90,11 @@ else()
     DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
   target_compile_definitions(OpenCL-objects PRIVATE
     DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
+endif()
+
+if(MSVC)
+	target_compile_definitions(OpenCL-objects PRIVATE
+		NOMINMAX)
 endif()
 
 function(CLLibrary target type)
