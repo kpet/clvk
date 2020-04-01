@@ -295,9 +295,6 @@ struct cvk_program : public _cl_program, api_object {
     }
 
     virtual ~cvk_program() {
-        for (auto& entry_point : m_entry_points) {
-            delete entry_point.second;
-        }
         if (m_shader_module != VK_NULL_HANDLE) {
             auto vkdev = m_context->device()->vulkan_device();
             vkDestroyShaderModule(vkdev, m_shader_module, nullptr);
@@ -462,7 +459,8 @@ private:
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
     std::vector<VkPushConstantRange> m_push_constant_ranges;
-    std::unordered_map<std::string, cvk_entry_point*> m_entry_points;
+    std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>
+        m_entry_points;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {

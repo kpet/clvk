@@ -1090,7 +1090,7 @@ cvk_entry_point* cvk_program::get_entry_point(std::string& name,
     // Check for existing entry point in cache
     if (m_entry_points.count(name)) {
         *errcode_ret = CL_SUCCESS;
-        return m_entry_points.at(name);
+        return m_entry_points.at(name).get();
     }
 
     // Create and initialize entry point
@@ -1103,7 +1103,8 @@ cvk_entry_point* cvk_program::get_entry_point(std::string& name,
     }
 
     // Add to cache for reuse by other kernels
-    m_entry_points.insert({name, entry_point});
+    m_entry_points.insert(
+        {name, std::unique_ptr<cvk_entry_point>(entry_point)});
 
     return entry_point;
 }
