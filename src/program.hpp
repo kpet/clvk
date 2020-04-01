@@ -202,13 +202,16 @@ public:
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
-    const std::vector<kernel_argument>& args() const { return m_args; }
+    CHECK_RETURN bool allocate_descriptor_sets(VkDescriptorSet* ds);
 
-    VkDescriptorPool descriptor_pool() const { return m_descriptor_pool; }
-
-    const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts() const {
-        return m_descriptor_set_layouts;
+    void free_descriptor_set(VkDescriptorSet ds) {
+        std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
+        vkFreeDescriptorSets(m_device, m_descriptor_pool, 1, &ds);
     }
+
+    uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
+
+    const std::vector<kernel_argument>& args() const { return m_args; }
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
 
@@ -238,7 +241,8 @@ private:
     VkPipelineLayout m_pipeline_layout;
     VkPipelineCache m_pipeline_cache;
 
-    std::mutex m_lock;
+    std::mutex m_pipeline_cache_lock;
+    std::mutex m_descriptor_pool_lock;
 
     using binding_stat_map = std::unordered_map<VkDescriptorType, uint32_t>;
     bool build_descriptor_set_layout(

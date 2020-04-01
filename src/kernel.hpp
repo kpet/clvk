@@ -40,9 +40,7 @@ struct cvk_kernel : public _cl_kernel, api_object {
         std::unique_ptr<cvk_kernel_argument_values>& arg_values);
 
     void free_descriptor_set(VkDescriptorSet ds) {
-        std::lock_guard<std::mutex> lock(m_lock);
-        auto vkdev = m_context->device()->vulkan_device();
-        vkFreeDescriptorSets(vkdev, m_entry_point->descriptor_pool(), 1, &ds);
+        m_entry_point->free_descriptor_set(ds);
     }
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
@@ -55,7 +53,7 @@ struct cvk_kernel : public _cl_kernel, api_object {
     const std::string& name() const { return m_name; }
     uint32_t num_args() const { return m_args.size(); }
     uint32_t num_set_layouts() const {
-        return m_entry_point->descriptor_set_layouts().size();
+        return m_entry_point->num_set_layouts();
     }
     VkPipelineLayout pipeline_layout() const {
         return m_entry_point->pipeline_layout();

@@ -1346,7 +1346,7 @@ cl_int cvk_entry_point::init() {
 
 VkPipeline
 cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::lock_guard<std::mutex> lock(m_pipeline_cache_lock);
 
     // Check for a cached pipeline using the same specialization constants
     if (m_pipelines.count(spec_constants)) {
@@ -1407,4 +1407,26 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     cvk_info("created pipeline %p for kernel %s", pipeline, m_name.c_str());
 
     return pipeline;
+}
+
+bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
+    std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
+
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
+        m_descriptor_pool,
+        static_cast<uint32_t>(
+            m_descriptor_set_layouts.size()), // descriptorSetCount
+        m_descriptor_set_layouts.data()};
+
+    VkResult res =
+        vkAllocateDescriptorSets(m_device, &descriptorSetAllocateInfo, ds);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("could not allocate descriptor sets: %s",
+                     vulkan_error_string(res));
+        return false;
+    }
+
+    return true;
 }

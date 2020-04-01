@@ -80,27 +80,12 @@ cl_int cvk_kernel::init() {
 bool cvk_kernel::setup_descriptor_sets(
     VkDescriptorSet* ds,
     std::unique_ptr<cvk_kernel_argument_values>& arg_values) {
-    std::lock_guard<std::mutex> lock(m_lock);
 
-    // Allocate descriptor sets
-    auto& descriptor_set_layouts = m_entry_point->descriptor_set_layouts();
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
-        m_entry_point->descriptor_pool(),
-        static_cast<uint32_t>(
-            descriptor_set_layouts.size()), // descriptorSetCount
-        descriptor_set_layouts.data()};
-
-    auto dev = m_context->device()->vulkan_device();
-
-    VkResult res =
-        vkAllocateDescriptorSets(dev, &descriptorSetAllocateInfo, ds);
-
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("could not allocate descriptor sets: %s",
-                     vulkan_error_string(res));
+    if (!m_entry_point->allocate_descriptor_sets(ds)) {
         return false;
     }
+
+    auto dev = m_context->device()->vulkan_device();
 
     // Transfer ownership of the argument values to the command
     arg_values = std::move(m_argument_values);
