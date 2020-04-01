@@ -92,7 +92,7 @@ else()
     DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
-if(MSVC)
+if(WIN32)
 	target_compile_definitions(OpenCL-objects PRIVATE
 		NOMINMAX)
 endif()
