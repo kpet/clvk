@@ -1083,6 +1083,14 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     return true;
 }
 
+cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
+                                 const std::string& name)
+    : m_device(dev), m_context(program->context()), m_program(program),
+      m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
+      m_pod_buffer_size(0u), m_has_pod_arguments(false),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+      m_pipeline_cache(VK_NULL_HANDLE) {}
+
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
     std::lock_guard<std::mutex> lock(m_lock);
@@ -1429,4 +1437,15 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
     }
 
     return true;
+}
+
+std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
+    cl_int err;
+    auto buffer =
+        cvk_buffer::create(m_context, 0, m_pod_buffer_size, nullptr, &err);
+    if (err != CL_SUCCESS) {
+        return nullptr;
+    }
+
+    return buffer;
 }

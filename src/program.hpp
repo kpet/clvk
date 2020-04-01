@@ -170,12 +170,8 @@ struct cvk_program;
 
 class cvk_entry_point {
 public:
-    cvk_entry_point(VkDevice dev, cvk_program* program, const std::string& name)
-        : m_device(dev), m_program(program), m_name(name),
-          m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
-          m_pod_buffer_size(0u), m_has_pod_arguments(false),
-          m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
-          m_pipeline_cache(VK_NULL_HANDLE) {}
+    cvk_entry_point(VkDevice dev, cvk_program* program,
+                    const std::string& name);
 
     ~cvk_entry_point() {
         for (auto pipeline : m_pipelines) {
@@ -211,6 +207,8 @@ public:
 
     uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
 
+    std::unique_ptr<cvk_buffer> allocate_pod_buffer();
+
     const std::vector<kernel_argument>& args() const { return m_args; }
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
@@ -218,8 +216,6 @@ public:
     uint32_t num_resources() const { return m_num_resources; }
 
     VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
-
-    uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
 
     VkDescriptorType pod_descriptor_type() const {
         return m_pod_descriptor_type;
@@ -229,6 +225,7 @@ private:
     const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition
 
     VkDevice m_device;
+    cvk_context* m_context;
     cvk_program* m_program;
     std::string m_name;
     VkDescriptorType m_pod_descriptor_type;

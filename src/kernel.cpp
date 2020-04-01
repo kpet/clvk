@@ -18,14 +18,7 @@
 #include "memory.hpp"
 
 std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer() {
-    cl_int err;
-    auto buffer = cvk_buffer::create(
-        m_context, 0, m_entry_point->pod_buffer_size(), nullptr, &err);
-    if (err != CL_SUCCESS) {
-        return nullptr;
-    }
-
-    return buffer;
+    return m_entry_point->allocate_pod_buffer();
 }
 
 cl_ulong cvk_kernel::local_mem_size() const {
