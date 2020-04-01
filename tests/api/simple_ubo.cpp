@@ -30,7 +30,7 @@ TEST_F(WithCommandQueue, SimpleUBO) {
                                " -constant-args-ubo -inline-entry-points ",
                                "test_simple");
 
-    auto num_items = BUFFER_SIZE / sizeof(cl_uint);
+    const auto num_items = BUFFER_SIZE / sizeof(cl_uint);
     cl_int c_data[num_items];
     for (auto i = 0; i != num_items; ++i) {
         c_data[i] = 1;
