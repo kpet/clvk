@@ -349,34 +349,17 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    std::vector<VkSpecializationMapEntry> mapEntries = {
-        {0, 0 * sizeof(uint32_t), sizeof(uint32_t)},
-        {1, 1 * sizeof(uint32_t), sizeof(uint32_t)},
-        {2, 2 * sizeof(uint32_t), sizeof(uint32_t)},
+    cvk_spec_constant_map specConstants = {
+        {0, m_wg_size[0]},
+        {1, m_wg_size[1]},
+        {2, m_wg_size[2]},
     };
-
-    std::vector<uint32_t> specConstantData = {m_wg_size[0], m_wg_size[1],
-                                              m_wg_size[2]};
-
-    uint32_t constantDataOffset = specConstantData.size() * sizeof(uint32_t);
-
     for (auto const& spec_value :
          m_argument_values->specialization_constants()) {
-        VkSpecializationMapEntry entry = {spec_value.first, constantDataOffset,
-                                          sizeof(uint32_t)};
-        mapEntries.push_back(entry);
-        specConstantData.push_back(spec_value.second);
-        constantDataOffset += sizeof(uint32_t);
+        specConstants[spec_value.first] = spec_value.second;
     }
 
-    VkSpecializationInfo specializationInfo = {
-        static_cast<uint32_t>(mapEntries.size()),
-        mapEntries.data(),
-        specConstantData.size() * sizeof(uint32_t),
-        specConstantData.data(),
-    };
-
-    m_pipeline = m_kernel->create_pipeline(specializationInfo);
+    m_pipeline = m_kernel->create_pipeline(specConstants);
 
     if (m_pipeline == VK_NULL_HANDLE) {
         return CL_OUT_OF_RESOURCES;

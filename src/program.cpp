@@ -1082,3 +1082,370 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
 
     return true;
 }
+
+cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
+                                 const std::string& name)
+    : m_device(dev), m_context(program->context()), m_program(program),
+      m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
+      m_pod_buffer_size(0u), m_has_pod_arguments(false),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+      m_pipeline_cache(VK_NULL_HANDLE) {}
+
+cvk_entry_point* cvk_program::get_entry_point(std::string& name,
+                                              cl_int* errcode_ret) {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    // Check for existing entry point in cache
+    if (m_entry_points.count(name)) {
+        *errcode_ret = CL_SUCCESS;
+        return m_entry_points.at(name).get();
+    }
+
+    // Create and initialize entry point
+    cvk_entry_point* entry_point =
+        new cvk_entry_point(m_context->device()->vulkan_device(), this, name);
+    *errcode_ret = entry_point->init();
+    if (*errcode_ret != CL_SUCCESS) {
+        delete entry_point;
+        return nullptr;
+    }
+
+    // Add to cache for reuse by other kernels
+    m_entry_points.insert(
+        {name, std::unique_ptr<cvk_entry_point>(entry_point)});
+
+    return entry_point;
+}
+
+bool cvk_entry_point::build_descriptor_set_layout(
+    const std::vector<VkDescriptorSetLayoutBinding>& bindings) {
+    VkDescriptorSetLayoutCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr,
+        0,                                      // flags
+        static_cast<uint32_t>(bindings.size()), // bindingCount
+        bindings.data()                         // pBindings
+    };
+
+    VkResult res;
+    if (bindings.size() > 0) {
+        VkDescriptorSetLayout setLayout;
+        res = vkCreateDescriptorSetLayout(m_device, &createInfo, 0, &setLayout);
+        if (res != VK_SUCCESS) {
+            cvk_error("Could not create descriptor set layout");
+            return false;
+        }
+        m_descriptor_set_layouts.push_back(setLayout);
+    }
+
+    return true;
+}
+
+bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
+    binding_stat_map& smap, uint32_t& num_resources) {
+    bool pod_found = false;
+
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    for (auto& arg : m_args) {
+        VkDescriptorType dt = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+
+        switch (arg.kind) {
+        case kernel_argument_kind::buffer:
+            dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            break;
+        case kernel_argument_kind::buffer_ubo:
+            dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            break;
+        case kernel_argument_kind::ro_image:
+            dt = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+            break;
+        case kernel_argument_kind::wo_image:
+            dt = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            break;
+        case kernel_argument_kind::sampler:
+            dt = VK_DESCRIPTOR_TYPE_SAMPLER;
+            break;
+        case kernel_argument_kind::local:
+            continue;
+        case kernel_argument_kind::pod:
+        case kernel_argument_kind::pod_ubo:
+            if (!pod_found) {
+                if (arg.kind == kernel_argument_kind::pod) {
+                    dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                } else if (arg.kind == kernel_argument_kind::pod_ubo) {
+                    dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                }
+
+                m_pod_descriptor_type = dt;
+
+                pod_found = true;
+            } else {
+                continue;
+            }
+        }
+
+        VkDescriptorSetLayoutBinding binding = {
+            arg.binding,                 // binding
+            dt,                          // descriptorType
+            1,                           // decriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT, // stageFlags
+            nullptr                      // pImmutableSamplers
+        };
+
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+    }
+
+    num_resources = layoutBindings.size();
+
+    if (!build_descriptor_set_layout(layoutBindings)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool cvk_entry_point::
+    build_descriptor_sets_layout_bindings_for_literal_samplers(
+        binding_stat_map& smap) {
+
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    for (auto& desc : m_program->literal_sampler_descs()) {
+        VkDescriptorSetLayoutBinding binding = {
+            desc.binding,                // binding
+            VK_DESCRIPTOR_TYPE_SAMPLER,  // descriptorType
+            1,                           // decriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT, // stageFlags
+            nullptr                      // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+    }
+
+    if (!build_descriptor_set_layout(layoutBindings)) {
+        return false;
+    }
+
+    return true;
+}
+
+cl_int cvk_entry_point::init() {
+    VkResult res;
+
+    // Get a pointer to the arguments from the program
+    auto args = m_program->args_for_kernel(m_name);
+
+    if (args == nullptr) {
+        cvk_error("Kernel %s doesn't exist in program", m_name.c_str());
+        return CL_INVALID_KERNEL_NAME;
+    }
+
+    // Store a sorted copy of the arguments
+    m_args = *args;
+    std::sort(
+        m_args.begin(), m_args.end(),
+        [](kernel_argument a, kernel_argument b) { return a.pos < b.pos; });
+
+    // Create Descriptor Sets Layout
+    std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
+    if (!build_descriptor_sets_layout_bindings_for_literal_samplers(
+            bindingTypes)) {
+        return CL_INVALID_VALUE;
+    }
+    if (!build_descriptor_sets_layout_bindings_for_arguments(bindingTypes,
+                                                             m_num_resources)) {
+        return CL_INVALID_VALUE;
+    }
+
+    // Do we have POD arguments?
+    for (auto& arg : m_args) {
+        if (arg.is_pod()) {
+            m_has_pod_arguments = true;
+        }
+    }
+
+    // Calculate POD buffer size
+    if (m_has_pod_arguments) {
+        // Check we know the POD buffer's descriptor type
+        if (m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
+            return CL_INVALID_PROGRAM;
+        }
+
+        // Find how big the POD buffer should be
+        int max_offset = 0;
+        int max_offset_arg_size = 0;
+
+        for (auto& arg : m_args) {
+            if (arg.is_pod() && (arg.offset >= max_offset)) {
+                max_offset = arg.offset;
+                max_offset_arg_size = arg.size;
+            }
+        }
+
+        m_pod_buffer_size = max_offset + max_offset_arg_size;
+    }
+
+    // Create pipeline layout
+    cvk_debug("about to create pipeline layout, number of descriptor set "
+              "layouts: %zu",
+              m_descriptor_set_layouts.size());
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        0,
+        0,
+        static_cast<uint32_t>(m_descriptor_set_layouts.size()),
+        m_descriptor_set_layouts.data(),
+        static_cast<uint32_t>(m_program->push_constant_ranges().size()),
+        m_program->push_constant_ranges().data()};
+
+    res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
+                                 &m_pipeline_layout);
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create pipeline layout.");
+        return CL_INVALID_VALUE;
+    }
+
+    // Determine number and types of bindings
+    std::vector<VkDescriptorPoolSize> poolSizes(bindingTypes.size());
+
+    int bidx = 0;
+    for (auto& bt : bindingTypes) {
+        poolSizes[bidx].type = bt.first;
+        poolSizes[bidx].descriptorCount = bt.second * MAX_INSTANCES;
+        bidx++;
+    }
+
+    // Create descriptor pool
+    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        nullptr,
+        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
+        MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
+        static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
+        poolSizes.data(),                                  // pPoolSizes
+    };
+
+    res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
+                                 &m_descriptor_pool);
+
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create descriptor pool.");
+        return CL_INVALID_VALUE;
+    }
+
+    // Create pipeline cache
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        nullptr, // pNext
+        0,       // flags
+        0,       // initialDataSize
+        nullptr, // pInitialData
+    };
+
+    res = vkCreatePipelineCache(m_device, &pipelineCacheCreateInfo, nullptr,
+                                &m_pipeline_cache);
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create pipeline cache.");
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_SUCCESS;
+}
+
+VkPipeline
+cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
+    std::lock_guard<std::mutex> lock(m_pipeline_cache_lock);
+
+    // Check for a cached pipeline using the same specialization constants
+    if (m_pipelines.count(spec_constants)) {
+        VkPipeline pipeline = m_pipelines.at(spec_constants);
+        cvk_info("reusing pipeline %p for kernel %s", pipeline, m_name.c_str());
+        return pipeline;
+    }
+
+    std::vector<VkSpecializationMapEntry> mapEntries;
+    std::vector<uint32_t> specConstantData;
+    uint32_t constantDataOffset = 0;
+    for (auto& spec_const : spec_constants) {
+        VkSpecializationMapEntry entry = {spec_const.first, constantDataOffset,
+                                          sizeof(uint32_t)};
+        mapEntries.push_back(entry);
+        specConstantData.push_back(spec_const.second);
+        constantDataOffset += sizeof(uint32_t);
+    }
+
+    VkSpecializationInfo specializationInfo = {
+        static_cast<uint32_t>(mapEntries.size()),
+        mapEntries.data(),
+        specConstantData.size() * sizeof(uint32_t),
+        specConstantData.data(),
+    };
+
+    const VkComputePipelineCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, // sType
+        nullptr,                                        // pNext
+        0,                                              // flags
+        {
+            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, // sType
+            nullptr,                                             // pNext
+            0,                                                   // flags
+            VK_SHADER_STAGE_COMPUTE_BIT,                         // stage
+            m_program->shader_module(),                          // module
+            m_name.c_str(),
+            &specializationInfo // pSpecializationInfo
+        },                      // stage
+        m_pipeline_layout,      // layout
+        VK_NULL_HANDLE,         // basePipelineHandle
+        0                       // basePipelineIndex
+    };
+
+    VkPipeline pipeline;
+    VkResult res = vkCreateComputePipelines(m_device, m_pipeline_cache, 1,
+                                            &createInfo, nullptr, &pipeline);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not create compute pipeline: %s",
+                     vulkan_error_string(res));
+        return VK_NULL_HANDLE;
+    }
+
+    // Add to pipeline cache
+    m_pipelines[spec_constants] = pipeline;
+
+    cvk_info("created pipeline %p for kernel %s", pipeline, m_name.c_str());
+
+    return pipeline;
+}
+
+bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
+    std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
+
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
+        m_descriptor_pool,
+        static_cast<uint32_t>(
+            m_descriptor_set_layouts.size()), // descriptorSetCount
+        m_descriptor_set_layouts.data()};
+
+    VkResult res =
+        vkAllocateDescriptorSets(m_device, &descriptorSetAllocateInfo, ds);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("could not allocate descriptor sets: %s",
+                     vulkan_error_string(res));
+        return false;
+    }
+
+    return true;
+}
+
+std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
+    cl_int err;
+    auto buffer =
+        cvk_buffer::create(m_context, 0, m_pod_buffer_size, nullptr, &err);
+    if (err != CL_SUCCESS) {
+        return nullptr;
+    }
+
+    return buffer;
+}
