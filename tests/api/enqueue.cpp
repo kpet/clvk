@@ -14,16 +14,17 @@
 
 #include "testcl.hpp"
 
-static const unsigned NUM_INSTANCES = 10000;
-
-static const char* program_source = R"(
-kernel void test_simple(global uint* out, uint id)
-{
-    out[id] = id;
-}
-)";
-
 TEST_F(WithCommandQueue, ManyInstancesInFlight) {
+
+    static const unsigned NUM_INSTANCES = 10000;
+
+    static const char* program_source = R"(
+    kernel void test_simple(global uint* out, uint id)
+    {
+        out[id] = id;
+    }
+    )";
+
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");
 
@@ -64,4 +65,25 @@ TEST_F(WithCommandQueue, ManyInstancesInFlight) {
     // Unmap the buffer
     EnqueueUnmapMemObject(buffer, data);
     Finish();
+}
+
+TEST_F(WithCommandQueue, KernelNoArguments) {
+    static const char* program_source = "kernel void test_noargs(){}";
+
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "test_noargs");
+
+    // Dispatch kernel
+    size_t gws = 1;
+    size_t lws = 1;
+    cl_event event;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &event);
+
+    // Complete execution
+    Finish();
+
+    // Check the kernel ran successfully
+    cl_int status;
+    GetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
+    ASSERT_EQ(status, CL_COMPLETE);
 }

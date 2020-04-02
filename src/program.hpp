@@ -143,6 +143,8 @@ private:
                                     int toknum);
     CHECK_RETURN bool parse_kernel(const std::vector<std::string>& tokens,
                                    int toknum);
+    CHECK_RETURN bool parse_kernel_decl(const std::vector<std::string>& tokens,
+                                        int toknum);
     CHECK_RETURN bool parse_pushconstant(const std::vector<std::string>& tokens,
                                          int toknum);
 

@@ -362,6 +362,17 @@ bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
     return true;
 }
 
+bool spir_binary::parse_kernel_decl(const std::vector<std::string>& tokens,
+                                    int toknum) {
+    std::string kname{tokens[toknum++]};
+
+    if (m_dmaps.count(kname) == 0) {
+        m_dmaps[kname] = {};
+    }
+
+    return true;
+}
+
 bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
                                      int toknum) {
     pushconstant_desc pcd;
@@ -419,6 +430,10 @@ bool spir_binary::load_descriptor_map(std::istream& istream) {
             }
         } else if (tokens[toknum] == "pushconstant") {
             if (!parse_pushconstant(tokens, toknum + 1)) {
+                return false;
+            }
+        } else if (tokens[toknum] == "kernel_decl") {
+            if (!parse_kernel_decl(tokens, toknum + 1)) {
                 return false;
             }
         } else {
@@ -531,6 +546,16 @@ bool spir_binary::load_descriptor_map(
             pcd.size = entry.push_constant_data.size;
 
             m_push_constants[pc] = pcd;
+
+            continue;
+        }
+
+        if (entry.kind ==
+            clspv::version0::DescriptorMapEntry::Kind::KernelDecl) {
+
+            if (m_dmaps.count(entry.name) == 0) {
+                m_dmaps[entry.name] = {};
+            }
 
             continue;
         }
