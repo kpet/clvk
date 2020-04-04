@@ -1,0 +1,33 @@
+trigger:
+  - master
+  - azure-pipelines
+
+pr:
+  - master
+
+jobs:
+  - job: Windows_2016_MSVC_2017_Release_online_clspv
+    timeoutInMinutes: 0
+    pool:
+      vmImage: vs2017-win2016
+    steps:
+    - template: tests/azure/steps-fetch-sources.yml
+      parameters:
+        python_binary: python.exe
+    - template: tests/azure/steps-build.yml
+      parameters:
+        os: 'windows'
+        cmake_flags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
+  - job: Windows_2016_MSVC_2017_Release_offline_clspv
+    timeoutInMinutes: 0
+    pool:
+      vmImage: vs2017-win2016
+    steps:
+    - template: tests/azure/steps-fetch-sources.yml
+      parameters:
+        python_binary: python.exe
+    - template: tests/azure/steps-build.yml
+      parameters:
+        os: 'windows'
+        cmake_flags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
+
