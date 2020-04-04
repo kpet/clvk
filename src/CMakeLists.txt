@@ -83,13 +83,18 @@ else()
   add_dependencies(OpenCL-objects clspv)
   set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
-  add_dependencies(OpenCL-objects llvm-spirv)
-  set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
+  if (NOT WIN32)
+    add_dependencies(OpenCL-objects llvm-spirv)
+    set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_BINARY_DIR})
+    target_compile_definitions(OpenCL-objects PRIVATE
+      DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
+  else (NOT WIN32)
+    target_compile_definitions(OpenCL-objects PRIVATE
+      DEFAULT_LLVMSPIRV_BINARY_PATH="UNSUPPORTED")
+  endif ()
   target_compile_definitions(OpenCL-objects PRIVATE
     DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
-  target_compile_definitions(OpenCL-objects PRIVATE
-    DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
 if(WIN32)

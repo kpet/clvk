@@ -43,7 +43,7 @@ add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
                  EXCLUDE_FROM_ALL)
 
 # SPIRV-LLVM-Translator
-if (NOT CLVK_CLSPV_ONLINE_COMPILER)
+if (NOT CLVK_CLSPV_ONLINE_COMPILER AND NOT WIN32)
   set(LLVM_DIR
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
   set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator)
