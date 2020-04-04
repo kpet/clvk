@@ -377,6 +377,27 @@ std::string vulkan_format_features_string(VkFormatFeatureFlags flags) {
     return str;
 }
 
+std::string vulkan_vendor_id_string(VkVendorId vid) {
+    switch (vid) {
+    case VK_VENDOR_ID_VIV:
+        return "Vivante";
+    case VK_VENDOR_ID_VSI:
+        return "VeriSilicon";
+    case VK_VENDOR_ID_KAZAN:
+        return "Kazan Software Renderer";
+    case VK_VENDOR_ID_CODEPLAY:
+        return "Codeplay Software Ltd.";
+    case VK_VENDOR_ID_MESA:
+        return "Mesa";
+    case VK_VENDOR_ID_POCL:
+        return "PoCL";
+    case VK_VENDOR_ID_MOBILEYE:
+        return "Mobileye";
+    default:
+        return "Unknown Khronos Vendor ID";
+    }
+}
+
 std::string cl_channel_order_to_string(cl_channel_order order) {
     switch (order) {
         CASE(CL_R)
