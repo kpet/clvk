@@ -25,8 +25,8 @@ struct cvk_command;
 struct cvk_command_queue;
 using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
-using cvk_event_callback_pointer_type =
-    void (*)(cl_event event, cl_int event_command_exec_status, void* user_data);
+using cvk_event_callback_pointer_type = void(CL_CALLBACK*)(
+    cl_event event, cl_int event_command_exec_status, void* user_data);
 
 struct cvk_event_callback {
     cvk_event_callback_pointer_type pointer;

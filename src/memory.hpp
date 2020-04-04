@@ -18,7 +18,8 @@
 
 #include "objects.hpp"
 
-using cvk_mem_callback_pointer_type = void (*)(cl_mem mem, void* user_data);
+using cvk_mem_callback_pointer_type = void(CL_CALLBACK*)(cl_mem mem,
+                                                         void* user_data);
 
 struct cvk_mem_callback {
     cvk_mem_callback_pointer_type pointer;

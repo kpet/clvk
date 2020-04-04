@@ -3192,8 +3192,8 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
 }
 
 cl_int CLVK_API_CALL clEnqueueNativeKernel(
-    cl_command_queue command_queue, void (*user_func)(void*), void* args,
-    size_t cb_args, cl_uint num_mem_objects, const cl_mem* mem_list,
+    cl_command_queue command_queue, void(CL_CALLBACK* user_func)(void*),
+    void* args, size_t cb_args, cl_uint num_mem_objects, const cl_mem* mem_list,
     const void** args_mem_loc, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
     LOG_API_CALL(

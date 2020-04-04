@@ -162,7 +162,7 @@ enum class build_operation
     link
 };
 
-using cvk_program_callback = void (*)(cl_program, void*);
+using cvk_program_callback = void(CL_CALLBACK*)(cl_program, void*);
 
 using cvk_spec_constant_map = std::map<uint32_t, uint32_t>;
 
