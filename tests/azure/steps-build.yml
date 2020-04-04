@@ -6,8 +6,17 @@ parameters:
       - windows
       - linux
       - osx
-    - name: 'cmake_flags'
+    - name: 'buildType'
+      type: string
+      default: Release
+    - name: 'cmakeFlags'
       default: ''
+      type: string
+    - name: 'vulkanImplementation'
+      default: 'loader'
+      type: string
+    - name: 'vulkanLoaderDir'
+      default: './Vulkan-Loader'
       type: string
 
 steps:
@@ -16,7 +25,11 @@ steps:
   - task: CMake@1
     inputs:
       workingDirectory: build
-      cmakeArgs: '-DCMAKE_BUILD_TYPE=Release -DCLVK_VULKAN_IMPLEMENTATION=loader -DCLVK_VULKAN_LOADER_DIR=./Vulkan-Loader -DSPIRV_WERROR=OFF ${{ parameters.cmake_flags }} ..'
+      cmakeArgs: '-DCMAKE_BUILD_TYPE=${{ parameters.buildType }}
+                  -DCLVK_VULKAN_IMPLEMENTATION=${{ parameters.vulkanImplementation }}
+                  -DCLVK_VULKAN_LOADER_DIR=${{ parameters.vulkanLoaderDir }}
+                  -DSPIRV_WERROR=OFF
+                  ${{ parameters.cmakeFlags }} ..'
   - ${{ if eq(parameters.os, 'windows') }}:
     - task: MSBuild@1
       condition: eq('${{ parameters.os }}', 'windows')
@@ -24,5 +37,8 @@ steps:
         solution: 'build/ALL_BUILD.vcxproj'
         msbuildArchitecture: 'x64'
         maximumCpuCount: true platform
-        configuration: release
+        configuration: ${{ parameters.buildType }}
+  - ${{ if ne(parameters.os, 'windows') }}:
+    - script: make -C build -j3
+      displayName: make
 

@@ -1,0 +1,35 @@
+
+parameters:
+  - name: namePrefix
+    type: string
+  - name: vmImage
+    type: string
+  - name: os
+    type: string
+  - name: cmakeFlags
+    type: string
+    default: ''
+  - name: buildType
+    type: string
+
+jobs:
+- job: ${{ parameters.namePrefix }}_${{ parameters.buildType }}
+  timeoutInMinutes: 0
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  steps:
+  - ${{ if ne(parameters.os, 'windows') }}:
+    - template: steps-setup-ccache.yml
+      parameters:
+        os: ${{ parameters.os }}
+        buildType: ${{ parameters.buildType }}
+  - template: steps-fetch-sources.yml
+    parameters:
+      ${{ if eq(parameters.os, 'windows') }}:
+        pythonBinary: python.exe
+  - template: steps-build.yml
+    parameters:
+      os: ${{ parameters.os }}
+      cmakeFlags: ${{ parameters.cmakeFlags }}
+      buildType: ${{ parameters.buildType }}
+
