@@ -61,6 +61,7 @@ set(CLVK_VULKAN_IMPLEMENTATION_OPTIONS
     custom # User-provided libraries and includes
     system # Use the system's Vulkan
     talvos # Use talvos to provide Vulkan
+    loader # Build against a user-provided copy of the loader sources
 )
 set_property(CACHE CLVK_VULKAN_IMPLEMENTATION PROPERTY STRINGS
     ${CLVK_VULKAN_IMPLEMENTATION_OPTIONS})
@@ -79,6 +80,17 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   set(Vulkan_LIBRARIES talvos talvos-vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
+elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader)
+  set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
+  if (NOT CLVK_VULKAN_LOADER_DIR)
+    message(FATAL_ERROR "CLVK_VULKAN_LOADER_DIR must be provided with
+    CLVK_VULKAN_IMPLEMENTATION=loader")
+  endif ()
+  set(VulkanHeaders_INCLUDE_DIR ${Vulkan_INCLUDE_DIRS})
+  set(VulkanRegistry_DIR
+      ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/registry)
+  add_subdirectory(${CLVK_VULKAN_LOADER_DIR} EXCLUDE_FROM_ALL)
+  set(Vulkan_LIBRARIES vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL custom)
     # Nothing to do, trust the user
 else ()

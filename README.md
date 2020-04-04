@@ -78,6 +78,10 @@ supported:
   Vulkan API and provides an interpreter for SPIR-V modules. You don't
   need Vulkan-compatible hardware and drivers to run clvk using Talvos.
 
+* `-DCLVK_VULKAN_IMPLEMENTATION=loader` enables building against a copy of the
+  Vulkan Loader sources provided by the user using `CLVK_VULKAN_LOADER_DIR`.
+  The configuration of the loader to target Vulkan ICDs is left to the user.
+
 * `-DCLVK_VULKAN_IMPLEMENTATION=custom` instructs the build system to use the
   values provided by the user manually using `-DVulkan_INCLUDE_DIRS` and
   `-DVulkan_LIBRARIES`.
