@@ -112,22 +112,42 @@ bool cvk_device::init_extensions() {
 }
 
 void cvk_device::init_features() {
+
     // Query supported features.
     m_features_ubo_stdlayout.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR;
-    m_features_ubo_stdlayout.pNext = nullptr;
-
     m_features_float16_int8.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
-    m_features_float16_int8.pNext = &m_features_ubo_stdlayout;
-
     m_features_variable_pointer.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;
-    m_features_variable_pointer.pNext = &m_features_float16_int8;
+
+    std::vector<std::pair<const char*, VkBaseOutStructure*>>
+        extension_features = {
+#define EXTFEAT(EXT, FEAT) {EXT, reinterpret_cast<VkBaseOutStructure*>(FEAT)}
+            EXTFEAT(VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
+                    &m_features_ubo_stdlayout),
+            EXTFEAT(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+                    &m_features_float16_int8),
+            EXTFEAT(VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
+                    &m_features_variable_pointer),
+#undef EXTFEAT
+        };
+
+    VkBaseOutStructure* pNext = nullptr;
+    for (auto& ext_feat : extension_features) {
+        auto ext = ext_feat.first;
+        if (std::find(m_vulkan_device_extensions.begin(),
+                      m_vulkan_device_extensions.end(),
+                      ext) != m_vulkan_device_extensions.end()) {
+            auto feat = ext_feat.second;
+            feat->pNext = pNext;
+            pNext = feat;
+        }
+    }
 
     VkPhysicalDeviceFeatures2 supported_features;
     supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    supported_features.pNext = &m_features_variable_pointer;
+    supported_features.pNext = pNext;
 
     vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
 
