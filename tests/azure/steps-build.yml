@@ -1,0 +1,28 @@
+parameters:
+    - name: 'os'
+      default: linux
+      type: string
+      values:
+      - windows
+      - linux
+      - osx
+    - name: 'cmake_flags'
+      default: ''
+      type: string
+
+steps:
+  - script: mkdir build
+    displayName: Create build directory
+  - task: CMake@1
+    inputs:
+      workingDirectory: build
+      cmakeArgs: '-DCMAKE_BUILD_TYPE=Release -DCLVK_VULKAN_IMPLEMENTATION=loader -DCLVK_VULKAN_LOADER_DIR=./Vulkan-Loader -DSPIRV_WERROR=OFF ${{ parameters.cmake_flags }} ..'
+  - ${{ if eq(parameters.os, 'windows') }}:
+    - task: MSBuild@1
+      condition: eq('${{ parameters.os }}', 'windows')
+      inputs:
+        solution: 'build/ALL_BUILD.vcxproj'
+        msbuildArchitecture: 'x64'
+        maximumCpuCount: true platform
+        configuration: release
+

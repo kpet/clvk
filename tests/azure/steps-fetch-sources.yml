@@ -1,0 +1,14 @@
+
+parameters:
+  - name: 'python_binary'
+    default: python
+    type: string
+
+steps:
+  - script: git submodule update --init
+    displayName: Update submodules
+  - script: ${{ parameters.python_binary }} ./external/clspv/utils/fetch_sources.py --deps llvm
+    displayName: Fetch LLVM
+  - script: git clone -b v1.1.130 https://github.com/KhronosGroup/Vulkan-Loader.git
+    displayName: Fetch Vulkan Loader
+

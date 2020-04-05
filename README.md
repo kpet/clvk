@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/kpet/clvk.svg?branch=master)](https://travis-ci.com/kpet/clvk)
+[![Travis Status](https://travis-ci.com/kpet/clvk.svg?branch=master)](https://travis-ci.com/kpet/clvk) [![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=master)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=master)
 
 # What is this?
 
