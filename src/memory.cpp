@@ -26,9 +26,7 @@ bool cvk_mem::map() {
         cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
     } else {
         if (m_map_count == 0) {
-            auto vkdev = m_context->device()->vulkan_device();
-            VkResult res =
-                vkMapMemory(vkdev, m_memory, 0, m_size, 0, &m_map_ptr);
+            auto res = m_memory->map(&m_map_ptr);
             if (res != VK_SUCCESS) {
                 return false;
             }
@@ -55,8 +53,7 @@ void cvk_mem::unmap() {
         cvk_debug("%p::unmap, sub-buffer", this);
     } else {
         if (m_map_count == 0) {
-            auto vkdev = m_context->device()->vulkan_device();
-            vkUnmapMemory(vkdev, m_memory);
+            m_memory->unmap();
         }
     }
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
@@ -113,22 +110,16 @@ bool cvk_buffer::init() {
         return false;
     }
 
-    // Allocate memory
-    const VkMemoryAllocateInfo memoryAllocateInfo = {
-        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        nullptr,
-        memreqs.size,
-        memoryTypeIndex,
-    };
-
-    res = vkAllocateMemory(vkdev, &memoryAllocateInfo, 0, &m_memory);
+    m_memory = std::make_unique<cvk_memory_allocation>(vkdev, memreqs.size,
+                                                       memoryTypeIndex);
+    res = m_memory->allocate();
 
     if (res != VK_SUCCESS) {
         return false;
     }
 
     // Bind the buffer to memory
-    res = vkBindBufferMemory(vkdev, m_buffer, m_memory, 0);
+    res = vkBindBufferMemory(vkdev, m_buffer, m_memory->vulkan_memory(), 0);
 
     if (res != VK_SUCCESS) {
         return false;
@@ -356,14 +347,10 @@ bool cvk_image::init() {
     }
 
     // Allocate memory
-    const VkMemoryAllocateInfo memoryAllocateInfo = {
-        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        nullptr,
-        memreqs.size,
-        memoryTypeIndex,
-    };
+    m_memory = std::make_unique<cvk_memory_allocation>(vkdev, memreqs.size,
+                                                       memoryTypeIndex);
 
-    res = vkAllocateMemory(vkdev, &memoryAllocateInfo, 0, &m_memory);
+    res = m_memory->allocate();
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not allocate memory!");
@@ -371,7 +358,7 @@ bool cvk_image::init() {
     }
 
     // Bind the buffer to memory
-    res = vkBindImageMemory(vkdev, m_image, m_memory, 0);
+    res = vkBindImageMemory(vkdev, m_image, m_memory->vulkan_memory(), 0);
 
     if (res != VK_SUCCESS) {
         return false;

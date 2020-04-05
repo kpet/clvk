@@ -18,6 +18,43 @@
 
 #include "objects.hpp"
 
+struct cvk_memory_allocation {
+
+    cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index)
+        : m_device(dev), m_size(size), m_memory_type_index(type_index) {}
+
+    ~cvk_memory_allocation() {
+        if (m_memory != VK_NULL_HANDLE) {
+            vkFreeMemory(m_device, m_memory, nullptr);
+        }
+    }
+
+    VkResult allocate() {
+        const VkMemoryAllocateInfo memoryAllocateInfo = {
+            VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            nullptr,
+            m_size,
+            m_memory_type_index,
+        };
+
+        return vkAllocateMemory(m_device, &memoryAllocateInfo, 0, &m_memory);
+    }
+
+    VkResult map(void** map_ptr) {
+        return vkMapMemory(m_device, m_memory, 0, m_size, 0, map_ptr);
+    }
+
+    void unmap() { vkUnmapMemory(m_device, m_memory); }
+
+    VkDeviceMemory vulkan_memory() { return m_memory; }
+
+private:
+    VkDevice m_device;
+    VkDeviceSize m_size;
+    VkDeviceMemory m_memory;
+    uint32_t m_memory_type_index;
+};
+
 using cvk_mem_callback_pointer_type = void(CL_CALLBACK*)(cl_mem mem,
                                                          void* user_data);
 
@@ -35,7 +72,7 @@ struct cvk_mem : public _cl_mem, api_object {
             cvk_mem* parent, size_t parent_offset, cl_mem_object_type type)
         : api_object(ctx), m_type(type), m_flags(flags), m_map_count(0),
           m_size(size), m_host_ptr(host_ptr), m_parent(parent),
-          m_parent_offset(parent_offset), m_memory(VK_NULL_HANDLE) {
+          m_parent_offset(parent_offset) {
 
         if (m_parent != nullptr) {
 
@@ -67,12 +104,6 @@ struct cvk_mem : public _cl_mem, api_object {
     }
 
     virtual ~cvk_mem() {
-        auto device = m_context->device()->vulkan_device();
-
-        if (m_parent == nullptr) {
-            vkFreeMemory(device, m_memory, nullptr);
-        }
-
         for (auto cbi = m_callbacks.rbegin(); cbi != m_callbacks.rend();
              ++cbi) {
             auto cb = *cbi;
@@ -173,7 +204,7 @@ protected:
     void* m_host_ptr;
     cvk_mem_holder m_parent;
     size_t m_parent_offset;
-    VkDeviceMemory m_memory;
+    std::unique_ptr<cvk_memory_allocation> m_memory;
 };
 
 static inline cvk_mem* icd_downcast(cl_mem mem) {
