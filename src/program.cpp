@@ -362,6 +362,17 @@ bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
     return true;
 }
 
+bool spir_binary::parse_kernel_decl(const std::vector<std::string>& tokens,
+                                    int toknum) {
+    std::string kname{tokens[toknum++]};
+
+    if (m_dmaps.count(kname) == 0) {
+        m_dmaps[kname] = {};
+    }
+
+    return true;
+}
+
 bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
                                      int toknum) {
     pushconstant_desc pcd;
@@ -419,6 +430,10 @@ bool spir_binary::load_descriptor_map(std::istream& istream) {
             }
         } else if (tokens[toknum] == "pushconstant") {
             if (!parse_pushconstant(tokens, toknum + 1)) {
+                return false;
+            }
+        } else if (tokens[toknum] == "kernel_decl") {
+            if (!parse_kernel_decl(tokens, toknum + 1)) {
                 return false;
             }
         } else {
@@ -531,6 +546,16 @@ bool spir_binary::load_descriptor_map(
             pcd.size = entry.push_constant_data.size;
 
             m_push_constants[pc] = pcd;
+
+            continue;
+        }
+
+        if (entry.kind ==
+            clspv::version0::DescriptorMapEntry::Kind::KernelDecl) {
+
+            if (m_dmaps.count(entry.kernel_decl_data.kernel_name) == 0) {
+                m_dmaps[entry.kernel_decl_data.kernel_name] = {};
+            }
 
             continue;
         }
@@ -1319,21 +1344,23 @@ cl_int cvk_entry_point::init() {
     }
 
     // Create descriptor pool
-    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        nullptr,
-        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
-        MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
-        static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
-        poolSizes.data(),                                  // pPoolSizes
-    };
+    if (poolSizes.size() > 0) {
+        VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            nullptr,
+            VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
+            MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
+            static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
+            poolSizes.data(),                                  // pPoolSizes
+        };
 
-    res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
-                                 &m_descriptor_pool);
+        res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
+                                     &m_descriptor_pool);
 
-    if (res != VK_SUCCESS) {
-        cvk_error("Could not create descriptor pool.");
-        return CL_INVALID_VALUE;
+        if (res != VK_SUCCESS) {
+            cvk_error("Could not create descriptor pool.");
+            return CL_INVALID_VALUE;
+        }
     }
 
     // Create pipeline cache
@@ -1421,6 +1448,11 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
 }
 
 bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
+
+    if (m_descriptor_set_layouts.size() == 0) {
+        return true;
+    }
+
     std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
 
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {

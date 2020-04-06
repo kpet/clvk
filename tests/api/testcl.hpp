@@ -357,6 +357,19 @@ protected:
         ASSERT_CL_SUCCESS(err);
     }
 
+    void GetEventInfo(cl_event event, cl_event_info param_name,
+                      size_t param_value_size, void* param_value,
+                      size_t* param_value_size_ret) {
+        cl_int err = clGetEventInfo(event, param_name, param_value_size,
+                                    param_value, param_value_size_ret);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    template <typename T>
+    void GetEventInfo(cl_event event, cl_event_info param_name, T* out_val) {
+        GetEventInfo(event, param_name, sizeof(T), out_val, nullptr);
+    }
+
     void GetEventProfilingInfo(cl_event event, cl_profiling_info param_name,
                                cl_ulong* val_ret) {
         GetEventProfilingInfo(event, param_name, sizeof(*val_ret), val_ret,
