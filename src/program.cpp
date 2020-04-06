@@ -1344,21 +1344,23 @@ cl_int cvk_entry_point::init() {
     }
 
     // Create descriptor pool
-    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        nullptr,
-        VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
-        MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
-        static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
-        poolSizes.data(),                                  // pPoolSizes
-    };
+    if (poolSizes.size() > 0) {
+        VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            nullptr,
+            VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
+            MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
+            static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
+            poolSizes.data(),                                  // pPoolSizes
+        };
 
-    res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
-                                 &m_descriptor_pool);
+        res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
+                                     &m_descriptor_pool);
 
-    if (res != VK_SUCCESS) {
-        cvk_error("Could not create descriptor pool.");
-        return CL_INVALID_VALUE;
+        if (res != VK_SUCCESS) {
+            cvk_error("Could not create descriptor pool.");
+            return CL_INVALID_VALUE;
+        }
     }
 
     // Create pipeline cache
@@ -1446,6 +1448,11 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
 }
 
 bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
+
+    if (m_descriptor_set_layouts.size() == 0) {
+        return true;
+    }
+
     std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
 
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {

@@ -85,5 +85,6 @@ TEST_F(WithCommandQueue, KernelNoArguments) {
     // Check the kernel ran successfully
     cl_int status;
     GetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
+    clReleaseEvent(event);
     ASSERT_EQ(status, CL_COMPLETE);
 }

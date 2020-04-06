@@ -376,10 +376,12 @@ cl_int cvk_command_kernel::build() {
                             POOL_QUERY_KERNEL_START);
     }
 
-    vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                            m_kernel->pipeline_layout(), 0,
-                            m_kernel->num_set_layouts(),
-                            m_descriptor_sets.data(), 0, 0);
+    if (m_kernel->num_set_layouts() > 0) {
+        vkCmdBindDescriptorSets(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                m_kernel->pipeline_layout(), 0,
+                                m_kernel->num_set_layouts(),
+                                m_descriptor_sets.data(), 0, 0);
+    }
 
     auto program = m_kernel->program();
 
