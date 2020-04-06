@@ -964,6 +964,9 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 void cvk_program::do_build() {
     cl_build_status status = CL_BUILD_SUCCESS;
 
+    // Destroy entry points from previous build
+    m_entry_points.clear();
+
     auto device = m_context->device();
 
     switch (m_operation) {
