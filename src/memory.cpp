@@ -97,21 +97,16 @@ bool cvk_buffer::init() {
         return false;
     }
 
-    cvk_debug_fn("created Vk buffer handle = %p", m_buffer);
-
-    // Get memory requirements
-    VkMemoryRequirements memreqs;
-    vkGetBufferMemoryRequirements(vkdev, m_buffer, &memreqs);
-
     // Select memory type
-    uint32_t memoryTypeIndex = device->memory_type_index_for_buffer(memreqs.memoryTypeBits);
-
-    if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
+    cvk_device::allocation_parameters params =
+        device->select_memory_for(m_buffer, flags());
+    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
         return false;
     }
 
-    m_memory = std::make_unique<cvk_memory_allocation>(vkdev, memreqs.size,
-                                                       memoryTypeIndex);
+    // Allocate memory
+    m_memory = std::make_unique<cvk_memory_allocation>(
+        vkdev, params.size, params.memory_type_index);
     res = m_memory->allocate();
 
     if (res != VK_SUCCESS) {
@@ -332,23 +327,17 @@ bool cvk_image::init() {
         return false;
     }
 
-    // Get memory requirements
-    VkMemoryRequirements memreqs;
-    vkGetImageMemoryRequirements(vkdev, m_image, &memreqs);
-    cvk_debug_fn("Required memory type bits: %x", memreqs.memoryTypeBits);
-
-    // Select memory type
-    uint32_t memoryTypeIndex =
-        device->memory_type_index_for_image(memreqs.memoryTypeBits);
-
-    if (memoryTypeIndex == VK_MAX_MEMORY_TYPES) {
+    // Selec memory type
+    cvk_device::allocation_parameters params =
+        device->select_memory_for(m_image);
+    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
         cvk_error_fn("Could not get memory type!");
         return false;
     }
 
     // Allocate memory
-    m_memory = std::make_unique<cvk_memory_allocation>(vkdev, memreqs.size,
-                                                       memoryTypeIndex);
+    m_memory = std::make_unique<cvk_memory_allocation>(
+        vkdev, params.size, params.memory_type_index);
 
     res = m_memory->allocate();
 

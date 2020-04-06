@@ -49,10 +49,63 @@ struct cvk_device : public _cl_device_id {
     const char* name() const { return m_properties.deviceName; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
 
-    CHECK_RETURN uint32_t
-    memory_type_index_for_buffer(uint32_t memory_type_bits) const {
+    CHECK_RETURN uint32_t memory_type_index_for_resource(
+        uint32_t valid_memory_type_bits,
+        VkMemoryPropertyFlags required_properties) const {
 
-        uint32_t desiredMemoryTypes[] = {
+        for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
+            auto dev_properties = m_mem_properties.memoryTypes[k].propertyFlags;
+            bool valid = (1ULL << k) & valid_memory_type_bits;
+            bool satisfactory =
+                (dev_properties & required_properties) == required_properties;
+            if (satisfactory && valid) {
+                return k;
+            }
+        }
+
+        return VK_MAX_MEMORY_TYPES;
+    }
+
+    CHECK_RETURN uint32_t memory_type_index_for_resource(
+        uint32_t valid_memory_type_bits, int num_supported,
+        uint32_t* supported_memory_types) const {
+
+        for (int i = 0; i < num_supported; i++) {
+            auto k = memory_type_index_for_resource(valid_memory_type_bits,
+                                                    supported_memory_types[i]);
+            if (k != VK_MAX_MEMORY_TYPES) {
+                cvk_debug_fn("outer returning %u\n", k);
+                return k;
+            }
+        }
+
+        return VK_MAX_MEMORY_TYPES;
+    }
+
+    struct allocation_parameters {
+        VkDeviceSize size;
+        uint32_t memory_type_index;
+    };
+
+    CHECK_RETURN allocation_parameters select_memory_for(VkImage image) const {
+        VkMemoryRequirements memreqs;
+        vkGetImageMemoryRequirements(m_dev, image, &memreqs);
+
+        allocation_parameters ret;
+        ret.size = memreqs.size;
+        ret.memory_type_index = memory_type_index_for_resource(
+            memreqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        return ret;
+    }
+
+    CHECK_RETURN allocation_parameters
+    select_memory_for(VkBuffer buffer, cl_mem_flags flags) const {
+        UNUSED(flags);
+        VkMemoryRequirements memreqs;
+        vkGetBufferMemoryRequirements(m_dev, buffer, &memreqs);
+
+        uint32_t supported_memory_types[] = {
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                 VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -61,27 +114,13 @@ struct cvk_device : public _cl_device_id {
                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         };
 
-        for (auto mt : desiredMemoryTypes) {
-            for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
-                if (((m_mem_properties.memoryTypes[k].propertyFlags & mt) ==
-                    mt) && ((1ULL << k) & memory_type_bits)) {
-                    return k;
-                }
-            }
-        }
+        allocation_parameters ret;
+        ret.size = memreqs.size;
+        ret.memory_type_index = memory_type_index_for_resource(
+            memreqs.memoryTypeBits, ARRAY_SIZE(supported_memory_types),
+            supported_memory_types);
 
-        return VK_MAX_MEMORY_TYPES;
-    }
-
-    CHECK_RETURN uint32_t
-    memory_type_index_for_image(uint32_t memory_type_bits) const {
-        for (auto i = 0u; i < 31; i++) {
-            if ((1ULL << i) & memory_type_bits) {
-                return i;
-            }
-        }
-
-        return VK_MAX_MEMORY_TYPES;
+        return ret;
     }
 
     uint64_t actual_memory_size() const {
