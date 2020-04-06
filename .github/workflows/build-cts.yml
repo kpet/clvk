@@ -1,0 +1,70 @@
+name: Build CTS
+on:
+  push:
+    branches:
+      #- ci-cts
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-2019]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Setup Ninja
+        uses: ./.github/actions/setup-ninja
+      - name: Fetch Loader
+        run: |
+          git clone --depth 1 https://github.com/KhronosGroup/OpenCL-ICD-Loader.git
+      - name: Fetch CTS
+        run: |
+          git clone -b clvk --depth 1 https://github.com/kpet/OpenCL-CTS.git
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: ${{ matrix.os }}-cts
+      - name: Build Loader
+        run: |
+          cd OpenCL-ICD-Loader
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DOPENCL_ICD_LOADER_HEADERS_DIR=${{ github.workspace }}/external/OpenCL-Headers/
+          cmake --build . --config Release -j3
+      - name: Configure
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            ln -s ${{ github.workspace }}/external/OpenCL-Headers/CL ${{ github.workspace }}/external/OpenCL-Headers/OpenCL
+          fi
+          if [ "$RUNNER_OS"  == "Windows" ]; then
+            CTS_LIBS="OpenCL"
+          else
+            CTS_LIBS="-lOpenCL -lpthread"
+          fi
+          cmake ../OpenCL-CTS -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCL_INCLUDE_DIR='${{ github.workspace }}'/external/OpenCL-Headers \
+            -DCL_LIB_DIR='${{ github.workspace }}'/OpenCL-ICD-Loader/build \
+            -DCL_LIBCLCXX_DIR=dummy \
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY='${{ github.workspace }}'/OpenCL-CTS/build/bin \
+            -DOPENCL_LIBRARIES="${CTS_LIBS}" \
+            -DUSE_CL_EXPERIMENTAL=ON
+      - name: Build
+        run: |
+          cmake --build ./build --config Release -j3
+          ls ./build
+      - uses: actions/upload-artifact@v3
+        with:
+          name: cts-${{ runner.os }}
+          path: ${{ github.workspace }}/OpenCL-CTS/build/bin

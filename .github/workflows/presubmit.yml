@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - ci-cts
   pull_request:
 
 jobs:
@@ -240,3 +241,33 @@ jobs:
           CLVK_VALIDATION_LAYERS: 1
           VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
           LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}
+      - name: Install llvmpipe
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' && matrix.os == 'ubuntu-22.04' }}
+        run: |
+          sudo apt install -y mesa-vulkan-drivers
+      - name: Download CTS artifacts
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' && matrix.os == 'ubuntu-22.04' }}
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-cts.yml
+          workflow_conclusion: success
+          name: cts-${{ runner.os }}
+          path: cts
+      - name: CTS tests
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' && matrix.os == 'ubuntu-22.04' }}
+        shell: bash
+        run: |
+          set -ex
+          ls -l '${{ env.builddir }}'/install
+          ls -l '${{ github.workspace }}'/cts
+          cp -v '${{ env.builddir }}'/install/* '${{ github.workspace }}'/cts/
+          chmod +x '${{ github.workspace }}'/cts//test_*
+          export LD_LIBRARY_PATH='${{ env.builddir }}'/install
+          export DYLD_LIBRARY_PATH='${{ env.builddir }}'/install
+          export CLVK_LOG=3
+          unset VK_ICD_FILENAMES
+          echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+          ./tests/conformance/run-conformance.py \
+            --test-set=quick \
+            --reference-results=./tests/conformance/results-llvmpipe.json \
+            --cts-install-dir='${{ github.workspace }}'/cts
