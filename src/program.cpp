@@ -553,8 +553,8 @@ bool spir_binary::load_descriptor_map(
         if (entry.kind ==
             clspv::version0::DescriptorMapEntry::Kind::KernelDecl) {
 
-            if (m_dmaps.count(entry.name) == 0) {
-                m_dmaps[entry.name] = {};
+            if (m_dmaps.count(entry.kernel_decl_data.kernel_name) == 0) {
+                m_dmaps[entry.kernel_decl_data.kernel_name] = {};
             }
 
             continue;
