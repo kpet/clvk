@@ -5,6 +5,10 @@ trigger:
 pr:
   - master
 
+variables:
+  CLCACHE_DIR: "$(Agent.BuildDirectory)/clcache"
+  CLCACHE_LOG: true
+
 jobs:
   - template: tests/azure/job.yml
     parameters:

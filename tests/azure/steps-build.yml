@@ -32,12 +32,12 @@ steps:
                   ${{ parameters.cmakeFlags }} ..'
   - ${{ if eq(parameters.os, 'windows') }}:
     - task: MSBuild@1
-      condition: eq('${{ parameters.os }}', 'windows')
       inputs:
         solution: 'build/ALL_BUILD.vcxproj'
         msbuildArchitecture: 'x64'
         maximumCpuCount: true platform
         configuration: ${{ parameters.buildType }}
+        msbuildArguments: '/p:CLToolExe=clcache.exe'
   - ${{ if ne(parameters.os, 'windows') }}:
     - script: make -C build -j3
       displayName: make
