@@ -33,8 +33,8 @@ bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     uint32_t num_families;
     vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families, nullptr);
 
-    cvk_info_fn(
-        "physical device (%s) has %u queue families:",
+    cvk_info(
+        "Physical device (%s) has %u queue families:",
         vulkan_physical_device_type_string(m_properties.deviceType).c_str(),
         num_families);
 
@@ -48,9 +48,9 @@ bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     *num_queues = 0;
     for (uint32_t i = 0; i < num_families; i++) {
 
-        cvk_info_fn("queue family %u: %2u queues | %s", i,
-                    families[i].queueCount,
-                    vulkan_queue_flags_string(families[i].queueFlags).c_str());
+        cvk_info("  queue family %u: %2u queues | %s", i,
+                 families[i].queueCount,
+                 vulkan_queue_flags_string(families[i].queueFlags).c_str());
 
         if (!found_queues && (families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
             *queue_family = i;
@@ -77,7 +77,7 @@ bool cvk_device::init_extensions() {
     CVK_VK_CHECK_ERROR_RET(
         res, false, "Failed to get the number of device extension properties");
 
-    cvk_info("%u device extension properties reported.", numext);
+    cvk_info("%u extensions are supported", numext);
 
     std::vector<VkExtensionProperties> extensions(numext);
     res = vkEnumerateDeviceExtensionProperties(m_pdev, nullptr, &numext,
@@ -98,13 +98,13 @@ bool cvk_device::init_extensions() {
     };
 
     for (size_t i = 0; i < numext; i++) {
-        cvk_info("Found extension %s, spec version %u",
-                 extensions[i].extensionName, extensions[i].specVersion);
+        cvk_info("  %s, spec version %u", extensions[i].extensionName,
+                 extensions[i].specVersion);
 
         for (auto de : desired_extensions) {
             if (!strcmp(de, extensions[i].extensionName)) {
                 m_vulkan_device_extensions.push_back(de);
-                cvk_info_fn("found extension %s, enabling", de);
+                cvk_info("    ENABLING");
             }
         }
     }
@@ -298,40 +298,38 @@ bool cvk_device::compute_buffer_alignement_requirements() {
 void cvk_device::log_limits_and_memory_information() {
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
-    cvk_info_fn("device's resources per stage limits:");
-    cvk_info_fn("    total = %u", limits.maxPerStageResources);
-    cvk_info_fn("    uniform buffers = %u",
-                limits.maxPerStageDescriptorUniformBuffers);
-    cvk_info_fn("    storage buffers = %u",
-                limits.maxPerStageDescriptorStorageBuffers);
-    cvk_info_fn("device's max buffer size = %s",
-                pretty_size(limits.maxStorageBufferRange).c_str());
-    cvk_info_fn("device's max push constant size = %s",
-                pretty_size(limits.maxPushConstantsSize).c_str());
+    cvk_info("Device's resources per stage limits:");
+    cvk_info("    total = %u", limits.maxPerStageResources);
+    cvk_info("    uniform buffers = %u",
+             limits.maxPerStageDescriptorUniformBuffers);
+    cvk_info("    storage buffers = %u",
+             limits.maxPerStageDescriptorStorageBuffers);
+    cvk_info("Device's max buffer size = %s",
+             pretty_size(limits.maxStorageBufferRange).c_str());
+    cvk_info("Device's max push constant size = %s",
+             pretty_size(limits.maxPushConstantsSize).c_str());
 
     // Print memoy information
-    cvk_info_fn("device has %u memory types:",
-                m_mem_properties.memoryTypeCount);
+    cvk_info("Device has %u memory types:", m_mem_properties.memoryTypeCount);
     for (uint32_t i = 0; i < m_mem_properties.memoryTypeCount; i++) {
         VkMemoryType memtype = m_mem_properties.memoryTypes[i];
         auto heapsize = m_mem_properties.memoryHeaps[memtype.heapIndex].size;
-        cvk_info_fn(
+        cvk_info(
             "    %u: heap = %u, %s | %s", i, memtype.heapIndex,
             pretty_size(heapsize).c_str(),
             vulkan_memory_property_flags_string(memtype.propertyFlags).c_str());
     }
 
-    cvk_info_fn("device has %u memory heaps:",
-                m_mem_properties.memoryHeapCount);
+    cvk_info("Device has %u memory heaps:", m_mem_properties.memoryHeapCount);
     for (uint32_t i = 0; i < m_mem_properties.memoryHeapCount; i++) {
         VkMemoryHeap memheap = m_mem_properties.memoryHeaps[i];
-        cvk_info_fn("    %u: %s | %s", i, pretty_size(memheap.size).c_str(),
-                    vulkan_memory_property_flags_string(memheap.flags).c_str());
+        cvk_info("    %u: %s | %s", i, pretty_size(memheap.size).c_str(),
+                 vulkan_memory_property_flags_string(memheap.flags).c_str());
     }
 }
 
 bool cvk_device::init() {
-    cvk_info_fn("Initialising device %s", m_properties.deviceName);
+    cvk_info("Initialising device %s", m_properties.deviceName);
 
     uint32_t num_queues, queue_family;
     if (!init_queues(&num_queues, &queue_family)) {

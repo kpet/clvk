@@ -72,7 +72,7 @@ static void init_vulkan() {
     uint32_t numLayerProperties;
     res = vkEnumerateInstanceLayerProperties(&numLayerProperties, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not query layers");
-    cvk_info("%u layer properties are available", numLayerProperties);
+    cvk_info("%u layers visible", numLayerProperties);
 
     std::vector<VkLayerProperties> layerProperties(numLayerProperties);
     res = vkEnumerateInstanceLayerProperties(&numLayerProperties,
@@ -80,7 +80,7 @@ static void init_vulkan() {
     CVK_VK_CHECK_FATAL(res, "Could not query layers");
 
     for (uint32_t i = 0; i < numLayerProperties; i++) {
-        cvk_info("Found layer %s, spec version %s, impl version %u",
+        cvk_info("  %s, spec version %s, impl version %u",
                  layerProperties[i].layerName,
                  vulkan_version_string(layerProperties[i].specVersion).c_str(),
                  layerProperties[i].implementationVersion);
@@ -91,7 +91,7 @@ static void init_vulkan() {
     res = vkEnumerateInstanceExtensionProperties(
         nullptr, &numExtensionProperties, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not query extensions");
-    cvk_info("%u extension properties are available", numExtensionProperties);
+    cvk_info("%u extensions are supported", numExtensionProperties);
 
     std::vector<VkExtensionProperties> extensionProperties(
         numExtensionProperties);
@@ -102,8 +102,7 @@ static void init_vulkan() {
     std::vector<const char*> enabledExtensions;
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
-        cvk_info("Found extension %s, spec version %u",
-                 extensionProperties[i].extensionName,
+        cvk_info("  %s, spec version %u", extensionProperties[i].extensionName,
                  extensionProperties[i].specVersion);
 
         if (!strcmp(extensionProperties[i].extensionName,

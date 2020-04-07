@@ -22,7 +22,7 @@
 #include "queue.hpp"
 #include "utils.hpp"
 
-#define LOG_API_CALL(fmt, ...) cvk_info_fn(fmt, __VA_ARGS__)
+#define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
 
 #define CLVK_API_CALL CL_API_CALL
 
