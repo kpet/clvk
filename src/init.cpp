@@ -18,14 +18,12 @@
 #include <vulkan/vulkan.h>
 
 #include "device.hpp"
+#include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
-#include "utils.hpp"
 
 VkInstance gVkInstance;
 cvk_platform* gPlatform;
-int gLoggingLevel = loglevel::fatal;
-bool gLoggingColour = true;
 bool gDebugReportEnabled = false;
 bool gQueueProfilingUsesTimestampQueries = false;
 
@@ -180,25 +178,6 @@ static void term_vulkan() {
     vkDestroyInstance(gVkInstance, nullptr);
 }
 
-static void init_logging() {
-    char* logging = getenv("CLVK_LOG");
-    if (logging) {
-        loglevel setting = static_cast<loglevel>(atoi(logging));
-        if ((setting < loglevel::fatal) || (setting > loglevel::debug)) {
-            setting = loglevel::error;
-        }
-        gLoggingLevel = setting;
-    }
-
-    char* logging_colour = getenv("CLVK_LOG_COLOUR");
-    if (logging_colour) {
-        int val = atoi(logging_colour);
-        if (val == 0) {
-            gLoggingColour = false;
-        }
-    }
-}
-
 static void init_options() {
 #ifndef CLSPV_ONLINE_COMPILER
     char* llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
@@ -267,5 +246,6 @@ public:
     ~clvk_initializer() {
         term_platform();
         term_vulkan();
+        term_logging();
     }
 } gInitializer;

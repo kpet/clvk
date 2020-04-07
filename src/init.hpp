@@ -24,6 +24,4 @@ extern cvk_platform* gPlatform;
 extern std::string gCLSPVPath;
 extern std::string gLLVMSPIRVPath;
 extern std::string gCLSPVOptions;
-extern int gLoggingLevel;
-extern bool gLoggingColour;
 extern bool gQueueProfilingUsesTimestampQueries;

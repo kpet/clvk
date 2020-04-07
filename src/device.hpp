@@ -23,7 +23,6 @@
 
 #include "cl_headers.hpp"
 #include "icd.hpp"
-#include "utils.hpp"
 #include "vkutils.hpp"
 
 #define MAKE_NAME_VERSION(major, minor, patch, name)                           \

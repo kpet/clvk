@@ -31,7 +31,6 @@
 
 #include "cl_headers.hpp"
 #include "device.hpp"
-#include "utils.hpp"
 
 struct refcounted {
 

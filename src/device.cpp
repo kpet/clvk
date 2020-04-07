@@ -14,8 +14,8 @@
 
 #include "device.hpp"
 #include "init.hpp"
+#include "log.hpp"
 #include "memory.hpp"
-#include "utils.hpp"
 
 cvk_device* cvk_device::create(VkPhysicalDevice pdev) {
     cvk_device* device = new cvk_device(pdev);

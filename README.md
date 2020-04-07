@@ -146,7 +146,14 @@ variables. Here's a quick guide:
 * `CLVK_LOG_COLOUR` controls colour logging
 
    * 0: disabled
-   * 1: enabled (default)
+   * 1: enabled (default when the output is a terminal)
+
+* `CLVK_LOG_DEST` controls where the logging output goes
+
+   * `stderr`: logging goes to the standard error (default)
+   * `stdout`: logging goes to the standard output
+   * `file:<fname>`: logging goes to `<fname>`. The file will be created if it
+     does not exist and will be truncated.
 
 * `CLVK_CLSPV_BIN` to provide a path to the clspv binary to use
 

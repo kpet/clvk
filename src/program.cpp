@@ -30,8 +30,8 @@
 #include "spirv/1.0/spirv.hpp"
 
 #include "init.hpp"
+#include "log.hpp"
 #include "program.hpp"
-#include "utils.hpp"
 
 struct membuf : public std::streambuf {
     membuf(const unsigned char* begin, const unsigned char* end) {
