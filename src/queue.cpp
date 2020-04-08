@@ -399,7 +399,8 @@ cl_int cvk_command_kernel::build() {
                            &m_global_offsets);
     }
 
-    if (m_kernel->has_pod_arguments() && !m_kernel->has_pod_buffer_arguments()) {
+    if (m_kernel->has_pod_arguments() &&
+        !m_kernel->has_pod_buffer_arguments()) {
         for (auto& arg : m_kernel->arguments()) {
             if (arg.kind == kernel_argument_kind::pod_pushconstant) {
                 CVK_ASSERT(arg.offset + arg.size <=

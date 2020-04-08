@@ -275,7 +275,8 @@ bool parse_arg(kernel_argument& arg, const std::vector<std::string>& tokens,
     return true;
 }
 
-bool parse_kernel_pushconstant(kernel_argument& arg, const std::vector<std::string>& tokens,
+bool parse_kernel_pushconstant(kernel_argument& arg,
+                               const std::vector<std::string>& tokens,
                                int toknum) {
     if (tokens[toknum++] != "offset") {
       return false;
@@ -296,7 +297,7 @@ bool parse_kernel_pushconstant(kernel_argument& arg, const std::vector<std::stri
     }
 
     if (tokens[toknum++] != "argSize") {
-      return false;
+        return false;
     }
 
     arg.size = atoi(tokens[toknum++].c_str());

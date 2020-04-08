@@ -67,7 +67,6 @@ struct kernel_argument {
         return (kind == kernel_argument_kind::pod) ||
                (kind == kernel_argument_kind::pod_ubo);
     }
-
 };
 
 struct sampler_desc {
