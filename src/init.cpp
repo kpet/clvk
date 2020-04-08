@@ -68,11 +68,6 @@ VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags,
 static void init_vulkan() {
     VkResult res;
 
-    // Get version information
-    uint32_t version;
-    res = vkEnumerateInstanceVersion(&version);
-    CVK_VK_CHECK_FATAL(res, "Could not query supported instance version");
-
     // Print layer info
     uint32_t numLayerProperties;
     res = vkEnumerateInstanceLayerProperties(&numLayerProperties, nullptr);
@@ -106,11 +101,6 @@ static void init_vulkan() {
 
     std::vector<const char*> enabledExtensions;
 
-    if (version < VK_MAKE_VERSION(1, 1, 0)) {
-        enabledExtensions.push_back(
-            VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-    };
-
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("Found extension %s, spec version %u",
                  extensionProperties[i].extensionName,
@@ -120,6 +110,11 @@ static void init_vulkan() {
                     VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
             enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
             gDebugReportEnabled = true;
+        } else if (
+            !strcmp(extensionProperties[i].extensionName,
+                    VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
+            enabledExtensions.push_back(
+                VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
         }
     }
 

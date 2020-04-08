@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "device.hpp"
+#include "init.hpp"
 #include "memory.hpp"
 #include "utils.hpp"
 
@@ -149,7 +150,19 @@ void cvk_device::init_features() {
     supported_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     supported_features.pNext = pNext;
 
-    vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        // Use the extension on Vulkan 1.0 platforms
+        auto func = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>(
+            vkGetInstanceProcAddr(gVkInstance,
+                                  "vkGetPhysicalDeviceFeatures2KHR"));
+        if (!func) {
+            cvk_fatal(
+                "Failed to get pointer to vkGetPhysicalDeviceFeatures2KHR()");
+        }
+        func(m_pdev, &supported_features);
+    } else {
+        vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
+    }
 
     // Selectively enable core features.
     memset(&m_features, 0, sizeof(m_features));

@@ -18,6 +18,7 @@
 
 #include <string>
 
+extern VkInstance gVkInstance;
 extern cvk_platform* gPlatform;
 
 extern std::string gCLSPVPath;
