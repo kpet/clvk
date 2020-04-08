@@ -8,6 +8,7 @@ pr:
 variables:
   CLCACHE_DIR: "$(Agent.BuildDirectory)/clcache"
   CLCACHE_LOG: true
+  CCACHE_DIR: "$(Agent.BuildDirectory)/ccache"
 
 jobs:
   - template: tests/azure/job.yml

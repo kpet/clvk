@@ -1,0 +1,14 @@
+
+parameters:
+  - name: icd_json
+    type: string
+    default: "./build/$(Agent.OS)/vk_swiftshader_icd.json"
+
+steps:
+    - script: VK_ICD_FILENAMES=${{ parameters.icd_json }} ./build/simple_test
+      displayName: Simple test
+    - script:  VK_ICD_FILENAMES=${{ parameters.icd_json }} ./build/simple_test_static
+      displayName: Simple test (static)
+    - script:  VK_ICD_FILENAMES=${{ parameters.icd_json }} ./build/api_tests
+      displayName: API tests
+

@@ -62,6 +62,7 @@ set(CLVK_VULKAN_IMPLEMENTATION_OPTIONS
     system # Use the system's Vulkan
     talvos # Use talvos to provide Vulkan
     loader # Build against a user-provided copy of the loader sources
+    swiftshader # Build for a user-provided copy of the switftshader sources
 )
 set_property(CACHE CLVK_VULKAN_IMPLEMENTATION PROPERTY STRINGS
     ${CLVK_VULKAN_IMPLEMENTATION_OPTIONS})
@@ -80,11 +81,12 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   set(Vulkan_LIBRARIES talvos talvos-vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
-elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader)
+elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
+        ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
   if (NOT CLVK_VULKAN_LOADER_DIR)
     message(FATAL_ERROR "CLVK_VULKAN_LOADER_DIR must be provided with
-    CLVK_VULKAN_IMPLEMENTATION=loader")
+    CLVK_VULKAN_IMPLEMENTATION=(loader|switftshader)")
   endif ()
   set(VulkanHeaders_INCLUDE_DIR ${Vulkan_INCLUDE_DIRS})
   set(VulkanRegistry_DIR
@@ -94,6 +96,17 @@ elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader)
   set(BUILD_WSI_WAYLAND_SUPPORT OFF CACHE BOOL "Vulkan loader WSI Wayland support")
   add_subdirectory(${CLVK_VULKAN_LOADER_DIR} EXCLUDE_FROM_ALL)
   set(Vulkan_LIBRARIES vulkan)
+  if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+    set(SWIFTSHADER_WARNINGS_AS_ERRORS OFF)
+    set(SWIFTSHADER_BUILD_VULKAN ON)
+    set(SWIFTSHADER_BUILD_EGL OFF)
+    set(SWIFTSHADER_BUILD_GLESv2 OFF)
+    set(SWIFTSHADER_BUILD_GLES_CM OFF)
+    set(SWIFTSHADER_BUILD_SAMPLES OFF)
+    set(SWIFTSHADER_BUILD_TESTS OFF)
+    set(SWIFTSHADER_BUILD_PVR OFF)
+    add_subdirectory(${CLVK_SWIFTSHADER_DIR} EXCLUDE_FROM_ALL)
+  endif ()
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL custom)
     # Nothing to do, trust the user
 else ()

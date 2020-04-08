@@ -17,8 +17,7 @@ steps:
     - script: HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache
       displayName: Install ccache
   - script: |
-      mkdir $(Agent.BuildDirectory)/ccache
-      ccache -o cache_dir=$(Agent.BuildDirectory)/ccache
+      mkdir "$(CCACHE_DIR)"
       ccache --max-size=2G
       ccache --show-stats
     displayName: Configure ccache
@@ -29,6 +28,6 @@ steps:
         ccache | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)"
         ccache | "$(Agent.OS)" | ${{ parameters.buildType }}
         ccache | "$(Agent.OS)"
-      path: $(Agent.BuildDirectory)/ccache
+      path: "$(CCACHE_DIR)"
     displayName: Setup ccache cache
 

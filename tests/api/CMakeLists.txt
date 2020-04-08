@@ -32,6 +32,10 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_definitions(-DUSING_TALVOS)
 endif()
 
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+  add_definitions(-DUSING_SWIFTSHADER)
+endif()
+
 # Use the gtest copy that comes with clspv's version of LLVM
 include_directories(${LLVM_BINARY_DIR}/include)
 include_directories(${LLVM_SOURCE_DIR}/include)

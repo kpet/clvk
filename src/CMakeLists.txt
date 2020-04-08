@@ -37,10 +37,6 @@ if (CLVK_CLSPV_ONLINE_COMPILER)
   add_compile_options(-DCLSPV_ONLINE_COMPILER)
 endif()
 
-if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
-  add_definitions(-DUSING_TALVOS)
-endif()
-
 add_library(OpenCL-objects OBJECT
   api.cpp
   device.cpp

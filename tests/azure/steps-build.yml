@@ -18,6 +18,12 @@ parameters:
     - name: 'vulkanLoaderDir'
       default: './Vulkan-Loader'
       type: string
+    - name: 'swiftshaderDir'
+      default: './swiftshader'
+      type: string
+    - name: 'useClCache'
+      type: boolean
+      default: true
 
 steps:
   - script: mkdir build
@@ -28,6 +34,7 @@ steps:
       cmakeArgs: '-DCMAKE_BUILD_TYPE=${{ parameters.buildType }}
                   -DCLVK_VULKAN_IMPLEMENTATION=${{ parameters.vulkanImplementation }}
                   -DCLVK_VULKAN_LOADER_DIR=${{ parameters.vulkanLoaderDir }}
+                  -DCLVK_SWIFTSHADER_DIR=${{ parameters.swiftshaderDir }}
                   -DSPIRV_WERROR=OFF
                   ${{ parameters.cmakeFlags }} ..'
   - ${{ if eq(parameters.os, 'windows') }}:
@@ -37,8 +44,12 @@ steps:
         msbuildArchitecture: 'x64'
         maximumCpuCount: true platform
         configuration: ${{ parameters.buildType }}
-        msbuildArguments: '/p:CLToolExe=clcache.exe'
+        ${{ if eq(parameters.useClCache, true) }}:
+          msbuildArguments: '/p:CLToolExe=clcache.exe'
   - ${{ if ne(parameters.os, 'windows') }}:
-    - script: make -C build -j3
+    - script: |
+        which ccache && ccache --show-stats || echo "ccache not available"
+        make -C build -j3
+        which ccache && ccache --show-stats || echo "ccache not available"
       displayName: make
 

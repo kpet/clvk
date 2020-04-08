@@ -29,6 +29,8 @@ jobs:
         buildType: ${{ parameters.buildType }}
   - template: steps-fetch-sources.yml
     parameters:
+      ${{ if ne(parameters.os, 'windows') }}:
+        fetchSwiftshader: true
       ${{ if eq(parameters.os, 'windows') }}:
         pythonBinary: python.exe
   - template: steps-build.yml
@@ -36,4 +38,9 @@ jobs:
       os: ${{ parameters.os }}
       cmakeFlags: ${{ parameters.cmakeFlags }}
       buildType: ${{ parameters.buildType }}
+      ${{ if ne(parameters.os, 'windows') }}:
+        vulkanImplementation: swiftshader
+  - ${{ if ne(parameters.os, 'windows') }}:
+    - template: steps-build-swiftshader.yml
+    - template: steps-run-tests.yml
 

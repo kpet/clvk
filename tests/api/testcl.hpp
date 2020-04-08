@@ -20,6 +20,12 @@
 #define DISABLED_TALVOS(X) X
 #endif
 
+#if defined(USING_TALVOS) || defined(USING_SWIFTSHADER)
+#define DISABLED_TALVOS_SWIFTSHADER(X) DISABLED_##X
+#else
+#define DISABLED_TALVOS_SWIFTSHADER(X) X
+#endif
+
 #define CL_TARGET_OPENCL_VERSION 120
 #include "CL/cl.h"
 

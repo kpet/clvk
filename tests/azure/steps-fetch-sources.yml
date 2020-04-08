@@ -6,6 +6,9 @@ parameters:
   - name: 'loaderRevision'
     type: string
     default: v1.1.130
+  - name: 'fetchSwiftshader'
+    default: false
+    type: boolean
 
 steps:
   - script: git submodule update --depth 1 --init
@@ -14,4 +17,7 @@ steps:
     displayName: Fetch LLVM
   - script: git clone --depth 1 -b ${{ parameters.loaderRevision }} https://github.com/KhronosGroup/Vulkan-Loader.git
     displayName: Fetch Vulkan Loader
+  - ${{ if eq(parameters.fetchSwiftshader, true) }}:
+    - script: git clone --depth 1 https://github.com/google/swiftshader.git
+      displayName: Fetch swiftshader
 
