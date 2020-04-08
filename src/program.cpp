@@ -810,15 +810,14 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (!devices_support_images()) {
         options += " -images=0 ";
     }
-    options += " -pod-pushconstant ";
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    //options += " -pod-ubo ";
+    options += " -pod-ubo ";
     options += " -int8 ";
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
-    //options += " -work-dim -global-offset ";
+    options += " -work-dim -global-offset ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER

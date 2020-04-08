@@ -22,7 +22,6 @@
 #include "program.hpp"
 
 struct cvk_kernel_argument_values;
-struct cvk_command_buffer;
 
 struct cvk_kernel : public _cl_kernel, api_object {
 
