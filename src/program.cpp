@@ -1155,8 +1155,8 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
-      m_pipeline_cache(VK_NULL_HANDLE) {}
+      m_has_pod_buffer_arguments(false), m_descriptor_pool(VK_NULL_HANDLE),
+      m_pipeline_layout(VK_NULL_HANDLE), m_pipeline_cache(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
