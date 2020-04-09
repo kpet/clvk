@@ -48,6 +48,7 @@ steps:
           msbuildArguments: '/p:CLToolExe=clcache.exe'
   - ${{ if ne(parameters.os, 'windows') }}:
     - script: |
+        set -ex
         which ccache && ccache --show-stats || echo "ccache not available"
         make -C build -j3
         which ccache && ccache --show-stats || echo "ccache not available"
