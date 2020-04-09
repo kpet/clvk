@@ -14,6 +14,7 @@
 
 #include "log.hpp"
 
+#include <cerrno>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
