@@ -19,7 +19,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#ifndef _MSC_VER
 #include <unistd.h>
+#endif
 
 static int gLoggingLevel;
 static bool gLoggingColour;
