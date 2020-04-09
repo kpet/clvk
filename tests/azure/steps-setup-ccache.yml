@@ -19,12 +19,6 @@ steps:
   - ${{ if eq(parameters.os , 'osx') }}:
     - script: HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache
       displayName: Install ccache
-  - script: |
-      set -ex
-      mkdir "$(CCACHE_DIR)"
-      ccache --max-size=2G
-      ccache --show-stats
-    displayName: Configure ccache
   - task: Cache@2
     inputs:
       key: '${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)" | "$(Build.BuildNumber)"'
@@ -34,4 +28,12 @@ steps:
         ${{ parameters.cacheName }} | "$(Agent.OS)"
       path: "$(CCACHE_DIR)"
     displayName: Setup ccache cache
+  - script: |
+      set -ex
+      mkdir -p "$(CCACHE_DIR)"
+      ccache -o cache_dir="$(CCACHE_DIR)"
+      ccache -o compression=true
+      ccache --max-size=4G
+      ccache --show-stats
+    displayName: Configure ccache
 

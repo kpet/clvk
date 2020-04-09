@@ -23,6 +23,19 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+# ccache
+set(CLVK_CCACHE_BUILD OFF CACHE BOOL "Set to ON for a ccache enabled build")
+if(CLVK_CCACHE_BUILD AND UNIX)
+  message(STATUS "Enabling ccache")
+  find_program(CCACHE_PROGRAM ccache)
+  if(CCACHE_PROGRAM)
+      message(STATUS "Using ccache at ${CCACHE_PROGRAM}")
+      set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ${CCACHE_PROGRAM})
+  else()
+      message(FATAL_ERROR "Unable to find the program ccache. Set CLVK_CCACHE_BUILD to OFF")
+  endif()
+endif()
+
 # OpenCL Headers
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
 
