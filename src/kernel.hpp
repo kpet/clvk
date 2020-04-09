@@ -213,7 +213,10 @@ struct cvk_kernel_argument_values {
 
     VkBuffer pod_vulkan_buffer() const { return m_pod_buffer->vulkan_buffer(); }
 
-    std::vector<uint8_t>& pod_pushconstant_buffer() const {
+    const std::vector<uint8_t>& pod_pushconstant_buffer() const {
+        return *m_pod_pushconstant_buffer;
+    }
+    std::vector<uint8_t>& pod_pushconstant_buffer() {
         return *m_pod_pushconstant_buffer;
     }
 

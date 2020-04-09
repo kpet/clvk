@@ -279,7 +279,7 @@ bool parse_kernel_pushconstant(kernel_argument& arg,
                                const std::vector<std::string>& tokens,
                                int toknum) {
     if (tokens[toknum++] != "offset") {
-      return false;
+        return false;
     }
 
     arg.offset = atoi(tokens[toknum++].c_str());
@@ -1335,7 +1335,9 @@ cl_int cvk_entry_point::init() {
         }
     }
 
-    // Calculate POD buffer size
+    // Calculate POD buffer size and get the push constant ranges.
+    std::vector<VkPushConstantRange> push_constant_ranges =
+        m_program->push_constant_ranges();
     if (m_has_pod_arguments) {
         // Check we know the POD buffer's descriptor type
         if (m_has_pod_buffer_arguments &&
@@ -1348,9 +1350,17 @@ cl_int cvk_entry_point::init() {
         int max_offset_arg_size = 0;
 
         for (auto& arg : m_args) {
-            if (arg.is_pod() && (arg.offset >= max_offset)) {
-                max_offset = arg.offset;
-                max_offset_arg_size = arg.size;
+            if (arg.is_pod()) {
+                if (arg.offset >= max_offset) {
+                    max_offset = arg.offset;
+                    max_offset_arg_size = arg.size;
+                }
+                if (!arg.is_pod_buffer()) {
+                    VkPushConstantRange range = {
+                        VK_SHADER_STAGE_COMPUTE_BIT,
+                        static_cast<uint32_t>(arg.offset), arg.size};
+                    push_constant_ranges.push_back(range);
+                }
             }
         }
 
@@ -1368,8 +1378,8 @@ cl_int cvk_entry_point::init() {
         0,
         static_cast<uint32_t>(m_descriptor_set_layouts.size()),
         m_descriptor_set_layouts.data(),
-        static_cast<uint32_t>(m_program->push_constant_ranges().size()),
-        m_program->push_constant_ranges().data()};
+        static_cast<uint32_t>(push_constant_ranges.size()),
+        push_constant_ranges.data()};
 
     res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);
@@ -1532,7 +1542,5 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
 
 std::unique_ptr<std::vector<uint8_t>>
 cvk_entry_point::allocate_pod_pushconstant_buffer() {
-    std::unique_ptr<std::vector<uint8_t>> buffer(
-        new std::vector<uint8_t>(m_pod_buffer_size));
-    return buffer;
+    return std::make_unique<std::vector<uint8_t>>(m_pod_buffer_size);
 }
