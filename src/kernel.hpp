@@ -143,11 +143,8 @@ struct cvk_kernel_argument_values {
 
             m_pod_buffer = std::move(buffer);
         } else if (m_kernel->has_pod_arguments()) {
+            // TODO(#101): host out-of-memory errors are currently unhandled.
             auto buffer = m_kernel->allocate_pod_pushconstant_buffer();
-            if (buffer == nullptr) {
-                return false;
-            }
-
             m_pod_pushconstant_buffer = std::move(buffer);
         }
 
