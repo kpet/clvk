@@ -1248,6 +1248,7 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             } else {
                 continue;
             }
+            break;
         case kernel_argument_kind::pod_pushconstant:
             continue;
         }
