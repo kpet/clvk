@@ -24,6 +24,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef WIN32
+#include <io.h>
+#endif
+
 static int gLoggingLevel;
 static bool gLoggingColour;
 static FILE* gLoggingFile;
