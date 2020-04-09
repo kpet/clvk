@@ -5,7 +5,7 @@ parameters:
     default: python
   - name: 'loaderRevision'
     type: string
-    default: v1.1.130
+    default: master
   - name: 'fetchSwiftshader'
     default: false
     type: boolean
