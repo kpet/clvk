@@ -36,6 +36,7 @@ enum loglevel
 void init_logging();
 void term_logging();
 void cvk_log(loglevel level, const char* fmt, ...) CHECK_PRINTF(2, 3);
+bool cvk_log_level_enabled(loglevel level);
 
 #define cvk_fatal(fmt, ...) cvk_log(loglevel::fatal, fmt "\n", ##__VA_ARGS__)
 #define cvk_error(fmt, ...) cvk_log(loglevel::error, fmt "\n", ##__VA_ARGS__)

@@ -95,13 +95,17 @@ void term_logging() {
     }
 }
 
+bool cvk_log_level_enabled(loglevel level) {
+    return gLoggingLevel >= level;
+}
+
 static const char colourRed[] = "\e[0;31m";
 static const char colourYellow[] = "\e[0;33m";
 static const char colourReset[] = "\e[0m";
 
 void cvk_log(loglevel level, const char* fmt, ...) {
 
-    if (level > gLoggingLevel) {
+    if (!cvk_log_level_enabled(level)) {
         return;
     }
 
