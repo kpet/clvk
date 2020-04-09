@@ -77,6 +77,8 @@ supported:
   [Talvos](https://github.com/talvos/talvos). Talvos emulates the
   Vulkan API and provides an interpreter for SPIR-V modules. You don't
   need Vulkan-compatible hardware and drivers to run clvk using Talvos.
+  The path to Talvos's sources must be provided by the user using
+  `CLVK_TALVOS_DIR`.
 
 * `-DCLVK_VULKAN_IMPLEMENTATION=loader` enables building against a copy of the
   Vulkan Loader sources provided by the user using `CLVK_VULKAN_LOADER_DIR`.

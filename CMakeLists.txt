@@ -75,7 +75,11 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   set(SPIRV_TOOLS_INCLUDE_DIR ${SPIRV_TOOLS_SOURCE_DIR}/include CACHE STRING
       "SPIRV-Tools headers for Talvos")
   set(SPIRV_TOOLS_LIB "$<TARGET_FILE:SPIRV-Tools>")
-  add_subdirectory(${PROJECT_SOURCE_DIR}/external/talvos)
+  if (NOT CLVK_TALVOS_DIR)
+    message(FATAL_ERROR "CLVK_TALVOS_DIR_DIR must be provided with
+                         CLVK_VULKAN_IMPLEMENTATION=talvos")
+  endif ()
+  add_subdirectory(${CLVK_TALVOS_DIR})
   add_dependencies(talvos SPIRV-Tools)
   set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
   set(Vulkan_LIBRARIES talvos talvos-vulkan)

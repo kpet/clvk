@@ -28,7 +28,11 @@ mkdir "${BUILD_DIR}"
 cd "${BUILD_DIR}"
 
 cmake --version
-cmake -DCMAKE_BUILD_TYPE=Release -DCLVK_VULKAN_IMPLEMENTATION=talvos -DSPIRV_WERROR=OFF ${JOB_CMAKE_CONFIG} ..
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DCLVK_VULKAN_IMPLEMENTATION=talvos \
+      -DCLVK_TALVOS_DIR="./talvos" \
+      -DSPIRV_WERROR=OFF \
+      ${JOB_CMAKE_CONFIG} ..
 
 set +e
 ${CMD_TIMEOUT} ${BUILD_TIMEOUT} make -j2

@@ -16,6 +16,3 @@
 [submodule "vulkan-headers"]
 	path = external/Vulkan-Headers
 	url = https://github.com/KhronosGroup/Vulkan-Headers.git
-[submodule "talvos"]
-	path = external/talvos
-	url = https://github.com/talvos/talvos.git
