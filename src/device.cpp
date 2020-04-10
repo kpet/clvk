@@ -105,6 +105,7 @@ bool cvk_device::init_extensions() {
             if (!strcmp(de, extensions[i].extensionName)) {
                 m_vulkan_device_extensions.push_back(de);
                 cvk_info("    ENABLING");
+                break;
             }
         }
     }

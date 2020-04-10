@@ -66,7 +66,22 @@ VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags,
 static void init_vulkan() {
     VkResult res;
 
-    // Print layer info
+    // Handle validation layers config
+    const char* validation_layers[] = {
+        "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_LUNARG_standard_validation",
+    };
+    bool validation_enabled = false;
+    char* validation_layers_env = getenv("CLVK_VALIDATION_LAYERS");
+    if (validation_layers_env != nullptr) {
+        int value = atoi(validation_layers_env);
+        if (value == 1) {
+            validation_enabled = true;
+            cvk_info("Enabling validation layers.");
+        }
+    }
+
+    // Discover, log and select layers
     uint32_t numLayerProperties;
     res = vkEnumerateInstanceLayerProperties(&numLayerProperties, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not query layers");
@@ -77,11 +92,26 @@ static void init_vulkan() {
                                              layerProperties.data());
     CVK_VK_CHECK_FATAL(res, "Could not query layers");
 
+    std::vector<const char*> enabledLayers;
+    bool validation_layers_found = false;
     for (uint32_t i = 0; i < numLayerProperties; i++) {
         cvk_info("  %s, spec version %s, impl version %u",
                  layerProperties[i].layerName,
                  vulkan_version_string(layerProperties[i].specVersion).c_str(),
                  layerProperties[i].implementationVersion);
+        if (validation_enabled) {
+            for (auto dl : validation_layers) {
+                if (!strcmp(layerProperties[i].layerName, dl)) {
+                    cvk_info("    ENABLING");
+                    enabledLayers.push_back(dl);
+                    validation_layers_found = true;
+                }
+            }
+        }
+    }
+
+    if (validation_enabled && !validation_layers_found) {
+        cvk_warn("Validation layers are enabled but none have been found");
     }
 
     // Print extension info
@@ -112,19 +142,6 @@ static void init_vulkan() {
                     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
             enabledExtensions.push_back(
                 VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-        }
-    }
-
-    // Handle validation layers
-    std::vector<const char*> enabledLayers;
-
-    char* enable_validation_layers = getenv("CLVK_VALIDATION_LAYERS");
-    if (enable_validation_layers != nullptr) {
-        int value = atoi(enable_validation_layers);
-        if (value == 1) {
-            enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
-            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
-            cvk_info("Enabling validation layers.");
         }
     }
 
