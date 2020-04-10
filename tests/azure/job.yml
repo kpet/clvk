@@ -37,6 +37,7 @@ jobs:
       cmakeFlags: ${{ parameters.cmakeFlags }}
       buildType: ${{ parameters.buildType }}
       vulkanImplementation: swiftshader
-  - ${{ if ne(parameters.os, 'windows') }}:
-    - template: steps-run-tests.yml
+  - template: steps-run-tests.yml
+    parameters:
+      os: ${{ parameters.os }}
 

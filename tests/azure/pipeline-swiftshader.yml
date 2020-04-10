@@ -16,6 +16,8 @@ parameters:
 
 variables:
   CCACHE_DIR: "$(Agent.BuildDirectory)/ccache"
+  CLCACHE_DIR: "$(Agent.BuildDirectory)/clcache"
+  CLCACHE_LOG: true
 
 jobs:
 - template: job-swiftshader.yml
@@ -28,6 +30,12 @@ jobs:
   parameters:
     vmImage: macOS-10.15
     os: osx
+    swiftshaderRepo: ${{ parameters.swiftshaderRepo }}
+    swiftshaderBranch: ${{ parameters.swiftshaderBranch }}
+- template: job-swiftshader.yml
+  parameters:
+    vmImage: vs2017-win2016
+    os: windows
     swiftshaderRepo: ${{ parameters.swiftshaderRepo }}
     swiftshaderBranch: ${{ parameters.swiftshaderBranch }}
 

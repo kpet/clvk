@@ -8,6 +8,12 @@ parameters:
     type: string
   - name: swiftshaderBranch
     type: string
+  - name: buildType
+    type: string
+    default: Release
+    values:
+    - Release
+    - Debug
 
 jobs:
 - job: ${{ parameters.os }}
@@ -16,26 +22,47 @@ jobs:
   steps:
   - script: git clone -b ${{ parameters.swiftshaderBranch }} --depth 1 ${{ parameters.swiftshaderRepo }} swiftshader
     displayName: Fetch sources
-  - template: steps-setup-ccache.yml
-    parameters:
-      os: ${{ parameters.os }}
-      buildType: Release
-  - script: |
-      set -ex
-      mkdir build
-      cd build
-      cmake -DCMAKE_BUILD_TYPE=Release \
-            -DSWIFTSHADER_WARNINGS_AS_ERRORS=OFF \
-            -DSWIFTSHADER_BUILD_VULKAN=ON \
-            -DSWIFTSHADER_BUILD_EGL=OFF \
-            -DSWIFTSHADER_BUILD_GLESv2=OFF \
-            -DSWIFTSHADER_BUILD_GLES_CM=OFF \
-            -DSWIFTSHADER_BUILD_SAMPLES=OFF \
-            -DSWIFTSHADER_BUILD_TESTS=OFF \
-            -DSWIFTSHADER_BUILD_PVR=OFF \
-            ../swiftshader
-      make -j3 vk_swiftshader
-    displayName: Build
-  - publish: ./build/$(Agent.OS)
-    artifact: swiftshader-$(Agent.OS)
+  - ${{ if eq(parameters.os, 'windows') }}:
+    - template: steps-setup-clcache.yml
+      parameters:
+        buildType: ${{ parameters.buildType }}
+  - ${{ if ne(parameters.os, 'windows') }}:
+    - template: steps-setup-ccache.yml
+      parameters:
+        os: ${{ parameters.os }}
+        buildType: ${{ parameters.buildType }}
+  - script: mkdir build
+    displayName: Create build directory
+  - task: CMake@1
+    inputs:
+      workingDirectory: build
+      cmakeArgs: '-DCMAKE_BUILD_TYPE=${{ parameters.buildType }}
+                  -DSWIFTSHADER_WARNINGS_AS_ERRORS=OFF
+                  -DSWIFTSHADER_BUILD_VULKAN=ON
+                  -DSWIFTSHADER_BUILD_EGL=OFF
+                  -DSWIFTSHADER_BUILD_GLESv2=OFF
+                  -DSWIFTSHADER_BUILD_GLES_CM=OFF
+                  -DSWIFTSHADER_BUILD_SAMPLES=OFF
+                  -DSWIFTSHADER_BUILD_TESTS=OFF
+                  -DSWIFTSHADER_BUILD_PVR=OFF
+                  ../swiftshader'
+  - ${{ if eq(parameters.os, 'windows') }}:
+    - task: MSBuild@1
+      inputs:
+        solution: 'build/ALL_BUILD.vcxproj'
+        msbuildArchitecture: 'x64'
+        maximumCpuCount: true platform
+        configuration: ${{ parameters.buildType }}
+        msbuildArguments: '/p:CLToolExe=clcache.exe'
+    - publish: ./build/Windows
+      artifact: swiftshader-$(Agent.OS)
+  - ${{ if ne(parameters.os, 'windows') }}:
+    - script: |
+        set -ex
+        which ccache && ccache --show-stats || echo "ccache not available"
+        make -C build -j3
+        which ccache && ccache --show-stats || echo "ccache not available"
+      displayName: make
+    - publish: ./build/$(Agent.OS)
+      artifact: swiftshader-$(Agent.OS)
 
