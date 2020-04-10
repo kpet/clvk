@@ -16,11 +16,11 @@
 #include "icd.hpp"
 #include "init.hpp"
 #include "kernel.hpp"
+#include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 #include "program.hpp"
 #include "queue.hpp"
-#include "utils.hpp"
 
 #define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
 

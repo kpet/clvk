@@ -17,6 +17,7 @@ steps:
     - script: HOMEBREW_NO_AUTO_UPDATE=1 brew install ccache
       displayName: Install ccache
   - script: |
+      set -ex
       mkdir "$(CCACHE_DIR)"
       ccache --max-size=2G
       ccache --show-stats

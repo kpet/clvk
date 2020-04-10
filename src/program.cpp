@@ -30,8 +30,8 @@
 #include "spirv/1.0/spirv.hpp"
 
 #include "init.hpp"
+#include "log.hpp"
 #include "program.hpp"
-#include "utils.hpp"
 
 struct membuf : public std::streambuf {
     membuf(const unsigned char* begin, const unsigned char* end) {
@@ -498,7 +498,7 @@ bool spir_binary::load_descriptor_map(
     const std::vector<clspv::version0::DescriptorMapEntry>& entries) {
     m_dmaps.clear();
     for (const auto& entry : entries) {
-        if (gLoggingLevel == loglevel::debug) {
+        if (cvk_log_level_enabled(loglevel::debug)) {
             std::string s;
             std::ostringstream str(s);
             str << entry;

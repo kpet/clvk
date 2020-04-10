@@ -42,6 +42,7 @@ add_library(OpenCL-objects OBJECT
   device.cpp
   init.cpp
   kernel.cpp
+  log.cpp
   memory.cpp
   program.cpp
   queue.cpp
