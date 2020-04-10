@@ -39,6 +39,7 @@ enum class kernel_argument_kind
     buffer_ubo,
     pod,
     pod_ubo,
+    pod_pushconstant,
     ro_image,
     wo_image,
     sampler,
@@ -57,6 +58,12 @@ struct kernel_argument {
     uint32_t local_elem_size;
 
     bool is_pod() const {
+        return (kind == kernel_argument_kind::pod) ||
+               (kind == kernel_argument_kind::pod_ubo) ||
+               (kind == kernel_argument_kind::pod_pushconstant);
+    }
+
+    bool is_pod_buffer() const {
         return (kind == kernel_argument_kind::pod) ||
                (kind == kernel_argument_kind::pod_ubo);
     }
@@ -211,9 +218,13 @@ public:
 
     std::unique_ptr<cvk_buffer> allocate_pod_buffer();
 
+    std::unique_ptr<std::vector<uint8_t>> allocate_pod_pushconstant_buffer();
+
     const std::vector<kernel_argument>& args() const { return m_args; }
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
+
+    bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
 
     uint32_t num_resources() const { return m_num_resources; }
 
@@ -233,6 +244,7 @@ private:
     VkDescriptorType m_pod_descriptor_type;
     uint32_t m_pod_buffer_size;
     bool m_has_pod_arguments;
+    bool m_has_pod_buffer_arguments;
     std::vector<kernel_argument> m_args;
     uint32_t m_num_resources;
     VkDescriptorPool m_descriptor_pool;

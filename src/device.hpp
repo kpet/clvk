@@ -226,6 +226,10 @@ struct cvk_device : public _cl_device_id {
 
     VkDevice vulkan_device() const { return m_dev; }
 
+    uint32_t vulkan_max_push_constants_size() const {
+        return m_properties.limits.maxPushConstantsSize;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
