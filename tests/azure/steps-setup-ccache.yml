@@ -8,6 +8,9 @@ parameters:
       - osx
     - name: buildType
       type: string
+    - name: cacheName
+      type: string
+      default: ccache
 
 steps:
   - ${{ if eq(parameters.os , 'linux') }}:
@@ -24,11 +27,11 @@ steps:
     displayName: Configure ccache
   - task: Cache@2
     inputs:
-      key: 'ccache | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)" | "$(Build.BuildNumber)"'
+      key: '${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)" | "$(Build.BuildNumber)"'
       restoreKeys: |
-        ccache | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)"
-        ccache | "$(Agent.OS)" | ${{ parameters.buildType }}
-        ccache | "$(Agent.OS)"
+        ${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)"
+        ${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }}
+        ${{ parameters.cacheName }} | "$(Agent.OS)"
       path: "$(CCACHE_DIR)"
     displayName: Setup ccache cache
 

@@ -10,6 +10,11 @@ variables:
   CLCACHE_LOG: true
   CCACHE_DIR: "$(Agent.BuildDirectory)/ccache"
 
+resources:
+  pipelines:
+  - pipeline: swiftshader
+    source: clvk.swiftshader
+
 stages:
 - stage: Code_Formatting
   jobs:

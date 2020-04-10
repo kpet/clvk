@@ -109,7 +109,13 @@ elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
     set(SWIFTSHADER_BUILD_SAMPLES OFF)
     set(SWIFTSHADER_BUILD_TESTS OFF)
     set(SWIFTSHADER_BUILD_PVR OFF)
-    add_subdirectory(${CLVK_SWIFTSHADER_DIR} EXCLUDE_FROM_ALL)
+    if (CLVK_SWIFTSHADER_DIR)
+      message(STATUS "Adding provided CLVK_SWIFTSHADER_DIR
+              (${CLVK_SWIFTSHADER_DIR})")
+      add_subdirectory(${CLVK_SWIFTSHADER_DIR} EXCLUDE_FROM_ALL)
+    else ()
+      message(STATUS "No CLVK_SWIFTSHADER_DIR provided")
+    endif ()
   endif ()
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL custom)
     # Nothing to do, trust the user

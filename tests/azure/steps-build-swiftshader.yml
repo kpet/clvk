@@ -1,5 +1,0 @@
-
-steps:
-  - script: cmake --build build -j3 --target vk_swiftshader
-    displayName: Build swiftshader
-

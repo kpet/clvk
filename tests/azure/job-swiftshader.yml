@@ -1,0 +1,41 @@
+
+parameters:
+  - name: vmImage
+    type: string
+  - name: os
+    type: string
+  - name: swiftshaderRepo
+    type: string
+  - name: swiftshaderBranch
+    type: string
+
+jobs:
+- job: ${{ parameters.os }}
+  pool:
+    vmImage: ${{ parameters.vmImage }}
+  steps:
+  - script: git clone -b ${{ parameters.swiftshaderBranch }} --depth 1 ${{ parameters.swiftshaderRepo }} swiftshader
+    displayName: Fetch sources
+  - template: steps-setup-ccache.yml
+    parameters:
+      os: ${{ parameters.os }}
+      buildType: Release
+  - script: |
+      set -ex
+      mkdir build
+      cd build
+      cmake -DCMAKE_BUILD_TYPE=Release \
+            -DSWIFTSHADER_WARNINGS_AS_ERRORS=OFF \
+            -DSWIFTSHADER_BUILD_VULKAN=ON \
+            -DSWIFTSHADER_BUILD_EGL=OFF \
+            -DSWIFTSHADER_BUILD_GLESv2=OFF \
+            -DSWIFTSHADER_BUILD_GLES_CM=OFF \
+            -DSWIFTSHADER_BUILD_SAMPLES=OFF \
+            -DSWIFTSHADER_BUILD_TESTS=OFF \
+            -DSWIFTSHADER_BUILD_PVR=OFF \
+            ../swiftshader
+      make -j3 vk_swiftshader
+    displayName: Build
+  - publish: ./build/$(Agent.OS)
+    artifact: swiftshader-$(Agent.OS)
+
