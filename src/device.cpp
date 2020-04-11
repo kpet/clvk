@@ -166,8 +166,6 @@ void cvk_device::init_features() {
     }
 
     // Selectively enable core features.
-    memset(&m_features, 0, sizeof(m_features));
-
     if (supported_features.features.shaderInt16) {
         m_features.features.shaderInt16 = VK_TRUE;
     }
@@ -183,7 +181,7 @@ void cvk_device::init_features() {
 
     // All queried extended features are enabled when supported.
     m_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    m_features.pNext = &m_features_variable_pointer;
+    m_features.pNext = pNext;
 }
 
 void cvk_device::build_extension_ils_list() {

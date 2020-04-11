@@ -289,11 +289,13 @@ private:
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
-    VkPhysicalDeviceFeatures2 m_features;
-    VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer;
-    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8;
+    // Vulkan features
+    VkPhysicalDeviceFeatures2 m_features{};
+    VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer{};
+    VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8{};
     VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR
-        m_features_ubo_stdlayout;
+        m_features_ubo_stdlayout{};
+
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
     cl_uint m_mem_base_addr_align;
