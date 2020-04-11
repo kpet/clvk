@@ -96,8 +96,8 @@ struct api_query_string : public std::string {
 
 // Platform API
 
-cl_int cvk_get_platform_ids(cl_uint num_entries, cl_platform_id* platforms,
-                            cl_uint* num_platforms) {
+cl_int cvk_get_platform_ids(const clvk_global_state* state, cl_uint num_entries,
+                            cl_platform_id* platforms, cl_uint* num_platforms) {
     if ((num_platforms == nullptr) && (platforms == nullptr)) {
         return CL_INVALID_VALUE;
     }
@@ -107,7 +107,7 @@ cl_int cvk_get_platform_ids(cl_uint num_entries, cl_platform_id* platforms,
     }
 
     if (platforms != nullptr) {
-        platforms[0] = gPlatform;
+        platforms[0] = state->platform();
     }
 
     if (num_platforms != nullptr) {
@@ -120,10 +120,12 @@ cl_int cvk_get_platform_ids(cl_uint num_entries, cl_platform_id* platforms,
 cl_int CLVK_API_CALL clGetPlatformIDs(cl_uint num_entries,
                                       cl_platform_id* platforms,
                                       cl_uint* num_platforms) {
+    auto state = get_or_init_global_state();
+
     LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
                  num_entries, platforms, num_platforms);
 
-    return cvk_get_platform_ids(num_entries, platforms, num_platforms);
+    return cvk_get_platform_ids(state, num_entries, platforms, num_platforms);
 }
 
 cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
@@ -131,6 +133,8 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
                                        size_t param_value_size,
                                        void* param_value,
                                        size_t* param_value_size_ret) {
+    auto state = get_or_init_global_state();
+
     LOG_API_CALL("platform = %p, param_name = %u, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  platform, param_name, param_value_size, param_value,
@@ -142,7 +146,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     cl_version_khr val_version;
     api_query_string val_string;
 
-    const cvk_platform* plat = gPlatform;
+    const cvk_platform* plat = state->platform();
     if (platform != nullptr) {
         plat = icd_downcast(platform);
     }
@@ -203,7 +207,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     return ret;
 }
 
-const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
+static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
 #define EXTENSION_ENTRYPOINT(X)                                                \
     { #X, reinterpret_cast < void*>(X) }
     EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
@@ -242,13 +246,16 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
                                     cl_device_type device_type,
                                     cl_uint num_entries, cl_device_id* devices,
                                     cl_uint* num_devices) {
+
+    auto state = get_or_init_global_state();
+
     LOG_API_CALL("platform = %p, device_type = %lu, num_entries = %u, devices "
                  "= %p, num_devices = %p",
                  platform, device_type, num_entries, devices, num_devices);
 
     if (platform == nullptr) {
-        platform = gPlatform;
-    } else if (platform != gPlatform) {
+        platform = state->platform();
+    } else if (platform != state->platform()) {
         return CL_INVALID_PLATFORM;
     }
 
@@ -321,7 +328,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
 
     switch (param_name) {
     case CL_DEVICE_PLATFORM:
-        val_platform = gPlatform;
+        val_platform = device->platform();
         copy_ptr = &val_platform;
         size_ret = sizeof(val_platform);
         break;
@@ -720,7 +727,8 @@ cl_context CLVK_API_CALL clCreateContextFromType(
 
     cl_device_id device;
 
-    cl_int err = clGetDeviceIDs(gPlatform, device_type, 1, &device, nullptr);
+    // TODO introduce cvk_ functions to get correct logging
+    cl_int err = clGetDeviceIDs(nullptr, device_type, 1, &device, nullptr);
 
     if (err == CL_SUCCESS) {
         return clCreateContext(properties, 1, &device, pfn_notify, user_data,
@@ -4682,8 +4690,10 @@ cl_icd_dispatch gDispatchTable = {
 cl_int CLVK_API_CALL clIcdGetPlatformIDsKHR(cl_uint num_entries,
                                             cl_platform_id* platforms,
                                             cl_uint* num_platforms) {
+    auto state = get_or_init_global_state();
+
     LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
                  num_entries, platforms, num_platforms);
 
-    return cvk_get_platform_ids(num_entries, platforms, num_platforms);
+    return cvk_get_platform_ids(state, num_entries, platforms, num_platforms);
 }

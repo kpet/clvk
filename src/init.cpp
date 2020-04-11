@@ -18,13 +18,11 @@
 #include <vulkan/vulkan.h>
 
 #include "device.hpp"
+#include "init.hpp"
 #include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 
-VkInstance gVkInstance;
-cvk_platform* gPlatform;
-bool gDebugReportEnabled = false;
 bool gQueueProfilingUsesTimestampQueries = false;
 
 #ifndef CLSPV_ONLINE_COMPILER
@@ -33,13 +31,10 @@ std::string gLLVMSPIRVPath = DEFAULT_LLVMSPIRV_BINARY_PATH;
 #endif
 std::string gCLSPVOptions;
 
-static VkDebugReportCallbackEXT gVkDebugCallback;
-
-VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags,
-                                  VkDebugReportObjectTypeEXT objectType,
-                                  uint64_t object, size_t location,
-                                  int32_t messageCode, const char* pLayerPrefix,
-                                  const char* pMessage, void* pUserData) {
+static VkBool32 VKAPI_CALL debugCallback(
+    VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
+    uint64_t object, size_t location, int32_t messageCode,
+    const char* pLayerPrefix, const char* pMessage, void* pUserData) {
     UNUSED(objectType);
     UNUSED(object);
     UNUSED(location);
@@ -63,7 +58,7 @@ VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags,
     return VK_FALSE;
 }
 
-static void init_vulkan() {
+void clvk_global_state::init_vulkan() {
     VkResult res;
 
     // Handle validation layers config
@@ -136,7 +131,7 @@ static void init_vulkan() {
         if (!strcmp(extensionProperties[i].extensionName,
                     VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
             enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-            gDebugReportEnabled = true;
+            m_debug_report_enabled = true;
         } else if (
             !strcmp(extensionProperties[i].extensionName,
                     VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
@@ -158,7 +153,7 @@ static void init_vulkan() {
         enabledExtensions.data(),      // ppEnabledExtensionNames
     };
 
-    res = vkCreateInstance(&info, nullptr, &gVkInstance);
+    res = vkCreateInstance(&info, nullptr, &m_vulkan_instance);
     CVK_VK_CHECK_FATAL(res, "Could not create the instance");
     cvk_info("Created the VkInstance");
 
@@ -175,24 +170,25 @@ static void init_vulkan() {
         NULL           // pUserData
     };
 
-    if (gDebugReportEnabled) {
-        CVK_VK_GET_INSTANCE_PROC(vkCreateDebugReportCallbackEXT);
+    if (m_debug_report_enabled) {
+        auto func =
+            CVK_VK_GET_INSTANCE_PROC(this, vkCreateDebugReportCallbackEXT);
 
-        res = fnvkCreateDebugReportCallbackEXT(gVkInstance, &callbackInfo,
-                                               nullptr, &gVkDebugCallback);
+        res = func(m_vulkan_instance, &callbackInfo, nullptr,
+                   &m_vulkan_debug_callback);
         CVK_VK_CHECK_FATAL(res, "Can't setup debug callback");
     } else {
         cvk_warn("VK_EXT_debug_report not enabled");
     }
 }
 
-static void term_vulkan() {
-    if (gDebugReportEnabled) {
-        CVK_VK_GET_INSTANCE_PROC(vkDestroyDebugReportCallbackEXT);
-        fnvkDestroyDebugReportCallbackEXT(gVkInstance, gVkDebugCallback,
-                                          nullptr);
+void clvk_global_state::term_vulkan() {
+    if (m_debug_report_enabled) {
+        auto func =
+            CVK_VK_GET_INSTANCE_PROC(this, vkDestroyDebugReportCallbackEXT);
+        func(m_vulkan_instance, m_vulkan_debug_callback, nullptr);
     }
-    vkDestroyInstance(gVkInstance, nullptr);
+    vkDestroyInstance(m_vulkan_instance, nullptr);
 }
 
 static void init_options() {
@@ -219,27 +215,28 @@ static void init_options() {
     }
 }
 
-static void init_platform() {
-    gPlatform = new cvk_platform();
+void clvk_global_state::init_platform() {
+
+    m_platform = new cvk_platform();
 
     uint32_t numDevices;
     VkResult res =
-        vkEnumeratePhysicalDevices(gVkInstance, &numDevices, nullptr);
+        vkEnumeratePhysicalDevices(m_vulkan_instance, &numDevices, nullptr);
     CVK_VK_CHECK_FATAL(res, "Could not enumerate physical devices");
     cvk_info("Found %u physical devices", numDevices);
 
     std::vector<VkPhysicalDevice> physicalDevices(numDevices);
-    res = vkEnumeratePhysicalDevices(gVkInstance, &numDevices,
+    res = vkEnumeratePhysicalDevices(m_vulkan_instance, &numDevices,
                                      physicalDevices.data());
     CVK_VK_CHECK_FATAL(res, "Could not enumerate physical devices");
 
     for (uint32_t i = 0; i < numDevices; ++i) {
-        if (!gPlatform->create_device(physicalDevices[i])) {
+        if (!m_platform->create_device(m_vulkan_instance, physicalDevices[i])) {
             cvk_error("Could not create CL device from Vulkan device!");
         }
     }
 
-    auto num_devices = gPlatform->devices().size();
+    auto num_devices = m_platform->devices().size();
     if (num_devices == 0) {
         cvk_fatal("Could not initialise any device!");
     } else {
@@ -247,22 +244,39 @@ static void init_platform() {
     }
 }
 
-static void term_platform() { delete gPlatform; }
+void clvk_global_state::term_platform() { delete m_platform; }
 
-class clvk_initializer {
-public:
-    clvk_initializer() {
-        init_logging();
-        cvk_info("Starting initialisation");
-        init_options();
-        init_vulkan();
-        init_platform();
-        cvk_info("Initialisation complete");
-    }
+clvk_global_state::clvk_global_state() {
+    init_logging();
+    cvk_info("Starting initialisation");
+    init_options();
+    init_vulkan();
+    init_platform();
+    cvk_info("Initialisation complete");
+}
 
-    ~clvk_initializer() {
-        term_platform();
-        term_vulkan();
-        term_logging();
+clvk_global_state::~clvk_global_state() {
+    term_platform();
+    term_vulkan();
+    term_logging();
+}
+
+static clvk_global_state* gGlobalState;
+static std::once_flag gInitOnceFlag;
+
+static void destroy_global_state() { delete gGlobalState; }
+
+static void init_global_state() {
+    gGlobalState = new clvk_global_state();
+#ifndef WIN32
+    if (atexit(destroy_global_state) != 0) {
+        cvk_fatal(
+            "Could not register global state destructor using atexit()\n");
     }
-} gInitializer;
+#endif
+}
+
+const clvk_global_state* get_or_init_global_state() {
+    std::call_once(gInitOnceFlag, init_global_state);
+    return gGlobalState;
+}

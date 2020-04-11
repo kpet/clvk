@@ -16,12 +16,39 @@
 
 #include "device.hpp"
 
+#include <memory>
 #include <string>
-
-extern VkInstance gVkInstance;
-extern cvk_platform* gPlatform;
 
 extern std::string gCLSPVPath;
 extern std::string gLLVMSPIRVPath;
 extern std::string gCLSPVOptions;
 extern bool gQueueProfilingUsesTimestampQueries;
+
+class clvk_global_state {
+public:
+    clvk_global_state();
+    ~clvk_global_state();
+
+    cvk_platform* platform() const { return m_platform; }
+
+    VkInstance vulkan_instance() const { return m_vulkan_instance; }
+
+    PFN_vkVoidFunction get_instance_proc(const char* name) {
+        return vkGetInstanceProcAddr(m_vulkan_instance, name);
+    }
+
+private:
+    void init_vulkan();
+    void term_vulkan();
+    void init_platform();
+    void term_platform();
+    cvk_platform* m_platform;
+    VkInstance m_vulkan_instance;
+    bool m_debug_report_enabled{};
+    VkDebugReportCallbackEXT m_vulkan_debug_callback;
+};
+
+#define CVK_VK_GET_INSTANCE_PROC(state, name)                                  \
+    reinterpret_cast<PFN_##name>(state->get_instance_proc(#name))
+
+extern const clvk_global_state* get_or_init_global_state();

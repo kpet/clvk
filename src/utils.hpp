@@ -50,10 +50,6 @@ char* cvk_mkdtemp(std::string& tmpl);
 
 #define CVK_ASSERT(cond) assert(cond)
 
-#define CVK_VK_GET_INSTANCE_PROC(name)                                         \
-    PFN_##name fn##name = reinterpret_cast<PFN_##name>(                        \
-        vkGetInstanceProcAddr(gVkInstance, #name))
-
 #define UNUSED(X) ((void)(X))
 
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(X[0]))

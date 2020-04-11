@@ -32,20 +32,25 @@ static cl_version_khr gOpenCLVersion = CL_MAKE_VERSION_KHR(1, 2, 0);
 
 static constexpr bool devices_support_images() { return true; }
 
+struct cvk_platform;
+
 struct cvk_device : public _cl_device_id {
 
-    cvk_device(VkPhysicalDevice pd) : m_pdev(pd) {
+    cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
+        : m_platform(platform), m_pdev(pd) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
 
-    static cvk_device* create(VkPhysicalDevice pdev);
+    static cvk_device* create(cvk_platform* platform, VkInstance instance,
+                              VkPhysicalDevice pdev);
 
     virtual ~cvk_device() { vkDestroyDevice(m_dev, nullptr); }
 
     const VkPhysicalDeviceLimits& vulkan_limits() const {
         return m_properties.limits;
     }
+    cvk_platform* platform() const { return m_platform; }
     const char* name() const { return m_properties.deviceName; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
 
@@ -278,13 +283,15 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
-    void init_features();
+    void init_features(VkInstance instance);
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
     CHECK_RETURN bool compute_buffer_alignement_requirements();
     void log_limits_and_memory_information();
-    CHECK_RETURN bool init();
+    CHECK_RETURN bool init(VkInstance instance);
+
+    cvk_platform* m_platform;
 
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
@@ -331,8 +338,9 @@ struct cvk_platform : public _cl_platform_id {
         }
     }
 
-    CHECK_RETURN bool create_device(VkPhysicalDevice pdev) {
-        auto dev = cvk_device::create(pdev);
+    CHECK_RETURN bool create_device(VkInstance instance,
+                                    VkPhysicalDevice pdev) {
+        auto dev = cvk_device::create(this, instance, pdev);
         if (dev != nullptr) {
             m_devices.push_back(dev);
             return true;

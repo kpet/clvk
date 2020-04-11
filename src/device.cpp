@@ -17,10 +17,11 @@
 #include "log.hpp"
 #include "memory.hpp"
 
-cvk_device* cvk_device::create(VkPhysicalDevice pdev) {
-    cvk_device* device = new cvk_device(pdev);
+cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
+                               VkPhysicalDevice pdev) {
+    cvk_device* device = new cvk_device(platform, pdev);
 
-    if (!device->init()) {
+    if (!device->init(instance)) {
         delete device;
         return nullptr;
     }
@@ -113,7 +114,9 @@ bool cvk_device::init_extensions() {
     return true;
 }
 
-void cvk_device::init_features() {
+void cvk_device::init_features(VkInstance instance) {
+
+    cvk_info("Initialising features");
 
     // Query supported features.
     m_features_ubo_stdlayout.sType =
@@ -154,8 +157,7 @@ void cvk_device::init_features() {
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
         // Use the extension on Vulkan 1.0 platforms
         auto func = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>(
-            vkGetInstanceProcAddr(gVkInstance,
-                                  "vkGetPhysicalDeviceFeatures2KHR"));
+            vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR"));
         if (!func) {
             cvk_fatal(
                 "Failed to get pointer to vkGetPhysicalDeviceFeatures2KHR()");
@@ -225,6 +227,7 @@ void cvk_device::build_extension_ils_list() {
 
 bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
                                                  uint32_t queue_family) {
+    cvk_info("Creating Vulkan device and queues");
     // Give all queues the same priority
     std::vector<float> queuePriorities(num_queues, 1.0f);
 
@@ -327,7 +330,7 @@ void cvk_device::log_limits_and_memory_information() {
     }
 }
 
-bool cvk_device::init() {
+bool cvk_device::init(VkInstance instance) {
     cvk_info("Initialising device %s", m_properties.deviceName);
 
     uint32_t num_queues, queue_family;
@@ -339,7 +342,7 @@ bool cvk_device::init() {
         return false;
     }
 
-    init_features();
+    init_features(instance);
 
     build_extension_ils_list();
 
