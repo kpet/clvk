@@ -120,7 +120,7 @@
       "constant": "pass",
       "constant_source": "pass",
       "createkernelsinprogram": "pass",
-      "enqueue_map_buffer": "fail",
+      "enqueue_map_buffer": "pass",
       "enqueue_map_image": "fail",
       "enqueued_local_size": "skip",
       "explicit_s2v_char": "pass",

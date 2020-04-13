@@ -2943,9 +2943,8 @@ void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
         return nullptr;
     }
 
-    // TODO handle map flags
-
-    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size);
+    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size,
+                                          map_flags);
 
     void* map_ptr;
     cl_int err = cmd->build(&map_ptr);
@@ -3002,7 +3001,7 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
         cmd = cmd_unmap.release();
     } else {
         auto buffer = static_cast<cvk_buffer*>(memobj);
-        cmd = new cvk_command_unmap_buffer(command_queue, buffer);
+        cmd = new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
     }
 
     command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,

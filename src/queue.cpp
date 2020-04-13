@@ -679,27 +679,45 @@ cl_int cvk_command_fill_buffer::do_action() {
 }
 
 cl_int cvk_command_map_buffer::build(void** map_ptr) {
-    if (!m_buffer->map()) {
+
+    if (!m_buffer->find_or_create_mapping(m_mapping, m_offset, m_size,
+                                          m_flags)) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    *map_ptr = m_buffer->map_ptr(m_offset);
+    *map_ptr = m_mapping.buffer->map_ptr(m_offset);
 
     return CL_SUCCESS;
 }
 
 cl_int cvk_command_map_buffer::do_action() {
     bool success = true;
+
+    if (!m_buffer->insert_mapping(m_mapping)) {
+        return false;
+    }
+
     if (m_buffer->has_flags(CL_MEM_USE_HOST_PTR)) {
-        success = m_buffer->copy_to(m_buffer->host_ptr(), m_offset, m_size);
+        auto dst = m_mapping.buffer->host_ptr();
+        dst = pointer_offset(dst, m_offset);
+        success = m_buffer->copy_to(dst, m_offset, m_size);
     }
 
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
 cl_int cvk_command_unmap_buffer::do_action() {
-    m_buffer->unmap();
-    return CL_COMPLETE;
+    bool success = true;
+
+    auto mapping = m_buffer->remove_mapping(m_mapped_ptr);
+
+    if (m_buffer->has_flags(CL_MEM_USE_HOST_PTR)) {
+        auto src = m_buffer->host_ptr();
+        src = pointer_offset(src, mapping.offset);
+        success = mapping.buffer->copy_from(src, mapping.offset, mapping.size);
+    }
+
+    return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;
 }
 
 cl_int cvk_command_unmap_image::do_action() {
