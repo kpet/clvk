@@ -910,19 +910,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 #endif
 
-    // Build push constant ranges
-    auto& pcs = m_binary.push_constants();
-
-    m_push_constant_ranges.reserve(pcs.size());
-
-    for (auto& pc_pcd : pcs) {
-        auto pcd = pc_pcd.second;
-        VkPushConstantRange range = {VK_SHADER_STAGE_COMPUTE_BIT, pcd.offset,
-                                     pcd.size};
-
-        m_push_constant_ranges.push_back(range);
-    }
-
     return CL_BUILD_SUCCESS;
 }
 
@@ -1012,6 +999,20 @@ cl_build_status cvk_program::link() {
     return CL_BUILD_SUCCESS;
 }
 
+void cvk_program::prepare_push_constant_ranges() {
+    auto& pcs = m_binary.push_constants();
+
+    m_push_constant_ranges.reserve(pcs.size());
+
+    for (auto& pc_pcd : pcs) {
+        auto pcd = pc_pcd.second;
+        VkPushConstantRange range = {VK_SHADER_STAGE_COMPUTE_BIT, pcd.offset,
+                                     pcd.size};
+
+        m_push_constant_ranges.push_back(range);
+    }
+}
+
 bool cvk_program::check_capabilities(const cvk_device* device) const {
     // Get list of required SPIR-V capabilities.
     std::vector<spv::Capability> capabilities;
@@ -1047,6 +1048,7 @@ void cvk_program::do_build() {
         if (!m_binary.loaded_from_binary()) {
             status = compile_source(device);
         }
+        prepare_push_constant_ranges();
         break;
     case build_operation::link:
         status = link();

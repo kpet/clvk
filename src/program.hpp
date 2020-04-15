@@ -451,6 +451,7 @@ private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
     CHECK_RETURN cl_build_status link();
+    void prepare_push_constant_ranges();
 
     /// Check if all of the capabilities required by the SPIR-V module are
     /// supported by `device`.
