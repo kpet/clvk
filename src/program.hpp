@@ -89,6 +89,12 @@ struct pushconstant_desc {
     uint32_t size;
 };
 
+enum class spec_constant {
+    workgroup_size_x,
+    workgroup_size_y,
+    workgroup_size_z,
+};
+
 class spir_binary {
 
     using kernels_arguments_map =
@@ -138,6 +144,10 @@ public:
         return m_push_constants;
     }
 
+    const std::unordered_map<spec_constant, uint32_t>& spec_constants() const {
+        return m_spec_constants;
+    }
+
     CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
         if (m_push_constants.count(pc) != 0) {
             return &m_push_constants.at(pc);
@@ -155,11 +165,14 @@ private:
                                         int toknum);
     CHECK_RETURN bool parse_pushconstant(const std::vector<std::string>& tokens,
                                          int toknum);
+    CHECK_RETURN bool parse_specconstant(const std::vector<std::string>& tokens,
+                                         int toknum);
 
     spv_context m_context;
     std::vector<uint32_t> m_code;
     std::vector<sampler_desc> m_literal_samplers;
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
+    std::unordered_map<spec_constant, uint32_t> m_spec_constants;
     kernels_arguments_map m_dmaps;
     std::string m_dmaps_text;
     bool m_loaded_from_binary;
@@ -442,6 +455,11 @@ struct cvk_program : public _cl_program, api_object {
 
     CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
         return m_binary.push_constant(pc);
+    }
+
+    CHECK_RETURN const std::unordered_map<spec_constant, uint32_t>&
+    spec_constants() const {
+        return m_binary.spec_constants();
     }
 
     CHECK_RETURN cvk_entry_point* get_entry_point(std::string& name,
