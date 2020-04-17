@@ -1083,6 +1083,7 @@ void cvk_program::do_build() {
                                 desc.addressing_mode, desc.filter_mode);
         if (sampler == nullptr) {
             complete_operation(device, CL_BUILD_ERROR);
+            return;
         }
         m_literal_samplers.emplace_back(sampler);
     }
