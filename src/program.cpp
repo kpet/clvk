@@ -1083,6 +1083,7 @@ void cvk_program::do_build() {
                                 desc.addressing_mode, desc.filter_mode);
         if (sampler == nullptr) {
             complete_operation(device, CL_BUILD_ERROR);
+            return;
         }
         m_literal_samplers.emplace_back(sampler);
     }
@@ -1116,7 +1117,14 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
                         const cl_program* input_programs,
                         const char** header_include_names,
                         cvk_program_callback cb, void* data) {
-    if (!m_lock.try_lock()) {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    // Check if there is already a build in progress
+    // TODO: Allow concurrent builds targeting different devices
+    if (std::count_if(m_dev_status.begin(), m_dev_status.end(),
+                      [](auto& status) {
+                          return status.second == CL_BUILD_IN_PROGRESS;
+                      })) {
         return false;
     }
 

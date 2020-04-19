@@ -387,7 +387,6 @@ struct cvk_program : public _cl_program, api_object {
 
     void complete_operation(cvk_device* device, cl_build_status status) {
         m_dev_status[device] = status;
-        m_lock.unlock();
         if (m_operation_callback != nullptr) {
             m_operation_callback(this, m_operation_callback_data);
         }
