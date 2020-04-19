@@ -18,7 +18,10 @@
 #include "memory.hpp"
 #include "queue.hpp"
 
-cvk_executor_thread_pool gThreadPool;
+static cvk_executor_thread_pool* get_thread_pool() {
+    auto state = get_or_init_global_state();
+    return state->thread_pool();
+}
 
 cvk_command_queue::cvk_command_queue(cvk_context* ctx, cvk_device* device,
                                      cl_command_queue_properties properties)
@@ -44,7 +47,7 @@ cl_int cvk_command_queue::init() {
 
 cvk_command_queue::~cvk_command_queue() {
     if (m_executor != nullptr) {
-        gThreadPool.return_executor(m_executor);
+        get_thread_pool()->return_executor(m_executor);
     }
 }
 
@@ -213,7 +216,7 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     {
         std::lock_guard<std::mutex> lock(m_lock);
         if (m_executor == nullptr) {
-            m_executor = gThreadPool.get_executor(this);
+            m_executor = get_thread_pool()->get_executor(this);
         }
     }
 

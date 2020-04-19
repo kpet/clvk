@@ -14,15 +14,18 @@
 
 #pragma once
 
-#include "device.hpp"
-
 #include <memory>
 #include <string>
+
+#include <vulkan/vulkan.h>
 
 extern std::string gCLSPVPath;
 extern std::string gLLVMSPIRVPath;
 extern std::string gCLSPVOptions;
 extern bool gQueueProfilingUsesTimestampQueries;
+
+struct cvk_platform;
+struct cvk_executor_thread_pool;
 
 class clvk_global_state {
 public:
@@ -37,11 +40,17 @@ public:
         return vkGetInstanceProcAddr(m_vulkan_instance, name);
     }
 
+    cvk_executor_thread_pool* thread_pool() { return m_thread_pool; }
+
 private:
     void init_vulkan();
     void term_vulkan();
     void init_platform();
     void term_platform();
+    void init_executors();
+    void term_executors();
+
+    cvk_executor_thread_pool* m_thread_pool;
     cvk_platform* m_platform;
     VkInstance m_vulkan_instance;
     bool m_debug_report_enabled{};
@@ -51,4 +60,4 @@ private:
 #define CVK_VK_GET_INSTANCE_PROC(state, name)                                  \
     reinterpret_cast<PFN_##name>(state->get_instance_proc(#name))
 
-extern const clvk_global_state* get_or_init_global_state();
+extern clvk_global_state* get_or_init_global_state();

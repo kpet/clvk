@@ -22,6 +22,7 @@
 #include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
+#include "queue.hpp"
 
 bool gQueueProfilingUsesTimestampQueries = false;
 
@@ -246,16 +247,24 @@ void clvk_global_state::init_platform() {
 
 void clvk_global_state::term_platform() { delete m_platform; }
 
+void clvk_global_state::init_executors() {
+    m_thread_pool = new cvk_executor_thread_pool();
+}
+
+void clvk_global_state::term_executors() { delete m_thread_pool; }
+
 clvk_global_state::clvk_global_state() {
     init_logging();
     cvk_info("Starting initialisation");
     init_options();
     init_vulkan();
     init_platform();
+    init_executors();
     cvk_info("Initialisation complete");
 }
 
 clvk_global_state::~clvk_global_state() {
+    term_executors();
     term_platform();
     term_vulkan();
     term_logging();
@@ -276,7 +285,7 @@ static void init_global_state() {
 #endif
 }
 
-const clvk_global_state* get_or_init_global_state() {
+clvk_global_state* get_or_init_global_state() {
     std::call_once(gInitOnceFlag, init_global_state);
     return gGlobalState;
 }
