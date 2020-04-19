@@ -192,9 +192,13 @@ bool is_command_batchable(cvk_command* cmd) {
     bool unresolved_other_queue_dependencies = false;
 
     for (auto ev : cmd->dependencies()) {
-        if (ev->is_user_event() && !ev->completed()) {
-            unresolved_user_event_dependencies = true;
-            break;
+        if (ev->is_user_event()) {
+            if (!ev->completed()) {
+                unresolved_user_event_dependencies = true;
+                break;
+            } else {
+                continue;
+            }
         }
 
         if ((ev->queue() != cmd->queue()) && !ev->completed()) {
