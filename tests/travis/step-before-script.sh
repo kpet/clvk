@@ -2,6 +2,10 @@
 
 set -ex
 
+if [ "${JOB_CHECK_FORMAT}" -eq 1 ]; then
+    exit 0
+fi
+
 cd external/clspv
 ./utils/fetch_sources.py --deps llvm
 cd ../..
