@@ -40,12 +40,16 @@ struct cvk_event : public _cl_event, api_object {
         : api_object(ctx), m_status(status), m_command_type(type),
           m_queue(queue) {}
 
+    bool completed() { return m_status == CL_COMPLETE; }
+
+    bool terminated() { return m_status < 0; }
+
     void set_status(cl_int status) {
         std::lock_guard<std::mutex> lock(m_lock);
 
         m_status = status;
 
-        if ((m_status == CL_COMPLETE) || (m_status < 0)) {
+        if (completed() || terminated()) {
 
             for (auto& type_cb : m_callbacks) {
                 for (auto& cb : type_cb.second) {
@@ -99,13 +103,15 @@ struct cvk_event : public _cl_event, api_object {
         return m_profiling_data[pinfo - CL_PROFILING_COMMAND_QUEUED];
     }
 
-    void set_profiling_info_from_monotonic_clock(cl_profiling_info pinfo) {
-        auto ts_time_point = std::chrono::steady_clock::now();
+    static uint64_t sample_clock() {
+        auto time_point = std::chrono::steady_clock::now();
+        auto time_since_epoch = time_point.time_since_epoch();
         using ns = std::chrono::nanoseconds;
-        uint64_t ts =
-            std::chrono::duration_cast<ns>(ts_time_point.time_since_epoch())
-                .count();
-        set_profiling_info(pinfo, ts);
+        return std::chrono::duration_cast<ns>(time_since_epoch).count();
+    }
+
+    void set_profiling_info_from_monotonic_clock(cl_profiling_info pinfo) {
+        set_profiling_info(pinfo, sample_clock());
     }
 
 private:
@@ -375,6 +381,8 @@ struct cvk_command {
 
     virtual bool is_profiled_by_executor() const { return true; }
 
+    const std::vector<cvk_event*>& dependencies() const { return m_event_deps; }
+
 protected:
     cl_command_type m_type;
     cvk_command_queue_holder m_queue;
@@ -599,6 +607,10 @@ struct cvk_command_kernel : public cvk_command {
         return !gQueueProfilingUsesTimestampQueries;
     }
 
+    CHECK_RETURN cl_int set_profiling_info_from_query_results();
+
+    cvk_command_buffer& command_buffer() { return m_command_buffer; }
+
     CHECK_RETURN cl_int build();
     virtual cl_int do_action() override;
 
@@ -618,6 +630,24 @@ private:
     static const int NUM_POOL_QUERIES_PER_KERNEL = 2;
     static const int POOL_QUERY_KERNEL_START = 0;
     static const int POOL_QUERY_KERNEL_END = 1;
+};
+
+struct cvk_command_kernel_group : public cvk_command {
+    cvk_command_kernel_group(cvk_command_queue* queue)
+        : cvk_command(CL_COMMAND_NDRANGE_KERNEL, queue) {}
+    ~cvk_command_kernel_group() {}
+
+    cl_int do_action() override;
+    void add_kernel(cvk_command_kernel* cmd) {
+        m_kernel_commands.emplace_back(cmd);
+    }
+
+    bool is_profiled_by_executor() const override { return false; }
+
+private:
+    CHECK_RETURN cl_int submit_and_wait();
+
+    std::vector<std::unique_ptr<cvk_command_kernel>> m_kernel_commands;
 };
 
 struct cvk_command_map_buffer : public cvk_command_buffer_base_region {

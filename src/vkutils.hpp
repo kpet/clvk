@@ -53,6 +53,30 @@ struct cvk_vulkan_queue_wrapper {
         return ret;
     }
 
+    CHECK_RETURN VkResult submit(const std::vector<VkCommandBuffer>& cmdbufs) {
+        std::lock_guard<std::mutex> lock(m_lock);
+
+        VkSubmitInfo submitInfo = {
+            VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            nullptr,
+            0,                                     // waitSemaphoreCOunt
+            nullptr,                               // pWaitSemaphores
+            nullptr,                               // pWaitDstStageMask
+            static_cast<uint32_t>(cmdbufs.size()), // commandBufferCount
+            cmdbufs.data(),
+            0,       // signalSemaphoreCount
+            nullptr, // pSignalSemaphores
+        };
+
+        auto ret = vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        if (ret != VK_SUCCESS) {
+            cvk_error_fn("could not submit work to queue: %s",
+                         vulkan_error_string(ret));
+        }
+
+        return ret;
+    }
+
     CHECK_RETURN VkResult wait_idle() {
         std::lock_guard<std::mutex> lock(m_lock);
 
