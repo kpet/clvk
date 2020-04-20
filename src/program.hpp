@@ -84,7 +84,8 @@ enum class pushconstant
     enqueued_local_size,
 };
 
-struct pushconstant_desc {
+struct pushconstant_desc
+{
     uint32_t offset;
     uint32_t size;
 };
