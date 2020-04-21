@@ -15,6 +15,7 @@
 #pragma once
 
 #include <mutex>
+#include <vector>
 
 #include <vulkan/vulkan.h>
 
