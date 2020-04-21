@@ -94,6 +94,7 @@ enum class spec_constant
     workgroup_size_x,
     workgroup_size_y,
     workgroup_size_z,
+    work_dim,
 };
 
 class spir_binary {

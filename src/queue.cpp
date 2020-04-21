@@ -445,6 +445,13 @@ cl_int cvk_command_kernel::build() {
          m_argument_values->specialization_constants()) {
         specConstants[spec_value.first] = spec_value.second;
     }
+    // Clspv allocates a spec constant for work dimensions if get_work_dim() is
+    // used.
+    where = constants.find(spec_constant::work_dim);
+    if (where != constants.end()) {
+        uint32_t dim_id = where->second;
+        specConstants[dim_id] = m_dimensions;
+    }
 
     m_pipeline = m_kernel->create_pipeline(specConstants);
 

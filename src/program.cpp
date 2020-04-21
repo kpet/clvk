@@ -455,6 +455,8 @@ bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
         constant = spec_constant::workgroup_size_y;
     } else if (name == "workgroup_size_z") {
         constant = spec_constant::workgroup_size_z;
+    } else if (name == "work_dim") {
+        constant = spec_constant::work_dim;
     } else {
         return false;
     }
@@ -640,6 +642,9 @@ bool spir_binary::load_descriptor_map(
                 break;
             case clspv::SpecConstant::kWorkgroupSizeZ:
                 constant = spec_constant::workgroup_size_z;
+                break;
+            case clspv::SpecConstant::kWorkDim:
+                constant = spec_constant::work_dim;
                 break;
             default:
                 cvk_error(
@@ -878,7 +883,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
-    options += " -work-dim -global-offset ";
+    options += " -global-offset ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
