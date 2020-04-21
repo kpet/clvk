@@ -445,6 +445,30 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
     return true;
 }
 
+bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
+                                     int toknum) {
+    auto name = tokens[toknum++];
+    spec_constant constant;
+    if (name == "workgroup_size_x") {
+        constant = spec_constant::workgroup_size_x;
+    } else if (name == "workgroup_size_y") {
+        constant = spec_constant::workgroup_size_y;
+    } else if (name == "workgroup_size_z") {
+        constant = spec_constant::workgroup_size_z;
+    } else {
+        return false;
+    }
+
+    if (tokens[toknum++] != "spec_id") {
+        return false;
+    }
+
+    uint32_t id = atoi(tokens[toknum++].c_str());
+    m_spec_constants[constant] = id;
+
+    return true;
+}
+
 bool spir_binary::load_descriptor_map(std::istream& istream) {
     m_dmaps.clear();
 
@@ -470,6 +494,10 @@ bool spir_binary::load_descriptor_map(std::istream& istream) {
             }
         } else if (tokens[toknum] == "kernel_decl") {
             if (!parse_kernel_decl(tokens, toknum + 1)) {
+                return false;
+            }
+        } else if (tokens[toknum] == "spec_constant") {
+            if (!parse_specconstant(tokens, toknum + 1)) {
                 return false;
             }
         } else {
@@ -595,6 +623,31 @@ bool spir_binary::load_descriptor_map(
             if (m_dmaps.count(entry.kernel_decl_data.kernel_name) == 0) {
                 m_dmaps[entry.kernel_decl_data.kernel_name] = {};
             }
+
+            continue;
+        }
+
+        if (entry.kind ==
+            clspv::version0::DescriptorMapEntry::Kind::SpecConstant) {
+            spec_constant constant;
+            uint32_t id = entry.spec_constant_data.spec_id;
+            switch (entry.spec_constant_data.spec_constant) {
+            case clspv::SpecConstant::kWorkgroupSizeX:
+                constant = spec_constant::workgroup_size_x;
+                break;
+            case clspv::SpecConstant::kWorkgroupSizeY:
+                constant = spec_constant::workgroup_size_y;
+                break;
+            case clspv::SpecConstant::kWorkgroupSizeZ:
+                constant = spec_constant::workgroup_size_z;
+                break;
+            default:
+                cvk_error(
+                    "Unhandled spec constant: %d",
+                    static_cast<int>(entry.spec_constant_data.spec_constant));
+                return false;
+            }
+            m_spec_constants[constant] = id;
 
             continue;
         }

@@ -415,10 +415,31 @@ cl_int cvk_command_kernel::build() {
         return CL_OUT_OF_RESOURCES;
     }
 
+    auto program = m_kernel->program();
+    auto constants = program->spec_constants();
+    // TODO: if all kernels in the module use the same reqd_workgroup_size ,
+    // clspv will not generate specialization constants for workgroup size, but
+    // these values should be error checked.
+    uint32_t wgsize_x_id = 0;
+    auto where = constants.find(spec_constant::workgroup_size_x);
+    if (where != constants.end()) {
+        wgsize_x_id = where->second;
+    }
+    uint32_t wgsize_y_id = 1;
+    where = constants.find(spec_constant::workgroup_size_y);
+    if (where != constants.end()) {
+        wgsize_y_id = where->second;
+    }
+    uint32_t wgsize_z_id = 2;
+    where = constants.find(spec_constant::workgroup_size_z);
+    if (where != constants.end()) {
+        wgsize_z_id = where->second;
+    }
+
     cvk_spec_constant_map specConstants = {
-        {0, m_wg_size[0]},
-        {1, m_wg_size[1]},
-        {2, m_wg_size[2]},
+        {wgsize_x_id, m_wg_size[0]},
+        {wgsize_y_id, m_wg_size[1]},
+        {wgsize_z_id, m_wg_size[2]},
     };
     for (auto const& spec_value :
          m_argument_values->specialization_constants()) {
@@ -448,8 +469,6 @@ cl_int cvk_command_kernel::build() {
             m_kernel->pipeline_layout(), 0, m_kernel->num_set_layouts(),
             m_descriptor_sets.data(), 0, 0);
     }
-
-    auto program = m_kernel->program();
 
     if (auto pc = program->push_constant(pushconstant::dimensions)) {
         CVK_ASSERT(pc->size == 4);
