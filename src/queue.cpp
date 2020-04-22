@@ -445,6 +445,13 @@ cl_int cvk_command_kernel::build() {
          m_argument_values->specialization_constants()) {
         specConstants[spec_value.first] = spec_value.second;
     }
+    // Clspv allocates a spec constant for work dimensions if get_work_dim() is
+    // used.
+    where = constants.find(spec_constant::work_dim);
+    if (where != constants.end()) {
+        uint32_t dim_id = where->second;
+        specConstants[dim_id] = m_dimensions;
+    }
 
     m_pipeline = m_kernel->create_pipeline(specConstants);
 
@@ -468,13 +475,6 @@ cl_int cvk_command_kernel::build() {
             m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
             m_kernel->pipeline_layout(), 0, m_kernel->num_set_layouts(),
             m_descriptor_sets.data(), 0, 0);
-    }
-
-    if (auto pc = program->push_constant(pushconstant::dimensions)) {
-        CVK_ASSERT(pc->size == 4);
-        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_dimensions);
     }
 
     if (auto pc = program->push_constant(pushconstant::global_offset)) {

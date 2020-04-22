@@ -88,3 +88,52 @@ TEST_F(WithCommandQueue, KernelNoArguments) {
     clReleaseEvent(event);
     ASSERT_EQ(status, CL_COMPLETE);
 }
+
+TEST_F(WithCommandQueue, WorkDim) {
+
+    static const char* program_source = R"(
+    kernel void test_work_dim(global uint* out, uint id)
+    {
+        out[id] = get_work_dim();
+    }
+    )";
+
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "test_work_dim");
+
+    // Create buffer
+    size_t buffer_size = sizeof(cl_uint) * 3;
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+
+    // Dispatch kernel
+    auto ts_start = sampleTime();
+    SetKernelArg(kernel, 0, buffer);
+    const size_t gws[3] = {1, 1, 1};
+    const size_t lws[3] = {1, 1, 1};
+    for (cl_uint i = 0; i < 3; ++i) {
+        cl_uint work_dim = i + 1;
+        SetKernelArg(kernel, 1, &i);
+        EnqueueNDRangeKernel(kernel, work_dim, nullptr, gws, lws);
+    }
+    auto ts_end = sampleTime();
+    RecordProperty("enqueue-time", ts_end - ts_start);
+
+    // Complete execution
+    Finish();
+
+    // Map the buffer
+    auto data =
+        EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    // Check the expected result
+    for (cl_uint i = 0; i < 3; ++i) {
+        EXPECT_EQ(data[i], static_cast<cl_uint>(i + 1))
+            << "Failure comparison at data[" << i << "]:\n - expected " << i + 1
+            << "\n - got: " << data[i];
+    }
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
+}

@@ -79,7 +79,6 @@ struct sampler_desc {
 
 enum class pushconstant
 {
-    dimensions,
     global_offset,
     enqueued_local_size,
 };
@@ -94,6 +93,7 @@ enum class spec_constant
     workgroup_size_x,
     workgroup_size_y,
     workgroup_size_z,
+    work_dim,
 };
 
 class spir_binary {

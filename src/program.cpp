@@ -418,9 +418,7 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
     auto& name = tokens[toknum++];
     pushconstant pc;
 
-    if (name == "dimensions") {
-        pc = pushconstant::dimensions;
-    } else if (name == "global_offset") {
+    if (name == "global_offset") {
         pc = pushconstant::global_offset;
     } else if (name == "enqueued_local_size") {
         pc = pushconstant::enqueued_local_size;
@@ -455,6 +453,8 @@ bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
         constant = spec_constant::workgroup_size_y;
     } else if (name == "workgroup_size_z") {
         constant = spec_constant::workgroup_size_z;
+    } else if (name == "work_dim") {
+        constant = spec_constant::work_dim;
     } else {
         return false;
     }
@@ -594,9 +594,6 @@ bool spir_binary::load_descriptor_map(
             pushconstant pc;
             pushconstant_desc pcd;
             switch (entry.push_constant_data.pc) {
-            case clspv::PushConstant::Dimensions:
-                pc = pushconstant::dimensions;
-                break;
             case clspv::PushConstant::GlobalOffset:
                 pc = pushconstant::global_offset;
                 break;
@@ -640,6 +637,9 @@ bool spir_binary::load_descriptor_map(
                 break;
             case clspv::SpecConstant::kWorkgroupSizeZ:
                 constant = spec_constant::workgroup_size_z;
+                break;
+            case clspv::SpecConstant::kWorkDim:
+                constant = spec_constant::work_dim;
                 break;
             default:
                 cvk_error(
@@ -878,7 +878,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
-    options += " -work-dim -global-offset ";
+    options += " -global-offset ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
