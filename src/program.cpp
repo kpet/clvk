@@ -418,9 +418,7 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
     auto& name = tokens[toknum++];
     pushconstant pc;
 
-    if (name == "dimensions") {
-        pc = pushconstant::dimensions;
-    } else if (name == "global_offset") {
+    if (name == "global_offset") {
         pc = pushconstant::global_offset;
     } else if (name == "enqueued_local_size") {
         pc = pushconstant::enqueued_local_size;
@@ -596,9 +594,6 @@ bool spir_binary::load_descriptor_map(
             pushconstant pc;
             pushconstant_desc pcd;
             switch (entry.push_constant_data.pc) {
-            case clspv::PushConstant::Dimensions:
-                pc = pushconstant::dimensions;
-                break;
             case clspv::PushConstant::GlobalOffset:
                 pc = pushconstant::global_offset;
                 break;

@@ -79,7 +79,6 @@ struct sampler_desc {
 
 enum class pushconstant
 {
-    dimensions,
     global_offset,
     enqueued_local_size,
 };
