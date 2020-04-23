@@ -1215,7 +1215,10 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     m_operation_callback_data = data;
 
     // Kick off build
-    m_thread = new std::thread(&cvk_program::do_build, this);
+    m_thread = std::make_unique<std::thread>(&cvk_program::do_build, this);
+    if (cb) {
+        m_thread->detach();
+    }
 
     return true;
 }

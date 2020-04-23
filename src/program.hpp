@@ -396,8 +396,8 @@ struct cvk_program : public _cl_program, api_object {
     VkShaderModule shader_module() const { return m_shader_module; }
 
     void wait_for_operation() {
+        CVK_ASSERT(m_thread->joinable());
         m_thread->join();
-        delete m_thread;
     }
 
     void complete_operation(cvk_device* device, cl_build_status status) {
@@ -486,7 +486,7 @@ private:
     cvk_program_callback m_operation_callback;
     void* m_operation_callback_data;
     std::mutex m_lock;
-    std::thread* m_thread;
+    std::unique_ptr<std::thread> m_thread;
     std::string m_source;
     std::vector<uint8_t> m_il;
     VkShaderModule m_shader_module;
