@@ -23,6 +23,7 @@
 
 struct cvk_command;
 struct cvk_command_queue;
+struct cvk_command_kernel_group;
 using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 using cvk_event_callback_pointer_type = void(CL_CALLBACK*)(
@@ -231,9 +232,10 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
         return (m_properties & prop) == prop;
     }
 
-    void enqueue_command_with_deps(cvk_command* cmd, cl_uint num_dep_events,
-                                   _cl_event* const* dep_events,
-                                   _cl_event** event);
+    CHECK_RETURN cl_int enqueue_command_with_deps(cvk_command* cmd,
+                                                  cl_uint num_dep_events,
+                                                  _cl_event* const* dep_events,
+                                                  _cl_event** event);
     CHECK_RETURN cl_int enqueue_command_with_deps(cvk_command* cmd,
                                                   bool blocking,
                                                   cl_uint num_dep_events,
@@ -264,7 +266,7 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
     cl_command_queue_properties properties() const { return m_properties; }
 
 private:
-    void enqueue_command(cvk_command* cmd, _cl_event** event);
+    CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
     void executor();
 
     cvk_device* m_device;
@@ -274,6 +276,7 @@ private:
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
+    cvk_command_kernel_group* m_kernel_group;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
@@ -353,6 +356,11 @@ struct cvk_command {
             cvk_debug_fn("adding dep on event %p", evt);
             m_event_deps.push_back(evt);
         }
+    }
+
+    void set_dependencies(const std::vector<cvk_event*>& deps) {
+        CVK_ASSERT(m_event_deps.size() == 0);
+        m_event_deps = deps;
     }
 
     CHECK_RETURN cl_int execute() {
@@ -588,7 +596,7 @@ struct cvk_command_kernel : public cvk_command {
                        const std::array<uint32_t, 3>& lws)
         : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
           m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
-          m_lws(lws), m_command_buffer(q), m_descriptor_sets{VK_NULL_HANDLE},
+          m_lws(lws), m_descriptor_sets{VK_NULL_HANDLE},
           m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}
 
@@ -611,9 +619,7 @@ struct cvk_command_kernel : public cvk_command {
 
     CHECK_RETURN cl_int set_profiling_info_from_query_results();
 
-    cvk_command_buffer& command_buffer() { return m_command_buffer; }
-
-    CHECK_RETURN cl_int build();
+    CHECK_RETURN cl_int build(cvk_command_buffer& command_buffer);
     virtual cl_int do_action() override;
 
 private:
@@ -622,16 +628,17 @@ private:
         std::array<uint32_t, 3> gws;
         std::array<uint32_t, 3> lws;
     };
-    CHECK_RETURN cl_int build_and_dispatch_regions();
-    void update_global_push_constants();
-    CHECK_RETURN cl_int dispatch_uniform_region(const cvk_ndrange& region);
+    CHECK_RETURN cl_int
+    build_and_dispatch_regions(cvk_command_buffer& command_buffer);
+    void update_global_push_constants(cvk_command_buffer& command_buffer);
+    CHECK_RETURN cl_int dispatch_uniform_region(
+        const cvk_ndrange& region, cvk_command_buffer& command_buffer);
 
     cvk_kernel_holder m_kernel;
     uint32_t m_dimensions;
     std::array<uint32_t, 3> m_global_offsets;
     std::array<uint32_t, 3> m_gws;
     std::array<uint32_t, 3> m_lws;
-    cvk_command_buffer m_command_buffer;
     std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
         m_descriptor_sets;
     VkPipeline m_pipeline;
@@ -649,9 +656,20 @@ struct cvk_command_kernel_group : public cvk_command {
     ~cvk_command_kernel_group() {}
 
     cl_int do_action() override;
-    void add_kernel(cvk_command_kernel* cmd) {
+    cl_int add_kernel(cvk_command_kernel* cmd) {
+        // Create command buffer and start recording on first call
+        if (!m_command_buffer) {
+            m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
+            if (!m_command_buffer->begin()) {
+                return CL_OUT_OF_RESOURCES;
+            }
+        }
+
         m_kernel_commands.emplace_back(cmd);
+        return cmd->build(*m_command_buffer);
     }
+
+    CHECK_RETURN bool end() { return m_command_buffer->end(); }
 
     bool is_profiled_by_executor() const override { return false; }
 
@@ -659,6 +677,7 @@ private:
     CHECK_RETURN cl_int submit_and_wait();
 
     std::vector<std::unique_ptr<cvk_command_kernel>> m_kernel_commands;
+    std::unique_ptr<cvk_command_buffer> m_command_buffer;
 };
 
 struct cvk_command_map_buffer : public cvk_command_buffer_base_region {
