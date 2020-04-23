@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -373,7 +374,7 @@ struct cvk_program : public _cl_program, api_object {
     }
 
     cl_build_status build_status() const {
-        for (auto dev_st : m_dev_status) {
+        for (auto& dev_st : m_dev_status) {
             if (dev_st.second != CL_BUILD_SUCCESS) {
                 return dev_st.second;
             }
@@ -400,10 +401,10 @@ struct cvk_program : public _cl_program, api_object {
     }
 
     void complete_operation(cvk_device* device, cl_build_status status) {
-        m_dev_status[device] = status;
         if (m_operation_callback != nullptr) {
             m_operation_callback(this, m_operation_callback_data);
         }
+        m_dev_status[device] = status;
         release();
     }
 
@@ -489,7 +490,8 @@ private:
     std::string m_source;
     std::vector<uint8_t> m_il;
     VkShaderModule m_shader_module;
-    std::unordered_map<const cvk_device*, cl_build_status> m_dev_status;
+    std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>
+        m_dev_status;
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
