@@ -862,8 +862,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // Prepare options
     std::string options = processed_options;
-    options += " -cluster-pod-kernel-args ";
-
     std::string single_precision_option = "-cl-single-precision-constant";
     if (processed_options.find(single_precision_option) == std::string::npos) {
         options += " " + single_precision_option + " ";
@@ -873,7 +871,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    options += " -pod-ubo ";
     options += " -int8 ";
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
