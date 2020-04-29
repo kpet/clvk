@@ -291,7 +291,7 @@ bool parse_kernel_pushconstant(kernel_argument& arg,
     std::string akind{tokens[toknum++]};
 
     if (akind == "pod_pushconstant") {
-        arg.kind = kernel_argument_kind::pod;
+        arg.kind = kernel_argument_kind::pod_pushconstant;
     } else {
         return false;
     }
