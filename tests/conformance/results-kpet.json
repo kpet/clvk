@@ -182,7 +182,7 @@
       "mri_one": "pass",
       "parameter_types": "pass",
       "pointer_cast": "pass",
-      "prefetch": "fail",
+      "prefetch": "pass",
       "progvar_func_scope": "skip",
       "progvar_prog_scope_init": "skip",
       "progvar_prog_scope_misc": "skip",

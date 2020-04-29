@@ -4683,6 +4683,10 @@ cl_icd_dispatch gDispatchTable = {
     /* OpenCL 2.2 */
     nullptr, // clSetProgramReleaseCallback;
     nullptr, // clSetProgramSpecializationConstant;
+
+    /* OpenCL 3.0 */
+    nullptr, // clCreateBufferWithProperties
+    nullptr, // clCreateImageWithProperties
 };
 // clang-format on
 
