@@ -132,6 +132,10 @@ TEST_F(WithCommandQueue, WorkDim) {
             << "Failure comparison at data[" << i << "]:\n - expected " << i + 1
             << "\n - got: " << data[i];
     }
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
 }
 
 TEST_F(WithCommandQueue, PodUBO) {
@@ -159,11 +163,18 @@ TEST_F(WithCommandQueue, PodUBO) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
 
+    // Complete execution
+    Finish();
+
     // Map the buffer
     auto data =
         EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
 
     EXPECT_EQ(data[0], static_cast<cl_int>(38));
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
 }
 
 TEST_F(WithCommandQueue, PodPushConstant) {
@@ -191,9 +202,16 @@ TEST_F(WithCommandQueue, PodPushConstant) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
 
+    // Complete execution
+    Finish();
+
     // Map the buffer
     auto data =
         EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
 
     EXPECT_EQ(data[0], static_cast<cl_int>(40));
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
 }
