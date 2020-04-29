@@ -51,7 +51,7 @@ struct kernel_argument {
     uint32_t pos;
     uint32_t descriptorSet;
     uint32_t binding;
-    int offset;
+    uint32_t offset;
     uint32_t size;
     kernel_argument_kind kind;
     uint32_t local_spec_id;
@@ -450,8 +450,8 @@ struct cvk_program : public _cl_program, api_object {
         return m_literal_samplers;
     }
 
-    const std::vector<VkPushConstantRange>& push_constant_ranges() const {
-        return m_push_constant_ranges;
+    const VkPushConstantRange& push_constant_range() const {
+        return m_push_constant_range;
     }
 
     CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
@@ -470,7 +470,7 @@ private:
     void do_build();
     CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
     CHECK_RETURN cl_build_status link();
-    void prepare_push_constant_ranges();
+    void prepare_push_constant_range();
 
     /// Check if all of the capabilities required by the SPIR-V module are
     /// supported by `device`.
@@ -493,7 +493,7 @@ private:
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
     std::vector<cvk_sampler_holder> m_literal_samplers;
-    std::vector<VkPushConstantRange> m_push_constant_ranges;
+    VkPushConstantRange m_push_constant_range;
     std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>
         m_entry_points;
 };
