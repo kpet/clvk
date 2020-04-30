@@ -618,6 +618,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
+    case CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
     case CL_DEVICE_IL_VERSION_KHR:
         val_string = device->ils_string();
         copy_ptr = val_string.c_str();
@@ -649,6 +654,24 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_bool = device->supports_non_uniform_workgroup();
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE:
+    case CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE:
+        val_sizet = 0;
+        copy_ptr = &val_sizet;
+        size_ret = sizeof(val_sizet);
+        break;
+    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
+    case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_IMAGE_PITCH_ALIGNMENT:
+    case CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -2051,6 +2074,7 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
     cl_build_status val_status;
     api_query_string val_string;
     cl_program_binary_type val_binarytype;
+    size_t val_sizet;
 
     auto device = icd_downcast(dev);
     auto program = icd_downcast(prog);
@@ -2082,6 +2106,11 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         val_binarytype = program->binary_type(device);
         copy_ptr = &val_binarytype;
         ret_size = sizeof(val_binarytype);
+        break;
+    case CL_PROGRAM_BUILD_GLOBAL_VARIABLE_TOTAL_SIZE:
+        val_sizet = 0;
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -3441,6 +3470,13 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for image object.
 
+    // TODO support creating 2D images from buffers
+    if ((image_desc->image_type == CL_MEM_OBJECT_IMAGE2D) &&
+        (image_desc->mem_object != nullptr)) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
+
     if ((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) ||
         (host_ptr != nullptr)) {
         cvk_error("Creating an image with a host_ptr is not supported yet");
@@ -3768,8 +3804,22 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
+    int last_format_to_test = VK_FORMAT_END_RANGE;
+
+    // No formats are support for read and write
+    if (flags & CL_MEM_KERNEL_READ_AND_WRITE) {
+        last_format_to_test = VK_FORMAT_BEGIN_RANGE;
+    }
+
+    // 3D image writes are not supported
+    if ((flags & CL_MEM_OBJECT_IMAGE3D) &&
+        (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
+                  CL_MEM_KERNEL_READ_AND_WRITE))) {
+        last_format_to_test = VK_FORMAT_BEGIN_RANGE;
+    }
+
     // Iterate over all vulkan formats
-    for (int fmt = VK_FORMAT_BEGIN_RANGE; fmt < VK_FORMAT_END_RANGE; fmt++) {
+    for (int fmt = VK_FORMAT_BEGIN_RANGE; fmt < last_format_to_test; fmt++) {
         // cvk_debug_fn("fmt = %u", fmt);
 
         VkFormat format = static_cast<VkFormat>(fmt);
