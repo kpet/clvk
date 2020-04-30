@@ -189,7 +189,7 @@ protected:
             clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         EXPECT_CL_SUCCESS(err);
 
-        err = clBuildProgram(program, 1, &gDevice, nullptr, nullptr, nullptr);
+        err = clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
         EXPECT_CL_SUCCESS(err);
 
         if (err != CL_SUCCESS) {
