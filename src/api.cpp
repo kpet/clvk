@@ -319,6 +319,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
     cl_version_khr val_version;
+    cl_device_svm_capabilities val_svmcaps;
 
     auto device = icd_downcast(dev);
 
@@ -672,6 +673,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_uint = 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_SVM_CAPABILITIES:
+        val_svmcaps = 0;
+        copy_ptr = &val_svmcaps;
+        size_ret = sizeof(val_svmcaps);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -1524,6 +1530,7 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
     size_t val_sizet;
     cl_mem val_memobj;
     void* val_ptr;
+    cl_bool val_bool;
 
     auto memobj = icd_downcast(mem);
 
@@ -1576,6 +1583,11 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         val_ptr = memobj->host_ptr();
         copy_ptr = &val_ptr;
         ret_size = sizeof(val_ptr);
+        break;
+    case CL_MEM_USES_SVM_POINTER:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        ret_size = sizeof(val_bool);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -2282,6 +2294,16 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
     }
 
     return kernel->set_arg(arg_index, arg_size, arg_value);
+}
+
+cl_int CLVK_API_CALL clSetKernelExecInfo(cl_kernel kernel,
+                                         cl_kernel_exec_info param_name,
+                                         size_t param_value_size,
+                                         const void* param_value) {
+    LOG_API_CALL("kernel = %p, param_name = %x, param_value_size = %zu, "
+                 "param_value = %p",
+                 kernel, param_name, param_value_size, param_value);
+    return CL_INVALID_OPERATION;
 }
 
 cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
@@ -4560,6 +4582,129 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
     return program;
 }
 
+void* CLVK_API_CALL clSVMAlloc(cl_context context, cl_svm_mem_flags flags,
+                               size_t size, cl_uint alignment) {
+
+    LOG_API_CALL("context = %p, flags = %lu, size = %zu, alignment = %u",
+                 context, flags, size, alignment);
+
+    return nullptr;
+}
+
+void CLVK_API_CALL clSVMFree(cl_context context, void* svm_pointer) {
+    LOG_API_CALL("context = %p, svm_pointer = %p", context, svm_pointer);
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMFree(
+    cl_command_queue command_queue, cl_uint num_svm_pointers,
+    void* svm_pointers[],
+    void(CL_CALLBACK* pfn_free_func)(cl_command_queue queue,
+                                     cl_uint num_svm_pointers,
+                                     void* svm_pointers[], void* user_data),
+    void* user_data, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(num_svm_pointers);
+    UNUSED(svm_pointers);
+    UNUSED(pfn_free_func);
+    UNUSED(user_data);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMap(cl_command_queue command_queue,
+                                     cl_bool blocking_map, cl_map_flags flags,
+                                     void* svm_ptr, size_t size,
+                                     cl_uint num_events_in_wait_list,
+                                     const cl_event* event_wait_list,
+                                     cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(blocking_map);
+    UNUSED(flags);
+    UNUSED(svm_ptr);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMemcpy(cl_command_queue command_queue,
+                                        cl_bool blocking_copy, void* dst_ptr,
+                                        const void* src_ptr, size_t size,
+                                        cl_uint num_events_in_wait_list,
+                                        const cl_event* event_wait_list,
+                                        cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(blocking_copy);
+    UNUSED(dst_ptr);
+    UNUSED(src_ptr);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMemFill(cl_command_queue command_queue,
+                                         void* svm_ptr, const void* pattern,
+                                         size_t pattern_size, size_t size,
+                                         cl_uint num_events_in_wait_list,
+                                         const cl_event* event_wait_list,
+                                         cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(svm_ptr);
+    UNUSED(pattern);
+    UNUSED(pattern_size);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMigrateMem(
+    cl_command_queue command_queue, cl_uint num_svm_pointers,
+    const void** svm_pointers, const size_t* sizes,
+    cl_mem_migration_flags flags, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(num_svm_pointers);
+    UNUSED(svm_pointers);
+    UNUSED(sizes);
+    UNUSED(flags);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMUnmap(cl_command_queue command_queue,
+                                       void* svm_ptr,
+                                       cl_uint num_events_in_wait_list,
+                                       const cl_event* event_wait_list,
+                                       cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(svm_ptr);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clSetKernelArgSVMPointer(cl_kernel kernel,
+                                              cl_uint arg_index,
+                                              const void* arg_value) {
+    LOG_API_CALL("kernel = %p, arg_index = %u, arg_value = %p", kernel,
+                 arg_index, arg_value);
+    UNUSED(kernel);
+    UNUSED(arg_index);
+    UNUSED(arg_value);
+    return CL_INVALID_OPERATION;
+}
+
 // clang-format off
 cl_icd_dispatch gDispatchTable = {
     // OpenCL 1.0
@@ -4708,16 +4853,16 @@ cl_icd_dispatch gDispatchTable = {
     clCreateCommandQueueWithProperties,
     nullptr, // clCreatePipe;
     nullptr, // clGetPipeInfo;
-    nullptr, // clSVMAlloc;
-    nullptr, // clSVMFree;
-    nullptr, // clEnqueueSVMFree;
-    nullptr, // clEnqueueSVMMemcpy;
-    nullptr, // clEnqueueSVMMemFill;
-    nullptr, // clEnqueueSVMMap;
-    nullptr, // clEnqueueSVMUnmap;
+    clSVMAlloc,
+    clSVMFree,
+    clEnqueueSVMFree,
+    clEnqueueSVMMemcpy,
+    clEnqueueSVMMemFill,
+    clEnqueueSVMMap,
+    clEnqueueSVMUnmap,
     clCreateSamplerWithProperties,
-    nullptr, // clSetKernelArgSVMPointer;
-    nullptr, // clSetKernelExecInfo;
+    clSetKernelArgSVMPointer,
+    clSetKernelExecInfo,
 
     /* cl_khr_sub_groups */
     nullptr, // clGetKernelSubGroupInfoKHR;
@@ -4725,7 +4870,7 @@ cl_icd_dispatch gDispatchTable = {
     /* OpenCL 2.1 */
     nullptr, // clCloneKernel;
     nullptr, // clCreateProgramWithIL;
-    nullptr, // clEnqueueSVMMigrateMem;
+    clEnqueueSVMMigrateMem,
     nullptr, // clGetDeviceAndHostTimer;
     nullptr, // clGetHostTimer;
     nullptr, // clGetKernelSubGroupInfo;
