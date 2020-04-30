@@ -141,7 +141,7 @@ TEST_F(WithCommandQueue, WorkDim) {
 TEST_F(WithCommandQueue, PodUBO) {
     static const char* program_source =
         "kernel void test(global int* out, int a, int4 b, int c) { *out = a + "
-        "b.x + c; }";
+        "b.y + c; }";
 
     auto kernel = CreateKernel(program_source, " -pod-ubo ", "test");
 
@@ -170,7 +170,7 @@ TEST_F(WithCommandQueue, PodUBO) {
     auto data =
         EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
 
-    EXPECT_EQ(data[0], static_cast<cl_int>(38));
+    EXPECT_EQ(data[0], static_cast<cl_int>(37));
 
     // Unmap the buffer
     EnqueueUnmapMemObject(buffer, data);
@@ -180,7 +180,7 @@ TEST_F(WithCommandQueue, PodUBO) {
 TEST_F(WithCommandQueue, PodPushConstant) {
     static const char* program_source =
         "kernel void test(global int* out, int a, int4 b, int c) { *out = a + "
-        "b.x + c; }";
+        "b.z + c; }";
 
     auto kernel = CreateKernel(program_source, " -pod-pushconstant ", "test");
 
@@ -209,7 +209,7 @@ TEST_F(WithCommandQueue, PodPushConstant) {
     auto data =
         EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
 
-    EXPECT_EQ(data[0], static_cast<cl_int>(40));
+    EXPECT_EQ(data[0], static_cast<cl_int>(42));
 
     // Unmap the buffer
     EnqueueUnmapMemObject(buffer, data);
