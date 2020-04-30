@@ -581,12 +581,11 @@ struct cvk_command_kernel : public cvk_command {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
                        const std::array<uint32_t, 3>& global_offsets,
-                       const std::array<uint32_t, 3>& num_wg,
-                       const std::array<uint32_t, 3>& wg_size)
+                       const std::array<uint32_t, 3>& gws,
+                       const std::array<uint32_t, 3>& lws)
         : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims), m_global_offsets(global_offsets),
-          m_num_wg(num_wg), m_wg_size(wg_size),
-          m_command_buffer(q), m_descriptor_sets{VK_NULL_HANDLE},
+          m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
+          m_lws(lws), m_command_buffer(q), m_descriptor_sets{VK_NULL_HANDLE},
           m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}
 
@@ -615,11 +614,20 @@ struct cvk_command_kernel : public cvk_command {
     virtual cl_int do_action() override;
 
 private:
+    struct cvk_ndrange {
+        std::array<uint32_t, 3> offset;
+        std::array<uint32_t, 3> gws;
+        std::array<uint32_t, 3> lws;
+    };
+    CHECK_RETURN cl_int build_and_dispatch_regions();
+    void update_global_push_constants();
+    CHECK_RETURN cl_int dispatch_uniform_region(const cvk_ndrange& region);
+
     cvk_kernel_holder m_kernel;
     uint32_t m_dimensions;
     std::array<uint32_t, 3> m_global_offsets;
-    std::array<uint32_t, 3> m_num_wg;
-    std::array<uint32_t, 3> m_wg_size;
+    std::array<uint32_t, 3> m_gws;
+    std::array<uint32_t, 3> m_lws;
     cvk_command_buffer m_command_buffer;
     std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
         m_descriptor_sets;
