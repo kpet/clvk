@@ -137,3 +137,81 @@ TEST_F(WithCommandQueue, WorkDim) {
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
+
+TEST_F(WithCommandQueue, PodUBO) {
+    static const char* program_source =
+        "kernel void test(global int* out, int a, int4 b, int c) { *out = a + "
+        "b.y + c; }";
+
+    auto kernel = CreateKernel(program_source, " -pod-ubo ", "test");
+
+    // Output buffer
+    size_t buffer_size = sizeof(cl_uint);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+    SetKernelArg(kernel, 0, buffer);
+
+    // Pod args
+    cl_int a = 42;
+    cl_int b[4] = {-1, -2, -3, -4};
+    cl_int c = -3;
+    SetKernelArg(kernel, 1, &a);
+    SetKernelArg(kernel, 2, 4 * sizeof(cl_int), b);
+    SetKernelArg(kernel, 3, &c);
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
+
+    // Complete execution
+    Finish();
+
+    // Map the buffer
+    auto data =
+        EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    EXPECT_EQ(data[0], static_cast<cl_int>(37));
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
+}
+
+TEST_F(WithCommandQueue, PodPushConstant) {
+    static const char* program_source =
+        "kernel void test(global int* out, int a, int4 b, int c) { *out = a + "
+        "b.z + c; }";
+
+    auto kernel = CreateKernel(program_source, " -pod-pushconstant ", "test");
+
+    // Output buffer
+    size_t buffer_size = sizeof(cl_uint);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+    SetKernelArg(kernel, 0, buffer);
+
+    // Pod args
+    cl_int a = 42;
+    cl_int b[4] = {1, 2, 3, 4};
+    cl_int c = -3;
+    SetKernelArg(kernel, 1, &a);
+    SetKernelArg(kernel, 2, 4 * sizeof(cl_int), b);
+    SetKernelArg(kernel, 3, &c);
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
+
+    // Complete execution
+    Finish();
+
+    // Map the buffer
+    auto data =
+        EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    EXPECT_EQ(data[0], static_cast<cl_int>(42));
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
+}
