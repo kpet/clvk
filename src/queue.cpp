@@ -477,6 +477,23 @@ cl_int cvk_command_kernel::dispatch_uniform_region(const cvk_ndrange& region) {
         specConstants[dim_id] = m_dimensions;
     }
 
+    // Clspv can allocate spec constants for global offset.
+    where = constants.find(spec_constant::global_offset_x);
+    if (where != constants.end()) {
+      uint32_t offset_id = where->second;
+      specConstants[offset_id] = m_global_offsets[0];
+    }
+    where = constants.find(spec_constant::global_offset_y);
+    if (where != constants.end()) {
+      uint32_t offset_id = where->second;
+      specConstants[offset_id] = m_global_offsets[1];
+    }
+    where = constants.find(spec_constant::global_offset_z);
+    if (where != constants.end()) {
+      uint32_t offset_id = where->second;
+      specConstants[offset_id] = m_global_offsets[2];
+    }
+
     m_pipeline = m_kernel->create_pipeline(specConstants);
 
     if (m_pipeline == VK_NULL_HANDLE) {

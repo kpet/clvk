@@ -463,6 +463,12 @@ bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
         constant = spec_constant::workgroup_size_z;
     } else if (name == "work_dim") {
         constant = spec_constant::work_dim;
+    } else if (name == "global_offset_x") {
+        constant = spec_constant::global_offset_x;
+    } else if (name == "global_offset_y") {
+        constant = spec_constant::global_offset_y;
+    } else if (name == "global_offset_z") {
+        constant = spec_constant::global_offset_z;
     } else {
         return false;
     }
@@ -648,6 +654,15 @@ bool spir_binary::load_descriptor_map(
                 break;
             case clspv::SpecConstant::kWorkDim:
                 constant = spec_constant::work_dim;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetX:
+                constant = spec_constant::global_offset_x;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetY:
+                constant = spec_constant::global_offset_y;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetZ:
+                constant = spec_constant::global_offset_z;
                 break;
             default:
                 cvk_error(

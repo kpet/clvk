@@ -98,6 +98,9 @@ enum class spec_constant
     workgroup_size_y,
     workgroup_size_z,
     work_dim,
+    global_offset_x,
+    global_offset_y,
+    global_offset_z,
 };
 
 class spir_binary {
