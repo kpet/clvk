@@ -102,6 +102,8 @@ OPENCL_1.2 {
 OPENCL_2.0 {
     clCreateCommandQueueWithProperties;
     clCreateSamplerWithProperties;
+    clCreatePipe;
+    clGetPipeInfo;
     clSVMAlloc;
     clSVMFree;
     clEnqueueSVMFree;
@@ -115,6 +117,7 @@ OPENCL_2.0 {
 
 OPENCL_2.1 {
     clEnqueueSVMMigrateMem;
+    clSetDefaultDeviceCommandQueue;
 } OPENCL_2.0;
 
 OPENCL_2.2 {

@@ -679,6 +679,28 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_svmcaps;
         size_ret = sizeof(val_svmcaps);
         break;
+    case CL_DEVICE_DEVICE_ENQUEUE_SUPPORT:
+    case CL_DEVICE_PIPE_SUPPORT:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES:
+        val_queue_properties = 0;
+        copy_ptr = &val_queue_properties;
+        size_ret = sizeof(val_queue_properties);
+        break;
+    case CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE:
+    case CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE:
+    case CL_DEVICE_MAX_ON_DEVICE_QUEUES:
+    case CL_DEVICE_MAX_ON_DEVICE_EVENTS:
+    case CL_DEVICE_MAX_PIPE_ARGS:
+    case CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS:
+    case CL_DEVICE_PIPE_MAX_PACKET_SIZE:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;
@@ -1278,6 +1300,7 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
     cl_context val_context;
     cl_device_id val_device;
     cl_command_queue_properties val_properties;
+    cl_command_queue val_queue;
 
     auto command_queue = icd_downcast(cq);
 
@@ -1306,6 +1329,16 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
         copy_ptr = &val_properties;
         ret_size = sizeof(val_properties);
         break;
+    case CL_QUEUE_SIZE:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_QUEUE_DEVICE_DEFAULT:
+        val_queue = nullptr;
+        copy_ptr = &val_queue;
+        ret_size = sizeof(val_queue);
+        break;
     default:
         ret = CL_INVALID_VALUE;
     }
@@ -1322,6 +1355,13 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
     }
 
     return ret;
+}
+
+cl_int CLVK_API_CALL clSetDefaultDeviceCommandQueue(
+    cl_context context, cl_device_id device, cl_command_queue command_queue) {
+    LOG_API_CALL("context = %p, device = %p, command_queue = %p", context,
+                 device, command_queue);
+    return CL_INVALID_OPERATION;
 }
 
 // Memory Object APIs
@@ -2491,6 +2531,7 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
     case CL_PROFILING_COMMAND_SUBMIT:
     case CL_PROFILING_COMMAND_START:
     case CL_PROFILING_COMMAND_END:
+    case CL_PROFILING_COMMAND_COMPLETE:
         break;
     default:
         return CL_INVALID_VALUE;
@@ -2513,6 +2554,9 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
     }
 
     if (param_value != nullptr) {
+        if (param_name == CL_PROFILING_COMMAND_COMPLETE) {
+            param_name = CL_PROFILING_COMMAND_END;
+        }
         cl_ulong value = event->get_profiling_info(param_name);
         memcpy(param_value, &value, sizeof(cl_ulong));
     }
@@ -4582,6 +4626,7 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
     return program;
 }
 
+// Shared Virtual Memory
 void* CLVK_API_CALL clSVMAlloc(cl_context context, cl_svm_mem_flags flags,
                                size_t size, cl_uint alignment) {
 
@@ -4702,6 +4747,32 @@ cl_int CLVK_API_CALL clSetKernelArgSVMPointer(cl_kernel kernel,
     UNUSED(kernel);
     UNUSED(arg_index);
     UNUSED(arg_value);
+    return CL_INVALID_OPERATION;
+}
+
+// Pipes
+cl_mem CLVK_API_CALL clCreatePipe(cl_context context, cl_mem_flags flags,
+                                  cl_uint pipe_packet_size,
+                                  cl_uint pipe_max_packets,
+                                  const cl_pipe_properties* properties,
+                                  cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, flags = %lx, packet_size = %u, max_packets = "
+                 "%u, properties = %p, errcode_ret = %p",
+                 context, flags, pipe_packet_size, pipe_max_packets, properties,
+                 errcode_ret);
+    if (errcode_ret != nullptr) {
+        *errcode_ret = CL_INVALID_OPERATION;
+    }
+    return nullptr;
+}
+
+cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
+                                   size_t param_value_size, void* param_value,
+                                   size_t* param_value_size_ret) {
+    LOG_API_CALL("pipe = %p, param_name = %x, param_value_size = %zu, "
+                 "param_value = %p, param_value_size_ret = %p",
+                 pipe, param_name, param_value_size, param_value,
+                 param_value_size_ret);
     return CL_INVALID_OPERATION;
 }
 
@@ -4851,8 +4922,8 @@ cl_icd_dispatch gDispatchTable = {
 
     /* OpenCL 2.0 */
     clCreateCommandQueueWithProperties,
-    nullptr, // clCreatePipe;
-    nullptr, // clGetPipeInfo;
+    clCreatePipe,
+    clGetPipeInfo,
     clSVMAlloc,
     clSVMFree,
     clEnqueueSVMFree,
@@ -4874,7 +4945,7 @@ cl_icd_dispatch gDispatchTable = {
     nullptr, // clGetDeviceAndHostTimer;
     nullptr, // clGetHostTimer;
     nullptr, // clGetKernelSubGroupInfo;
-    nullptr, // clSetDefaultDeviceCommandQueue;
+    clSetDefaultDeviceCommandQueue,
 
     /* OpenCL 2.2 */
     nullptr, // clSetProgramReleaseCallback;
