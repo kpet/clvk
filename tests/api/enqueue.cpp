@@ -233,9 +233,9 @@ kernel void test(global int* out) {
                                buffer_size, nullptr);
     SetKernelArg(kernel, 0, buffer);
 
-    size_t gws[3] = {1,1,1};
-    size_t lws[3] = {1,1,1};
-    size_t offset[3] = {123,234,345};
+    size_t gws[3] = {1, 1, 1};
+    size_t lws[3] = {1, 1, 1};
+    size_t offset[3] = {123, 234, 345};
     EnqueueNDRangeKernel(kernel, 3, offset, gws, lws);
 
     // Complete execution
@@ -272,9 +272,9 @@ kernel void test(global int* out) {
                                buffer_size, nullptr);
     SetKernelArg(kernel, 0, buffer);
 
-    size_t gws[3] = {1,1,1};
-    size_t lws[3] = {1,1,1};
-    size_t offset[3] = {101,202,303};
+    size_t gws[3] = {1, 1, 1};
+    size_t lws[3] = {1, 1, 1};
+    size_t offset[3] = {101, 202, 303};
     EnqueueNDRangeKernel(kernel, 3, offset, gws, lws);
 
     // Complete execution
