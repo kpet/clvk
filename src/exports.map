@@ -118,8 +118,10 @@ OPENCL_2.0 {
 OPENCL_2.1 {
     clEnqueueSVMMigrateMem;
     clSetDefaultDeviceCommandQueue;
+    clCreateProgramWithIL;
 } OPENCL_2.0;
 
 OPENCL_2.2 {
+    clSetProgramSpecializationConstant;
 } OPENCL_2.1;
 

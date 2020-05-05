@@ -624,7 +624,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
-    case CL_DEVICE_IL_VERSION_KHR:
+    case CL_DEVICE_IL_VERSION:
         val_string = device->ils_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
@@ -643,7 +643,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = device->extensions().data();
         size_ret = device->extensions().size() * sizeof(cl_name_version_khr);
         break;
-    case CL_DEVICE_ILS_WITH_VERSION_KHR:
+    case CL_DEVICE_ILS_WITH_VERSION:
         copy_ptr = device->ils().data();
         size_ret = device->ils().size() * sizeof(cl_name_version_khr);
         break;
@@ -2088,7 +2088,7 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
             }
         }
         break;
-    case CL_PROGRAM_IL_KHR:
+    case CL_PROGRAM_IL:
         copy_ptr = program->il().data();
         ret_size = program->il().size();
         break;
@@ -4588,8 +4588,8 @@ void* CLVK_API_CALL clEnqueueMapImage(
     return ret;
 }
 
-cl_program cvk_create_program_with_il_khr(cl_context context, const void* il,
-                                          size_t length, cl_int* errcode_ret) {
+cl_program cvk_create_program_with_il(cl_context context, const void* il,
+                                      size_t length, cl_int* errcode_ret) {
     if (!is_valid_context(context)) {
         *errcode_ret = CL_INVALID_CONTEXT;
         return nullptr;
@@ -4616,14 +4616,37 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
                  context, il, length, errcode_ret);
 
     cl_int errcode;
-    auto program =
-        cvk_create_program_with_il_khr(context, il, length, &errcode);
+    auto program = cvk_create_program_with_il(context, il, length, &errcode);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = errcode;
     }
 
     return program;
+}
+
+cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
+                                               const void* il, size_t length,
+                                               cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, il = %p, length = %zu, errcode_ret = %p",
+                 context, il, length, errcode_ret);
+
+    cl_int errcode;
+    auto program = cvk_create_program_with_il(context, il, length, &errcode);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = errcode;
+    }
+
+    return program;
+}
+
+cl_int clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
+                                          size_t spec_size,
+                                          const void* spec_value) {
+    LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
+                 program, spec_id, spec_size, spec_value);
+    return CL_INVALID_OPERATION;
 }
 
 // Shared Virtual Memory
@@ -4940,7 +4963,7 @@ cl_icd_dispatch gDispatchTable = {
 
     /* OpenCL 2.1 */
     nullptr, // clCloneKernel;
-    nullptr, // clCreateProgramWithIL;
+    clCreateProgramWithIL,
     clEnqueueSVMMigrateMem,
     nullptr, // clGetDeviceAndHostTimer;
     nullptr, // clGetHostTimer;
@@ -4949,7 +4972,7 @@ cl_icd_dispatch gDispatchTable = {
 
     /* OpenCL 2.2 */
     nullptr, // clSetProgramReleaseCallback;
-    nullptr, // clSetProgramSpecializationConstant;
+    clSetProgramSpecializationConstant,
 
     /* OpenCL 3.0 */
     nullptr, // clCreateBufferWithProperties
