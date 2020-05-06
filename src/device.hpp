@@ -304,6 +304,8 @@ private:
     VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8{};
     VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR
         m_features_ubo_stdlayout{};
+    VkPhysicalDevice8BitStorageFeaturesKHR m_features_8bit_storage{};
+    VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
