@@ -71,8 +71,8 @@ struct cvk_mem : public _cl_mem, api_object {
     cvk_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
             cvk_mem* parent, size_t parent_offset, cl_mem_object_type type)
         : api_object(ctx), m_type(type), m_flags(flags), m_map_count(0),
-          m_size(size), m_host_ptr(host_ptr), m_parent(parent),
-          m_parent_offset(parent_offset) {
+          m_map_ptr(nullptr), m_size(size), m_host_ptr(host_ptr),
+          m_parent(parent), m_parent_offset(parent_offset) {
 
         if (m_parent != nullptr) {
 
@@ -151,7 +151,7 @@ struct cvk_mem : public _cl_mem, api_object {
     }
 
     void* host_va() const {
-        CVK_ASSERT(m_map_count > 0);
+        CVK_ASSERT(m_map_ptr != nullptr);
         return m_map_ptr;
     }
 
