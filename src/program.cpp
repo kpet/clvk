@@ -1149,8 +1149,14 @@ void cvk_program::do_build() {
     }
 
     // Check capabilities against the device.
+    char* skip_capability_check_env =
+        getenv("CLVK_SKIP_SPIRV_CAPABILITY_CHECK");
+    bool skip_capability_check = false;
+    if (skip_capability_check_env &&
+        strcmp(skip_capability_check_env, "1") == 0)
+        skip_capability_check = true;
     if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !check_capabilities(device)) {
+        !skip_capability_check && !check_capabilities(device)) {
         cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
