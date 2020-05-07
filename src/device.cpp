@@ -92,6 +92,7 @@ bool cvk_device::init_extensions() {
     }
 
     const std::vector<const char*> desired_extensions = {
+        VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
@@ -124,7 +125,11 @@ void cvk_device::init_features(VkInstance instance) {
     m_features_float16_int8.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR;
     m_features_variable_pointer.sType =
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES;
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES_KHR;
+    m_features_8bit_storage.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
+    m_features_16bit_storage.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
 
     std::vector<std::pair<const char*, VkBaseOutStructure*>>
         extension_features = {
@@ -135,6 +140,10 @@ void cvk_device::init_features(VkInstance instance) {
                     &m_features_float16_int8),
             EXTFEAT(VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
                     &m_features_variable_pointer),
+            EXTFEAT(VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+                    &m_features_8bit_storage),
+            EXTFEAT(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+                    &m_features_16bit_storage),
 #undef EXTFEAT
         };
 
