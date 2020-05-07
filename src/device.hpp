@@ -269,6 +269,15 @@ struct cvk_device : public _cl_device_id {
 
     VkDevice vulkan_device() const { return m_dev; }
 
+    const VkPhysicalDevice8BitStorageFeaturesKHR&
+    device_8bit_storage_features() const {
+        return m_features_8bit_storage;
+    }
+    const VkPhysicalDevice16BitStorageFeaturesKHR&
+    device_16bit_storage_features() const {
+        return m_features_16bit_storage;
+    }
+
     uint32_t vulkan_max_push_constants_size() const {
         return m_properties.limits.maxPushConstantsSize;
     }
