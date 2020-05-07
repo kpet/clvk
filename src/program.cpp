@@ -614,6 +614,18 @@ bool spir_binary::load_descriptor_map(
             case clspv::PushConstant::EnqueuedLocalSize:
                 pc = pushconstant::enqueued_local_size;
                 break;
+            case clspv::PushConstant::GlobalSize:
+                pc = pushconstant::global_size;
+                break;
+            case clspv::PushConstant::RegionOffset:
+                pc = pushconstant::region_offset;
+                break;
+            case clspv::PushConstant::NumWorkgroups:
+                pc = pushconstant::num_workgroups;
+                break;
+            case clspv::PushConstant::RegionGroupOffset:
+                pc = pushconstant::region_group_offset;
+                break;
             default:
                 cvk_error("Invalid push constant: %d",
                           static_cast<int>(entry.push_constant_data.pc));
