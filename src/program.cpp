@@ -892,6 +892,33 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (!devices_support_images()) {
         options += " -images=0 ";
     }
+
+    // 8-bit storage capability restrictions.
+    const auto& features_8bit_storage =
+        m_context->device()->device_8bit_storage_features();
+    if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ssbo ";
+    }
+    if (features_8bit_storage.uniformAndStorageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ubo ";
+    }
+    if (features_8bit_storage.storagePushConstant8 == VK_FALSE) {
+        options += " -no-8bit-storage=pushconstant ";
+    }
+
+    // 16-bit storage capability restrictions.
+    const auto& features_16bit_storage =
+        m_context->device()->device_16bit_storage_features();
+    if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ssbo ";
+    }
+    if (features_16bit_storage.uniformAndStorageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ubo ";
+    }
+    if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
+        options += " -no-16bit-storage=pushconstant ";
+    }
+
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
     options += " -int8 ";
