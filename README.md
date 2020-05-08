@@ -178,3 +178,5 @@ variables. Here's a quick guide:
   that support `VK_EXT_calibrated_timestamps`
   (see [#110](https://github.com/kpet/clvk/issues/110)).
 
+* `CLVK_SKIP_SPIRV_CAPABILITY_CHECK` to avoid checking whether the Vulkan device
+  supports all of the SPIR-V capabilities declared by each SPIR-V module.
