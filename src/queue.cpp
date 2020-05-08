@@ -400,10 +400,15 @@ void cvk_command_kernel::update_global_push_constants() {
             if (arg.kind == kernel_argument_kind::pod_pushconstant) {
                 CVK_ASSERT(arg.offset + arg.size <=
                            m_argument_values->pod_pushconstant_buffer().size());
+
+                // Vulkan valid usage states push constants can only be updated
+                // in chunks whose offset and size are a multiple of 4.
+                uint32_t size = round_up(arg.size, 4);
+                uint32_t offset = arg.offset & ~0x3U;
                 vkCmdPushConstants(
                     m_command_buffer, m_kernel->pipeline_layout(),
-                    VK_SHADER_STAGE_COMPUTE_BIT, arg.offset, arg.size,
-                    &m_argument_values->pod_pushconstant_buffer()[arg.offset]);
+                    VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
+                    &m_argument_values->pod_pushconstant_buffer()[offset]);
             }
         }
     }

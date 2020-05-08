@@ -176,6 +176,16 @@ void cvk_device::init_features(VkInstance instance) {
         vkGetPhysicalDeviceFeatures2(m_pdev, &supported_features);
     }
 
+    // Log supported features
+    cvk_info("8-bit storage: SSBO = %d, UBO = %d, Push constants = %d",
+             m_features_8bit_storage.storageBuffer8BitAccess,
+             m_features_8bit_storage.uniformAndStorageBuffer8BitAccess,
+             m_features_8bit_storage.storagePushConstant8);
+    cvk_info("16-bit storage: SSBO = %d, UBO = %d, Push constants = %d",
+             m_features_16bit_storage.storageBuffer16BitAccess,
+             m_features_16bit_storage.uniformAndStorageBuffer16BitAccess,
+             m_features_16bit_storage.storagePushConstant16);
+
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
         m_features.features.shaderInt16 = VK_TRUE;

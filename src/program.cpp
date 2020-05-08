@@ -1519,6 +1519,12 @@ cl_int cvk_entry_point::init() {
         num_push_constant_ranges = 0;
     }
 
+    // The size of the range must be a multiple of 4, round up to guarantee this
+    push_constant_range.size = round_up(push_constant_range.size, 4);
+
+    // Its offset must be a multiple of 4, round down to guarantee this
+    push_constant_range.offset &= ~0x3U;
+
     // Create pipeline layout
     cvk_debug("about to create pipeline layout, number of descriptor set "
               "layouts: %zu",
@@ -1694,5 +1700,6 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
 
 std::unique_ptr<std::vector<uint8_t>>
 cvk_entry_point::allocate_pod_pushconstant_buffer() {
-    return std::make_unique<std::vector<uint8_t>>(m_pod_buffer_size);
+    auto size = round_up(m_pod_buffer_size, 4);
+    return std::make_unique<std::vector<uint8_t>>(size);
 }
