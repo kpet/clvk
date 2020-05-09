@@ -681,6 +681,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         break;
     case CL_DEVICE_DEVICE_ENQUEUE_SUPPORT:
     case CL_DEVICE_PIPE_SUPPORT:
+    case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
         val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
@@ -697,6 +698,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     case CL_DEVICE_MAX_PIPE_ARGS:
     case CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS:
     case CL_DEVICE_PIPE_MAX_PACKET_SIZE:
+    case CL_DEVICE_MAX_NUM_SUB_GROUPS:
         val_uint = 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
@@ -2483,6 +2485,19 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
     }
 
     return ret;
+}
+
+cl_int clGetKernelSubGroupInfo(cl_kernel kernel, cl_device_id device,
+                               cl_kernel_sub_group_info param_name,
+                               size_t input_value_size, const void* input_value,
+                               size_t param_value_size, void* param_value,
+                               size_t* param_value_size_ret) {
+    LOG_API_CALL("kernel = %p, device = %p, param_name = %x, input_value_size "
+                 "= %zu, input_value = %p, param_value_size = %zu, param_value "
+                 "= %p, param_value_size_ret = %p",
+                 kernel, device, param_name, input_value_size, input_value,
+                 param_value_size, param_value, param_value_size_ret);
+    return CL_INVALID_OPERATION;
 }
 
 cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
@@ -4967,7 +4982,7 @@ cl_icd_dispatch gDispatchTable = {
     clEnqueueSVMMigrateMem,
     nullptr, // clGetDeviceAndHostTimer;
     nullptr, // clGetHostTimer;
-    nullptr, // clGetKernelSubGroupInfo;
+    clGetKernelSubGroupInfo,
     clSetDefaultDeviceCommandQueue,
 
     /* OpenCL 2.2 */

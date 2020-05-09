@@ -119,6 +119,7 @@ OPENCL_2.1 {
     clEnqueueSVMMigrateMem;
     clSetDefaultDeviceCommandQueue;
     clCreateProgramWithIL;
+    clGetKernelSubGroupInfo;
 } OPENCL_2.0;
 
 OPENCL_2.2 {
