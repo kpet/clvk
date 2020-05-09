@@ -30,9 +30,9 @@ struct cvk_vulkan_extension_functions {
 };
 
 #define MAKE_NAME_VERSION(major, minor, patch, name)                           \
-    cl_name_version_khr { CL_MAKE_VERSION_KHR(major, minor, patch), name }
+    cl_name_version { CL_MAKE_VERSION(major, minor, patch), name }
 
-static cl_version_khr gOpenCLVersion = CL_MAKE_VERSION_KHR(1, 2, 0);
+static cl_version gOpenCLVersion = CL_MAKE_VERSION(1, 2, 0);
 
 static constexpr bool devices_support_images() { return true; }
 
@@ -174,7 +174,7 @@ struct cvk_device : public _cl_device_id {
     CHECK_RETURN const std::string& extension_string() const {
         return m_extension_string;
     }
-    CHECK_RETURN const std::vector<cl_name_version_khr>& extensions() const {
+    CHECK_RETURN const std::vector<cl_name_version>& extensions() const {
         return m_extensions;
     }
 
@@ -186,33 +186,40 @@ struct cvk_device : public _cl_device_id {
         return m_features_ubo_stdlayout.uniformBufferStandardLayout;
     }
 
-    cl_version_khr version() const { return gOpenCLVersion; }
+    cl_version version() const { return gOpenCLVersion; }
 
-    cl_version_khr c_version() const { return gOpenCLVersion; }
+    cl_version c_version() const { return gOpenCLVersion; }
 
     std::string version_string() const {
-        return "OpenCL " + std::to_string(CL_VERSION_MAJOR_KHR(version())) +
-               "." + std::to_string(CL_VERSION_MINOR_KHR(version())) + " " +
+        return "OpenCL " + std::to_string(CL_VERSION_MAJOR(version())) + "." +
+               std::to_string(CL_VERSION_MINOR(version())) + " " +
                version_desc();
     }
 
     std::string c_version_string() const {
-        return "OpenCL C " + std::to_string(CL_VERSION_MAJOR_KHR(c_version())) +
-               "." + std::to_string(CL_VERSION_MINOR_KHR(c_version())) + " " +
+        return "OpenCL C " + std::to_string(CL_VERSION_MAJOR(c_version())) +
+               "." + std::to_string(CL_VERSION_MINOR(c_version())) + " " +
                version_desc();
     }
 
     std::string profile() const { return "FULL_PROFILE"; }
 
     std::string driver_version() const {
-        return std::to_string(CL_VERSION_MAJOR_KHR(version())) + "." +
-               std::to_string(CL_VERSION_MINOR_KHR(version())) + " " +
+        return std::to_string(CL_VERSION_MAJOR(version())) + "." +
+               std::to_string(CL_VERSION_MINOR(version())) + " " +
                version_desc();
     }
 
     const std::string& ils_string() const { return m_ils_string; }
 
-    const std::vector<cl_name_version_khr>& ils() const { return m_ils; }
+    const std::vector<cl_name_version>& ils() const { return m_ils; }
+
+    const std::vector<cl_name_version>& opencl_c_versions() const {
+        return m_opencl_c_versions;
+    }
+    const std::vector<cl_name_version>& opencl_c_features() const {
+        return m_opencl_c_features;
+    }
 
     cl_device_type type() const {
         cl_device_type ret;
@@ -366,9 +373,11 @@ private:
     uint32_t m_vulkan_queue_alloc_index;
 
     std::string m_extension_string;
-    std::vector<cl_name_version_khr> m_extensions;
+    std::vector<cl_name_version> m_extensions;
     std::string m_ils_string;
-    std::vector<cl_name_version_khr> m_ils;
+    std::vector<cl_name_version> m_ils;
+    std::vector<cl_name_version> m_opencl_c_versions;
+    std::vector<cl_name_version> m_opencl_c_features;
 
     uint32_t m_driver_behaviors;
 
@@ -408,14 +417,14 @@ struct cvk_platform : public _cl_platform_id {
         }
     }
 
-    cl_version_khr version() const { return gOpenCLVersion; }
+    cl_version version() const { return gOpenCLVersion; }
 
     std::string version_string() const {
         std::string ret = "OpenCL ";
         auto ver = version();
-        ret += std::to_string(CL_VERSION_MAJOR_KHR(ver));
+        ret += std::to_string(CL_VERSION_MAJOR(ver));
         ret += ".";
-        ret += std::to_string(CL_VERSION_MINOR_KHR(ver));
+        ret += std::to_string(CL_VERSION_MINOR(ver));
         ret += " clvk";
         return ret;
     }
@@ -430,7 +439,7 @@ struct cvk_platform : public _cl_platform_id {
 
     const std::vector<cvk_device*>& devices() const { return m_devices; }
 
-    const std::vector<cl_name_version_khr>& extensions() const {
+    const std::vector<cl_name_version>& extensions() const {
         return m_extensions;
     }
 
@@ -446,7 +455,7 @@ struct cvk_platform : public _cl_platform_id {
     }
 
 private:
-    std::vector<cl_name_version_khr> m_extensions;
+    std::vector<cl_name_version> m_extensions;
     std::string m_extension_string;
     std::vector<cvk_device*> m_devices;
 };

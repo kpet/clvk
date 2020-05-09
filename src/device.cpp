@@ -292,10 +292,31 @@ void cvk_device::build_extension_ils_list() {
     for (auto& il : m_ils) {
         m_ils_string += il.name;
         m_ils_string += "_";
-        m_ils_string += std::to_string(CL_VERSION_MAJOR_KHR(il.version));
+        m_ils_string += std::to_string(CL_VERSION_MAJOR(il.version));
         m_ils_string += ".";
-        m_ils_string += std::to_string(CL_VERSION_MINOR_KHR(il.version));
+        m_ils_string += std::to_string(CL_VERSION_MINOR(il.version));
         m_ils_string += " ";
+    }
+
+    // Build list of supported OpenCL C versions
+    m_opencl_c_versions = {
+        MAKE_NAME_VERSION(1, 0, 0, "OpenCL C"),
+        MAKE_NAME_VERSION(1, 1, 0, "OpenCL C"),
+        MAKE_NAME_VERSION(1, 2, 0, "OpenCL C"),
+        MAKE_NAME_VERSION(3, 0, 0, "OpenCL C"),
+    };
+
+    // Build list of supported OpenCL C features
+    m_opencl_c_features = {
+        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_images"),
+    };
+    if (m_features.features.shaderInt64) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_int64"));
+    }
+    if (m_features.features.shaderFloat64) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_fp64"));
     }
 }
 
