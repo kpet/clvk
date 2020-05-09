@@ -221,6 +221,7 @@ void cvk_device::build_extension_ils_list() {
 #ifndef CLSPV_ONLINE_COMPILER
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
     };
 
     // Build extension string
