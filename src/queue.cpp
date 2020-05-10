@@ -694,21 +694,13 @@ cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    double nsPerTick = dev->vulkan_limits().timestampPeriod;
-
     auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
     auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
     uint64_t ts_start, ts_end;
 
-    // Most implementations seem to use 1 ns = 1 tick, handle this as a
-    // special case to not lose precision.
-    if (nsPerTick == 1.0) {
-        ts_start = ts_start_raw;
-        ts_end = ts_end_raw;
-    } else {
-        ts_start = ts_start_raw * nsPerTick;
-        ts_end = ts_end_raw * nsPerTick;
-    }
+    ts_start = dev->timestamp_to_ns(ts_start_raw);
+    ts_end = dev->timestamp_to_ns(ts_end_raw);
+
     m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
     m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
 

@@ -97,15 +97,16 @@ bool cvk_device::init_extensions() {
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
+        VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numext; i++) {
         cvk_info("  %s, spec version %u", extensions[i].extensionName,
                  extensions[i].specVersion);
 
-        for (auto de : desired_extensions) {
-            if (!strcmp(de, extensions[i].extensionName)) {
-                m_vulkan_device_extensions.push_back(de);
+        for (auto name : desired_extensions) {
+            if (!strcmp(name, extensions[i].extensionName)) {
+                m_vulkan_device_extensions.push_back(name);
                 cvk_info("    ENABLING");
                 break;
             }
@@ -150,9 +151,7 @@ void cvk_device::init_features(VkInstance instance) {
     VkBaseOutStructure* pNext = nullptr;
     for (auto& ext_feat : extension_features) {
         auto ext = ext_feat.first;
-        if (std::find(m_vulkan_device_extensions.begin(),
-                      m_vulkan_device_extensions.end(),
-                      ext) != m_vulkan_device_extensions.end()) {
+        if (is_vulkan_extension_enabled(ext)) {
             auto feat = ext_feat.second;
             feat->pNext = pNext;
             pNext = feat;
@@ -215,7 +214,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_local_int32_extended_atomics"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_byte_addressable_store"),
 
-        // Add always supported extension
+        // Add always supported extensions
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_extended_versioning"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_create_command_queue"),
 #ifndef CLSPV_ONLINE_COMPILER
@@ -317,6 +316,63 @@ bool cvk_device::compute_buffer_alignement_requirements() {
     return true;
 }
 
+bool cvk_device::init_time_management(VkInstance instance) {
+
+    if (is_vulkan_extension_enabled(
+            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME)) {
+        auto func = GET_INSTANCE_PROC(
+            instance, vkGetPhysicalDeviceCalibrateableTimeDomainsEXT);
+        uint32_t num_time_domains;
+        VkResult res;
+        res = func(m_pdev, &num_time_domains, nullptr);
+        if (res != VK_SUCCESS) {
+            cvk_error(
+                "Can't get number of available calibrateable time domains");
+            return false;
+        }
+
+        cvk_info("Device supports %u calibrateable time domains",
+                 num_time_domains);
+
+        std::vector<VkTimeDomainEXT> supported_time_domains(num_time_domains);
+        res = func(m_pdev, &num_time_domains, supported_time_domains.data());
+        if (res != VK_SUCCESS) {
+            cvk_error("Can't get list of available calibrateable time domains");
+            return false;
+        }
+
+        bool has_device = false;
+        bool has_monotonic = false;
+        for (auto td : supported_time_domains) {
+            cvk_info("  %s",
+                     vulkan_calibrateable_time_domain_string(td).c_str());
+            if (td == VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT) {
+                has_monotonic = true;
+            }
+
+            if (td == VK_TIME_DOMAIN_DEVICE_EXT) {
+                has_device = true;
+            }
+        }
+
+        if (has_device && has_monotonic) {
+            m_has_timer_support = true;
+            m_vkfns.vkGetCalibratedTimestampsEXT =
+                GET_INSTANCE_PROC(instance, vkGetCalibratedTimestampsEXT);
+        }
+    }
+
+    if (!m_has_timer_support) {
+        cvk_warn("This device does not support VK_EXT_calibrated_timestamps or "
+                 "it does not support the required "
+                 "VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT and "
+                 "VK_TIME_DOMAIN_DEVICE_EXT time domains");
+        cvk_warn("clGetHostTimer and clGetDeviceAndHostTimer will not work");
+    }
+
+    return true;
+}
+
 void cvk_device::log_limits_and_memory_information() {
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
@@ -366,6 +422,10 @@ bool cvk_device::init(VkInstance instance) {
 
     build_extension_ils_list();
 
+    if (!init_time_management(instance)) {
+        return false;
+    }
+
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
         return false;
     }
@@ -409,4 +469,38 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
         return false;
     }
+}
+
+cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
+                                         cl_ulong* host_timestamp) const {
+    auto vkdev = vulkan_device();
+
+    uint64_t timestamps[2];
+    uint64_t max_deviation;
+    VkCalibratedTimestampInfoEXT timestamp_infos[2] = {
+        {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
+         VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT},
+        {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
+         VK_TIME_DOMAIN_DEVICE_EXT}};
+
+    uint32_t num_requested_timestamps;
+    if (device_timestamp == nullptr) {
+        num_requested_timestamps = 1;
+    } else {
+        num_requested_timestamps = 2;
+    }
+
+    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(
+        vkdev, num_requested_timestamps, timestamp_infos, timestamps,
+        &max_deviation);
+    if (res != VK_SUCCESS) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    *host_timestamp = timestamps[0];
+    if (device_timestamp != nullptr) {
+        *device_timestamp = timestamp_to_ns(timestamps[1]);
+    }
+
+    return CL_SUCCESS;
 }

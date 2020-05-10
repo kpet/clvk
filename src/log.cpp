@@ -270,3 +270,18 @@ std::string vulkan_physical_device_type_string(VkPhysicalDeviceType type) {
         return "Unknown";
     }
 }
+
+std::string vulkan_calibrateable_time_domain_string(VkTimeDomainEXT td) {
+    switch (td) {
+    case VK_TIME_DOMAIN_DEVICE_EXT:
+        return "Device";
+    case VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT:
+        return "Clock monotonic";
+    case VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT:
+        return "Clock monotonic raw";
+    case VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_EXT:
+        return "Query performance counter";
+    default:
+        return "Unknown";
+    }
+}

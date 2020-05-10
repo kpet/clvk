@@ -26,9 +26,8 @@
         }                                                                      \
     } while (0)
 
-cl_device_id get_device() {
+cl_platform_id get_platform() {
     cl_platform_id platform;
-    cl_device_id device;
     cl_int err;
 
     err = clGetPlatformIDs(1, &platform, nullptr);
@@ -45,6 +44,13 @@ cl_device_id get_device() {
     RETURN_ON_CL_FAILURE(err, nullptr);
 
     std::cout << "Platform: " << platform_name << std::endl;
+
+    return platform;
+}
+
+cl_device_id get_device(cl_platform_id platform) {
+    cl_device_id device;
+    cl_int err;
 
     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &device, nullptr);
     RETURN_ON_CL_FAILURE(err, nullptr);
@@ -64,13 +70,21 @@ cl_device_id get_device() {
 }
 
 cl_device_id gDevice;
+cl_platform_id gPlatform;
 
 int main(int argc, char* argv[]) {
 
     ::testing::InitGoogleTest(&argc, argv);
 
+    // Select platform
+    gPlatform = get_platform();
+    if (gPlatform == nullptr) {
+        std::cerr << "Couldn't find an OpenCL platform\n";
+        std::exit(EXIT_FAILURE);
+    }
+
     // Select device
-    gDevice = get_device();
+    gDevice = get_device(gPlatform);
     if (gDevice == nullptr) {
         std::cerr << "Couldn't find an OpenCL device\n";
         std::exit(EXIT_FAILURE);
