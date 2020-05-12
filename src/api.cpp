@@ -3894,22 +3894,22 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
-    int last_format_to_test = VK_FORMAT_END_RANGE;
+    int last_format_to_test = VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
 
     // No formats are support for read and write
     if (flags & CL_MEM_KERNEL_READ_AND_WRITE) {
-        last_format_to_test = VK_FORMAT_BEGIN_RANGE;
+        last_format_to_test = 0;
     }
 
     // 3D image writes are not supported
     if ((flags & CL_MEM_OBJECT_IMAGE3D) &&
         (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
                   CL_MEM_KERNEL_READ_AND_WRITE))) {
-        last_format_to_test = VK_FORMAT_BEGIN_RANGE;
+        last_format_to_test = 0;
     }
 
     // Iterate over all vulkan formats
-    for (int fmt = VK_FORMAT_BEGIN_RANGE; fmt < last_format_to_test; fmt++) {
+    for (int fmt = 1; fmt < last_format_to_test + 1; fmt++) {
         // cvk_debug_fn("fmt = %u", fmt);
 
         VkFormat format = static_cast<VkFormat>(fmt);
