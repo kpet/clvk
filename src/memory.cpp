@@ -416,6 +416,12 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
         static_cast<cl_short>(pat_int[2]),
         static_cast<cl_short>(pat_int[3]),
     };
+    cl_half pat_half[4] = {
+        cl_half_from_float(pat_float[0], CL_HALF_RTE),
+        cl_half_from_float(pat_float[1], CL_HALF_RTE),
+        cl_half_from_float(pat_float[2], CL_HALF_RTE),
+        cl_half_from_float(pat_float[3], CL_HALF_RTE),
+    };
 
     size_t size = element_size();
     *size_ret = size;
@@ -470,7 +476,9 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     case CL_SNORM_INT16:
         cast_pattern = pat_snorm_int16;
         break;
-    case CL_HALF_FLOAT: // FIXME
+    case CL_HALF_FLOAT:
+        cast_pattern = pat_half;
+        break;
     default:
         CVK_ASSERT(false);
         return;
