@@ -640,6 +640,25 @@ cl_int cvk_command_kernel::build() {
             m_descriptor_sets.data(), 0, 0);
     }
 
+    // Synchronise with prior host memory writes
+    {
+        VkMemoryBarrier memoryBarrier = {
+            VK_STRUCTURE_TYPE_MEMORY_BARRIER, // sType
+            nullptr,                          // pNext
+            VK_ACCESS_HOST_WRITE_BIT,
+            VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT};
+        vkCmdPipelineBarrier(
+            m_command_buffer, VK_PIPELINE_STAGE_HOST_BIT,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
+            0,                                    // dependencyFlags
+            1,                                    // memoryBarrierCount
+            &memoryBarrier,
+            0,        // bufferMemoryBarrierCount
+            nullptr,  // pBufferMemoryBarriers
+            0,        // imageMemoryBarrierCount
+            nullptr); // pImageMemoryBarriers
+    }
+
     update_global_push_constants();
 
     // Dispatch work
