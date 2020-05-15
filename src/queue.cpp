@@ -655,6 +655,10 @@ cl_int cvk_command_kernel::build() {
                                      VK_ACCESS_MEMORY_READ_BIT |
                                          VK_ACCESS_MEMORY_WRITE_BIT};
 
+    // Workaround for a bug on some NVIDIA devices.
+    // This should already be covered by VK_ACCESS_MEMORY_READ_BIT.
+    memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+
     vkCmdPipelineBarrier(
         m_command_buffer,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
