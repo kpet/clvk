@@ -276,6 +276,8 @@ private:
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
+
+    cl_uint m_max_batch_size;
     cvk_command_kernel_group* m_kernel_group;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
@@ -670,6 +672,8 @@ struct cvk_command_kernel_group : public cvk_command {
     }
 
     CHECK_RETURN bool end() { return m_command_buffer->end(); }
+
+    cl_uint batch_size() { return m_kernel_commands.size(); }
 
     bool is_profiled_by_executor() const override { return false; }
 
