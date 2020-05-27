@@ -150,7 +150,12 @@ struct cvk_device : public _cl_device_id {
         return std::min(max_buffer_size, actual_memory_size());
     }
 
-    cl_uint mem_base_addr_align() const { return m_mem_base_addr_align; }
+    cl_uint mem_base_addr_align() const {
+        // The OpenCL spec requires at least 1024 bits (long16's alignment)
+        uint32_t required_by_vulkan_impl =
+            m_properties.limits.minStorageBufferOffsetAlignment * 8;
+        return std::max(required_by_vulkan_impl, 1024U);
+    }
 
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
@@ -325,7 +330,6 @@ private:
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
     CHECK_RETURN bool init_time_management(VkInstance instance);
-    CHECK_RETURN bool compute_buffer_alignement_requirements();
     void log_limits_and_memory_information();
     CHECK_RETURN bool init(VkInstance instance);
 
@@ -346,7 +350,6 @@ private:
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
-    cl_uint m_mem_base_addr_align;
 
     std::vector<cvk_vulkan_queue_wrapper> m_vulkan_queues;
     uint32_t m_vulkan_queue_alloc_index;

@@ -288,34 +288,6 @@ bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
     return true;
 }
 
-bool cvk_device::compute_buffer_alignement_requirements() {
-    // Work out the required alignment for buffers
-    const VkBufferCreateInfo bufferCreateInfo = {
-        VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, // sType
-        nullptr,                              // pNext
-        0,                                    // flags
-        1,                                    // size
-        cvk_buffer::USAGE_FLAGS,              // usage
-        VK_SHARING_MODE_EXCLUSIVE,
-        0,       // queueFamilyIndexCount
-        nullptr, // pQueueFamilyIndices
-    };
-
-    VkBuffer buffer;
-    auto res = vkCreateBuffer(m_dev, &bufferCreateInfo, nullptr, &buffer);
-    CVK_VK_CHECK_ERROR_RET(res, false, "Failed to create a buffer");
-
-    VkMemoryRequirements memreqs;
-    vkGetBufferMemoryRequirements(m_dev, buffer, &memreqs);
-
-    uint32_t alignment_bits = memreqs.alignment * 8;
-    // The OpenCL spec requires at least 1024 bits (long16's alignment)
-    m_mem_base_addr_align = std::max(alignment_bits, 1024u);
-    vkDestroyBuffer(m_dev, buffer, nullptr);
-
-    return true;
-}
-
 bool cvk_device::init_time_management(VkInstance instance) {
 
     if (is_vulkan_extension_enabled(
@@ -427,10 +399,6 @@ bool cvk_device::init(VkInstance instance) {
     }
 
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
-        return false;
-    }
-
-    if (!compute_buffer_alignement_requirements()) {
         return false;
     }
 
