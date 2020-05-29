@@ -775,6 +775,11 @@ cl_int cvk_command_kernel_group::do_action() {
     for (auto& kcmd : m_kernel_commands) {
         auto ev = kcmd->event();
         if (profiling) {
+            auto ts_group_submit =
+                m_event->get_profiling_info(CL_PROFILING_COMMAND_SUBMIT);
+            ev->set_profiling_info(CL_PROFILING_COMMAND_SUBMIT,
+                                   ts_group_submit);
+
             if (gQueueProfilingUsesTimestampQueries) {
                 auto perr = kcmd->set_profiling_info_from_query_results();
                 // Report the first error if no errors were present
