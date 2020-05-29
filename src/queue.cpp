@@ -126,8 +126,8 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
             m_kernel_group = nullptr;
         }
 
-        // Create a standalone batch for a non-batchable kernel command
         if (is_kernel_command) {
+            // Create a standalone batch for a non-batchable kernel command
             auto group = new cvk_command_kernel_group(this);
             group->set_dependencies(cmd->dependencies());
 
@@ -139,9 +139,9 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
                 return CL_OUT_OF_RESOURCES;
             }
             m_groups.back()->commands.push_back(group);
+        } else {
+            m_groups.back()->commands.push_back(cmd);
         }
-
-        m_groups.back()->commands.push_back(cmd);
     }
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
