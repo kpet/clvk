@@ -18,14 +18,14 @@ bool cvk_mem::map() {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::map", this);
 
-    if (m_parent != nullptr) {
-        if (!m_parent->map()) {
-            return false;
-        }
-        m_map_ptr = pointer_offset(m_parent->host_va(), m_parent_offset);
-        cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
-    } else {
-        if (m_map_count == 0) {
+    if (m_map_count == 0) {
+        if (m_parent != nullptr) {
+            if (!m_parent->map()) {
+                return false;
+            }
+            m_map_ptr = pointer_offset(m_parent->host_va(), m_parent_offset);
+            cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
+        } else {
             auto res = m_memory->map(&m_map_ptr);
             if (res != VK_SUCCESS) {
                 return false;
@@ -48,12 +48,13 @@ void cvk_mem::unmap() {
     CVK_ASSERT(m_map_count > 0);
     m_map_count--;
     release();
-    if (m_parent != nullptr) {
-        m_parent->unmap();
-        cvk_debug("%p::unmap, sub-buffer", this);
-    } else {
-        if (m_map_count == 0) {
+    if (m_map_count == 0) {
+        if (m_parent != nullptr) {
+            m_parent->unmap();
+            cvk_debug("%p::unmap, sub-buffer", this);
+        } else {
             m_memory->unmap();
+            m_map_ptr = nullptr;
         }
     }
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
@@ -415,6 +416,12 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
         static_cast<cl_short>(pat_int[2]),
         static_cast<cl_short>(pat_int[3]),
     };
+    cl_half pat_half[4] = {
+        cl_half_from_float(pat_float[0], CL_HALF_RTE),
+        cl_half_from_float(pat_float[1], CL_HALF_RTE),
+        cl_half_from_float(pat_float[2], CL_HALF_RTE),
+        cl_half_from_float(pat_float[3], CL_HALF_RTE),
+    };
 
     size_t size = element_size();
     *size_ret = size;
@@ -469,7 +476,9 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     case CL_SNORM_INT16:
         cast_pattern = pat_snorm_int16;
         break;
-    case CL_HALF_FLOAT: // FIXME
+    case CL_HALF_FLOAT:
+        cast_pattern = pat_half;
+        break;
     default:
         CVK_ASSERT(false);
         return;

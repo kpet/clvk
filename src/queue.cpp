@@ -355,30 +355,237 @@ bool cvk_command_buffer::submit_and_wait() {
     return true;
 }
 
-cl_int cvk_command_kernel::build() {
+void cvk_command_kernel::update_global_push_constants() {
+    auto program = m_kernel->program();
 
-    auto vklimits = m_queue->device()->vulkan_limits();
+    if (auto pc = program->push_constant(pushconstant::global_offset)) {
+        CVK_ASSERT(pc->size == 12);
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &m_global_offsets);
+    }
 
-    // Check we have a valid dispatch size
+    if (auto pc = program->push_constant(pushconstant::enqueued_local_size)) {
+        CVK_ASSERT(pc->size == 12);
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &m_lws);
+    }
+
+    if (auto pc = program->push_constant(pushconstant::global_size)) {
+        CVK_ASSERT(pc->size == 12);
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &m_gws);
+    }
+
+    if (auto pc = program->push_constant(pushconstant::num_workgroups)) {
+        CVK_ASSERT(pc->size == 12);
+        uint32_t num_workgroups[3] = {m_gws[0] / m_lws[0], m_gws[1] / m_lws[1],
+                                      m_gws[2] / m_lws[2]};
+
+        for (int i = 0; i < 3; i++) {
+            if (m_gws[i] % m_lws[i] != 0) {
+                num_workgroups[i]++;
+            }
+        }
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &num_workgroups);
+    }
+
+    if (m_kernel->has_pod_arguments() &&
+        !m_kernel->has_pod_buffer_arguments()) {
+        for (auto& arg : m_kernel->arguments()) {
+            if (arg.kind == kernel_argument_kind::pod_pushconstant) {
+                CVK_ASSERT(arg.offset + arg.size <=
+                           m_argument_values->pod_pushconstant_buffer().size());
+
+                // Vulkan valid usage states push constants can only be updated
+                // in chunks whose offset and size are a multiple of 4.
+                uint32_t size = round_up(arg.size, 4);
+                uint32_t offset = arg.offset & ~0x3U;
+                vkCmdPushConstants(
+                    m_command_buffer, m_kernel->pipeline_layout(),
+                    VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
+                    &m_argument_values->pod_pushconstant_buffer()[offset]);
+            }
+        }
+    }
+}
+
+cl_int cvk_command_kernel::dispatch_uniform_region(const cvk_ndrange& region) {
+
+    // Calculate number of workgroups for region
+    std::array<uint32_t, 3> num_workgroups;
+    for (cl_uint i = 0; i < 3; i++) {
+        CVK_ASSERT(region.gws[i] % region.lws[i] == 0);
+        num_workgroups[i] = region.gws[i] / region.lws[i];
+    };
+
+    // Checks region satisfies the vulkan limits
+    auto& vklimits = m_queue->device()->vulkan_limits();
     for (cl_uint i = 0; i < 3; ++i) {
-        if (m_num_wg[i] > vklimits.maxComputeWorkGroupCount[i]) {
+        if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
             cvk_error_fn("global work size exceeds device limits");
-            // There is no suitable error code to report this
-            // use something
+            // TODO split further
             return CL_INVALID_WORK_ITEM_SIZE;
         }
     }
 
-    if (m_wg_size[0] * m_wg_size[1] * m_wg_size[2] >
+    if (region.lws[0] * region.lws[1] * region.lws[2] >
         vklimits.maxComputeWorkGroupInvocations) {
         return CL_INVALID_WORK_GROUP_SIZE;
     }
 
     for (int i = 0; i < 3; i++) {
-        if (m_wg_size[i] > vklimits.maxComputeWorkGroupSize[i]) {
+        if (region.lws[i] > vklimits.maxComputeWorkGroupSize[i]) {
             return CL_INVALID_WORK_ITEM_SIZE;
         }
     }
+
+    auto program = m_kernel->program();
+    auto constants = program->spec_constants();
+    // TODO: if all kernels in the module use the same reqd_workgroup_size ,
+    // clspv will not generate specialization constants for workgroup size, but
+    // these values should be error checked.
+    uint32_t wgsize_x_id = 0;
+    auto where = constants.find(spec_constant::workgroup_size_x);
+    if (where != constants.end()) {
+        wgsize_x_id = where->second;
+    }
+    uint32_t wgsize_y_id = 1;
+    where = constants.find(spec_constant::workgroup_size_y);
+    if (where != constants.end()) {
+        wgsize_y_id = where->second;
+    }
+    uint32_t wgsize_z_id = 2;
+    where = constants.find(spec_constant::workgroup_size_z);
+    if (where != constants.end()) {
+        wgsize_z_id = where->second;
+    }
+
+    cvk_spec_constant_map specConstants = {
+        {wgsize_x_id, region.lws[0]},
+        {wgsize_y_id, region.lws[1]},
+        {wgsize_z_id, region.lws[2]},
+    };
+    for (auto const& spec_value :
+         m_argument_values->specialization_constants()) {
+        specConstants[spec_value.first] = spec_value.second;
+    }
+    // Clspv allocates a spec constant for work dimensions if get_work_dim() is
+    // used.
+    where = constants.find(spec_constant::work_dim);
+    if (where != constants.end()) {
+        uint32_t dim_id = where->second;
+        specConstants[dim_id] = m_dimensions;
+    }
+
+    // Clspv can allocate spec constants for global offset.
+    where = constants.find(spec_constant::global_offset_x);
+    if (where != constants.end()) {
+        uint32_t offset_id = where->second;
+        specConstants[offset_id] = m_global_offsets[0];
+    }
+    where = constants.find(spec_constant::global_offset_y);
+    if (where != constants.end()) {
+        uint32_t offset_id = where->second;
+        specConstants[offset_id] = m_global_offsets[1];
+    }
+    where = constants.find(spec_constant::global_offset_z);
+    if (where != constants.end()) {
+        uint32_t offset_id = where->second;
+        specConstants[offset_id] = m_global_offsets[2];
+    }
+
+    m_pipeline = m_kernel->create_pipeline(specConstants);
+
+    if (m_pipeline == VK_NULL_HANDLE) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                      m_pipeline);
+
+    if (auto pc = program->push_constant(pushconstant::region_offset)) {
+        CVK_ASSERT(pc->size == 12);
+        uint32_t region_offsets[3] = {
+            m_global_offsets[0] + region.offset[0],
+            m_global_offsets[1] + region.offset[1],
+            m_global_offsets[2] + region.offset[2],
+        };
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &region_offsets);
+    }
+
+    if (auto pc = program->push_constant(pushconstant::region_group_offset)) {
+        CVK_ASSERT(pc->size == 12);
+        uint32_t region_group_offsets[3] = {
+            region.offset[0] / m_lws[0],
+            region.offset[1] / m_lws[1],
+            region.offset[2] / m_lws[2],
+        };
+        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &region_group_offsets);
+    }
+
+    vkCmdDispatch(m_command_buffer, num_workgroups[0], num_workgroups[1],
+                  num_workgroups[2]);
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_kernel::build_and_dispatch_regions() {
+
+    // Split non-uniform NDRange into uniform regions
+    cvk_ndrange regions[8];
+    regions[0] = {{0}, m_gws, m_lws};
+    uint32_t stackpos = 0;
+    uint32_t num_regions = 1;
+    do {
+        cvk_ndrange* region = &regions[stackpos];
+        for (uint32_t dim = 0; dim < m_dimensions; dim++) {
+            auto mod = region->gws[dim] % region->lws[dim];
+
+            cvk_ndrange* splitout_region = &regions[num_regions];
+
+            if (mod != 0) {
+                *splitout_region = *region;
+
+                auto quo = region->gws[dim] - mod;
+
+                region->gws[dim] = quo;
+
+                splitout_region->gws[dim] = mod;
+                splitout_region->lws[dim] = mod;
+                splitout_region->offset[dim] = quo;
+
+                num_regions++;
+            }
+        }
+    } while (++stackpos < num_regions);
+
+    // Dispatch regions
+    for (uint32_t i = 0; i < num_regions; i++) {
+        cvk_debug("region %u: gws = {%u,%u,%u}, lws = {%u,%u,%u}, offset = "
+                  "{%u,%u,%u}",
+                  i, regions[i].gws[0], regions[i].gws[1], regions[i].gws[2],
+                  regions[i].lws[0], regions[i].lws[1], regions[i].lws[2],
+                  regions[i].offset[0], regions[i].offset[1],
+                  regions[i].offset[2]);
+        auto err = dispatch_uniform_region(regions[i]);
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+    }
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_kernel::build() {
 
     // TODO check against the size specified at compile time, if any
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
@@ -411,57 +618,12 @@ cl_int cvk_command_kernel::build() {
         }
     }
 
+    // Start recording commands
     if (!m_command_buffer.begin()) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    auto program = m_kernel->program();
-    auto constants = program->spec_constants();
-    // TODO: if all kernels in the module use the same reqd_workgroup_size ,
-    // clspv will not generate specialization constants for workgroup size, but
-    // these values should be error checked.
-    uint32_t wgsize_x_id = 0;
-    auto where = constants.find(spec_constant::workgroup_size_x);
-    if (where != constants.end()) {
-        wgsize_x_id = where->second;
-    }
-    uint32_t wgsize_y_id = 1;
-    where = constants.find(spec_constant::workgroup_size_y);
-    if (where != constants.end()) {
-        wgsize_y_id = where->second;
-    }
-    uint32_t wgsize_z_id = 2;
-    where = constants.find(spec_constant::workgroup_size_z);
-    if (where != constants.end()) {
-        wgsize_z_id = where->second;
-    }
-
-    cvk_spec_constant_map specConstants = {
-        {wgsize_x_id, m_wg_size[0]},
-        {wgsize_y_id, m_wg_size[1]},
-        {wgsize_z_id, m_wg_size[2]},
-    };
-    for (auto const& spec_value :
-         m_argument_values->specialization_constants()) {
-        specConstants[spec_value.first] = spec_value.second;
-    }
-    // Clspv allocates a spec constant for work dimensions if get_work_dim() is
-    // used.
-    where = constants.find(spec_constant::work_dim);
-    if (where != constants.end()) {
-        uint32_t dim_id = where->second;
-        specConstants[dim_id] = m_dimensions;
-    }
-
-    m_pipeline = m_kernel->create_pipeline(specConstants);
-
-    if (m_pipeline == VK_NULL_HANDLE) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    vkCmdBindPipeline(m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                      m_pipeline);
-
+    // Sample timestamp if profiling
     if (profiling && !is_profiled_by_executor()) {
         vkCmdResetQueryPool(m_command_buffer, m_query_pool, 0,
                             NUM_POOL_QUERIES_PER_KERNEL);
@@ -470,6 +632,7 @@ cl_int cvk_command_kernel::build() {
                             POOL_QUERY_KERNEL_START);
     }
 
+    // Bind descriptors and update push constants
     if (m_kernel->num_set_layouts() > 0) {
         vkCmdBindDescriptorSets(
             m_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -477,41 +640,24 @@ cl_int cvk_command_kernel::build() {
             m_descriptor_sets.data(), 0, 0);
     }
 
-    if (auto pc = program->push_constant(pushconstant::global_offset)) {
-        CVK_ASSERT(pc->size == 12);
-        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_global_offsets);
+    update_global_push_constants();
+
+    // Dispatch work
+    auto err = build_and_dispatch_regions();
+    if (err != CL_SUCCESS) {
+        return err;
     }
 
-    if (auto pc = program->push_constant(pushconstant::enqueued_local_size)) {
-        CVK_ASSERT(pc->size == 12);
-        vkCmdPushConstants(m_command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_wg_size);
-    }
-
-    if (m_kernel->has_pod_arguments() &&
-        !m_kernel->has_pod_buffer_arguments()) {
-        for (auto& arg : m_kernel->arguments()) {
-            if (arg.kind == kernel_argument_kind::pod_pushconstant) {
-                CVK_ASSERT(arg.offset + arg.size <=
-                           m_argument_values->pod_pushconstant_buffer().size());
-                vkCmdPushConstants(
-                    m_command_buffer, m_kernel->pipeline_layout(),
-                    VK_SHADER_STAGE_COMPUTE_BIT, arg.offset, arg.size,
-                    &m_argument_values->pod_pushconstant_buffer()[arg.offset]);
-            }
-        }
-    }
-
-    vkCmdDispatch(m_command_buffer, m_num_wg[0], m_num_wg[1], m_num_wg[2]);
-
+    // Synchronise wrt to memory and other commands
     VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER, // sType
                                      nullptr,                          // pNext
                                      VK_ACCESS_SHADER_WRITE_BIT,
                                      VK_ACCESS_MEMORY_READ_BIT |
                                          VK_ACCESS_MEMORY_WRITE_BIT};
+
+    // Workaround for a bug on some NVIDIA devices.
+    // This should already be covered by VK_ACCESS_MEMORY_READ_BIT.
+    memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
 
     vkCmdPipelineBarrier(
         m_command_buffer,
@@ -526,12 +672,14 @@ cl_int cvk_command_kernel::build() {
         0,        // imageMemoryBarrierCount
         nullptr); // pImageMemoryBarriers
 
+    // Sample timestamp if profiling
     if (profiling && !is_profiled_by_executor()) {
         vkCmdWriteTimestamp(m_command_buffer,
                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
                             POOL_QUERY_KERNEL_END);
     }
 
+    // End command recording
     if (!m_command_buffer.end()) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -550,21 +698,13 @@ cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    double nsPerTick = dev->vulkan_limits().timestampPeriod;
-
     auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
     auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
     uint64_t ts_start, ts_end;
 
-    // Most implementations seem to use 1 ns = 1 tick, handle this as a
-    // special case to not lose precision.
-    if (nsPerTick == 1.0) {
-        ts_start = ts_start_raw;
-        ts_end = ts_end_raw;
-    } else {
-        ts_start = ts_start_raw * nsPerTick;
-        ts_end = ts_end_raw * nsPerTick;
-    }
+    ts_start = dev->timestamp_to_ns(ts_start_raw);
+    ts_end = dev->timestamp_to_ns(ts_end_raw);
+
     m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
     m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
 

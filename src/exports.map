@@ -102,11 +102,29 @@ OPENCL_1.2 {
 OPENCL_2.0 {
     clCreateCommandQueueWithProperties;
     clCreateSamplerWithProperties;
+    clCreatePipe;
+    clGetPipeInfo;
+    clSVMAlloc;
+    clSVMFree;
+    clEnqueueSVMFree;
+    clEnqueueSVMMemcpy;
+    clEnqueueSVMMemFill;
+    clEnqueueSVMMap;
+    clEnqueueSVMUnmap;
+    clSetKernelArgSVMPointer;
+    clSetKernelExecInfo;
 } OPENCL_1.2;
 
 OPENCL_2.1 {
+    clEnqueueSVMMigrateMem;
+    clSetDefaultDeviceCommandQueue;
+    clCreateProgramWithIL;
+    clGetKernelSubGroupInfo;
+    clGetDeviceAndHostTimer;
+    clGetHostTimer;
 } OPENCL_2.0;
 
 OPENCL_2.2 {
+    clSetProgramSpecializationConstant;
 } OPENCL_2.1;
 

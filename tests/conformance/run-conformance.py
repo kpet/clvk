@@ -25,7 +25,8 @@ import subprocess
 
 THIS_DIR = os.path.dirname(__file__)
 TOP_DIR = os.path.realpath(os.path.join(THIS_DIR, '..', '..'))
-CONFORMANCE_DIR = os.path.join(TOP_DIR, 'build', 'conformance')
+CTS_BUILD_DIR = os.path.join(TOP_DIR, 'build', 'conformance')
+CTS_DIR = os.path.join(TOP_DIR, 'external', 'OpenCL-CTS')
 
 # ('Name', 'binary', 'arg0', 'arg1', ...)
 TESTS_QUICK = (
@@ -75,7 +76,7 @@ TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Non-uniform work-group', 'non_uniform_work_group/test_non_uniform_work_group'),
     ('Pipes', 'pipes/test_pipes'),
     ('SPIR', 'spir/test_spir'),
-    ('SPIR-V', 'spirv_new/test_spirv_new'),
+    ('SPIR-V', 'spirv_new/test_spirv_new', '--spirv-binaries-path', os.path.join(CTS_DIR, 'test_conformance', 'spirv_new', 'spirv_bin')),
     ('SVM', 'SVM/test_svm'),
     ('Subgroups', 'subgroups/test_subgroups'),
     ('Workgroups', 'workgroups/test_workgroups'),
@@ -199,7 +200,7 @@ def run_tests(test_set):
         binary = test[1]
         args = test[2:]
         print("Running", name, "...")
-        status = run_conformance_binary(os.path.join(CONFORMANCE_DIR, os.path.basename(binary)), list(args))
+        status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), list(args))
         results[name] = status
         totals = get_totals(status)
         print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))

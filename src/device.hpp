@@ -25,6 +25,10 @@
 #include "icd.hpp"
 #include "vkutils.hpp"
 
+struct cvk_vulkan_extension_functions {
+    PFN_vkGetCalibratedTimestampsEXT vkGetCalibratedTimestampsEXT;
+};
+
 #define MAKE_NAME_VERSION(major, minor, patch, name)                           \
     cl_name_version_khr { CL_MAKE_VERSION_KHR(major, minor, patch), name }
 
@@ -37,7 +41,7 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd) {
+        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
@@ -146,7 +150,12 @@ struct cvk_device : public _cl_device_id {
         return std::min(max_buffer_size, actual_memory_size());
     }
 
-    cl_uint mem_base_addr_align() const { return m_mem_base_addr_align; }
+    cl_uint mem_base_addr_align() const {
+        // The OpenCL spec requires at least 1024 bits (long16's alignment)
+        uint32_t required_by_vulkan_impl =
+            m_properties.limits.minStorageBufferOffsetAlignment * 8;
+        return std::max(required_by_vulkan_impl, 1024U);
+    }
 
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
@@ -269,8 +278,41 @@ struct cvk_device : public _cl_device_id {
 
     VkDevice vulkan_device() const { return m_dev; }
 
+    const VkPhysicalDevice8BitStorageFeaturesKHR&
+    device_8bit_storage_features() const {
+        return m_features_8bit_storage;
+    }
+    const VkPhysicalDevice16BitStorageFeaturesKHR&
+    device_16bit_storage_features() const {
+        return m_features_16bit_storage;
+    }
+
     uint32_t vulkan_max_push_constants_size() const {
         return m_properties.limits.maxPushConstantsSize;
+    }
+
+    bool supports_non_uniform_workgroup() const { return true; }
+
+    bool is_vulkan_extension_enabled(const char* ext) const {
+        return std::find(m_vulkan_device_extensions.begin(),
+                         m_vulkan_device_extensions.end(),
+                         ext) != m_vulkan_device_extensions.end();
+    }
+
+    CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
+
+    CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
+                                              cl_ulong* host_ts) const;
+
+    uint64_t timestamp_to_ns(uint64_t ts) const {
+        double ns_per_tick = vulkan_limits().timestampPeriod;
+        // Most implementations seem to use 1 ns = 1 tick, handle this as a
+        // special case to not lose precision.
+        if (ns_per_tick == 1.0) {
+            return ts;
+        } else {
+            return ts * ns_per_tick;
+        }
     }
 
 private:
@@ -287,12 +329,13 @@ private:
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
-    CHECK_RETURN bool compute_buffer_alignement_requirements();
+    CHECK_RETURN bool init_time_management(VkInstance instance);
     void log_limits_and_memory_information();
     CHECK_RETURN bool init(VkInstance instance);
 
     cvk_platform* m_platform;
 
+    cvk_vulkan_extension_functions m_vkfns{};
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
@@ -302,10 +345,11 @@ private:
     VkPhysicalDeviceShaderFloat16Int8FeaturesKHR m_features_float16_int8{};
     VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR
         m_features_ubo_stdlayout{};
+    VkPhysicalDevice8BitStorageFeaturesKHR m_features_8bit_storage{};
+    VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
-    cl_uint m_mem_base_addr_align;
 
     std::vector<cvk_vulkan_queue_wrapper> m_vulkan_queues;
     uint32_t m_vulkan_queue_alloc_index;
@@ -314,6 +358,8 @@ private:
     std::vector<cl_name_version_khr> m_extensions;
     std::string m_ils_string;
     std::vector<cl_name_version_khr> m_ils;
+
+    bool m_has_timer_support;
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {
@@ -376,6 +422,15 @@ struct cvk_platform : public _cl_platform_id {
     }
 
     const std::string& extension_string() const { return m_extension_string; }
+
+    cl_ulong host_timer_resolution() const {
+        for (auto dev : m_devices) {
+            if (!dev->has_timer_support()) {
+                return 0;
+            }
+        }
+        return 1;
+    }
 
 private:
     std::vector<cl_name_version_khr> m_extensions;

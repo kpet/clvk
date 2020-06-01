@@ -278,6 +278,12 @@ TEST_F(WithCommandQueue,
     EnqueueUnmapMemObject(image, data);
     Finish();
 
+    // Create a buffer of the size of the image to make it less likely that the
+    // mapping buffer of the next image map command gets the same region of
+    // memory occupied by the mapping buffer of the previous image map.
+    auto buffer =
+        CreateBuffer(CL_MEM_READ_WRITE, IMAGE_HEIGHT * IMAGE_WIDTH, nullptr);
+
     // Map with CL_MAP_WRITE_INVALIDATE_REGION
     data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
                                      CL_MAP_WRITE_INVALIDATE_REGION, origin,

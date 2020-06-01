@@ -291,7 +291,7 @@ bool parse_kernel_pushconstant(kernel_argument& arg,
     std::string akind{tokens[toknum++]};
 
     if (akind == "pod_pushconstant") {
-        arg.kind = kernel_argument_kind::pod;
+        arg.kind = kernel_argument_kind::pod_pushconstant;
     } else {
         return false;
     }
@@ -422,6 +422,14 @@ bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
         pc = pushconstant::global_offset;
     } else if (name == "enqueued_local_size") {
         pc = pushconstant::enqueued_local_size;
+    } else if (name == "global_size") {
+        pc = pushconstant::global_size;
+    } else if (name == "region_offset") {
+        pc = pushconstant::region_offset;
+    } else if (name == "num_workgroups") {
+        pc = pushconstant::num_workgroups;
+    } else if (name == "region_group_offset") {
+        pc = pushconstant::region_group_offset;
     } else {
         return false;
     }
@@ -455,6 +463,12 @@ bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
         constant = spec_constant::workgroup_size_z;
     } else if (name == "work_dim") {
         constant = spec_constant::work_dim;
+    } else if (name == "global_offset_x") {
+        constant = spec_constant::global_offset_x;
+    } else if (name == "global_offset_y") {
+        constant = spec_constant::global_offset_y;
+    } else if (name == "global_offset_z") {
+        constant = spec_constant::global_offset_z;
     } else {
         return false;
     }
@@ -600,6 +614,18 @@ bool spir_binary::load_descriptor_map(
             case clspv::PushConstant::EnqueuedLocalSize:
                 pc = pushconstant::enqueued_local_size;
                 break;
+            case clspv::PushConstant::GlobalSize:
+                pc = pushconstant::global_size;
+                break;
+            case clspv::PushConstant::RegionOffset:
+                pc = pushconstant::region_offset;
+                break;
+            case clspv::PushConstant::NumWorkgroups:
+                pc = pushconstant::num_workgroups;
+                break;
+            case clspv::PushConstant::RegionGroupOffset:
+                pc = pushconstant::region_group_offset;
+                break;
             default:
                 cvk_error("Invalid push constant: %d",
                           static_cast<int>(entry.push_constant_data.pc));
@@ -640,6 +666,15 @@ bool spir_binary::load_descriptor_map(
                 break;
             case clspv::SpecConstant::kWorkDim:
                 constant = spec_constant::work_dim;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetX:
+                constant = spec_constant::global_offset_x;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetY:
+                constant = spec_constant::global_offset_y;
+                break;
+            case clspv::SpecConstant::kGlobalOffsetZ:
+                constant = spec_constant::global_offset_z;
                 break;
             default:
                 cvk_error(
@@ -862,8 +897,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // Prepare options
     std::string options = processed_options;
-    options += " -cluster-pod-kernel-args ";
-
     std::string single_precision_option = "-cl-single-precision-constant";
     if (processed_options.find(single_precision_option) == std::string::npos) {
         options += " " + single_precision_option + " ";
@@ -871,9 +904,35 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (!devices_support_images()) {
         options += " -images=0 ";
     }
+
+    // 8-bit storage capability restrictions.
+    const auto& features_8bit_storage =
+        m_context->device()->device_8bit_storage_features();
+    if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ssbo ";
+    }
+    if (features_8bit_storage.uniformAndStorageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ubo ";
+    }
+    if (features_8bit_storage.storagePushConstant8 == VK_FALSE) {
+        options += " -no-8bit-storage=pushconstant ";
+    }
+
+    // 16-bit storage capability restrictions.
+    const auto& features_16bit_storage =
+        m_context->device()->device_16bit_storage_features();
+    if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ssbo ";
+    }
+    if (features_16bit_storage.uniformAndStorageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ubo ";
+    }
+    if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
+        options += " -no-16bit-storage=pushconstant ";
+    }
+
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    options += " -pod-ubo ";
     options += " -int8 ";
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
@@ -1052,18 +1111,23 @@ cl_build_status cvk_program::link() {
     return CL_BUILD_SUCCESS;
 }
 
-void cvk_program::prepare_push_constant_ranges() {
+void cvk_program::prepare_push_constant_range() {
     auto& pcs = m_binary.push_constants();
 
-    m_push_constant_ranges.reserve(pcs.size());
+    uint32_t min_offset = UINT32_MAX;
+    uint32_t max_offset = 0, max_offset_size = 0;
 
     for (auto& pc_pcd : pcs) {
         auto pcd = pc_pcd.second;
-        VkPushConstantRange range = {VK_SHADER_STAGE_COMPUTE_BIT, pcd.offset,
-                                     pcd.size};
-
-        m_push_constant_ranges.push_back(range);
+        min_offset = std::min(min_offset, pcd.offset);
+        if (pcd.offset >= max_offset) {
+            max_offset = pcd.offset;
+            max_offset_size = pcd.size;
+        }
     }
+
+    m_push_constant_range = {VK_SHADER_STAGE_COMPUTE_BIT, min_offset,
+                             max_offset + max_offset_size};
 }
 
 bool cvk_program::check_capabilities(const cvk_device* device) const {
@@ -1101,7 +1165,7 @@ void cvk_program::do_build() {
         if (!m_binary.loaded_from_binary()) {
             status = compile_source(device);
         }
-        prepare_push_constant_ranges();
+        prepare_push_constant_range();
         break;
     case build_operation::link:
         status = link();
@@ -1124,8 +1188,14 @@ void cvk_program::do_build() {
     }
 
     // Check capabilities against the device.
+    char* skip_capability_check_env =
+        getenv("CLVK_SKIP_SPIRV_CAPABILITY_CHECK");
+    bool skip_capability_check = false;
+    if (skip_capability_check_env &&
+        strcmp(skip_capability_check_env, "1") == 0)
+        skip_capability_check = true;
     if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !check_capabilities(device)) {
+        !skip_capability_check && !check_capabilities(device)) {
         cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
@@ -1409,9 +1479,8 @@ cl_int cvk_entry_point::init() {
         }
     }
 
-    // Calculate POD buffer size and get the push constant ranges.
-    std::vector<VkPushConstantRange> push_constant_ranges =
-        m_program->push_constant_ranges();
+    // Calculate POD buffer size and update the push constant range.
+    VkPushConstantRange push_constant_range = m_program->push_constant_range();
     if (m_has_pod_arguments) {
         // Check we know the POD buffer's descriptor type
         if (m_has_pod_buffer_arguments &&
@@ -1420,8 +1489,8 @@ cl_int cvk_entry_point::init() {
         }
 
         // Find how big the POD buffer should be
-        int max_offset = 0;
-        int max_offset_arg_size = 0;
+        uint32_t max_offset = 0;
+        uint32_t max_offset_arg_size = 0;
 
         for (auto& arg : m_args) {
             if (arg.is_pod()) {
@@ -1430,16 +1499,34 @@ cl_int cvk_entry_point::init() {
                     max_offset_arg_size = arg.size;
                 }
                 if (!arg.is_pod_buffer()) {
-                    VkPushConstantRange range = {
-                        VK_SHADER_STAGE_COMPUTE_BIT,
-                        static_cast<uint32_t>(arg.offset), arg.size};
-                    push_constant_ranges.push_back(range);
+                    if (arg.offset < push_constant_range.offset) {
+                        push_constant_range.offset = arg.offset;
+                    }
+
+                    if (arg.offset + arg.size >
+                        push_constant_range.offset + push_constant_range.size) {
+                        push_constant_range.size =
+                            arg.offset + arg.size - push_constant_range.offset;
+                    }
                 }
             }
         }
 
         m_pod_buffer_size = max_offset + max_offset_arg_size;
     }
+
+    // Don't pass the range at pipeline layout creation time if no push
+    // constants are used
+    uint32_t num_push_constant_ranges = 1;
+    if (push_constant_range.offset == UINT32_MAX) {
+        num_push_constant_ranges = 0;
+    }
+
+    // The size of the range must be a multiple of 4, round up to guarantee this
+    push_constant_range.size = round_up(push_constant_range.size, 4);
+
+    // Its offset must be a multiple of 4, round down to guarantee this
+    push_constant_range.offset &= ~0x3U;
 
     // Create pipeline layout
     cvk_debug("about to create pipeline layout, number of descriptor set "
@@ -1452,8 +1539,8 @@ cl_int cvk_entry_point::init() {
         0,
         static_cast<uint32_t>(m_descriptor_set_layouts.size()),
         m_descriptor_set_layouts.data(),
-        static_cast<uint32_t>(push_constant_ranges.size()),
-        push_constant_ranges.data()};
+        num_push_constant_ranges,
+        &push_constant_range};
 
     res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);
@@ -1616,5 +1703,6 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
 
 std::unique_ptr<std::vector<uint8_t>>
 cvk_entry_point::allocate_pod_pushconstant_buffer() {
-    return std::make_unique<std::vector<uint8_t>>(m_pod_buffer_size);
+    auto size = round_up(m_pod_buffer_size, 4);
+    return std::make_unique<std::vector<uint8_t>>(size);
 }

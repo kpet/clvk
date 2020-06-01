@@ -57,6 +57,9 @@ private:
     VkDebugReportCallbackEXT m_vulkan_debug_callback;
 };
 
+#define GET_INSTANCE_PROC(instance, name)                                      \
+    reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(instance, #name))
+
 #define CVK_VK_GET_INSTANCE_PROC(state, name)                                  \
     reinterpret_cast<PFN_##name>(state->get_instance_proc(#name))
 

@@ -145,6 +145,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     const void* copy_ptr = nullptr;
     cl_version_khr val_version;
     api_query_string val_string;
+    cl_ulong val_ulong;
 
     const cvk_platform* plat = state->platform();
     if (platform != nullptr) {
@@ -190,6 +191,11 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     case CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR:
         copy_ptr = plat->extensions().data();
         size_ret = plat->extensions().size() * sizeof(cl_name_version_khr);
+        break;
+    case CL_PLATFORM_HOST_TIMER_RESOLUTION:
+        val_ulong = plat->host_timer_resolution();
+        copy_ptr = &val_ulong;
+        size_ret = sizeof(val_ulong);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -319,6 +325,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
     cl_version_khr val_version;
+    cl_device_svm_capabilities val_svmcaps;
 
     auto device = icd_downcast(dev);
 
@@ -428,7 +435,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE:
-        val_uint = 128; // FIXME do better?
+        val_uint = 128; // Alignment in bytes of long16
         copy_ptr = &val_uint, size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_GLOBAL_MEM_CACHE_TYPE:
@@ -618,7 +625,12 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
-    case CL_DEVICE_IL_VERSION_KHR:
+    case CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_IL_VERSION:
         val_string = device->ils_string();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
@@ -637,13 +649,65 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = device->extensions().data();
         size_ret = device->extensions().size() * sizeof(cl_name_version_khr);
         break;
-    case CL_DEVICE_ILS_WITH_VERSION_KHR:
+    case CL_DEVICE_ILS_WITH_VERSION:
         copy_ptr = device->ils().data();
         size_ret = device->ils().size() * sizeof(cl_name_version_khr);
         break;
     case CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR:
         copy_ptr = nullptr;
         size_ret = 0;
+        break;
+    case CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT:
+        val_bool = device->supports_non_uniform_workgroup();
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE:
+    case CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE:
+        val_sizet = 0;
+        copy_ptr = &val_sizet;
+        size_ret = sizeof(val_sizet);
+        break;
+    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
+    case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_IMAGE_PITCH_ALIGNMENT:
+    case CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_SVM_CAPABILITIES:
+        val_svmcaps = 0;
+        copy_ptr = &val_svmcaps;
+        size_ret = sizeof(val_svmcaps);
+        break;
+    case CL_DEVICE_DEVICE_ENQUEUE_SUPPORT:
+    case CL_DEVICE_PIPE_SUPPORT:
+    case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES:
+        val_queue_properties = 0;
+        copy_ptr = &val_queue_properties;
+        size_ret = sizeof(val_queue_properties);
+        break;
+    case CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE:
+    case CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE:
+    case CL_DEVICE_MAX_ON_DEVICE_QUEUES:
+    case CL_DEVICE_MAX_ON_DEVICE_EVENTS:
+    case CL_DEVICE_MAX_PIPE_ARGS:
+    case CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS:
+    case CL_DEVICE_PIPE_MAX_PACKET_SIZE:
+    case CL_DEVICE_MAX_NUM_SUB_GROUPS:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -898,8 +962,12 @@ cl_int CLVK_API_CALL clSetUserEventStatus(cl_event event,
                                           cl_int execution_status) {
     LOG_API_CALL("event = %p, execution_status = %d", event, execution_status);
 
-    if (!is_valid_event(event)) {
+    if (!is_valid_event(event) || !icd_downcast(event)->is_user_event()) {
         return CL_INVALID_EVENT;
+    }
+
+    if (execution_status > CL_COMPLETE) {
+        return CL_INVALID_VALUE;
     }
 
     icd_downcast(event)->set_status(execution_status);
@@ -1244,6 +1312,7 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
     cl_context val_context;
     cl_device_id val_device;
     cl_command_queue_properties val_properties;
+    cl_command_queue val_queue;
 
     auto command_queue = icd_downcast(cq);
 
@@ -1272,6 +1341,16 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
         copy_ptr = &val_properties;
         ret_size = sizeof(val_properties);
         break;
+    case CL_QUEUE_SIZE:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_QUEUE_DEVICE_DEFAULT:
+        val_queue = nullptr;
+        copy_ptr = &val_queue;
+        ret_size = sizeof(val_queue);
+        break;
     default:
         ret = CL_INVALID_VALUE;
     }
@@ -1288,6 +1367,13 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
     }
 
     return ret;
+}
+
+cl_int CLVK_API_CALL clSetDefaultDeviceCommandQueue(
+    cl_context context, cl_device_id device, cl_command_queue command_queue) {
+    LOG_API_CALL("context = %p, device = %p, command_queue = %p", context,
+                 device, command_queue);
+    return CL_INVALID_OPERATION;
 }
 
 // Memory Object APIs
@@ -1496,6 +1582,7 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
     size_t val_sizet;
     cl_mem val_memobj;
     void* val_ptr;
+    cl_bool val_bool;
 
     auto memobj = icd_downcast(mem);
 
@@ -1548,6 +1635,11 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         val_ptr = memobj->host_ptr();
         copy_ptr = &val_ptr;
         ret_size = sizeof(val_ptr);
+        break;
+    case CL_MEM_USES_SVM_POINTER:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        ret_size = sizeof(val_bool);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -2008,7 +2100,7 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
             }
         }
         break;
-    case CL_PROGRAM_IL_KHR:
+    case CL_PROGRAM_IL:
         copy_ptr = program->il().data();
         ret_size = program->il().size();
         break;
@@ -2046,6 +2138,7 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
     cl_build_status val_status;
     api_query_string val_string;
     cl_program_binary_type val_binarytype;
+    size_t val_sizet;
 
     auto device = icd_downcast(dev);
     auto program = icd_downcast(prog);
@@ -2077,6 +2170,11 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         val_binarytype = program->binary_type(device);
         copy_ptr = &val_binarytype;
         ret_size = sizeof(val_binarytype);
+        break;
+    case CL_PROGRAM_BUILD_GLOBAL_VARIABLE_TOTAL_SIZE:
+        val_sizet = 0;
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -2250,6 +2348,16 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
     return kernel->set_arg(arg_index, arg_size, arg_value);
 }
 
+cl_int CLVK_API_CALL clSetKernelExecInfo(cl_kernel kernel,
+                                         cl_kernel_exec_info param_name,
+                                         size_t param_value_size,
+                                         const void* param_value) {
+    LOG_API_CALL("kernel = %p, param_name = %x, param_value_size = %zu, "
+                 "param_value = %p",
+                 kernel, param_name, param_value_size, param_value);
+    return CL_INVALID_OPERATION;
+}
+
 cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
                                      size_t param_value_size, void* param_value,
                                      size_t* param_value_size_ret) {
@@ -2389,6 +2497,18 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
     return ret;
 }
 
+cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
+    cl_kernel kernel, cl_device_id device, cl_kernel_sub_group_info param_name,
+    size_t input_value_size, const void* input_value, size_t param_value_size,
+    void* param_value, size_t* param_value_size_ret) {
+    LOG_API_CALL("kernel = %p, device = %p, param_name = %x, input_value_size "
+                 "= %zu, input_value = %p, param_value_size = %zu, param_value "
+                 "= %p, param_value_size_ret = %p",
+                 kernel, device, param_name, input_value_size, input_value,
+                 param_value_size, param_value, param_value_size_ret);
+    return CL_INVALID_OPERATION;
+}
+
 cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
     LOG_API_CALL("kernel = %p", kernel);
 
@@ -2435,6 +2555,7 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
     case CL_PROFILING_COMMAND_SUBMIT:
     case CL_PROFILING_COMMAND_START:
     case CL_PROFILING_COMMAND_END:
+    case CL_PROFILING_COMMAND_COMPLETE:
         break;
     default:
         return CL_INVALID_VALUE;
@@ -2457,6 +2578,9 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
     }
 
     if (param_value != nullptr) {
+        if (param_name == CL_PROFILING_COMMAND_COMPLETE) {
+            param_name = CL_PROFILING_COMMAND_END;
+        }
         cl_ulong value = event->get_profiling_info(param_name);
         memcpy(param_value, &value, sizeof(cl_ulong));
     }
@@ -3114,22 +3238,18 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
 
-    // Check uniformity of the NDRange
-    for (cl_uint i = 0; i < 3; i++) {
-        if (global_size[i] % workgroup_size[i] != 0) {
-            return CL_INVALID_WORK_GROUP_SIZE;
+    // Check uniformity of the NDRange if needed
+    if (!command_queue->device()->supports_non_uniform_workgroup()) {
+        for (cl_uint i = 0; i < 3; i++) {
+            if (global_size[i] % workgroup_size[i] != 0) {
+                return CL_INVALID_WORK_GROUP_SIZE;
+            }
         }
     }
 
-    // Calculate dispatch size
-    std::array<uint32_t, 3> num_workgroups;
-    for (cl_uint i = 0; i < 3; i++) {
-        num_workgroups[i] = global_size[i] / workgroup_size[i];
-    };
-
     auto cmd =
         new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
-                               num_workgroups, workgroup_size);
+                               global_size, workgroup_size);
 
     cl_int err = cmd->build();
 
@@ -3439,6 +3559,13 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
     // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
     // memory for image object.
+
+    // TODO support creating 2D images from buffers
+    if ((image_desc->image_type == CL_MEM_OBJECT_IMAGE2D) &&
+        (image_desc->mem_object != nullptr)) {
+        *errcode_ret = CL_INVALID_OPERATION;
+        return nullptr;
+    }
 
     if ((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) ||
         (host_ptr != nullptr)) {
@@ -3767,8 +3894,22 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
+    int last_format_to_test = VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
+
+    // No formats are support for read and write
+    if (flags & CL_MEM_KERNEL_READ_AND_WRITE) {
+        last_format_to_test = 0;
+    }
+
+    // 3D image writes are not supported
+    if ((flags & CL_MEM_OBJECT_IMAGE3D) &&
+        (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
+                  CL_MEM_KERNEL_READ_AND_WRITE))) {
+        last_format_to_test = 0;
+    }
+
     // Iterate over all vulkan formats
-    for (int fmt = VK_FORMAT_BEGIN_RANGE; fmt < VK_FORMAT_END_RANGE; fmt++) {
+    for (int fmt = 1; fmt < last_format_to_test + 1; fmt++) {
         // cvk_debug_fn("fmt = %u", fmt);
 
         VkFormat format = static_cast<VkFormat>(fmt);
@@ -4471,8 +4612,8 @@ void* CLVK_API_CALL clEnqueueMapImage(
     return ret;
 }
 
-cl_program cvk_create_program_with_il_khr(cl_context context, const void* il,
-                                          size_t length, cl_int* errcode_ret) {
+cl_program cvk_create_program_with_il(cl_context context, const void* il,
+                                      size_t length, cl_int* errcode_ret) {
     if (!is_valid_context(context)) {
         *errcode_ret = CL_INVALID_CONTEXT;
         return nullptr;
@@ -4499,14 +4640,234 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
                  context, il, length, errcode_ret);
 
     cl_int errcode;
-    auto program =
-        cvk_create_program_with_il_khr(context, il, length, &errcode);
+    auto program = cvk_create_program_with_il(context, il, length, &errcode);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = errcode;
     }
 
     return program;
+}
+
+cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
+                                               const void* il, size_t length,
+                                               cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, il = %p, length = %zu, errcode_ret = %p",
+                 context, il, length, errcode_ret);
+
+    cl_int errcode;
+    auto program = cvk_create_program_with_il(context, il, length, &errcode);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = errcode;
+    }
+
+    return program;
+}
+
+cl_int CLVK_API_CALL
+clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
+                                   size_t spec_size, const void* spec_value) {
+    LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
+                 program, spec_id, spec_size, spec_value);
+    return CL_INVALID_OPERATION;
+}
+
+// Shared Virtual Memory
+void* CLVK_API_CALL clSVMAlloc(cl_context context, cl_svm_mem_flags flags,
+                               size_t size, cl_uint alignment) {
+
+    LOG_API_CALL("context = %p, flags = %lu, size = %zu, alignment = %u",
+                 context, flags, size, alignment);
+
+    return nullptr;
+}
+
+void CLVK_API_CALL clSVMFree(cl_context context, void* svm_pointer) {
+    LOG_API_CALL("context = %p, svm_pointer = %p", context, svm_pointer);
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMFree(
+    cl_command_queue command_queue, cl_uint num_svm_pointers,
+    void* svm_pointers[],
+    void(CL_CALLBACK* pfn_free_func)(cl_command_queue queue,
+                                     cl_uint num_svm_pointers,
+                                     void* svm_pointers[], void* user_data),
+    void* user_data, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(num_svm_pointers);
+    UNUSED(svm_pointers);
+    UNUSED(pfn_free_func);
+    UNUSED(user_data);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMap(cl_command_queue command_queue,
+                                     cl_bool blocking_map, cl_map_flags flags,
+                                     void* svm_ptr, size_t size,
+                                     cl_uint num_events_in_wait_list,
+                                     const cl_event* event_wait_list,
+                                     cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(blocking_map);
+    UNUSED(flags);
+    UNUSED(svm_ptr);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMemcpy(cl_command_queue command_queue,
+                                        cl_bool blocking_copy, void* dst_ptr,
+                                        const void* src_ptr, size_t size,
+                                        cl_uint num_events_in_wait_list,
+                                        const cl_event* event_wait_list,
+                                        cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(blocking_copy);
+    UNUSED(dst_ptr);
+    UNUSED(src_ptr);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMemFill(cl_command_queue command_queue,
+                                         void* svm_ptr, const void* pattern,
+                                         size_t pattern_size, size_t size,
+                                         cl_uint num_events_in_wait_list,
+                                         const cl_event* event_wait_list,
+                                         cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(svm_ptr);
+    UNUSED(pattern);
+    UNUSED(pattern_size);
+    UNUSED(size);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMMigrateMem(
+    cl_command_queue command_queue, cl_uint num_svm_pointers,
+    const void** svm_pointers, const size_t* sizes,
+    cl_mem_migration_flags flags, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(num_svm_pointers);
+    UNUSED(svm_pointers);
+    UNUSED(sizes);
+    UNUSED(flags);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clEnqueueSVMUnmap(cl_command_queue command_queue,
+                                       void* svm_ptr,
+                                       cl_uint num_events_in_wait_list,
+                                       const cl_event* event_wait_list,
+                                       cl_event* event) {
+    LOG_API_CALL("command_queue = %p", command_queue);
+    UNUSED(svm_ptr);
+    UNUSED(num_events_in_wait_list);
+    UNUSED(event_wait_list);
+    UNUSED(event);
+    return CL_INVALID_OPERATION;
+}
+
+cl_int CLVK_API_CALL clSetKernelArgSVMPointer(cl_kernel kernel,
+                                              cl_uint arg_index,
+                                              const void* arg_value) {
+    LOG_API_CALL("kernel = %p, arg_index = %u, arg_value = %p", kernel,
+                 arg_index, arg_value);
+    UNUSED(kernel);
+    UNUSED(arg_index);
+    UNUSED(arg_value);
+    return CL_INVALID_OPERATION;
+}
+
+// Pipes
+cl_mem CLVK_API_CALL clCreatePipe(cl_context context, cl_mem_flags flags,
+                                  cl_uint pipe_packet_size,
+                                  cl_uint pipe_max_packets,
+                                  const cl_pipe_properties* properties,
+                                  cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, flags = %lx, packet_size = %u, max_packets = "
+                 "%u, properties = %p, errcode_ret = %p",
+                 context, flags, pipe_packet_size, pipe_max_packets, properties,
+                 errcode_ret);
+    if (errcode_ret != nullptr) {
+        *errcode_ret = CL_INVALID_OPERATION;
+    }
+    return nullptr;
+}
+
+cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
+                                   size_t param_value_size, void* param_value,
+                                   size_t* param_value_size_ret) {
+    LOG_API_CALL("pipe = %p, param_name = %x, param_value_size = %zu, "
+                 "param_value = %p, param_value_size_ret = %p",
+                 pipe, param_name, param_value_size, param_value,
+                 param_value_size_ret);
+    return CL_INVALID_OPERATION;
+}
+
+// Timer functions
+cl_int CLVK_API_CALL clGetHostTimer(cl_device_id device,
+                                    cl_ulong* host_timestamp) {
+
+    LOG_API_CALL("device = %p, host_timestamp = %p", device, host_timestamp);
+
+    if (!is_valid_device(device)) {
+        return CL_INVALID_DEVICE;
+    }
+
+    auto dev = icd_downcast(device);
+
+    if (!dev->has_timer_support()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (host_timestamp == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    return dev->get_device_host_timer(nullptr, host_timestamp);
+}
+
+cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
+                                             cl_ulong* device_timestamp,
+                                             cl_ulong* host_timestamp) {
+
+    LOG_API_CALL("device = %p, device_timestamp = %p, host_timestamp = %p",
+                 device, device_timestamp, host_timestamp);
+
+    if (!is_valid_device(device)) {
+        return CL_INVALID_DEVICE;
+    }
+
+    auto dev = icd_downcast(device);
+
+    if (!dev->has_timer_support()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if ((device_timestamp == nullptr) || (host_timestamp == nullptr)) {
+        return CL_INVALID_VALUE;
+    }
+
+    return dev->get_device_host_timer(device_timestamp, host_timestamp);
 }
 
 // clang-format off
@@ -4655,34 +5016,38 @@ cl_icd_dispatch gDispatchTable = {
 
     /* OpenCL 2.0 */
     clCreateCommandQueueWithProperties,
-    nullptr, // clCreatePipe;
-    nullptr, // clGetPipeInfo;
-    nullptr, // clSVMAlloc;
-    nullptr, // clSVMFree;
-    nullptr, // clEnqueueSVMFree;
-    nullptr, // clEnqueueSVMMemcpy;
-    nullptr, // clEnqueueSVMMemFill;
-    nullptr, // clEnqueueSVMMap;
-    nullptr, // clEnqueueSVMUnmap;
+    clCreatePipe,
+    clGetPipeInfo,
+    clSVMAlloc,
+    clSVMFree,
+    clEnqueueSVMFree,
+    clEnqueueSVMMemcpy,
+    clEnqueueSVMMemFill,
+    clEnqueueSVMMap,
+    clEnqueueSVMUnmap,
     clCreateSamplerWithProperties,
-    nullptr, // clSetKernelArgSVMPointer;
-    nullptr, // clSetKernelExecInfo;
+    clSetKernelArgSVMPointer,
+    clSetKernelExecInfo,
 
     /* cl_khr_sub_groups */
     nullptr, // clGetKernelSubGroupInfoKHR;
 
     /* OpenCL 2.1 */
     nullptr, // clCloneKernel;
-    nullptr, // clCreateProgramWithIL;
-    nullptr, // clEnqueueSVMMigrateMem;
-    nullptr, // clGetDeviceAndHostTimer;
-    nullptr, // clGetHostTimer;
-    nullptr, // clGetKernelSubGroupInfo;
-    nullptr, // clSetDefaultDeviceCommandQueue;
+    clCreateProgramWithIL,
+    clEnqueueSVMMigrateMem,
+    clGetDeviceAndHostTimer,
+    clGetHostTimer,
+    clGetKernelSubGroupInfo,
+    clSetDefaultDeviceCommandQueue,
 
     /* OpenCL 2.2 */
     nullptr, // clSetProgramReleaseCallback;
-    nullptr, // clSetProgramSpecializationConstant;
+    clSetProgramSpecializationConstant,
+
+    /* OpenCL 3.0 */
+    nullptr, // clCreateBufferWithProperties
+    nullptr, // clCreateImageWithProperties
 };
 // clang-format on
 
