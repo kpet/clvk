@@ -391,7 +391,7 @@
       "program_binary_type": "fail",
       "simple_compile_only": "pass",
       "simple_compile_with_callback": "pass",
-      "simple_embedded_header_compile": "pass",
+      "simple_embedded_header_compile": "fail",
       "simple_embedded_header_link": "fail",
       "simple_extern_compile_only": "pass",
       "simple_library_only": "pass",
@@ -1137,9 +1137,20 @@
     "retcode": 0
   },
   "Subgroups": {
-    "duration": "00:00:00.384867",
-    "has_results": false,
-    "results": {},
+    "duration": "00:00:00.212465",
+    "has_results": true,
+    "results": {
+      "barrier_functions_core": "skip",
+      "barrier_functions_ext": "skip",
+      "ifp_core": "skip",
+      "ifp_ext": "skip",
+      "sub_group_info_core": "skip",
+      "sub_group_info_ext": "skip",
+      "work_group_functions_core": "skip",
+      "work_group_functions_ext": "skip",
+      "work_item_functions_core": "skip",
+      "work_item_functions_ext": "skip"
+    },
     "retcode": 0
   },
   "Thread Dimensions": {
