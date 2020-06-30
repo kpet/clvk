@@ -197,7 +197,7 @@ struct cvk_command_pool {
         // Create command pool
         VkCommandPoolCreateInfo createInfo = {
             VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr,
-            0, // flags
+            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // flags
             m_queue_family};
 
         return vkCreateCommandPool(m_device, &createInfo, nullptr,
