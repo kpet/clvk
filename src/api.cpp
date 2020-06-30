@@ -435,7 +435,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE:
-        val_uint = 128; // FIXME do better?
+        val_uint = 128; // Alignment in bytes of long16
         copy_ptr = &val_uint, size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_GLOBAL_MEM_CACHE_TYPE:
