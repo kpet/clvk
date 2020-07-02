@@ -29,6 +29,56 @@ cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
     return device;
 }
 
+void cvk_device::init_properties(VkInstance instance) {
+
+    cvk_info("Initialising properties");
+
+    // Get physical device properties
+    VkPhysicalDeviceProperties2KHR properties;
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+    properties.pNext = &m_driver_properties;
+    m_driver_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+    m_driver_properties.driverID = static_cast<VkDriverIdKHR>(0);
+    m_driver_properties.pNext = nullptr;
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        // Use the extension on Vulkan 1.0 platforms
+        auto func = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(
+            vkGetInstanceProcAddr(instance,
+                                  "vkGetPhysicalDeviceProperties2KHR"));
+        if (!func) {
+            cvk_fatal(
+                "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
+        }
+        func(m_pdev, &properties);
+    } else {
+        vkGetPhysicalDeviceProperties2(m_pdev, &properties);
+    }
+    m_properties = properties.properties;
+
+    // Get physical device memory properties
+    vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
+
+    // Log basic information about the target Vulkan device
+    cvk_info("deviceName = %s", m_properties.deviceName);
+    if (m_driver_properties.driverID != 0) {
+        cvk_info("driverName = %s", m_driver_properties.driverName);
+        cvk_info("driverInfo = %s", m_driver_properties.driverInfo);
+        cvk_info("conformanceVersion = %d.%d.%d.%d",
+                 m_driver_properties.conformanceVersion.major,
+                 m_driver_properties.conformanceVersion.minor,
+                 m_driver_properties.conformanceVersion.subminor,
+                 m_driver_properties.conformanceVersion.patch);
+    }
+
+    // Alter behavior based on the target Vulkan device and driver version
+    if (m_driver_properties.driverID == VK_DRIVER_ID_ARM_PROPRIETARY_KHR) {
+        // Workaround for resource management bug on Mali GPUs.
+        // TODO: Make conditional on driver version when fixed in the driver.
+        m_use_reset_command_buffer_bit = true;
+    }
+}
+
 bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     // Get number of queue families
     uint32_t num_families;
@@ -380,6 +430,8 @@ void cvk_device::log_limits_and_memory_information() {
 
 bool cvk_device::init(VkInstance instance) {
     cvk_info("Initialising device %s", m_properties.deviceName);
+
+    init_properties(instance);
 
     uint32_t num_queues, queue_family;
     if (!init_queues(&num_queues, &queue_family)) {

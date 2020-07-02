@@ -41,10 +41,7 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
-        vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
-        vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
-    }
+        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {}
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
                               VkPhysicalDevice pdev);
@@ -315,6 +312,10 @@ struct cvk_device : public _cl_device_id {
         }
     }
 
+    bool use_reset_command_buffer_bit() const {
+        return m_use_reset_command_buffer_bit;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -325,6 +326,7 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
+    void init_properties(VkInstance instance);
     void init_features(VkInstance instance);
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
@@ -338,6 +340,7 @@ private:
     cvk_vulkan_extension_functions m_vkfns{};
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
+    VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
@@ -347,6 +350,9 @@ private:
         m_features_ubo_stdlayout{};
     VkPhysicalDevice8BitStorageFeaturesKHR m_features_8bit_storage{};
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
+
+    // Driver-specific behaviors.
+    bool m_use_reset_command_buffer_bit = false;
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

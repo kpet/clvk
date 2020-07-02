@@ -183,25 +183,30 @@ private:
 
 struct cvk_command_pool {
 
-    cvk_command_pool(VkDevice device, uint32_t queue_family)
+    cvk_command_pool(cvk_device* device, uint32_t queue_family)
         : m_device(device), m_queue_family(queue_family),
           m_command_pool(VK_NULL_HANDLE) {}
 
     ~cvk_command_pool() {
         if (m_command_pool != VK_NULL_HANDLE) {
-            vkDestroyCommandPool(m_device, m_command_pool, nullptr);
+            vkDestroyCommandPool(m_device->vulkan_device(), m_command_pool,
+                                 nullptr);
         }
     }
 
     CHECK_RETURN VkResult init() {
+        VkCommandPoolCreateFlags flags = 0;
+        if (m_device->use_reset_command_buffer_bit()) {
+            flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        }
+
         // Create command pool
         VkCommandPoolCreateInfo createInfo = {
-            VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr,
-            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, // flags
+            VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO, nullptr, flags,
             m_queue_family};
 
-        return vkCreateCommandPool(m_device, &createInfo, nullptr,
-                                   &m_command_pool);
+        return vkCreateCommandPool(m_device->vulkan_device(), &createInfo,
+                                   nullptr, &m_command_pool);
     }
 
     VkResult allocate_command_buffer(VkCommandBuffer* buf);
@@ -212,7 +217,7 @@ struct cvk_command_pool {
     void unlock() { m_lock.unlock(); }
 
 private:
-    VkDevice m_device;
+    cvk_device* m_device;
     uint32_t m_queue_family;
     VkCommandPool m_command_pool;
     std::mutex m_lock;
