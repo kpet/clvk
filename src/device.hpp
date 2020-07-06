@@ -315,8 +315,13 @@ struct cvk_device : public _cl_device_id {
         }
     }
 
-    bool use_reset_command_buffer_bit() const {
-        return m_use_reset_command_buffer_bit;
+    // Driver-specific behaviors.
+    enum cvk_driver_behavior
+    {
+        use_reset_command_buffer_bit = 0x00000001,
+    };
+    bool is_driver_behavior_enabled(cvk_driver_behavior behavior) const {
+        return m_driver_behaviors & behavior;
     }
 
 private:
@@ -354,9 +359,6 @@ private:
     VkPhysicalDevice8BitStorageFeaturesKHR m_features_8bit_storage{};
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
 
-    // Driver-specific behaviors.
-    bool m_use_reset_command_buffer_bit = false;
-
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
 
@@ -367,6 +369,8 @@ private:
     std::vector<cl_name_version_khr> m_extensions;
     std::string m_ils_string;
     std::vector<cl_name_version_khr> m_ils;
+
+    uint32_t m_driver_behaviors;
 
     bool m_has_timer_support;
 };

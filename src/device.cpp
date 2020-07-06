@@ -33,24 +33,19 @@ void cvk_device::init_driver_behaviors(VkInstance instance) {
 
     cvk_info("Initialising driver behaviors");
 
-    if (!(m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
-          is_vulkan_extension_enabled(
-              VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME))) {
-        cvk_warn("VK_KHR_driver_properties not supported");
-        cvk_warn("Using default Vulkan driver behaviors.");
-        return;
-    }
+    // Disable all driver-specific behaviors by default
+    m_driver_behaviors = 0;
 
-    // Get physical device properties
-    VkPhysicalDeviceProperties2KHR properties;
-    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
-    properties.pNext = &m_driver_properties;
-    m_driver_properties.sType =
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
-    m_driver_properties.driverID = static_cast<VkDriverIdKHR>(0);
-    m_driver_properties.pNext = nullptr;
-    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
-        // Use the extension on Vulkan 1.0 platforms
+    if (is_vulkan_extension_enabled(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME) ||
+        m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0)) {
+
+        // Get driver properties
+        VkPhysicalDeviceProperties2KHR properties;
+        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+        properties.pNext = &m_driver_properties;
+        m_driver_properties.sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+        m_driver_properties.pNext = nullptr;
         auto func =
             GET_INSTANCE_PROC(instance, vkGetPhysicalDeviceProperties2KHR);
         if (!func) {
@@ -58,25 +53,36 @@ void cvk_device::init_driver_behaviors(VkInstance instance) {
                 "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
         }
         func(m_pdev, &properties);
+
+        // Log basic information about the target Vulkan device
+        cvk_info("  driverName = %s", m_driver_properties.driverName);
+        cvk_info("  driverInfo = %s", m_driver_properties.driverInfo);
+        cvk_info("  conformanceVersion = %d.%d.%d.%d",
+                 m_driver_properties.conformanceVersion.major,
+                 m_driver_properties.conformanceVersion.minor,
+                 m_driver_properties.conformanceVersion.subminor,
+                 m_driver_properties.conformanceVersion.patch);
+
+        // Select behaviors based on the target Vulkan device and driver version
+        if (m_driver_properties.driverID == VK_DRIVER_ID_ARM_PROPRIETARY_KHR) {
+            // Workaround for resource management bug on Mali GPUs.
+            // TODO: Make this conditional on the driver version when this is
+            // fixed in the driver.
+            m_driver_behaviors |= use_reset_command_buffer_bit;
+        }
     } else {
-        vkGetPhysicalDeviceProperties2(m_pdev, &properties);
+        cvk_warn("The VK_KHR_driver_properties extension is not supported.");
+        cvk_warn("Using default Vulkan driver behaviors.");
     }
 
-    // Log basic information about the target Vulkan device
-    cvk_info("driverName = %s", m_driver_properties.driverName);
-    cvk_info("driverInfo = %s", m_driver_properties.driverInfo);
-    cvk_info("conformanceVersion = %d.%d.%d.%d",
-             m_driver_properties.conformanceVersion.major,
-             m_driver_properties.conformanceVersion.minor,
-             m_driver_properties.conformanceVersion.subminor,
-             m_driver_properties.conformanceVersion.patch);
-
-    // Alter behavior based on the target Vulkan device and driver version
-    if (m_driver_properties.driverID == VK_DRIVER_ID_ARM_PROPRIETARY_KHR) {
-        // Workaround for resource management bug on Mali GPUs.
-        // TODO: Make conditional on driver version when fixed in the driver.
-        m_use_reset_command_buffer_bit = true;
-    }
+    // List driver behaviors
+    cvk_info("Driver behaviors:");
+#define PRINT_BEHAVIOR(name)                                                   \
+    cvk_info("  %s = %s", #name,                                               \
+             (m_driver_behaviors & use_reset_command_buffer_bit) ? "true"      \
+                                                                 : "false")
+    PRINT_BEHAVIOR(use_reset_command_buffer_bit);
+#undef PRINT_BEHAVIOR
 }
 
 bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {

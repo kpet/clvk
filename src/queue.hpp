@@ -196,7 +196,8 @@ struct cvk_command_pool {
 
     CHECK_RETURN VkResult init() {
         VkCommandPoolCreateFlags flags = 0;
-        if (m_device->use_reset_command_buffer_bit()) {
+        if (m_device->is_driver_behavior_enabled(
+                cvk_device::use_reset_command_buffer_bit)) {
             flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         }
 
