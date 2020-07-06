@@ -29,9 +29,17 @@ cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
     return device;
 }
 
-void cvk_device::init_properties(VkInstance instance) {
+void cvk_device::init_driver_behaviors(VkInstance instance) {
 
-    cvk_info("Initialising properties");
+    cvk_info("Initialising driver behaviors");
+
+    if (!(m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
+          is_vulkan_extension_enabled(
+              VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME))) {
+        cvk_warn("VK_KHR_driver_properties not supported");
+        cvk_warn("Using default Vulkan driver behaviors.");
+        return;
+    }
 
     // Get physical device properties
     VkPhysicalDeviceProperties2KHR properties;
@@ -53,22 +61,15 @@ void cvk_device::init_properties(VkInstance instance) {
     } else {
         vkGetPhysicalDeviceProperties2(m_pdev, &properties);
     }
-    m_properties = properties.properties;
-
-    // Get physical device memory properties
-    vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
 
     // Log basic information about the target Vulkan device
-    cvk_info("deviceName = %s", m_properties.deviceName);
-    if (m_driver_properties.driverID != 0) {
-        cvk_info("driverName = %s", m_driver_properties.driverName);
-        cvk_info("driverInfo = %s", m_driver_properties.driverInfo);
-        cvk_info("conformanceVersion = %d.%d.%d.%d",
-                 m_driver_properties.conformanceVersion.major,
-                 m_driver_properties.conformanceVersion.minor,
-                 m_driver_properties.conformanceVersion.subminor,
-                 m_driver_properties.conformanceVersion.patch);
-    }
+    cvk_info("driverName = %s", m_driver_properties.driverName);
+    cvk_info("driverInfo = %s", m_driver_properties.driverInfo);
+    cvk_info("conformanceVersion = %d.%d.%d.%d",
+             m_driver_properties.conformanceVersion.major,
+             m_driver_properties.conformanceVersion.minor,
+             m_driver_properties.conformanceVersion.subminor,
+             m_driver_properties.conformanceVersion.patch);
 
     // Alter behavior based on the target Vulkan device and driver version
     if (m_driver_properties.driverID == VK_DRIVER_ID_ARM_PROPRIETARY_KHR) {
@@ -143,6 +144,7 @@ bool cvk_device::init_extensions() {
     const std::vector<const char*> desired_extensions = {
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+        VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
@@ -430,8 +432,6 @@ void cvk_device::log_limits_and_memory_information() {
 bool cvk_device::init(VkInstance instance) {
     cvk_info("Initialising device %s", m_properties.deviceName);
 
-    init_properties(instance);
-
     uint32_t num_queues, queue_family;
     if (!init_queues(&num_queues, &queue_family)) {
         return false;
@@ -440,6 +440,8 @@ bool cvk_device::init(VkInstance instance) {
     if (!init_extensions()) {
         return false;
     }
+
+    init_driver_behaviors(instance);
 
     init_features(instance);
 

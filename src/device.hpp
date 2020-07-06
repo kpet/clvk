@@ -41,7 +41,10 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {}
+        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
+        vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
+        vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
+    }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
                               VkPhysicalDevice pdev);
@@ -326,7 +329,7 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
-    void init_properties(VkInstance instance);
+    void init_driver_behaviors(VkInstance instance);
     void init_features(VkInstance instance);
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
