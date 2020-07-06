@@ -78,9 +78,7 @@ void cvk_device::init_driver_behaviors(VkInstance instance) {
     // List driver behaviors
     cvk_info("Driver behaviors:");
 #define PRINT_BEHAVIOR(name)                                                   \
-    cvk_info("  %s = %s", #name,                                               \
-             (m_driver_behaviors & use_reset_command_buffer_bit) ? "true"      \
-                                                                 : "false")
+    cvk_info("  %s = %s", #name, (m_driver_behaviors & name) ? "true" : "false")
     PRINT_BEHAVIOR(use_reset_command_buffer_bit);
 #undef PRINT_BEHAVIOR
 }
