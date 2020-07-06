@@ -43,9 +43,8 @@ void cvk_device::init_properties(VkInstance instance) {
     m_driver_properties.pNext = nullptr;
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
         // Use the extension on Vulkan 1.0 platforms
-        auto func = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(
-            vkGetInstanceProcAddr(instance,
-                                  "vkGetPhysicalDeviceProperties2KHR"));
+        auto func =
+            GET_INSTANCE_PROC(instance, vkGetPhysicalDeviceProperties2KHR);
         if (!func) {
             cvk_fatal(
                 "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
