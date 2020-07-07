@@ -29,6 +29,60 @@ cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
     return device;
 }
 
+void cvk_device::init_driver_behaviors(VkInstance instance) {
+
+    cvk_info("Initialising driver behaviors");
+
+    // Disable all driver-specific behaviors by default
+    m_driver_behaviors = 0;
+
+    if (is_vulkan_extension_enabled(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME) ||
+        m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0)) {
+
+        // Get driver properties
+        VkPhysicalDeviceProperties2KHR properties;
+        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+        properties.pNext = &m_driver_properties;
+        m_driver_properties.sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+        m_driver_properties.pNext = nullptr;
+        auto func =
+            GET_INSTANCE_PROC(instance, vkGetPhysicalDeviceProperties2KHR);
+        if (!func) {
+            cvk_fatal(
+                "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
+        }
+        func(m_pdev, &properties);
+
+        // Log basic information about the target Vulkan device
+        cvk_info("  driverName = %s", m_driver_properties.driverName);
+        cvk_info("  driverInfo = %s", m_driver_properties.driverInfo);
+        cvk_info("  conformanceVersion = %d.%d.%d.%d",
+                 m_driver_properties.conformanceVersion.major,
+                 m_driver_properties.conformanceVersion.minor,
+                 m_driver_properties.conformanceVersion.subminor,
+                 m_driver_properties.conformanceVersion.patch);
+
+        // Select behaviors based on the target Vulkan device and driver version
+        if (m_driver_properties.driverID == VK_DRIVER_ID_ARM_PROPRIETARY_KHR) {
+            // Workaround for resource management bug on Mali GPUs.
+            // TODO: Make this conditional on the driver version when this is
+            // fixed in the driver.
+            m_driver_behaviors |= use_reset_command_buffer_bit;
+        }
+    } else {
+        cvk_warn("The VK_KHR_driver_properties extension is not supported.");
+        cvk_warn("Using default Vulkan driver behaviors.");
+    }
+
+    // List driver behaviors
+    cvk_info("Driver behaviors:");
+#define PRINT_BEHAVIOR(name)                                                   \
+    cvk_info("  %s = %s", #name, (m_driver_behaviors & name) ? "true" : "false")
+    PRINT_BEHAVIOR(use_reset_command_buffer_bit);
+#undef PRINT_BEHAVIOR
+}
+
 bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     // Get number of queue families
     uint32_t num_families;
@@ -94,6 +148,7 @@ bool cvk_device::init_extensions() {
     const std::vector<const char*> desired_extensions = {
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+        VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
@@ -389,6 +444,8 @@ bool cvk_device::init(VkInstance instance) {
     if (!init_extensions()) {
         return false;
     }
+
+    init_driver_behaviors(instance);
 
     init_features(instance);
 

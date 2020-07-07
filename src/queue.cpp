@@ -27,7 +27,7 @@ cvk_command_queue::cvk_command_queue(cvk_context* ctx, cvk_device* device,
                                      cl_command_queue_properties properties)
     : api_object(ctx), m_device(device), m_properties(properties),
       m_executor(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
-      m_command_pool(device->vulkan_device(), m_vulkan_queue.queue_family()) {
+      m_command_pool(device, m_vulkan_queue.queue_family()) {
 
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
@@ -306,13 +306,13 @@ VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {
         1 // commandBufferCount
     };
 
-    return vkAllocateCommandBuffers(m_device, &commandBufferAllocateInfo,
-                                    cmdbuf);
+    return vkAllocateCommandBuffers(m_device->vulkan_device(),
+                                    &commandBufferAllocateInfo, cmdbuf);
 }
 
 void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
     std::lock_guard<std::mutex> lock(m_lock);
-    vkFreeCommandBuffers(m_device, m_command_pool, 1, &buf);
+    vkFreeCommandBuffers(m_device->vulkan_device(), m_command_pool, 1, &buf);
 }
 
 bool cvk_command_buffer::begin() {

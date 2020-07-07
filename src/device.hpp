@@ -315,6 +315,15 @@ struct cvk_device : public _cl_device_id {
         }
     }
 
+    // Driver-specific behaviors.
+    enum cvk_driver_behavior
+    {
+        use_reset_command_buffer_bit = 0x00000001,
+    };
+    bool is_driver_behavior_enabled(cvk_driver_behavior behavior) const {
+        return m_driver_behaviors & behavior;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -325,6 +334,7 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
+    void init_driver_behaviors(VkInstance instance);
     void init_features(VkInstance instance);
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
@@ -338,6 +348,7 @@ private:
     cvk_vulkan_extension_functions m_vkfns{};
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
+    VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
@@ -358,6 +369,8 @@ private:
     std::vector<cl_name_version_khr> m_extensions;
     std::string m_ils_string;
     std::vector<cl_name_version_khr> m_ils;
+
+    uint32_t m_driver_behaviors;
 
     bool m_has_timer_support;
 };
