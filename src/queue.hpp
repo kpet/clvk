@@ -267,6 +267,7 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
 
 private:
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
+    CHECK_RETURN cl_int end_current_kernel_group();
     void executor();
 
     cvk_device* m_device;

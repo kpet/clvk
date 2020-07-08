@@ -114,18 +114,14 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
         // End kernel batch when size limit reached
         if (m_kernel_group->batch_size() >= m_max_batch_size) {
-            if (!m_kernel_group->end()) {
-                return CL_OUT_OF_RESOURCES;
+            if ((err = end_current_kernel_group()) != CL_SUCCESS) {
+                return err;
             }
-            m_kernel_group = nullptr;
         }
     } else {
-        if (m_kernel_group) {
-            // End the current kernel batch
-            if (!m_kernel_group->end()) {
-                return CL_OUT_OF_RESOURCES;
-            }
-            m_kernel_group = nullptr;
+        // End the current kernel batch
+        if ((err = end_current_kernel_group()) != CL_SUCCESS) {
+            return err;
         }
 
         if (is_kernel_command(cmd)) {
@@ -190,6 +186,16 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     }
 
     return err;
+}
+
+cl_int cvk_command_queue::end_current_kernel_group() {
+    if (m_kernel_group) {
+        if (!m_kernel_group->end()) {
+            return CL_OUT_OF_RESOURCES;
+        }
+        m_kernel_group = nullptr;
+    }
+    return CL_SUCCESS;
 }
 
 cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
@@ -284,11 +290,9 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
         std::lock_guard<std::mutex> lock(m_lock);
 
         // End current kernel group
-        if (m_kernel_group) {
-            if (!m_kernel_group->end()) {
-                return CL_OUT_OF_RESOURCES;
-            }
-            m_kernel_group = nullptr;
+        cl_int err = end_current_kernel_group();
+        if (err != CL_SUCCESS) {
+            return err;
         }
 
         if (m_groups.front()->commands.size() == 0) {
