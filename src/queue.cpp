@@ -60,9 +60,13 @@ cvk_command_queue::~cvk_command_queue() {
 
 namespace {
 
-bool is_command_batchable(cvk_command* cmd) {
-    bool batchable_type = (cmd->type() == CL_COMMAND_NDRANGE_KERNEL) ||
-                          (cmd->type() == CL_COMMAND_TASK);
+bool is_kernel_command(const cvk_command* cmd) {
+    return cmd->type() == CL_COMMAND_NDRANGE_KERNEL ||
+           cmd->type() == CL_COMMAND_TASK;
+}
+
+bool is_command_batchable(const cvk_command* cmd) {
+    bool batchable_type = is_kernel_command(cmd);
     bool unresolved_user_event_dependencies = false;
     bool unresolved_other_queue_dependencies = false;
 
@@ -94,8 +98,6 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cl_int err;
 
-    bool is_kernel_command = cmd->type() == CL_COMMAND_NDRANGE_KERNEL ||
-                             cmd->type() == CL_COMMAND_TASK;
     if (is_command_batchable(cmd)) {
         if (!m_kernel_group) {
             // Create a new kernel batch
@@ -104,7 +106,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         // Add kernel to current batch
-        CVK_ASSERT(is_kernel_command);
+        CVK_ASSERT(is_kernel_command(cmd));
         err = m_kernel_group->add_kernel(static_cast<cvk_command_kernel*>(cmd));
         if (err != CL_SUCCESS) {
             return err;
@@ -126,7 +128,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
             m_kernel_group = nullptr;
         }
 
-        if (is_kernel_command) {
+        if (is_kernel_command(cmd)) {
             // Create a standalone batch for a non-batchable kernel command
             auto group = new cvk_command_kernel_group(this);
             group->set_dependencies(cmd->dependencies());
