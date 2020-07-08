@@ -102,7 +102,6 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         if (!m_kernel_group) {
             // Create a new kernel batch
             m_kernel_group = new cvk_command_kernel_group(this);
-            m_groups.back()->commands.push_back(m_kernel_group);
         }
 
         // Add kernel to current batch
@@ -193,6 +192,7 @@ cl_int cvk_command_queue::end_current_kernel_group() {
         if (!m_kernel_group->end()) {
             return CL_OUT_OF_RESOURCES;
         }
+        m_groups.back()->commands.push_back(m_kernel_group);
         m_kernel_group = nullptr;
     }
     return CL_SUCCESS;
