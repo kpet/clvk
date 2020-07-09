@@ -124,21 +124,14 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         if (is_kernel_command(cmd)) {
-            // Create a standalone batch for a non-batchable kernel command
-            auto group = new cvk_command_kernel_group(this);
-            group->set_dependencies(cmd->dependencies());
-
-            err = group->add_kernel(static_cast<cvk_command_kernel*>(cmd));
+            // Build a non-batchable kernel command
+            err = static_cast<cvk_command_kernel*>(cmd)->build();
             if (err != CL_SUCCESS) {
                 return err;
             }
-            if (!group->end()) {
-                return CL_OUT_OF_RESOURCES;
-            }
-            m_groups.back()->commands.push_back(group);
-        } else {
-            m_groups.back()->commands.push_back(cmd);
         }
+
+        m_groups.back()->commands.push_back(cmd);
     }
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
@@ -629,6 +622,24 @@ cl_int cvk_command_kernel::build_and_dispatch_regions(
     return CL_SUCCESS;
 }
 
+cl_int cvk_command_kernel::build() {
+    m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
+    if (!m_command_buffer->begin()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    cl_int err = build(*m_command_buffer);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    if (!m_command_buffer->end()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    return CL_SUCCESS;
+}
+
 cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
 
     // TODO check against the size specified at compile time, if any
@@ -746,8 +757,21 @@ cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
 }
 
 cl_int cvk_command_kernel::do_action() {
-    cvk_error("kernel command executed outside of a batch");
-    return CL_INVALID_OPERATION;
+    CVK_ASSERT(m_command_buffer);
+
+    if (!m_command_buffer->submit_and_wait()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    cl_int err = CL_COMPLETE;
+
+    if (profiling && !is_profiled_by_executor()) {
+        err = set_profiling_info_from_query_results();
+    }
+
+    return err;
 }
 
 cl_int cvk_command_kernel_group::submit_and_wait() {

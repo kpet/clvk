@@ -628,6 +628,7 @@ struct cvk_command_kernel : public cvk_command {
 
     CHECK_RETURN cl_int set_profiling_info_from_query_results();
 
+    CHECK_RETURN cl_int build();
     CHECK_RETURN cl_int build(cvk_command_buffer& command_buffer);
     virtual cl_int do_action() override;
 
@@ -653,6 +654,8 @@ private:
     VkPipeline m_pipeline;
     VkQueryPool m_query_pool;
     std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
+
+    std::unique_ptr<cvk_command_buffer> m_command_buffer;
 
     static const int NUM_POOL_QUERIES_PER_KERNEL = 2;
     static const int POOL_QUERY_KERNEL_START = 0;
