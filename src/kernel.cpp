@@ -97,7 +97,7 @@ bool cvk_kernel::setup_descriptor_sets(
 
     // Make enough space to store all descriptor write structures
     size_t max_descriptor_writes =
-        m_args.size() + program()->literal_sampler_descs().size() + 1;
+        m_args.size() + program()->literal_sampler_descs().size();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
