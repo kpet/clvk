@@ -95,6 +95,16 @@ bool cvk_kernel::setup_descriptor_sets(
         return false;
     }
 
+    // Make enough space to store all descriptor write structures
+    size_t max_descriptor_writes =
+        m_args.size() + program()->literal_sampler_descs().size();
+    std::vector<VkWriteDescriptorSet> descriptor_writes;
+    std::vector<VkDescriptorBufferInfo> buffer_info;
+    std::vector<VkDescriptorImageInfo> image_info;
+    descriptor_writes.reserve(max_descriptor_writes);
+    buffer_info.reserve(max_descriptor_writes);
+    image_info.reserve(max_descriptor_writes);
+
     // Setup descriptors for POD arguments
     if (has_pod_buffer_arguments()) {
 
@@ -102,6 +112,7 @@ bool cvk_kernel::setup_descriptor_sets(
         VkDescriptorBufferInfo bufferInfo = {arg_values->pod_vulkan_buffer(),
                                              0, // offset
                                              VK_WHOLE_SIZE};
+        buffer_info.push_back(bufferInfo);
 
         VkWriteDescriptorSet writeDescriptorSet = {
             VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -112,10 +123,10 @@ bool cvk_kernel::setup_descriptor_sets(
             1,                                    // descriptorCount
             m_entry_point->pod_descriptor_type(), // descriptorType
             nullptr,                              // pImageInfo
-            &bufferInfo,
+            &buffer_info.back(),
             nullptr, // pTexelBufferView
         };
-        vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+        descriptor_writes.push_back(writeDescriptorSet);
     }
 
     // Setup other kernel argument descriptors
@@ -130,9 +141,11 @@ bool cvk_kernel::setup_descriptor_sets(
                 static_cast<cvk_buffer*>(arg_values->get_arg_value(arg));
             auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
-            VkDescriptorBufferInfo bufferInfo = {vkbuf,
-                                                 buffer->vulkan_buffer_offset(), // offset
-                                                 buffer->size()};
+            VkDescriptorBufferInfo bufferInfo = {
+                vkbuf,
+                buffer->vulkan_buffer_offset(), // offset
+                buffer->size()};
+            buffer_info.push_back(bufferInfo);
 
             auto descriptor_type = arg.kind == kernel_argument_kind::buffer
                                        ? VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
@@ -146,10 +159,10 @@ bool cvk_kernel::setup_descriptor_sets(
                 1,           // descriptorCount
                 descriptor_type,
                 nullptr, // pImageInfo
-                &bufferInfo,
+                &buffer_info.back(),
                 nullptr, // pTexelBufferView
             };
-            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            descriptor_writes.push_back(writeDescriptorSet);
             break;
         }
         case kernel_argument_kind::sampler: {
@@ -162,6 +175,7 @@ bool cvk_kernel::setup_descriptor_sets(
                 VK_NULL_HANDLE,           // imageView
                 VK_IMAGE_LAYOUT_UNDEFINED // imageLayout
             };
+            image_info.push_back(imageInfo);
 
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -171,11 +185,11 @@ bool cvk_kernel::setup_descriptor_sets(
                 0,           // dstArrayElement
                 1,           // descriptorCount
                 VK_DESCRIPTOR_TYPE_SAMPLER,
-                &imageInfo, // pImageInfo
-                nullptr,    // pBufferInfo
-                nullptr,    // pTexelBufferView
+                &image_info.back(), // pImageInfo
+                nullptr,            // pBufferInfo
+                nullptr,            // pTexelBufferView
             };
-            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            descriptor_writes.push_back(writeDescriptorSet);
             break;
         }
         case kernel_argument_kind::ro_image:
@@ -188,6 +202,7 @@ bool cvk_kernel::setup_descriptor_sets(
                 image->vulkan_image_view(), // imageView
                 VK_IMAGE_LAYOUT_GENERAL     // imageLayout
             };
+            image_info.push_back(imageInfo);
 
             VkDescriptorType dtype = arg.kind == kernel_argument_kind::ro_image
                                          ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
@@ -201,11 +216,11 @@ bool cvk_kernel::setup_descriptor_sets(
                 0,           // dstArrayElement
                 1,           // descriptorCount
                 dtype,
-                &imageInfo, // pImageInfo
-                nullptr,    // pBufferInfo
-                nullptr,    // pTexelBufferView
+                &image_info.back(), // pImageInfo
+                nullptr,            // pBufferInfo
+                nullptr,            // pTexelBufferView
             };
-            vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+            descriptor_writes.push_back(writeDescriptorSet);
             break;
         }
         case kernel_argument_kind::pod: // skip POD arguments
@@ -231,6 +246,7 @@ bool cvk_kernel::setup_descriptor_sets(
             VK_NULL_HANDLE,           // imageView
             VK_IMAGE_LAYOUT_UNDEFINED // imageLayout
         };
+        image_info.push_back(imageInfo);
 
         VkWriteDescriptorSet writeDescriptorSet = {
             VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -240,12 +256,16 @@ bool cvk_kernel::setup_descriptor_sets(
             0,            // dstArrayElement
             1,            // descriptorCount
             VK_DESCRIPTOR_TYPE_SAMPLER,
-            &imageInfo, // pImageInfo
-            nullptr,    // pBufferInfo
-            nullptr,    // pTexelBufferView
+            &image_info.back(), // pImageInfo
+            nullptr,            // pBufferInfo
+            nullptr,            // pTexelBufferView
         };
-        vkUpdateDescriptorSets(dev, 1, &writeDescriptorSet, 0, nullptr);
+        descriptor_writes.push_back(writeDescriptorSet);
     }
+
+    // Write descriptors to device
+    vkUpdateDescriptorSets(dev, static_cast<uint32_t>(descriptor_writes.size()),
+                           descriptor_writes.data(), 0, nullptr);
 
     return true;
 }
