@@ -22,8 +22,8 @@ std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer() {
 }
 
 std::unique_ptr<std::vector<uint8_t>>
-cvk_kernel::allocate_pod_pushconstant_buffer() {
-    return m_entry_point->allocate_pod_pushconstant_buffer();
+cvk_kernel::allocate_pod_host_buffer() const {
+    return m_entry_point->allocate_pod_host_buffer();
 }
 
 cl_ulong cvk_kernel::local_mem_size() const {
@@ -76,12 +76,10 @@ cl_int cvk_kernel::init() {
 }
 
 bool cvk_kernel::setup_descriptor_sets(
-    VkDescriptorSet* ds,
+    cvk_kernel_descriptors_holder& kernel_descriptors,
     std::unique_ptr<cvk_kernel_argument_values>& arg_values) {
 
-    if (!m_entry_point->allocate_descriptor_sets(ds)) {
-        return false;
-    }
+    std::lock_guard<std::mutex> lock(m_lock);
 
     auto dev = m_context->device()->vulkan_device();
 
@@ -95,6 +93,21 @@ bool cvk_kernel::setup_descriptor_sets(
         return false;
     }
 
+    // Reuse existing descriptors if arguments have not changed
+    if (m_kernel_descriptors) {
+        kernel_descriptors.reset(m_kernel_descriptors);
+        return true;
+    }
+
+    // Create new kernel descriptors
+    m_kernel_descriptors.reset(new cvk_kernel_descriptors(m_entry_point));
+    m_kernel_descriptors->release();
+    if (!kernel_descriptors->init()) {
+        return false;
+    }
+    kernel_descriptors.reset(m_kernel_descriptors);
+    VkDescriptorSet* ds = kernel_descriptors->descriptor_sets();
+
     // Make enough space to store all descriptor write structures
     size_t max_descriptor_writes =
         m_args.size() + program()->literal_sampler_descs().size();
@@ -107,11 +120,14 @@ bool cvk_kernel::setup_descriptor_sets(
 
     // Setup descriptors for POD arguments
     if (has_pod_buffer_arguments()) {
+        // Create POD buffer
+        kernel_descriptors->create_pod_buffer(arg_values->pod_data());
 
-        // Update desciptors
-        VkDescriptorBufferInfo bufferInfo = {arg_values->pod_vulkan_buffer(),
-                                             0, // offset
-                                             VK_WHOLE_SIZE};
+        // Update descriptors
+        VkDescriptorBufferInfo bufferInfo = {
+            kernel_descriptors->pod_vulkan_buffer(),
+            0, // offset
+            VK_WHOLE_SIZE};
         buffer_info.push_back(bufferInfo);
 
         VkWriteDescriptorSet writeDescriptorSet = {
@@ -277,6 +293,9 @@ cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants) {
 
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     std::lock_guard<std::mutex> lock(m_lock);
+
+    // Invalidate existing descriptor sets
+    m_kernel_descriptors.reset(nullptr);
 
     auto const& arg = m_args[index];
 

@@ -1513,6 +1513,7 @@ cl_int cvk_entry_point::init() {
         }
 
         m_pod_buffer_size = max_offset + max_offset_arg_size;
+        m_pod_buffer_size = round_up(m_pod_buffer_size, 4);
     }
 
     // Don't pass the range at pipeline layout creation time if no push
@@ -1702,7 +1703,6 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
 }
 
 std::unique_ptr<std::vector<uint8_t>>
-cvk_entry_point::allocate_pod_pushconstant_buffer() {
-    auto size = round_up(m_pod_buffer_size, 4);
-    return std::make_unique<std::vector<uint8_t>>(size);
+cvk_entry_point::allocate_pod_host_buffer() const {
+    return std::make_unique<std::vector<uint8_t>>(m_pod_buffer_size);
 }
