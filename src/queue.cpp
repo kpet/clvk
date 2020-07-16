@@ -645,9 +645,11 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
     // specified.
 
+    m_argument_values = m_kernel->argument_values();
+    m_argument_values->retain_resources();
+
     // Setup descriptors
-    if (!m_kernel->setup_descriptor_sets(m_kernel_descriptors,
-                                         m_argument_values)) {
+    if (!m_argument_values->setup_descriptor_sets()) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -686,7 +688,7 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                                 m_kernel->pipeline_layout(), 0,
                                 m_kernel->num_set_layouts(),
-                                m_kernel_descriptors->descriptor_sets(), 0, 0);
+                                m_argument_values->descriptor_sets(), 0, 0);
     }
 
     update_global_push_constants(command_buffer);

@@ -1701,8 +1701,3 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
 
     return buffer;
 }
-
-std::unique_ptr<std::vector<uint8_t>>
-cvk_entry_point::allocate_pod_host_buffer() const {
-    return std::make_unique<std::vector<uint8_t>>(m_pod_buffer_size);
-}
