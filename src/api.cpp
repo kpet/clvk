@@ -326,6 +326,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_id val_deviceid;
     cl_version_khr val_version;
     cl_device_svm_capabilities val_svmcaps;
+    cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
 
     auto device = icd_downcast(dev);
 
@@ -685,12 +686,16 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_svmcaps;
         size_ret = sizeof(val_svmcaps);
         break;
-    case CL_DEVICE_DEVICE_ENQUEUE_SUPPORT:
     case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
         val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES:
+        val_dev_enqueue_caps = 0;
+        copy_ptr = &val_dev_enqueue_caps;
+        size_ret = sizeof(val_dev_enqueue_caps);
         break;
     case CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES:
         val_queue_properties = 0;
