@@ -669,19 +669,31 @@ struct cvk_command_kernel_group : public cvk_command {
 
     cl_int do_action() override;
     cl_int add_kernel(cvk_command_kernel* cmd) {
-        // Create command buffer and start recording on first call
         if (!m_command_buffer) {
+            // Create command buffer and start recording on first call
+            // Command pool is locked on exit from cvk_command_buffer::begin()
             m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
             if (!m_command_buffer->begin()) {
                 return CL_OUT_OF_RESOURCES;
             }
+        } else {
+            m_queue->command_pool_lock();
         }
 
         m_kernel_commands.emplace_back(cmd);
-        return cmd->build(*m_command_buffer);
+
+        cl_int ret = cmd->build(*m_command_buffer);
+
+        m_queue->command_pool_unlock();
+
+        return ret;
     }
 
-    CHECK_RETURN bool end() { return m_command_buffer->end(); }
+    CHECK_RETURN bool end() {
+        // cvk_command_buffer::end() expects command pool to be locked
+        m_queue->command_pool_lock();
+        return m_command_buffer->end();
+    }
 
     cl_uint batch_size() { return m_kernel_commands.size(); }
 
