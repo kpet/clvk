@@ -1035,10 +1035,8 @@ cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
 
     auto cmd = new cvk_command_dep(command_queue, CL_COMMAND_MARKER);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueMarkerWithWaitList(
@@ -1076,10 +1074,8 @@ cl_int cvk_enqueue_barrier_with_wait_list(cvk_command_queue* command_queue,
 
     auto cmd = new cvk_command_dep(command_queue, CL_COMMAND_BARRIER);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueBarrierWithWaitList(
@@ -1562,10 +1558,8 @@ cl_int CLVK_API_CALL clEnqueueMigrateMemObjects(
     auto cmd =
         new cvk_command_dep(command_queue, CL_COMMAND_MIGRATE_MEM_OBJECTS);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
@@ -2863,10 +2857,8 @@ cl_int CLVK_API_CALL clEnqueueFillBuffer(
                                            static_cast<cvk_buffer*>(buffer),
                                            offset, size, pattern, pattern_size);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
@@ -2905,10 +2897,8 @@ cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
         static_cast<cvk_buffer*>(src_buffer),
         static_cast<cvk_buffer*>(dst_buffer), src_offset, dst_offset, size);
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyBufferRect(
@@ -2989,10 +2979,8 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferRect(
     auto cmd = new cvk_command_copy_buffer_rect(
         command_queue, srcbuf, dstbuf, src_origin, dst_origin, region,
         src_row_pitch, src_slice_pitch, dst_row_pitch, dst_slice_pitch);
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
@@ -3133,10 +3121,8 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
         cmd = new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
     }
 
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
@@ -3256,16 +3242,8 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
         new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
                                global_size, workgroup_size);
 
-    cl_int err = cmd->build();
-
-    if (err != CL_SUCCESS) {
-        return err;
-    }
-
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueTask(cl_command_queue command_queue,
@@ -4214,10 +4192,8 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
         return err;
     }
 
-    command_queue->enqueue_command_with_deps(
+    return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
-
-    return CL_SUCCESS;
 }
 
 cl_int CLVK_API_CALL clEnqueueFillImage(
@@ -4309,9 +4285,8 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
                                        std::move(commands));
 
     // Enqueue combined command
-    command_queue->enqueue_command_with_deps(cmd, num_events_in_wait_list,
-                                             event_wait_list, event);
-    return CL_SUCCESS;
+    return command_queue->enqueue_command_with_deps(
+        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
@@ -4387,10 +4362,8 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
         return err;
     }
 
-    command_queue->enqueue_command_with_deps(
+    return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
-
-    return CL_SUCCESS;
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
@@ -4466,10 +4439,8 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
         return err;
     }
 
-    command_queue->enqueue_command_with_deps(
+    return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
-
-    return CL_SUCCESS;
 }
 
 void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,

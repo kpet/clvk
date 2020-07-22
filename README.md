@@ -180,3 +180,6 @@ variables. Here's a quick guide:
 
 * `CLVK_SKIP_SPIRV_CAPABILITY_CHECK` to avoid checking whether the Vulkan device
   supports all of the SPIR-V capabilities declared by each SPIR-V module.
+
+* `CLVK_MAX_BATCH_SIZE` to control the maximum number of commands that can be
+  recorded in a single command buffer.
