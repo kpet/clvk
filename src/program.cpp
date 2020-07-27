@@ -22,12 +22,14 @@
 
 #include <vulkan/vulkan.h>
 
+#include "clspv/Sampler.h"
 #ifdef CLSPV_ONLINE_COMPILER
 #include "clspv/Compiler.h"
 #endif
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
-#include "spirv/1.0/spirv.hpp"
+#include "spirv/unified1/spirv.hpp"
+#include "spirv/unified1/NonSemanticClspvReflection.h"
 
 #include "init.hpp"
 #include "log.hpp"
@@ -47,14 +49,292 @@ struct membuf : public std::streambuf {
     }
 };
 
+struct reflection_helper {
+    uint32_t uint_id = 0;
+    std::unordered_map<uint32_t, uint32_t> constants;
+    std::unordered_map<uint32_t, std::string> strings;
+    spir_binary* binary;
+};
+
+spv_result_t parse_reflection(void* user_data,
+                              const spv_parsed_instruction_t* inst) {
+    // Helper function to map instruction to argument type.
+    auto inst_to_arg_kind = [](uint32_t inst) {
+        switch (static_cast<NonSemanticClspvReflectionInstructions>(inst)) {
+        case NonSemanticClspvReflectionArgumentStorageBuffer:
+            return kernel_argument_kind::buffer;
+        case NonSemanticClspvReflectionArgumentUniform:
+            return kernel_argument_kind::buffer_ubo;
+        case NonSemanticClspvReflectionArgumentPodStorageBuffer:
+            return kernel_argument_kind::pod;
+        case NonSemanticClspvReflectionArgumentPodUniform:
+            return kernel_argument_kind::pod_ubo;
+        case NonSemanticClspvReflectionArgumentPodPushConstant:
+            return kernel_argument_kind::pod_pushconstant;
+        case NonSemanticClspvReflectionArgumentSampledImage:
+            return kernel_argument_kind::ro_image;
+        case NonSemanticClspvReflectionArgumentStorageImage:
+            return kernel_argument_kind::wo_image;
+        case NonSemanticClspvReflectionArgumentSampler:
+            return kernel_argument_kind::sampler;
+        case NonSemanticClspvReflectionArgumentWorkgroup:
+            return kernel_argument_kind::local;
+        default:
+            cvk_error_fn("Unhandled reflection instruction for arg kind");
+            break;
+        }
+        return kernel_argument_kind::buffer;
+    };
+
+    // Helper function to map instruction to push constant type.
+    auto inst_to_push_constant = [](uint32_t inst) {
+        switch (static_cast<NonSemanticClspvReflectionInstructions>(inst)) {
+        case NonSemanticClspvReflectionPushConstantGlobalOffset:
+            return pushconstant::global_offset;
+        case NonSemanticClspvReflectionPushConstantEnqueuedLocalSize:
+            return pushconstant::enqueued_local_size;
+        case NonSemanticClspvReflectionPushConstantGlobalSize:
+            return pushconstant::global_size;
+        case NonSemanticClspvReflectionPushConstantRegionOffset:
+            return pushconstant::region_offset;
+        case NonSemanticClspvReflectionPushConstantNumWorkgroups:
+            return pushconstant::num_workgroups;
+        case NonSemanticClspvReflectionPushConstantRegionGroupOffset:
+            return pushconstant::region_group_offset;
+        default:
+            cvk_error_fn("Unhandled reflection instruction for push constant");
+            break;
+        }
+        return pushconstant::global_offset;
+    };
+
+    reflection_helper* helper = reinterpret_cast<reflection_helper*>(user_data);
+    switch (inst->opcode) {
+    case spv::OpTypeInt:
+        if (inst->words[2] == 32 && inst->words[3] == 0) {
+            helper->uint_id = inst->result_id;
+        }
+        break;
+    case spv::OpConstant:
+        if (inst->words[1] == helper->uint_id) {
+            helper->constants[inst->result_id] = inst->words[3];
+        }
+        break;
+    case spv::OpString:
+        helper->strings[inst->result_id] =
+            std::string(reinterpret_cast<const char*>(&inst->words[2]));
+        break;
+    case spv::OpExtInst:
+        if (inst->ext_inst_type ==
+            SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION) {
+            auto ext_inst = inst->words[4];
+            switch (ext_inst) {
+            case NonSemanticClspvReflectionKernel: {
+                // Record the kernel name.
+                const auto& name = helper->strings[inst->words[6]];
+                helper->strings[inst->result_id] = name;
+                helper->binary->add_kernel(name);
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentInfo: {
+                // Record the argument name.
+                // TODO: parse the rest of the information when clspv produces
+                // it.
+                const auto& name = helper->strings[inst->words[5]];
+                helper->strings[inst->result_id] = name;
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentStorageBuffer:
+            case NonSemanticClspvReflectionArgumentUniform:
+            case NonSemanticClspvReflectionArgumentSampledImage:
+            case NonSemanticClspvReflectionArgumentStorageImage:
+            case NonSemanticClspvReflectionArgumentSampler: {
+                // These arguments have descriptor set, binding and an optional
+                // arg info.
+                auto kernel = helper->strings[inst->words[5]];
+                auto ordinal = helper->constants[inst->words[6]];
+                auto descriptor_set = helper->constants[inst->words[7]];
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                    return SPV_ERROR_INVALID_DATA;
+                auto binding = helper->constants[inst->words[8]];
+                std::string arg_name;
+                if (inst->num_operands == 9) {
+                    arg_name = helper->strings[inst->words[9]];
+                }
+                auto kind = inst_to_arg_kind(ext_inst);
+                kernel_argument arg = {arg_name, ordinal, descriptor_set,
+                                       binding,  0,       0,
+                                       kind,     0,       0};
+                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentPodStorageBuffer:
+            case NonSemanticClspvReflectionArgumentPodUniform: {
+                // These arguments have descriptor set, binding, offset, size
+                // and an optional arg info.
+                auto kernel = helper->strings[inst->words[5]];
+                auto ordinal = helper->constants[inst->words[6]];
+                auto descriptor_set = helper->constants[inst->words[7]];
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                    return SPV_ERROR_INVALID_DATA;
+                auto binding = helper->constants[inst->words[8]];
+                auto offset = helper->constants[inst->words[9]];
+                auto size = helper->constants[inst->words[10]];
+                std::string arg_name;
+                if (inst->num_operands == 11) {
+                    arg_name = helper->strings[inst->words[11]];
+                }
+                auto kind = inst_to_arg_kind(ext_inst);
+                kernel_argument arg = {arg_name, ordinal, descriptor_set,
+                                       binding,  offset,  size,
+                                       kind,     0,       0};
+                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentPodPushConstant: {
+                // These arguments have offset, size and an optional arg info.
+                auto kernel = helper->strings[inst->words[5]];
+                auto ordinal = helper->constants[inst->words[6]];
+                auto offset = helper->constants[inst->words[7]];
+                auto size = helper->constants[inst->words[8]];
+                std::string arg_name;
+                if (inst->num_operands == 9) {
+                    arg_name = helper->strings[inst->words[9]];
+                }
+                auto kind = inst_to_arg_kind(ext_inst);
+                kernel_argument arg = {arg_name, ordinal, 0, 0, offset,
+                                       size,     kind,    0, 0};
+                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                break;
+            }
+            case NonSemanticClspvReflectionArgumentWorkgroup: {
+                // These arguments have spec id, elem size and an optional arg
+                // info.
+                auto kernel = helper->strings[inst->words[5]];
+                auto ordinal = helper->constants[inst->words[6]];
+                auto spec_id = helper->constants[inst->words[7]];
+                auto size = helper->constants[inst->words[8]];
+                std::string arg_name;
+                if (inst->num_operands == 9) {
+                    arg_name = helper->strings[inst->words[9]];
+                }
+                auto kind = inst_to_arg_kind(ext_inst);
+                kernel_argument arg = {arg_name, ordinal, 0,       0,   0,
+                                       0,        kind,    spec_id, size};
+                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                break;
+            }
+            case NonSemanticClspvReflectionSpecConstantWorkgroupSize: {
+                // Reflection encodes all three spec ids in a single
+                // instruction.
+                auto x_id = helper->constants[inst->words[5]];
+                auto y_id = helper->constants[inst->words[6]];
+                auto z_id = helper->constants[inst->words[7]];
+                helper->binary->add_spec_constant(
+                    spec_constant::workgroup_size_x, x_id);
+                helper->binary->add_spec_constant(
+                    spec_constant::workgroup_size_y, y_id);
+                helper->binary->add_spec_constant(
+                    spec_constant::workgroup_size_z, z_id);
+                break;
+            }
+            case NonSemanticClspvReflectionSpecConstantGlobalOffset: {
+                // Reflection encodes all three spec ids in a single
+                // instruction.
+                auto x_id = helper->constants[inst->words[5]];
+                auto y_id = helper->constants[inst->words[6]];
+                auto z_id = helper->constants[inst->words[7]];
+                helper->binary->add_spec_constant(
+                    spec_constant::global_offset_x, x_id);
+                helper->binary->add_spec_constant(
+                    spec_constant::global_offset_y, y_id);
+                helper->binary->add_spec_constant(
+                    spec_constant::global_offset_z, z_id);
+                break;
+            }
+            case NonSemanticClspvReflectionSpecConstantWorkDim: {
+                auto dim_id = helper->constants[inst->words[5]];
+                helper->binary->add_spec_constant(spec_constant::work_dim,
+                                                  dim_id);
+                break;
+            }
+            case NonSemanticClspvReflectionPushConstantGlobalOffset:
+            case NonSemanticClspvReflectionPushConstantEnqueuedLocalSize:
+            case NonSemanticClspvReflectionPushConstantGlobalSize:
+            case NonSemanticClspvReflectionPushConstantRegionOffset:
+            case NonSemanticClspvReflectionPushConstantNumWorkgroups:
+            case NonSemanticClspvReflectionPushConstantRegionGroupOffset: {
+                auto offset = helper->constants[inst->words[5]];
+                auto size = helper->constants[inst->words[6]];
+                auto pc = inst_to_push_constant(ext_inst);
+                helper->binary->add_push_constant(pc, {offset, size});
+                break;
+            }
+            case NonSemanticClspvReflectionLiteralSampler: {
+                // Track descriptor set and binding. Decode the sampler mask.
+                auto descriptor_set = helper->constants[inst->words[5]];
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                    return SPV_ERROR_INVALID_DATA;
+                auto binding = helper->constants[inst->words[6]];
+                auto mask = helper->constants[inst->words[7]];
+                uint32_t coords = mask & clspv::kSamplerNormalizedCoordsMask;
+                bool normalized_coords =
+                    coords != clspv::CLK_NORMALIZED_COORDS_TRUE;
+                cl_addressing_mode addressing;
+                switch (mask & clspv::kSamplerAddressMask) {
+                case clspv::CLK_ADDRESS_NONE:
+                default:
+                    addressing = CL_ADDRESS_NONE;
+                    break;
+                case clspv::CLK_ADDRESS_CLAMP_TO_EDGE:
+                    addressing = CL_ADDRESS_CLAMP_TO_EDGE;
+                    break;
+                case clspv::CLK_ADDRESS_CLAMP:
+                    addressing = CL_ADDRESS_CLAMP;
+                    break;
+                case clspv::CLK_ADDRESS_MIRRORED_REPEAT:
+                    addressing = CL_ADDRESS_MIRRORED_REPEAT;
+                    break;
+                case clspv::CLK_ADDRESS_REPEAT:
+                    addressing = CL_ADDRESS_REPEAT;
+                    break;
+                }
+                cl_filter_mode filter;
+                switch (mask & clspv::kSamplerFilterMask) {
+                case clspv::CLK_FILTER_NEAREST:
+                default:
+                    filter = CL_FILTER_NEAREST;
+                    break;
+                case clspv::CLK_FILTER_LINEAR:
+                    filter = CL_FILTER_LINEAR;
+                    break;
+                }
+                helper->binary->add_literal_sampler({descriptor_set, binding,
+                                                     normalized_coords,
+                                                     addressing, filter});
+                break;
+            }
+            case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize:
+                // TODO: parse this.
+                break;
+            default:
+                break;
+            }
+        }
+        break;
+    default:
+        break;
+    }
+
+    return SPV_SUCCESS;
+}
+
 /*
  * BINARY FILE FORMAT
  * +---------+-----------------------+
  * | U32     | Version               |
  * | U32     | SPIR Size             |
  * | N * U32 | SPIR                  |
- * | U32     | Descriptor map size   |
- * | N * U32 | Descriptor map text   |
  * +---------+-----------------------+
  */
 
@@ -104,11 +384,7 @@ bool spir_binary::load(std::istream& istream) {
         return false;
     }
 
-    // Load descriptor map
-    uint32_t size_dmap;
-    istream.read(reinterpret_cast<char*>(&size_dmap), sizeof(uint32_t));
-
-    return load_descriptor_map(istream);
+    return load_descriptor_map();
 }
 
 bool spir_binary::read(const unsigned char* src, size_t size) {
@@ -141,12 +417,6 @@ bool spir_binary::save(std::ostream& ostream) const {
     ostream.write(reinterpret_cast<const char*>(&spir_size), sizeof(spir_size));
     ostream.write(reinterpret_cast<const char*>(m_code.data()), spir_size);
 
-    // Write DMAP
-    uint32_t dmap_size = m_dmaps_text.size();
-    ostream.write(reinterpret_cast<const char*>(&dmap_size), sizeof(dmap_size));
-    ostream.write(reinterpret_cast<const char*>(m_dmaps_text.c_str()),
-                  dmap_size);
-
     return ostream.good();
 }
 
@@ -163,8 +433,7 @@ bool spir_binary::save(const char* fname) const {
 }
 
 size_t spir_binary::size() const {
-    return sizeof(MAGIC) + sizeof(uint32_t) + (m_code.size() * SPIR_WORD_SIZE) +
-           sizeof(uint32_t) + m_dmaps_text.size();
+    return sizeof(MAGIC) + sizeof(uint32_t) + (m_code.size() * SPIR_WORD_SIZE);
 }
 
 bool spir_binary::write(unsigned char* dst) const {
@@ -189,559 +458,56 @@ bool spir_binary::validate() const {
     return res == SPV_SUCCESS;
 }
 
-bool parse_local_arg(kernel_argument& arg,
-                     const std::vector<std::string>& tokens, int toknum) {
-    if (tokens[toknum++] != "argKind") {
+bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
+    const spvtools::MessageConsumer consumer =
+        [](spv_message_level_t level, const char*,
+           const spv_position_t& position, const char* message) {
+
+#define msgtpl "spvtools says '%s' at position %zu"
+            switch (level) {
+            case SPV_MSG_FATAL:
+            case SPV_MSG_INTERNAL_ERROR:
+            case SPV_MSG_ERROR:
+                cvk_error(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_WARNING:
+                cvk_warn(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_INFO:
+                cvk_info(msgtpl, message, position.index);
+                break;
+            case SPV_MSG_DEBUG:
+                cvk_debug(msgtpl, message, position.index);
+                break;
+            }
+#undef msgtpl
+        };
+
+    spvtools::Optimizer opt(m_target_env);
+    opt.SetMessageConsumer(consumer);
+    opt.RegisterPass(spvtools::CreateStripReflectInfoPass());
+    if (!opt.Run(m_code.data(), m_code.size(), stripped)) {
         return false;
     }
-
-    if (tokens[toknum++] != "local") {
-        return false;
-    }
-
-    arg.kind = kernel_argument_kind::local;
-
-    if (tokens[toknum++] != "arrayElemSize") {
-        return false;
-    }
-
-    arg.local_elem_size = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum++] != "arrayNumElemSpecId") {
-        return false;
-    }
-
-    arg.local_spec_id = atoi(tokens[toknum++].c_str());
-
     return true;
 }
 
-bool parse_arg(kernel_argument& arg, const std::vector<std::string>& tokens,
-               int toknum) {
-    if (tokens[toknum++] != "descriptorSet") {
+bool spir_binary::load_descriptor_map() {
+    reflection_helper helper;
+    helper.binary = this;
+
+    // TODO: The parser assumes a valid SPIR-V module, but validation is not
+    // run until later.
+    auto result =
+        spvBinaryParse(m_context, &helper, m_code.data(), m_code.size(),
+                       nullptr, parse_reflection, nullptr);
+    if (result != SPV_SUCCESS) {
+        cvk_error_fn("Parsing SPIR-V module reflection failed: %d", result);
         return false;
-    }
-
-    arg.descriptorSet = atoi(tokens[toknum++].c_str());
-
-    if (arg.descriptorSet >= spir_binary::MAX_DESCRIPTOR_SETS) {
-        return false;
-    }
-
-    if (tokens[toknum++] != "binding") {
-        return false;
-    }
-
-    arg.binding = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum++] != "offset") {
-        return false;
-    }
-
-    arg.offset = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum++] != "argKind") {
-        return false;
-    }
-
-    std::string akind{tokens[toknum++]};
-
-    if (akind == "buffer") {
-        arg.kind = kernel_argument_kind::buffer;
-    } else if (akind == "buffer_ubo") {
-        arg.kind = kernel_argument_kind::buffer_ubo;
-    } else if (akind == "pod") {
-        arg.kind = kernel_argument_kind::pod;
-    } else if (akind == "pod_ubo") {
-        arg.kind = kernel_argument_kind::pod_ubo;
-    } else if (akind == "ro_image") {
-        arg.kind = kernel_argument_kind::ro_image;
-    } else if (akind == "wo_image") {
-        arg.kind = kernel_argument_kind::wo_image;
-    } else if (akind == "sampler") {
-        arg.kind = kernel_argument_kind::sampler;
-    } else {
-        return false;
-    }
-
-    if (arg.is_pod()) {
-        if (tokens[toknum++] != "argSize") {
-            return false;
-        }
-
-        arg.size = atoi(tokens[toknum++].c_str());
     }
 
     return true;
 }
-
-bool parse_kernel_pushconstant(kernel_argument& arg,
-                               const std::vector<std::string>& tokens,
-                               int toknum) {
-    if (tokens[toknum++] != "offset") {
-        return false;
-    }
-
-    arg.offset = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum++] != "argKind") {
-        return false;
-    }
-
-    std::string akind{tokens[toknum++]};
-
-    if (akind == "pod_pushconstant") {
-        arg.kind = kernel_argument_kind::pod_pushconstant;
-    } else {
-        return false;
-    }
-
-    if (tokens[toknum++] != "argSize") {
-        return false;
-    }
-
-    arg.size = atoi(tokens[toknum++].c_str());
-
-    return true;
-}
-
-static std::vector<std::string> tokenize(const std::string& str,
-                                         const char* delim) {
-    size_t start = str.find_first_not_of(delim), end;
-    std::vector<std::string> tokens;
-
-    while (start != std::string::npos) {
-        end = str.find(delim, start);
-        tokens.push_back(str.substr(start, end - start));
-        start = str.find_first_not_of(delim, end);
-    }
-    // for (auto& tok : tokens) {
-    //    cvk_debug("TOK: %s", tok.c_str());
-    //}
-
-    return tokens;
-}
-
-bool spir_binary::parse_sampler(const std::vector<std::string>& tokens,
-                                int toknum) {
-
-    sampler_desc desc;
-
-    int samplerVal = atoi(tokens[toknum++].c_str());
-    UNUSED(samplerVal);
-
-    if (tokens[toknum++] != "samplerExpr") {
-        return false;
-    }
-
-    std::string samplerExpr = tokens[toknum++];
-    auto exprTokens = tokenize(samplerExpr, "|");
-
-    if (tokens[toknum++] != "descriptorSet") {
-        return false;
-    }
-
-    desc.descriptorSet = atoi(tokens[toknum++].c_str());
-
-    if (desc.descriptorSet >= spir_binary::MAX_DESCRIPTOR_SETS) {
-        return false;
-    }
-
-    if (tokens[toknum++] != "binding") {
-        return false;
-    }
-
-    desc.binding = atoi(tokens[toknum++].c_str());
-
-    m_literal_samplers.push_back(desc);
-
-    return true;
-}
-
-bool spir_binary::parse_kernel(const std::vector<std::string>& tokens,
-                               int toknum) {
-    kernel_argument arg;
-    std::string kname{tokens[toknum++]};
-
-    if (tokens[toknum++] != "arg") {
-        return false;
-    }
-
-    arg.name = tokens[toknum++];
-
-    if (tokens[toknum++] != "argOrdinal") {
-        return false;
-    }
-
-    arg.pos = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum] == "descriptorSet") {
-        if (!parse_arg(arg, tokens, toknum)) {
-            return false;
-        }
-    } else if (tokens[toknum] == "argKind") {
-        if (!parse_local_arg(arg, tokens, toknum)) {
-            return false;
-        }
-    } else if (tokens[toknum] == "offset") {
-        if (!parse_kernel_pushconstant(arg, tokens, toknum)) {
-            return false;
-        }
-    } else {
-        return false;
-    }
-
-    m_dmaps[kname].push_back(arg);
-
-    return true;
-}
-
-bool spir_binary::parse_kernel_decl(const std::vector<std::string>& tokens,
-                                    int toknum) {
-    std::string kname{tokens[toknum++]};
-
-    if (m_dmaps.count(kname) == 0) {
-        m_dmaps[kname] = {};
-    }
-
-    return true;
-}
-
-bool spir_binary::parse_pushconstant(const std::vector<std::string>& tokens,
-                                     int toknum) {
-    pushconstant_desc pcd;
-
-    if (tokens[toknum++] != "name") {
-        return false;
-    }
-
-    auto& name = tokens[toknum++];
-    pushconstant pc;
-
-    if (name == "global_offset") {
-        pc = pushconstant::global_offset;
-    } else if (name == "enqueued_local_size") {
-        pc = pushconstant::enqueued_local_size;
-    } else if (name == "global_size") {
-        pc = pushconstant::global_size;
-    } else if (name == "region_offset") {
-        pc = pushconstant::region_offset;
-    } else if (name == "num_workgroups") {
-        pc = pushconstant::num_workgroups;
-    } else if (name == "region_group_offset") {
-        pc = pushconstant::region_group_offset;
-    } else {
-        return false;
-    }
-
-    if (tokens[toknum++] != "offset") {
-        return false;
-    }
-
-    pcd.offset = atoi(tokens[toknum++].c_str());
-
-    if (tokens[toknum++] != "size") {
-        return false;
-    }
-
-    pcd.size = atoi(tokens[toknum++].c_str());
-
-    m_push_constants[pc] = pcd;
-
-    return true;
-}
-
-bool spir_binary::parse_specconstant(const std::vector<std::string>& tokens,
-                                     int toknum) {
-    auto name = tokens[toknum++];
-    spec_constant constant;
-    if (name == "workgroup_size_x") {
-        constant = spec_constant::workgroup_size_x;
-    } else if (name == "workgroup_size_y") {
-        constant = spec_constant::workgroup_size_y;
-    } else if (name == "workgroup_size_z") {
-        constant = spec_constant::workgroup_size_z;
-    } else if (name == "work_dim") {
-        constant = spec_constant::work_dim;
-    } else if (name == "global_offset_x") {
-        constant = spec_constant::global_offset_x;
-    } else if (name == "global_offset_y") {
-        constant = spec_constant::global_offset_y;
-    } else if (name == "global_offset_z") {
-        constant = spec_constant::global_offset_z;
-    } else {
-        return false;
-    }
-
-    if (tokens[toknum++] != "spec_id") {
-        return false;
-    }
-
-    uint32_t id = atoi(tokens[toknum++].c_str());
-    m_spec_constants[constant] = id;
-
-    return true;
-}
-
-bool spir_binary::load_descriptor_map(std::istream& istream) {
-    m_dmaps.clear();
-
-    std::string line;
-    while (std::getline(istream, line)) {
-        m_dmaps_text += line + "\n";
-        cvk_debug("DMAP line: %s", line.c_str());
-        std::vector<std::string> tokens = tokenize(line, ",");
-
-        int toknum = 0;
-
-        if (tokens[toknum] == "kernel") {
-            if (!parse_kernel(tokens, toknum + 1)) {
-                return false;
-            }
-        } else if (tokens[toknum] == "sampler") {
-            if (!parse_sampler(tokens, toknum + 1)) {
-                return false;
-            }
-        } else if (tokens[toknum] == "pushconstant") {
-            if (!parse_pushconstant(tokens, toknum + 1)) {
-                return false;
-            }
-        } else if (tokens[toknum] == "kernel_decl") {
-            if (!parse_kernel_decl(tokens, toknum + 1)) {
-                return false;
-            }
-        } else if (tokens[toknum] == "spec_constant") {
-            if (!parse_specconstant(tokens, toknum + 1)) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    cvk_debug_fn("num_kernels = %zu", num_kernels());
-
-    return true;
-}
-
-bool spir_binary::load_descriptor_map(const char* fname) {
-    std::ifstream ifile;
-
-    ifile.open(fname, std::ios::in);
-
-    if (!ifile.is_open()) {
-        cvk_error("Failed to open %s", fname);
-        return false;
-    }
-
-    return load_descriptor_map(ifile);
-}
-
-#ifdef CLSPV_ONLINE_COMPILER
-bool spir_binary::load_descriptor_map(
-    const std::vector<clspv::version0::DescriptorMapEntry>& entries) {
-    m_dmaps.clear();
-    for (const auto& entry : entries) {
-        if (cvk_log_level_enabled(loglevel::debug)) {
-            std::string s;
-            std::ostringstream str(s);
-            str << entry;
-            cvk_debug("DMAP line: %s", str.str().c_str());
-        }
-
-        if (entry.kind == clspv::version0::DescriptorMapEntry::Kind::Sampler) {
-            sampler_desc desc;
-            desc.descriptorSet = entry.descriptor_set;
-            desc.binding = entry.binding;
-
-            desc.normalized_coords =
-                (entry.sampler_data.mask &
-                 clspv::version0::kSamplerNormalizedCoordsMask) ==
-                clspv::version0::CLK_NORMALIZED_COORDS_TRUE;
-
-            switch (entry.sampler_data.mask &
-                    clspv::version0::kSamplerAddressMask) {
-            case clspv::version0::CLK_ADDRESS_NONE:
-                desc.addressing_mode = CL_ADDRESS_NONE;
-                break;
-            case clspv::version0::CLK_ADDRESS_CLAMP_TO_EDGE:
-                desc.addressing_mode = CL_ADDRESS_CLAMP_TO_EDGE;
-                break;
-            case clspv::version0::CLK_ADDRESS_CLAMP:
-                desc.addressing_mode = CL_ADDRESS_CLAMP;
-                break;
-            case clspv::version0::CLK_ADDRESS_MIRRORED_REPEAT:
-                desc.addressing_mode = CL_ADDRESS_MIRRORED_REPEAT;
-                break;
-            case clspv::version0::CLK_ADDRESS_REPEAT:
-                desc.addressing_mode = CL_ADDRESS_REPEAT;
-                break;
-            default:
-                cvk_error("Invalid sampler addressing mode: %d",
-                          entry.sampler_data.mask &
-                              clspv::version0::kSamplerAddressMask);
-                return false;
-            }
-
-            switch (entry.sampler_data.mask &
-                    clspv::version0::kSamplerFilterMask) {
-            case clspv::version0::CLK_FILTER_NEAREST:
-                desc.filter_mode = CL_FILTER_NEAREST;
-                break;
-            case clspv::version0::CLK_FILTER_LINEAR:
-                desc.filter_mode = CL_FILTER_LINEAR;
-                break;
-            default:
-                cvk_error("Invalid sampler filter mode: %d",
-                          entry.sampler_data.mask &
-                              clspv::version0::kSamplerFilterMask);
-                return false;
-            }
-
-            m_literal_samplers.push_back(desc);
-
-            continue;
-        }
-
-        if (entry.kind ==
-            clspv::version0::DescriptorMapEntry::Kind::PushConstant) {
-            pushconstant pc;
-            pushconstant_desc pcd;
-            switch (entry.push_constant_data.pc) {
-            case clspv::PushConstant::GlobalOffset:
-                pc = pushconstant::global_offset;
-                break;
-            case clspv::PushConstant::EnqueuedLocalSize:
-                pc = pushconstant::enqueued_local_size;
-                break;
-            case clspv::PushConstant::GlobalSize:
-                pc = pushconstant::global_size;
-                break;
-            case clspv::PushConstant::RegionOffset:
-                pc = pushconstant::region_offset;
-                break;
-            case clspv::PushConstant::NumWorkgroups:
-                pc = pushconstant::num_workgroups;
-                break;
-            case clspv::PushConstant::RegionGroupOffset:
-                pc = pushconstant::region_group_offset;
-                break;
-            default:
-                cvk_error("Invalid push constant: %d",
-                          static_cast<int>(entry.push_constant_data.pc));
-                return false;
-            }
-
-            pcd.offset = entry.push_constant_data.offset;
-            pcd.size = entry.push_constant_data.size;
-
-            m_push_constants[pc] = pcd;
-
-            continue;
-        }
-
-        if (entry.kind ==
-            clspv::version0::DescriptorMapEntry::Kind::KernelDecl) {
-
-            if (m_dmaps.count(entry.kernel_decl_data.kernel_name) == 0) {
-                m_dmaps[entry.kernel_decl_data.kernel_name] = {};
-            }
-
-            continue;
-        }
-
-        if (entry.kind ==
-            clspv::version0::DescriptorMapEntry::Kind::SpecConstant) {
-            spec_constant constant;
-            uint32_t id = entry.spec_constant_data.spec_id;
-            switch (entry.spec_constant_data.spec_constant) {
-            case clspv::SpecConstant::kWorkgroupSizeX:
-                constant = spec_constant::workgroup_size_x;
-                break;
-            case clspv::SpecConstant::kWorkgroupSizeY:
-                constant = spec_constant::workgroup_size_y;
-                break;
-            case clspv::SpecConstant::kWorkgroupSizeZ:
-                constant = spec_constant::workgroup_size_z;
-                break;
-            case clspv::SpecConstant::kWorkDim:
-                constant = spec_constant::work_dim;
-                break;
-            case clspv::SpecConstant::kGlobalOffsetX:
-                constant = spec_constant::global_offset_x;
-                break;
-            case clspv::SpecConstant::kGlobalOffsetY:
-                constant = spec_constant::global_offset_y;
-                break;
-            case clspv::SpecConstant::kGlobalOffsetZ:
-                constant = spec_constant::global_offset_z;
-                break;
-            default:
-                cvk_error(
-                    "Unhandled spec constant: %d",
-                    static_cast<int>(entry.spec_constant_data.spec_constant));
-                return false;
-            }
-            m_spec_constants[constant] = id;
-
-            continue;
-        }
-
-        if (entry.kind != clspv::version0::DescriptorMapEntry::Kind::KernelArg)
-            return false;
-
-        kernel_argument arg;
-        arg.name = entry.kernel_arg_data.arg_name;
-        arg.pos = entry.kernel_arg_data.arg_ordinal;
-        if (entry.kernel_arg_data.arg_kind == clspv::ArgKind::Local) {
-            arg.kind = kernel_argument_kind::local;
-            arg.local_elem_size = entry.kernel_arg_data.local_element_size;
-            arg.local_spec_id = entry.kernel_arg_data.local_spec_id;
-        } else {
-            arg.descriptorSet = entry.descriptor_set;
-            arg.binding = entry.binding;
-            arg.offset = entry.kernel_arg_data.pod_offset;
-            switch (entry.kernel_arg_data.arg_kind) {
-            case clspv::ArgKind::Buffer:
-                arg.kind = kernel_argument_kind::buffer;
-                break;
-            case clspv::ArgKind::BufferUBO:
-                arg.kind = kernel_argument_kind::buffer_ubo;
-                break;
-            case clspv::ArgKind::Pod:
-                arg.kind = kernel_argument_kind::pod;
-                break;
-            case clspv::ArgKind::PodUBO:
-                arg.kind = kernel_argument_kind::pod_ubo;
-                break;
-            case clspv::ArgKind::PodPushConstant:
-                arg.kind = kernel_argument_kind::pod_pushconstant;
-                break;
-            case clspv::ArgKind::ReadOnlyImage:
-                arg.kind = kernel_argument_kind::ro_image;
-                break;
-            case clspv::ArgKind::WriteOnlyImage:
-                arg.kind = kernel_argument_kind::wo_image;
-                break;
-            case clspv::ArgKind::Sampler:
-                arg.kind = kernel_argument_kind::sampler;
-                break;
-            default:
-                return false;
-            }
-            if (arg.is_pod()) {
-                arg.size = entry.kernel_arg_data.pod_arg_size;
-            }
-        }
-
-        m_dmaps[entry.kernel_arg_data.kernel_name].push_back(arg);
-    }
-
-    cvk_debug_fn("num_kernels = %zu", num_kernels());
-
-    return true;
-}
-#endif
 
 void spir_binary::insert_descriptor_map(const spir_binary& other) {
     for (auto& args : other.kernels_arguments()) {
@@ -942,9 +708,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
 #ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", options.c_str());
-    std::vector<clspv::version0::DescriptorMapEntry> entries;
-    auto result = clspv::CompileFromSourceString(
-        m_source, "", options, m_binary.raw_binary(), &entries);
+    auto result = clspv::CompileFromSourceString(m_source, "", options,
+                                                 m_binary.raw_binary());
     cvk_info("Return code was: %d", result);
     if (result != 0) {
         cvk_error_fn("failed to compile the program");
@@ -952,7 +717,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 
     // Load descriptor map
-    if (!m_binary.load_descriptor_map(entries)) {
+    if (!m_binary.load_descriptor_map()) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
@@ -1016,7 +781,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 
     // Load descriptor map
-    if (!m_binary.load_descriptor_map(descriptor_map_file.c_str())) {
+    if (!m_binary.load_descriptor_map()) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
@@ -1213,6 +978,23 @@ void cvk_program::do_build() {
         m_literal_samplers.emplace_back(sampler);
     }
 
+    // Strip the reflection information if non-semantic info is not supported
+    // by the Vulkan implementation. This stripped binary is stored separately
+    // from |m_binary| because clvk needs to be able to provide the binary with
+    // reflection information for clGetProgramInfo.
+    const uint32_t* spir_data = m_binary.spir_data();
+    size_t spir_size = m_binary.spir_size();
+    if (!device->is_vulkan_extension_enabled(
+            "VK_KHR_shader_non_semantic_info")) {
+        if (!m_binary.strip_reflection(&m_stripped_binary)) {
+            cvk_error_fn("couldn't strip reflection from SPIR-V module");
+            complete_operation(device, CL_BUILD_ERROR);
+            return;
+        }
+        spir_data = m_stripped_binary.data();
+        spir_size = m_stripped_binary.size() * sizeof(uint32_t);
+    }
+
     // Create a shader module
     VkDevice dev = device->vulkan_device();
 
@@ -1220,8 +1002,8 @@ void cvk_program::do_build() {
         VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, // sType
         nullptr,                                     // pNext
         0,                                           // flags
-        m_binary.spir_size(),                        // codeSize
-        m_binary.spir_data()                         // pCode
+        spir_size,                                   // codeSize
+        spir_data                                    // pCode
     };
 
     VkResult res =
