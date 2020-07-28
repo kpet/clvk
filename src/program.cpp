@@ -750,9 +750,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     if (build_from_il) {
         cmd += " -x ir ";
     }
-    cmd += " -descriptormap=";
-    cmd += descriptor_map_file;
-    cmd += " ";
     cmd += clspv_input_file;
     cmd += " ";
     cmd += options;
