@@ -27,15 +27,12 @@ struct cvk_kernel : public _cl_kernel, api_object {
 
     cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program),
-          m_entry_point(nullptr), m_name(name) {
-        m_program->retain();
-    }
+          m_entry_point(nullptr), m_name(name) {}
 
     CHECK_RETURN cl_int init();
 
     virtual ~cvk_kernel() {
         m_argument_values.reset();
-        m_program->release();
     }
 
     std::shared_ptr<cvk_kernel_argument_values> argument_values() const {
@@ -76,7 +73,7 @@ private:
     friend cvk_kernel_argument_values;
 
     std::mutex m_lock;
-    cvk_program* m_program;
+    cvk_program_holder m_program;
     cvk_entry_point* m_entry_point;
     std::string m_name;
     std::vector<kernel_argument> m_args;

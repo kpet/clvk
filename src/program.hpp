@@ -512,3 +512,5 @@ private:
 static inline cvk_program* icd_downcast(cl_program program) {
     return static_cast<cvk_program*>(program);
 }
+
+using cvk_program_holder = refcounted_holder<cvk_program>;
