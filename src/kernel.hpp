@@ -103,7 +103,13 @@ struct cvk_kernel_argument_values {
           m_kernel_resources(other.m_kernel_resources),
           m_local_args_size(other.m_local_args_size) {}
 
-    ~cvk_kernel_argument_values() {}
+    ~cvk_kernel_argument_values() {
+        for (auto ds : m_descriptor_sets) {
+            if (ds != VK_NULL_HANDLE) {
+                m_entry_point->free_descriptor_set(ds);
+            }
+        }
+    }
 
     static std::shared_ptr<cvk_kernel_argument_values>
     create(cvk_entry_point* entry_point) {
