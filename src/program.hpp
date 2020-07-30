@@ -241,13 +241,13 @@ public:
 
     std::unique_ptr<cvk_buffer> allocate_pod_buffer();
 
-    std::unique_ptr<std::vector<uint8_t>> allocate_pod_pushconstant_buffer();
-
     const std::vector<kernel_argument>& args() const { return m_args; }
 
     bool has_pod_arguments() const { return m_has_pod_arguments; }
 
     bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
+
+    uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
 
     uint32_t num_resources() const { return m_num_resources; }
 
@@ -256,6 +256,8 @@ public:
     VkDescriptorType pod_descriptor_type() const {
         return m_pod_descriptor_type;
     }
+
+    cvk_program* program() const { return m_program; }
 
 private:
     const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition

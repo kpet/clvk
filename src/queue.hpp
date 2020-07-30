@@ -605,20 +605,16 @@ struct cvk_command_kernel : public cvk_command {
                        const std::array<uint32_t, 3>& lws)
         : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
           m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
-          m_lws(lws), m_descriptor_sets{VK_NULL_HANDLE},
-          m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
+          m_lws(lws), m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}
 
     ~cvk_command_kernel() {
-        for (auto ds : m_descriptor_sets) {
-            if (ds != VK_NULL_HANDLE) {
-                m_kernel->free_descriptor_set(ds);
-            }
-        }
-
         if (m_query_pool != VK_NULL_HANDLE) {
             auto vkdev = m_queue->device()->vulkan_device();
             vkDestroyQueryPool(vkdev, m_query_pool, nullptr);
+        }
+        if (m_argument_values) {
+            m_argument_values->release_resources();
         }
     }
 
@@ -649,11 +645,9 @@ private:
     std::array<uint32_t, 3> m_global_offsets;
     std::array<uint32_t, 3> m_gws;
     std::array<uint32_t, 3> m_lws;
-    std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
-        m_descriptor_sets;
     VkPipeline m_pipeline;
     VkQueryPool m_query_pool;
-    std::unique_ptr<cvk_kernel_argument_values> m_argument_values;
+    std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
 
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
 

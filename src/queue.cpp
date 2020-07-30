@@ -434,16 +434,15 @@ void cvk_command_kernel::update_global_push_constants(
         for (auto& arg : m_kernel->arguments()) {
             if (arg.kind == kernel_argument_kind::pod_pushconstant) {
                 CVK_ASSERT(arg.offset + arg.size <=
-                           m_argument_values->pod_pushconstant_buffer().size());
+                           m_argument_values->pod_data().size());
 
                 // Vulkan valid usage states push constants can only be updated
                 // in chunks whose offset and size are a multiple of 4.
                 uint32_t size = round_up(arg.size, 4);
                 uint32_t offset = arg.offset & ~0x3U;
-                vkCmdPushConstants(
-                    command_buffer, m_kernel->pipeline_layout(),
-                    VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
-                    &m_argument_values->pod_pushconstant_buffer()[offset]);
+                vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
+                                   VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
+                                   &m_argument_values->pod_data()[offset]);
             }
         }
     }
@@ -646,9 +645,11 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
     // specified.
 
+    m_argument_values = m_kernel->argument_values();
+    m_argument_values->retain_resources();
+
     // Setup descriptors
-    if (!m_kernel->setup_descriptor_sets(m_descriptor_sets.data(),
-                                         m_argument_values)) {
+    if (!m_argument_values->setup_descriptor_sets()) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -687,7 +688,7 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                                 m_kernel->pipeline_layout(), 0,
                                 m_kernel->num_set_layouts(),
-                                m_descriptor_sets.data(), 0, 0);
+                                m_argument_values->descriptor_sets(), 0, 0);
     }
 
     update_global_push_constants(command_buffer);

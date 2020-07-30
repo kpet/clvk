@@ -17,15 +17,6 @@
 #include "kernel.hpp"
 #include "memory.hpp"
 
-std::unique_ptr<cvk_buffer> cvk_kernel::allocate_pod_buffer() {
-    return m_entry_point->allocate_pod_buffer();
-}
-
-std::unique_ptr<std::vector<uint8_t>>
-cvk_kernel::allocate_pod_pushconstant_buffer() {
-    return m_entry_point->allocate_pod_pushconstant_buffer();
-}
-
 cl_ulong cvk_kernel::local_mem_size() const {
     cl_ulong ret = 0; // FIXME take the compile-time allocations into account
 
@@ -49,25 +40,8 @@ cl_int cvk_kernel::init() {
     // Store a copy of the arguments
     m_args = m_entry_point->args();
 
-    // Init POD arguments
-    if (has_pod_arguments()) {
-
-        // Find out POD binding
-        for (auto& arg : m_args) {
-            if (arg.is_pod()) {
-                m_pod_arg = &arg;
-                break;
-            }
-        }
-
-        if (m_pod_arg == nullptr) {
-            return CL_INVALID_PROGRAM;
-        }
-    }
-
     // Init argument values
-    m_argument_values = cvk_kernel_argument_values::create(
-        this, m_entry_point->num_resources());
+    m_argument_values = cvk_kernel_argument_values::create(m_entry_point);
     if (m_argument_values == nullptr) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -75,29 +49,50 @@ cl_int cvk_kernel::init() {
     return CL_SUCCESS;
 }
 
-bool cvk_kernel::setup_descriptor_sets(
-    VkDescriptorSet* ds,
-    std::unique_ptr<cvk_kernel_argument_values>& arg_values) {
+VkPipeline
+cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants) {
+    return m_entry_point->create_pipeline(spec_constants);
+}
 
-    if (!m_entry_point->allocate_descriptor_sets(ds)) {
-        return false;
+cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    // Clone argument values if they have been used in an enqueue
+    if (m_argument_values->is_enqueued()) {
+        m_argument_values =
+            cvk_kernel_argument_values::create(*m_argument_values.get());
+        if (m_argument_values == nullptr) {
+            return CL_OUT_OF_RESOURCES;
+        }
     }
 
-    auto dev = m_context->device()->vulkan_device();
+    auto const& arg = m_args[index];
 
-    // Transfer ownership of the argument values to the command
-    arg_values = std::move(m_argument_values);
-    arg_values->retain_resources();
+    return m_argument_values->set_arg(arg, size, value);
+}
 
-    // Create a new set, copy the argument values
-    m_argument_values = cvk_kernel_argument_values::create(*arg_values.get());
-    if (m_argument_values == nullptr) {
+bool cvk_kernel_argument_values::setup_descriptor_sets() {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    auto program = m_entry_point->program();
+    auto dev = program->context()->device()->vulkan_device();
+
+    // Do nothing if these argument values have already been used in an enqueue
+    if (m_is_enqueued) {
+        return true;
+    }
+
+    m_is_enqueued = true;
+
+    // Allocate descriptor sets
+    if (!m_entry_point->allocate_descriptor_sets(descriptor_sets())) {
         return false;
     }
+    VkDescriptorSet* ds = descriptor_sets();
 
     // Make enough space to store all descriptor write structures
     size_t max_descriptor_writes =
-        m_args.size() + program()->literal_sampler_descs().size();
+        m_args.size() + program->literal_sampler_descs().size();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
@@ -106,10 +101,14 @@ bool cvk_kernel::setup_descriptor_sets(
     image_info.reserve(max_descriptor_writes);
 
     // Setup descriptors for POD arguments
-    if (has_pod_buffer_arguments()) {
+    if (m_entry_point->has_pod_buffer_arguments()) {
+        // Create POD buffer
+        if (!create_pod_buffer()) {
+            return false;
+        }
 
-        // Update desciptors
-        VkDescriptorBufferInfo bufferInfo = {arg_values->pod_vulkan_buffer(),
+        // Update descriptors
+        VkDescriptorBufferInfo bufferInfo = {m_pod_buffer->vulkan_buffer(),
                                              0, // offset
                                              VK_WHOLE_SIZE};
         buffer_info.push_back(bufferInfo);
@@ -137,8 +136,7 @@ bool cvk_kernel::setup_descriptor_sets(
 
         case kernel_argument_kind::buffer:
         case kernel_argument_kind::buffer_ubo: {
-            auto buffer =
-                static_cast<cvk_buffer*>(arg_values->get_arg_value(arg));
+            auto buffer = static_cast<cvk_buffer*>(get_arg_value(arg));
             auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn("buffer = %p", buffer);
             VkDescriptorBufferInfo bufferInfo = {
@@ -166,8 +164,7 @@ bool cvk_kernel::setup_descriptor_sets(
             break;
         }
         case kernel_argument_kind::sampler: {
-            auto clsampler =
-                static_cast<cvk_sampler*>(arg_values->get_arg_value(arg));
+            auto clsampler = static_cast<cvk_sampler*>(get_arg_value(arg));
             auto sampler = clsampler->vulkan_sampler();
 
             VkDescriptorImageInfo imageInfo = {
@@ -194,8 +191,7 @@ bool cvk_kernel::setup_descriptor_sets(
         }
         case kernel_argument_kind::ro_image:
         case kernel_argument_kind::wo_image: {
-            auto image =
-                static_cast<cvk_image*>(arg_values->get_arg_value(arg));
+            auto image = static_cast<cvk_image*>(get_arg_value(arg));
 
             VkDescriptorImageInfo imageInfo = {
                 VK_NULL_HANDLE,
@@ -236,9 +232,9 @@ bool cvk_kernel::setup_descriptor_sets(
     }
 
     // Setup literal samplers
-    for (size_t i = 0; i < program()->literal_sampler_descs().size(); i++) {
-        auto desc = program()->literal_sampler_descs()[i];
-        auto clsampler = icd_downcast(program()->literal_samplers()[i]);
+    for (size_t i = 0; i < program->literal_sampler_descs().size(); i++) {
+        auto desc = program->literal_sampler_descs()[i];
+        auto clsampler = icd_downcast(program->literal_samplers()[i]);
         auto sampler = clsampler->vulkan_sampler();
 
         VkDescriptorImageInfo imageInfo = {
@@ -268,17 +264,4 @@ bool cvk_kernel::setup_descriptor_sets(
                            descriptor_writes.data(), 0, nullptr);
 
     return true;
-}
-
-VkPipeline
-cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants) {
-    return m_entry_point->create_pipeline(spec_constants);
-}
-
-cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
-    std::lock_guard<std::mutex> lock(m_lock);
-
-    auto const& arg = m_args[index];
-
-    return m_argument_values->set_arg(arg, size, value);
 }
