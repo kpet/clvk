@@ -275,28 +275,28 @@ void cvk_executor_thread::executor() {
     }
 }
 
-cl_int cvk_command_queue::flush(cvk_event** event) {
+cl_int cvk_command_queue::flush_no_lock() {
 
-    cvk_info_fn("queue = %p, event = %p", this, event);
+    cvk_info_fn("queue = %p", this);
 
-    // Get command group to the executor's queue
     std::unique_ptr<cvk_command_group> group;
-    {
-        std::lock_guard<std::mutex> lock(m_lock);
 
-        // End current kernel group
-        cl_int err = end_current_kernel_group();
-        if (err != CL_SUCCESS) {
-            return err;
-        }
-
-        if (m_groups.front()->commands.size() == 0) {
-            return CL_SUCCESS;
-        }
-        group = std::move(m_groups.front());
-        m_groups.pop_front();
-        m_groups.push_back(std::make_unique<cvk_command_group>());
+    // End current kernel group
+    cl_int err = end_current_kernel_group();
+    if (err != CL_SUCCESS) {
+        return err;
     }
+
+    // Early exit if there are no commands in the queue
+    if (m_groups.front()->commands.size() == 0) {
+        return CL_SUCCESS;
+    }
+
+    // Get the commands from the queue and prepare the queue to receive
+    // further commands
+    group = std::move(m_groups.front());
+    m_groups.pop_front();
+    m_groups.push_back(std::make_unique<cvk_command_group>());
 
     cvk_debug_fn("groups.size() = %zu", m_groups.size());
 
@@ -312,24 +312,35 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     }
 
     // Create execution thread if it doesn't exist
-    {
-        std::lock_guard<std::mutex> lock(m_lock);
-        if (m_executor == nullptr) {
-            m_executor = get_thread_pool()->get_executor(this);
-        }
+    if (m_executor == nullptr) {
+        m_executor = get_thread_pool()->get_executor(this);
     }
 
-    if (event != nullptr) {
-        auto ev = group->commands.back()->event();
-        ev->retain();
-        *event = ev;
-        cvk_debug_fn("returned event %p", *event);
-    }
+    auto ev = group->commands.back()->event();
+    m_finish_event.reset(ev);
+    cvk_debug_fn("stored event %p", ev);
 
     // Submit command group to executor
     m_executor->send_group(std::move(group));
 
     return CL_SUCCESS;
+}
+
+cl_int cvk_command_queue::flush() {
+    std::lock_guard<std::mutex> lock(m_lock);
+    return flush_no_lock();
+}
+
+cl_int cvk_command_queue::finish() {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    auto status = flush_no_lock();
+
+    if ((status == CL_SUCCESS) && (m_finish_event != nullptr)) {
+        m_finish_event->wait();
+    }
+
+    return status;
 }
 
 VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {

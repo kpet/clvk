@@ -14,6 +14,9 @@
 
 #include "testcl.hpp"
 
+#include <atomic>
+#include <thread>
+
 TEST_F(WithCommandQueue, ManyInstancesInFlight) {
 
     static const unsigned NUM_INSTANCES = 10000;
@@ -322,4 +325,59 @@ kernel void k1(global int* b){ *b = 77; }
     // Unmap the buffer
     EnqueueUnmapMemObject(buffer, data);
     Finish();
+}
+
+namespace {
+
+struct finish_after_flush_thread_data {
+    cl_command_queue queue;
+    std::atomic<bool> started_running;
+    std::atomic<int> finish_returned;
+};
+
+void finish_after_flush_thread(void* data) {
+    auto tdata = static_cast<finish_after_flush_thread_data*>(data);
+    tdata->started_running = true;
+    tdata->finish_returned = clFinish(tdata->queue);
+}
+
+} // namespace
+
+
+TEST_F(WithCommandQueue, FinishAfterFlush) {
+    auto uevent = CreateUserEvent();
+
+    static const char* source = "void kernel test(){}\n";
+
+    auto kernel = CreateKernel(source, "test");
+
+    size_t gws = 1;
+    cl_event uev = uevent;
+    cl_event kevent;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr, 1, &uev, &kevent);
+
+    Flush();
+
+    finish_after_flush_thread_data thread_data;
+    thread_data.queue = m_queue;
+    thread_data.finish_returned = 42;
+    thread_data.started_running = false;
+
+    auto thread = std::make_unique<std::thread>(finish_after_flush_thread, &thread_data);
+
+    while (!thread_data.started_running) {
+        usleep(500);
+    }
+
+    usleep(1000);
+
+    int res = thread_data.finish_returned;
+    if (res != 42) {
+        SetUserEventStatus(uevent, -1);
+        thread->join();
+        ASSERT_TRUE(false);
+    } else {
+        SetUserEventStatus(uevent, CL_COMPLETE);
+        thread->join();
+    }
 }

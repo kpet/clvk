@@ -230,6 +230,8 @@ private:
     std::mutex m_lock;
 };
 
+using cvk_event_holder = refcounted_holder<cvk_event>;
+
 struct cvk_command_queue : public _cl_command_queue, api_object {
 
     cvk_command_queue(cvk_context* ctx, cvk_device* dev,
@@ -256,7 +258,9 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
 
     CHECK_RETURN static cl_int wait_for_events(cl_uint num_events,
                                                const cl_event* event_list);
-    CHECK_RETURN cl_int flush(cvk_event** event = nullptr);
+    CHECK_RETURN cl_int flush_no_lock();
+    CHECK_RETURN cl_int flush();
+    CHECK_RETURN cl_int finish();
     bool profiling_on_device() const {
         return m_device->has_timer_support() ||
                gQueueProfilingUsesTimestampQueries;
@@ -292,6 +296,7 @@ private:
     std::vector<cl_queue_properties> m_properties_array;
 
     cvk_executor_thread* m_executor;
+    cvk_event_holder m_finish_event;
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
