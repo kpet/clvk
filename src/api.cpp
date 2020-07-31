@@ -143,7 +143,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
 
     size_t size_ret = 0;
     const void* copy_ptr = nullptr;
-    cl_version_khr val_version;
+    cl_version val_version;
     api_query_string val_string;
     cl_ulong val_ulong;
 
@@ -183,14 +183,14 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
-    case CL_PLATFORM_NUMERIC_VERSION_KHR:
+    case CL_PLATFORM_NUMERIC_VERSION:
         val_version = plat->version();
         copy_ptr = &val_version;
         size_ret = sizeof(val_version);
         break;
-    case CL_PLATFORM_EXTENSIONS_WITH_VERSION_KHR:
+    case CL_PLATFORM_EXTENSIONS_WITH_VERSION:
         copy_ptr = plat->extensions().data();
-        size_ret = plat->extensions().size() * sizeof(cl_name_version_khr);
+        size_ret = plat->extensions().size() * sizeof(cl_name_version);
         break;
     case CL_PLATFORM_HOST_TIMER_RESOLUTION:
         val_ulong = plat->host_timer_resolution();
@@ -324,7 +324,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_command_queue_properties val_queue_properties;
     cl_platform_id val_platform;
     cl_device_id val_deviceid;
-    cl_version_khr val_version;
+    cl_version val_version;
     cl_device_svm_capabilities val_svmcaps;
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
 
@@ -636,7 +636,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
-    case CL_DEVICE_NUMERIC_VERSION_KHR:
+    case CL_DEVICE_NUMERIC_VERSION:
         val_version = device->version();
         copy_ptr = &val_version;
         size_ret = sizeof(val_version);
@@ -646,15 +646,15 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_version;
         size_ret = sizeof(val_version);
         break;
-    case CL_DEVICE_EXTENSIONS_WITH_VERSION_KHR:
+    case CL_DEVICE_EXTENSIONS_WITH_VERSION:
         copy_ptr = device->extensions().data();
-        size_ret = device->extensions().size() * sizeof(cl_name_version_khr);
+        size_ret = device->extensions().size() * sizeof(cl_name_version);
         break;
     case CL_DEVICE_ILS_WITH_VERSION:
         copy_ptr = device->ils().data();
-        size_ret = device->ils().size() * sizeof(cl_name_version_khr);
+        size_ret = device->ils().size() * sizeof(cl_name_version);
         break;
-    case CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION_KHR:
+    case CL_DEVICE_BUILT_IN_KERNELS_WITH_VERSION:
         copy_ptr = nullptr;
         size_ret = 0;
         break;
@@ -669,12 +669,6 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
-    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
-    case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
-        val_bool = CL_FALSE;
-        copy_ptr = &val_bool;
-        size_ret = sizeof(val_bool);
-        break;
     case CL_DEVICE_IMAGE_PITCH_ALIGNMENT:
     case CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT:
         val_uint = 0;
@@ -688,6 +682,8 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         break;
     case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
+    case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
+    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
         val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
@@ -713,6 +709,14 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_uint = 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_OPENCL_C_ALL_VERSIONS:
+        copy_ptr = device->opencl_c_versions().data();
+        size_ret = device->opencl_c_versions().size() * sizeof(cl_name_version);
+        break;
+    case CL_DEVICE_OPENCL_C_FEATURES:
+        copy_ptr = device->opencl_c_features().data();
+        size_ret = device->opencl_c_features().size() * sizeof(cl_name_version);
         break;
     default:
         ret = CL_INVALID_VALUE;
