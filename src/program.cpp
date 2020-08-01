@@ -1130,8 +1130,10 @@ bool cvk_entry_point::build_descriptor_set_layout(
 }
 
 bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
-    binding_stat_map& smap, uint32_t& num_resources) {
+    binding_stat_map& smap, uint32_t& num_resource_slots) {
     bool pod_found = false;
+
+    uint32_t highest_binding = 0;
 
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
     for (auto& arg : m_args) {
@@ -1183,11 +1185,13 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             nullptr                      // pImmutableSamplers
         };
 
+        highest_binding = std::max(arg.binding, highest_binding);
+
         layoutBindings.push_back(binding);
         smap[binding.descriptorType]++;
     }
 
-    num_resources = layoutBindings.size();
+    num_resource_slots = highest_binding + 1;
 
     if (!build_descriptor_set_layout(layoutBindings)) {
         return false;
@@ -1244,7 +1248,7 @@ cl_int cvk_entry_point::init() {
         return CL_INVALID_VALUE;
     }
     if (!build_descriptor_sets_layout_bindings_for_arguments(bindingTypes,
-                                                             m_num_resources)) {
+                                                             m_num_resource_slots)) {
         return CL_INVALID_VALUE;
     }
 
