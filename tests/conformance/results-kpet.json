@@ -101,7 +101,7 @@
       "atomic_min": "pass",
       "atomic_or": "pass",
       "atomic_sub": "pass",
-      "atomic_xchg": "fail",
+      "atomic_xchg": "pass",
       "atomic_xor": "pass"
     },
     "retcode": 0
@@ -382,10 +382,10 @@
       "options_build_macro_existence": "pass",
       "options_build_optimizations": "fail",
       "options_denorm_cache": "pass",
-      "options_include_directory": "fail",
+      "options_include_directory": "pass",
       "pragma_unroll": "skip",
       "preprocessor_define_udef": "pass",
-      "preprocessor_include": "fail",
+      "preprocessor_include": "pass",
       "preprocessor_line_error": "pass",
       "preprocessor_pragma": "pass",
       "program_binary_type": "fail",
@@ -403,7 +403,16 @@
       "two_file_link": "fail",
       "two_file_regular_function_access": "pass",
       "two_file_regular_struct_access": "pass",
-      "two_file_regular_variable_access": "pass"
+      "two_file_regular_variable_access": "pass",
+      "unload_build_info": "pass",
+      "unload_build_threaded": "fail",
+      "unload_build_unload_create_kernel": "fail",
+      "unload_compile_unload_link": "fail",
+      "unload_invalid": "pass",
+      "unload_link_different": "fail",
+      "unload_program_binaries": "pass",
+      "unload_repeated": "fail",
+      "unload_valid": "pass"
     },
     "retcode": 0
   },
@@ -412,6 +421,7 @@
     "has_results": true,
     "results": {
       "computeinfo": "pass",
+      "device_uuid": "pass",
       "extended_versioning": "pass"
     },
     "retcode": 0

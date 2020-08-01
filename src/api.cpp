@@ -5028,6 +5028,7 @@ cl_icd_dispatch gDispatchTable = {
     /* OpenCL 3.0 */
     nullptr, // clCreateBufferWithProperties
     nullptr, // clCreateImageWithProperties
+    nullptr, // clSetContextDestructorCallback
 };
 // clang-format on
 
