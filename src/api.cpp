@@ -718,6 +718,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = device->opencl_c_features().data();
         size_ret = device->opencl_c_features().size() * sizeof(cl_name_version);
         break;
+    case CL_DEVICE_PREFERRED_WORK_GROUP_SIZE_MULTIPLE:
+        val_sizet = device->preferred_work_group_size_multiple();
+        copy_ptr = &val_sizet;
+        size_ret = sizeof(val_sizet);
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;
@@ -2468,8 +2473,7 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         ret_size = sizeof(val_sizet);
         break;
     case CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE:
-        // FIXME what to do here?
-        val_sizet = 4;
+        val_sizet = device->preferred_work_group_size_multiple();
         copy_ptr = &val_sizet;
         ret_size = sizeof(val_sizet);
         break;

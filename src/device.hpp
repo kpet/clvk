@@ -322,6 +322,11 @@ struct cvk_device : public _cl_device_id {
         }
     }
 
+    size_t preferred_work_group_size_multiple() const {
+        // Use a hard-coded value that ought to be better than 1 on most devices
+        return 16;
+    }
+
     // Driver-specific behaviors.
     enum cvk_driver_behavior
     {
