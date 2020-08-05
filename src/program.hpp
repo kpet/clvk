@@ -158,24 +158,22 @@ public:
         }
     }
 
-    void add_kernel(const std::string& name) {
-      m_dmaps[name] = {};
-    }
+    void add_kernel(const std::string& name) { m_dmaps[name] = {}; }
 
     void add_kernel_argument(const std::string& name, kernel_argument&& arg) {
-      m_dmaps[name].push_back(arg);
+        m_dmaps[name].push_back(arg);
     }
 
     void add_spec_constant(spec_constant constant, uint32_t spec_id) {
-      m_spec_constants[constant] = spec_id;
+        m_spec_constants[constant] = spec_id;
     }
 
     void add_push_constant(pushconstant pc, pushconstant_desc&& desc) {
-      m_push_constants[pc] = desc;
+        m_push_constants[pc] = desc;
     }
 
     void add_literal_sampler(sampler_desc&& desc) {
-      m_literal_samplers.push_back(desc);
+        m_literal_samplers.push_back(desc);
     }
 
     bool strip_reflection(std::vector<uint32_t>* stripped);
