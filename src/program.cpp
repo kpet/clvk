@@ -28,8 +28,8 @@
 #endif
 #include "spirv-tools/linker.hpp"
 #include "spirv-tools/optimizer.hpp"
-#include "spirv/unified1/spirv.hpp"
 #include "spirv/unified1/NonSemanticClspvReflection.h"
+#include "spirv/unified1/spirv.hpp"
 
 #include "init.hpp"
 #include "log.hpp"
