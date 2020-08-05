@@ -744,12 +744,12 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // Compose clspv command-line
     std::string cmd{gCLSPVPath};
-    std::string descriptor_map_file{tmp_folder + "/descriptors.map"};
     std::string spirv_file{tmp_folder + "/compiled.spv"};
 
     if (build_from_il) {
         cmd += " -x ir ";
     }
+    cmd += " ";
     cmd += clspv_input_file;
     cmd += " ";
     cmd += options;
