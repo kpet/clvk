@@ -279,7 +279,7 @@ spv_result_t parse_reflection(void* user_data,
                 auto mask = helper->constants[inst->words[7]];
                 uint32_t coords = mask & clspv::kSamplerNormalizedCoordsMask;
                 bool normalized_coords =
-                    coords != clspv::CLK_NORMALIZED_COORDS_TRUE;
+                    coords == clspv::CLK_NORMALIZED_COORDS_TRUE;
                 cl_addressing_mode addressing;
                 switch (mask & clspv::kSamplerAddressMask) {
                 case clspv::CLK_ADDRESS_NONE:
