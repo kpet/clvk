@@ -49,7 +49,7 @@ struct membuf : public std::streambuf {
     }
 };
 
-struct reflection_helper {
+struct reflection_parse_data {
     uint32_t uint_id = 0;
     std::unordered_map<uint32_t, uint32_t> constants;
     std::unordered_map<uint32_t, std::string> strings;
@@ -108,7 +108,7 @@ spv_result_t parse_reflection(void* user_data,
         return pushconstant::global_offset;
     };
 
-    reflection_helper* helper = reinterpret_cast<reflection_helper*>(user_data);
+    auto* helper = reinterpret_cast<reflection_parse_data*>(user_data);
     switch (inst->opcode) {
     case spv::OpTypeInt:
         if (inst->words[2] == 32 && inst->words[3] == 0) {
@@ -493,7 +493,7 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
 }
 
 bool spir_binary::load_descriptor_map() {
-    reflection_helper helper;
+    reflection_parse_data helper;
     helper.binary = this;
 
     // TODO: The parser assumes a valid SPIR-V module, but validation is not
@@ -982,7 +982,7 @@ void cvk_program::do_build() {
     const uint32_t* spir_data = m_binary.spir_data();
     size_t spir_size = m_binary.spir_size();
     if (!device->is_vulkan_extension_enabled(
-            "VK_KHR_shader_non_semantic_info")) {
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)) {
         if (!m_binary.strip_reflection(&m_stripped_binary)) {
             cvk_error_fn("couldn't strip reflection from SPIR-V module");
             complete_operation(device, CL_BUILD_ERROR);
