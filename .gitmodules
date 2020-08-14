@@ -9,7 +9,7 @@
 	url = https://github.com/KhronosGroup/SPIRV-Headers.git
 [submodule "spirv-llvm-translator"]
 	path = external/SPIRV-LLVM-Translator
-	url = https://github.com/kpet/SPIRV-LLVM-Translator
+	url = https://github.com/KhronosGroup/SPIRV-LLVM-Translator
 [submodule "spirv-tools"]
 	path = external/SPIRV-Tools
 	url = https://github.com/KhronosGroup/SPIRV-Tools.git

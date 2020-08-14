@@ -72,9 +72,10 @@ set(OpenCL-dependencies
   ${Vulkan_LIBRARIES}
 )
 
+# The reflection parser requires the headers.
+target_include_directories(OpenCL-objects PRIVATE
+  "${CLSPV_SOURCE_DIR}/include")
 if (CLVK_CLSPV_ONLINE_COMPILER)
-  target_include_directories(OpenCL-objects PRIVATE
-      "${CLSPV_SOURCE_DIR}/include")
   set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
 else()
   add_dependencies(OpenCL-objects clspv)

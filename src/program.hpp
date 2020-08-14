@@ -23,9 +23,6 @@
 
 #include <vulkan/vulkan.h>
 
-#ifdef CLSPV_ONLINE_COMPILER
-#include "clspv/DescriptorMap.h"
-#endif
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
@@ -111,18 +108,14 @@ class spir_binary {
     const uint32_t MAGIC = 0x00BEEF00;
 
 public:
-    spir_binary(spv_target_env env) : m_loaded_from_binary(false) {
+    spir_binary(spv_target_env env)
+        : m_loaded_from_binary(false), m_target_env(env) {
         m_context = spvContextCreate(env);
     }
     ~spir_binary() { spvContextDestroy(m_context); }
     CHECK_RETURN bool load_spir(const char* fname);
     CHECK_RETURN bool load_spir(std::istream& istream, uint32_t size);
-    CHECK_RETURN bool load_descriptor_map(const char* fname);
-    CHECK_RETURN bool load_descriptor_map(std::istream& istream);
-#ifdef CLSPV_ONLINE_COMPILER
-    CHECK_RETURN bool load_descriptor_map(
-        const std::vector<clspv::version0::DescriptorMapEntry>& entries);
-#endif
+    CHECK_RETURN bool load_descriptor_map();
     void insert_descriptor_map(const spir_binary& other);
     CHECK_RETURN bool save_spir(const char* fname) const;
     CHECK_RETURN bool load(std::istream& istream);
@@ -165,18 +158,27 @@ public:
         }
     }
 
-private:
-    CHECK_RETURN bool parse_sampler(const std::vector<std::string>& tokens,
-                                    int toknum);
-    CHECK_RETURN bool parse_kernel(const std::vector<std::string>& tokens,
-                                   int toknum);
-    CHECK_RETURN bool parse_kernel_decl(const std::vector<std::string>& tokens,
-                                        int toknum);
-    CHECK_RETURN bool parse_pushconstant(const std::vector<std::string>& tokens,
-                                         int toknum);
-    CHECK_RETURN bool parse_specconstant(const std::vector<std::string>& tokens,
-                                         int toknum);
+    void add_kernel(const std::string& name) { m_dmaps[name] = {}; }
 
+    void add_kernel_argument(const std::string& name, kernel_argument&& arg) {
+        m_dmaps[name].push_back(arg);
+    }
+
+    void add_spec_constant(spec_constant constant, uint32_t spec_id) {
+        m_spec_constants[constant] = spec_id;
+    }
+
+    void add_push_constant(pushconstant pc, pushconstant_desc&& desc) {
+        m_push_constants[pc] = desc;
+    }
+
+    void add_literal_sampler(sampler_desc&& desc) {
+        m_literal_samplers.push_back(desc);
+    }
+
+    bool strip_reflection(std::vector<uint32_t>* stripped);
+
+private:
     spv_context m_context;
     std::vector<uint32_t> m_code;
     std::vector<sampler_desc> m_literal_samplers;
@@ -185,6 +187,7 @@ private:
     kernels_arguments_map m_dmaps;
     std::string m_dmaps_text;
     bool m_loaded_from_binary;
+    spv_target_env m_target_env;
 };
 
 enum class build_operation
@@ -507,6 +510,7 @@ private:
     VkPushConstantRange m_push_constant_range;
     std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>
         m_entry_points;
+    std::vector<uint32_t> m_stripped_binary;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {
