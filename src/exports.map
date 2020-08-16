@@ -127,6 +127,7 @@ OPENCL_2.1 {
 
 OPENCL_2.2 {
     clSetProgramSpecializationConstant;
+    clSetProgramReleaseCallback;
 } OPENCL_2.1;
 
 OPENCL_3.0 {

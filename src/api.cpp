@@ -2048,6 +2048,7 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
     cl_uint val_uint;
     cl_context val_context;
     size_t val_sizet;
+    cl_bool val_bool;
     api_query_string val_string;
     std::vector<size_t> val_sizet_vec;
     std::vector<cl_device_id> val_devices;
@@ -2131,6 +2132,12 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
     case CL_PROGRAM_IL:
         copy_ptr = program->il().data();
         ret_size = program->il().size();
+        break;
+    case CL_PROGRAM_SCOPE_GLOBAL_CTORS_PRESENT:
+    case CL_PROGRAM_SCOPE_GLOBAL_DTORS_PRESENT:
+        val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        ret_size = sizeof(val_bool);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -2239,6 +2246,15 @@ cl_int CLVK_API_CALL clReleaseProgram(cl_program program) {
 
     icd_downcast(program)->release();
     return CL_SUCCESS;
+}
+
+cl_int CLVK_API_CALL clSetProgramReleaseCallback(
+    cl_program program,
+    void(CL_CALLBACK* pfn_notify)(cl_program program, void* user_data),
+    void* user_data) {
+    LOG_API_CALL("program = %p, pfn_notify = %p, user_data = %p", program,
+                 pfn_notify, user_data);
+    return CL_INVALID_OPERATION;
 }
 
 // Kernel Object APIs
@@ -5086,7 +5102,7 @@ cl_icd_dispatch gDispatchTable = {
     clSetDefaultDeviceCommandQueue,
 
     /* OpenCL 2.2 */
-    nullptr, // clSetProgramReleaseCallback;
+    clSetProgramReleaseCallback,
     clSetProgramSpecializationConstant,
 
     /* OpenCL 3.0 */
