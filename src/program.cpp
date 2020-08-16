@@ -1247,8 +1247,8 @@ cl_int cvk_entry_point::init() {
             bindingTypes)) {
         return CL_INVALID_VALUE;
     }
-    if (!build_descriptor_sets_layout_bindings_for_arguments(bindingTypes,
-                                                             m_num_resource_slots)) {
+    if (!build_descriptor_sets_layout_bindings_for_arguments(
+            bindingTypes, m_num_resource_slots)) {
         return CL_INVALID_VALUE;
     }
 
