@@ -138,11 +138,14 @@ cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin,
     return buffer.release();
 }
 
-cvk_sampler* cvk_sampler::create(cvk_context* context, bool normalized_coords,
-                                 cl_addressing_mode addressing_mode,
-                                 cl_filter_mode filter_mode) {
+cvk_sampler*
+cvk_sampler::create(cvk_context* context, bool normalized_coords,
+                    cl_addressing_mode addressing_mode,
+                    cl_filter_mode filter_mode,
+                    std::vector<cl_sampler_properties>&& properties) {
     auto sampler = std::make_unique<cvk_sampler>(context, normalized_coords,
-                                                 addressing_mode, filter_mode);
+                                                 addressing_mode, filter_mode,
+                                                 std::move(properties));
 
     if (!sampler->init()) {
         return nullptr;

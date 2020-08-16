@@ -3370,7 +3370,9 @@ cl_int CLVK_API_CALL clEnqueueNativeKernel(
 
 cl_sampler cvk_create_sampler(cl_context context, cl_bool normalized_coords,
                               cl_addressing_mode addressing_mode,
-                              cl_filter_mode filter_mode, cl_int* errcode_ret) {
+                              cl_filter_mode filter_mode,
+                              std::vector<cl_sampler_properties>&& properties,
+                              cl_int* errcode_ret) {
 
     if (!is_valid_context(context)) {
         *errcode_ret = CL_INVALID_CONTEXT;
@@ -3385,7 +3387,7 @@ cl_sampler cvk_create_sampler(cl_context context, cl_bool normalized_coords,
     }
 
     auto sampler = cvk_sampler::create(ctx, normalized_coords, addressing_mode,
-                                       filter_mode);
+                                       filter_mode, std::move(properties));
 
     if (sampler == nullptr) {
         *errcode_ret = CL_OUT_OF_RESOURCES;
@@ -3406,9 +3408,12 @@ cl_sampler CLVK_API_CALL clCreateSampler(cl_context context,
                  context, normalized_coords, addressing_mode, filter_mode,
                  errcode_ret);
 
+    std::vector<cl_sampler_properties> properties;
+
     cl_int err;
-    auto sampler = cvk_create_sampler(context, normalized_coords,
-                                      addressing_mode, filter_mode, &err);
+    auto sampler =
+        cvk_create_sampler(context, normalized_coords, addressing_mode,
+                           filter_mode, std::move(properties), &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -3427,6 +3432,8 @@ cl_sampler CLVK_API_CALL clCreateSamplerWithProperties(
     cl_bool normalized_coords = CL_TRUE;
     cl_addressing_mode addressing_mode = CL_ADDRESS_CLAMP;
     cl_filter_mode filter_mode = CL_FILTER_NEAREST;
+
+    std::vector<cl_sampler_properties> properties;
 
     if (sampler_properties) {
         while (*sampler_properties) {
@@ -3450,13 +3457,18 @@ cl_sampler CLVK_API_CALL clCreateSamplerWithProperties(
                 return nullptr;
             }
 
+            properties.push_back(key);
+            properties.push_back(value);
+
             sampler_properties += 2;
         }
+        properties.push_back(0);
     }
 
     cl_int err;
-    auto sampler = cvk_create_sampler(context, normalized_coords,
-                                      addressing_mode, filter_mode, &err);
+    auto sampler =
+        cvk_create_sampler(context, normalized_coords, addressing_mode,
+                           filter_mode, std::move(properties), &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -3539,6 +3551,10 @@ cl_int CLVK_API_CALL clGetSamplerInfo(cl_sampler samp,
         val_filter_mode = sampler->filter_mode();
         copy_ptr = &val_filter_mode;
         ret_size = sizeof(val_filter_mode);
+        break;
+    case CL_SAMPLER_PROPERTIES:
+        copy_ptr = sampler->properties().data();
+        ret_size = sampler->properties().size() * sizeof(cl_sampler_properties);
         break;
     default:
         ret = CL_INVALID_VALUE;

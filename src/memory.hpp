@@ -326,10 +326,11 @@ using cvk_sampler_holder = refcounted_holder<cvk_sampler>;
 struct cvk_sampler : public _cl_sampler, api_object {
 
     cvk_sampler(cvk_context* context, bool normalized_coords,
-                cl_addressing_mode addressing_mode, cl_filter_mode filter_mode)
+                cl_addressing_mode addressing_mode, cl_filter_mode filter_mode,
+                std::vector<cl_sampler_properties>&& properties)
         : api_object(context), m_normalized_coords(normalized_coords),
           m_addressing_mode(addressing_mode), m_filter_mode(filter_mode),
-          m_sampler(VK_NULL_HANDLE) {}
+          m_properties(std::move(properties)), m_sampler(VK_NULL_HANDLE) {}
 
     ~cvk_sampler() {
         if (m_sampler != VK_NULL_HANDLE) {
@@ -340,18 +341,30 @@ struct cvk_sampler : public _cl_sampler, api_object {
 
     static cvk_sampler* create(cvk_context* context, bool normalized_coords,
                                cl_addressing_mode addressing_mode,
-                               cl_filter_mode filter_mode);
+                               cl_filter_mode filter_mode,
+                               std::vector<cl_sampler_properties>&& properties);
+    static cvk_sampler* create(cvk_context* context, bool normalized_coords,
+                               cl_addressing_mode addressing_mode,
+                               cl_filter_mode filter_mode) {
+        std::vector<cl_sampler_properties> properties;
+        return create(context, normalized_coords, addressing_mode, filter_mode,
+                      std::move(properties));
+    }
 
     bool normalized_coords() const { return m_normalized_coords; }
     cl_addressing_mode addressing_mode() const { return m_addressing_mode; }
     cl_filter_mode filter_mode() const { return m_filter_mode; }
     VkSampler vulkan_sampler() const { return m_sampler; }
+    const std::vector<cl_sampler_properties>& properties() const {
+        return m_properties;
+    }
 
 private:
     bool init();
     bool m_normalized_coords;
     cl_addressing_mode m_addressing_mode;
     cl_filter_mode m_filter_mode;
+    const std::vector<cl_sampler_properties> m_properties;
     VkSampler m_sampler;
 };
 
