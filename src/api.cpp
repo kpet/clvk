@@ -2329,6 +2329,30 @@ cl_int CLVK_API_CALL clCreateKernelsInProgram(cl_program prog,
     return CL_SUCCESS;
 }
 
+cl_kernel CLVK_API_CALL clCloneKernel(cl_kernel source_kernel,
+                                      cl_int* errcode_ret) {
+    LOG_API_CALL("kernel = %p, errcode_ret = %p", source_kernel, errcode_ret);
+
+    if (!is_valid_kernel(source_kernel)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_KERNEL;
+        }
+        return nullptr;
+    }
+
+    cl_int err;
+    auto kernel = icd_downcast(source_kernel)->clone(&err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+    if (err != CL_SUCCESS) {
+        return nullptr;
+    } else {
+        return kernel.release();
+    }
+}
+
 cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
                                     size_t arg_size, const void* arg_value) {
 
@@ -5037,7 +5061,7 @@ cl_icd_dispatch gDispatchTable = {
     nullptr, // clGetKernelSubGroupInfoKHR;
 
     /* OpenCL 2.1 */
-    nullptr, // clCloneKernel;
+    clCloneKernel,
     clCreateProgramWithIL,
     clEnqueueSVMMigrateMem,
     clGetDeviceAndHostTimer,

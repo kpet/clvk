@@ -54,6 +54,22 @@ cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     return m_entry_point->create_pipeline(spec_constants);
 }
 
+std::unique_ptr<cvk_kernel> cvk_kernel::clone(cl_int* errcode_ret) const {
+
+    auto kernel = std::make_unique<cvk_kernel>(m_program, m_name.c_str());
+
+    *errcode_ret = kernel->init();
+
+    if (*errcode_ret != CL_SUCCESS) {
+        return nullptr;
+    }
+
+    kernel->m_argument_values =
+        cvk_kernel_argument_values::create(*m_argument_values.get());
+
+    return kernel;
+}
+
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     std::lock_guard<std::mutex> lock(m_lock);
 
