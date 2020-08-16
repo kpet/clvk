@@ -252,7 +252,7 @@ public:
 
     uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
 
-    uint32_t num_resources() const { return m_num_resources; }
+    uint32_t num_resource_slots() const { return m_num_resource_slots; }
 
     VkPipelineLayout pipeline_layout() const { return m_pipeline_layout; }
 
@@ -274,7 +274,7 @@ private:
     bool m_has_pod_arguments;
     bool m_has_pod_buffer_arguments;
     std::vector<kernel_argument> m_args;
-    uint32_t m_num_resources;
+    uint32_t m_num_resource_slots;
     VkDescriptorPool m_descriptor_pool;
     std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
     VkPipelineLayout m_pipeline_layout;
@@ -287,7 +287,7 @@ private:
     bool build_descriptor_set_layout(
         const std::vector<VkDescriptorSetLayoutBinding>& bindings);
     bool build_descriptor_sets_layout_bindings_for_arguments(
-        binding_stat_map& smap, uint32_t& num_resources);
+        binding_stat_map& smap, uint32_t& num_resource_slots);
     bool build_descriptor_sets_layout_bindings_for_literal_samplers(
         binding_stat_map& smap);
 

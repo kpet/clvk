@@ -91,7 +91,7 @@ struct cvk_kernel_argument_values {
     cvk_kernel_argument_values(cvk_entry_point* entry_point)
         : m_entry_point(entry_point), m_is_enqueued(false),
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
-          m_kernel_resources(m_entry_point->num_resources()),
+          m_kernel_resources(m_entry_point->num_resource_slots()),
           m_local_args_size(m_entry_point->args().size(), 0),
           m_descriptor_sets{VK_NULL_HANDLE} {}
 
