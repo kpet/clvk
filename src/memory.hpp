@@ -147,6 +147,7 @@ struct cvk_mem : public _cl_mem, api_object {
     void add_destructor_callback(cvk_mem_callback_pointer_type ptr,
                                  void* user_data) {
         cvk_mem_callback cb = {ptr, user_data};
+        std::lock_guard<std::mutex> lock(m_callbacks_lock);
         m_callbacks.push_back(cb);
     }
 
@@ -197,6 +198,7 @@ private:
     cl_mem_flags m_flags;
     uint32_t m_map_count;
     void* m_map_ptr;
+    std::mutex m_callbacks_lock;
     std::vector<cvk_mem_callback> m_callbacks;
 
 protected:

@@ -841,6 +841,26 @@ cl_int CLVK_API_CALL clReleaseContext(cl_context context) {
     return CL_SUCCESS;
 }
 
+cl_int CLVK_API_CALL clSetContextDestructorCallback(
+    cl_context context,
+    void(CL_CALLBACK* pfn_notify)(cl_context context, void* user_data),
+    void* user_data) {
+    LOG_API_CALL("context = %p, pfn_notify = %p, user_data = %p", context,
+                 pfn_notify, user_data);
+
+    if (!is_valid_context(context)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (pfn_notify == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    icd_downcast(context)->add_destructor_callback(pfn_notify, user_data);
+
+    return CL_SUCCESS;
+}
+
 cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
                                       cl_context_info param_name,
                                       size_t param_value_size,
@@ -5032,7 +5052,7 @@ cl_icd_dispatch gDispatchTable = {
     /* OpenCL 3.0 */
     nullptr, // clCreateBufferWithProperties
     nullptr, // clCreateImageWithProperties
-    nullptr, // clSetContextDestructorCallback
+    clSetContextDestructorCallback,
 };
 // clang-format on
 

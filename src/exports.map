@@ -128,3 +128,7 @@ OPENCL_2.2 {
     clSetProgramSpecializationConstant;
 } OPENCL_2.1;
 
+OPENCL_3.0 {
+    clSetContextDestructorCallback;
+} OPENCL_2.2;
+

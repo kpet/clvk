@@ -105,6 +105,13 @@ private:
     T* m_refcounted;
 };
 
+using cvk_context_callback_pointer_type = void(CL_CALLBACK*)(cl_context context,
+                                                             void* user_data);
+struct cvk_context_callback {
+    cvk_context_callback_pointer_type pointer;
+    void* data;
+};
+
 struct cvk_context : public _cl_context, refcounted {
 
     cvk_context(cvk_device* device, const cl_context_properties* props)
@@ -122,7 +129,13 @@ struct cvk_context : public _cl_context, refcounted {
         }
     }
 
-    virtual ~cvk_context() {}
+    virtual ~cvk_context() {
+        for (auto cbi = m_destuctor_callbacks.rbegin();
+             cbi != m_destuctor_callbacks.rend(); ++cbi) {
+            auto cb = *cbi;
+            cb.pointer(this, cb.data);
+        }
+    }
 
     const std::vector<cl_context_properties>& properties() const {
         return m_properties;
@@ -131,8 +144,17 @@ struct cvk_context : public _cl_context, refcounted {
     cvk_device* device() const { return m_device; }
     unsigned num_devices() const { return 1u; }
 
+    void add_destructor_callback(cvk_context_callback_pointer_type ptr,
+                                 void* user_data) {
+        cvk_context_callback cb = {ptr, user_data};
+        std::lock_guard<std::mutex> lock(m_callbacks_lock);
+        m_destuctor_callbacks.push_back(cb);
+    }
+
 private:
     cvk_device* m_device;
+    std::mutex m_callbacks_lock;
+    std::vector<cvk_context_callback> m_destuctor_callbacks;
     std::vector<cl_context_properties> m_properties;
 };
 
