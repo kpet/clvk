@@ -292,3 +292,34 @@ kernel void test(global int* out) {
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
+
+TEST_F(WithCommandQueue, BindingGreaterThanNumberOfResources) {
+    static const std::string program_source = R"(
+kernel void k0(int v, local int *, global int* b){}
+kernel void k1(global int* b){ *b = 77; }
+)";
+    // XXX this test assumes that k1's argument b gets assigned binding 2
+    auto kernel = CreateKernel(program_source.c_str(), "k1");
+
+    // Output buffer
+    size_t buffer_size = sizeof(cl_uint);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+
+    // Complete execution
+    Finish();
+
+    // Map the buffer
+    auto data =
+        EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    EXPECT_EQ(data[0], static_cast<cl_int>(77));
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
+}
