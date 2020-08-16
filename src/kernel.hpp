@@ -30,6 +30,7 @@ struct cvk_kernel : public _cl_kernel, api_object {
           m_entry_point(nullptr), m_name(name) {}
 
     CHECK_RETURN cl_int init();
+    std::unique_ptr<cvk_kernel> clone(cl_int* errcode_ret) const;
 
     virtual ~cvk_kernel() {
         m_argument_values.reset();

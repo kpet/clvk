@@ -122,6 +122,7 @@ OPENCL_2.1 {
     clGetKernelSubGroupInfo;
     clGetDeviceAndHostTimer;
     clGetHostTimer;
+    clCloneKernel;
 } OPENCL_2.0;
 
 OPENCL_2.2 {
