@@ -76,7 +76,7 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     // Clone argument values if they have been used in an enqueue
     if (m_argument_values->is_enqueued()) {
         m_argument_values =
-            cvk_kernel_argument_values::create(*m_argument_values.get());
+            cvk_kernel_argument_values::create(*m_argument_values);
         if (m_argument_values == nullptr) {
             return CL_OUT_OF_RESOURCES;
         }
