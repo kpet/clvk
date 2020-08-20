@@ -69,10 +69,13 @@ using cvk_mem_holder = refcounted_holder<cvk_mem>;
 struct cvk_mem : public _cl_mem, api_object {
 
     cvk_mem(cvk_context* ctx, cl_mem_flags flags, size_t size, void* host_ptr,
-            cvk_mem* parent, size_t parent_offset, cl_mem_object_type type)
+            cvk_mem* parent, size_t parent_offset,
+            std::vector<cl_mem_properties>&& properties,
+            cl_mem_object_type type)
         : api_object(ctx), m_type(type), m_flags(flags), m_map_count(0),
-          m_map_ptr(nullptr), m_size(size), m_host_ptr(host_ptr),
-          m_parent(parent), m_parent_offset(parent_offset) {
+          m_map_ptr(nullptr), m_properties(std::move(properties)), m_size(size),
+          m_host_ptr(host_ptr), m_parent(parent),
+          m_parent_offset(parent_offset) {
 
         if (m_parent != nullptr) {
 
@@ -118,6 +121,9 @@ struct cvk_mem : public _cl_mem, api_object {
     size_t size() const { return m_size; }
     cl_mem_object_type type() const { return m_type; }
     cl_mem_flags flags() const { return m_flags; }
+    const std::vector<cl_mem_properties> properties() const {
+        return m_properties;
+    }
 
     static bool is_image_type(cl_mem_object_type type) {
         return ((type == CL_MEM_OBJECT_IMAGE1D) ||
@@ -200,6 +206,7 @@ private:
     void* m_map_ptr;
     std::mutex m_callbacks_lock;
     std::vector<cvk_mem_callback> m_callbacks;
+    std::vector<cl_mem_properties> m_properties;
 
 protected:
     size_t m_size;
@@ -233,9 +240,10 @@ struct cvk_buffer : public cvk_mem {
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
     cvk_buffer(cvk_context* ctx, cl_mem_flags flags, size_t size,
-               void* host_ptr, cvk_mem* parent, size_t parent_offset)
+               void* host_ptr, cvk_mem* parent, size_t parent_offset,
+               std::vector<cl_mem_properties>&& properties)
         : cvk_mem(ctx, flags, size, host_ptr, parent, parent_offset,
-                  CL_MEM_OBJECT_BUFFER),
+                  std::move(properties), CL_MEM_OBJECT_BUFFER),
           m_buffer(VK_NULL_HANDLE) {}
 
     virtual ~cvk_buffer() {
@@ -244,9 +252,17 @@ struct cvk_buffer : public cvk_mem {
     }
 
     static std::unique_ptr<cvk_buffer> create(cvk_context* context,
-                                              cl_mem_flags, size_t size,
+                                              cl_mem_flags flags, size_t size,
                                               void* host_ptr,
-                                              cl_int* errcode_ret);
+                                              cl_int* errcode_ret) {
+        std::vector<cl_mem_properties> properties;
+        return create(context, flags, size, host_ptr, std::move(properties),
+                      errcode_ret);
+    }
+
+    static std::unique_ptr<cvk_buffer>
+    create(cvk_context* context, cl_mem_flags, size_t size, void* host_ptr,
+           std::vector<cl_mem_properties>&& properties, cl_int* errcode_ret);
     cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
 
     VkBuffer vulkan_buffer() const {
@@ -380,10 +396,12 @@ struct cvk_image_mapping : public cvk_memobj_mappping {
 struct cvk_image : public cvk_mem {
 
     cvk_image(cvk_context* ctx, cl_mem_flags flags, const cl_image_desc* desc,
-              const cl_image_format* format, void* host_ptr)
+              const cl_image_format* format, void* host_ptr,
+              std::vector<cl_mem_properties>&& properties)
         : cvk_mem(ctx, flags, /* FIXME size */ 0, host_ptr,
                   /* FIXME parent */ nullptr,
-                  /* FIXME parent_offset */ 0, desc->image_type),
+                  /* FIXME parent_offset */ 0, std::move(properties),
+                  desc->image_type),
           m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
           m_image_view(VK_NULL_HANDLE) {}
 
@@ -399,7 +417,8 @@ struct cvk_image : public cvk_mem {
 
     static cvk_image* create(cvk_context* ctx, cl_mem_flags flags,
                              const cl_image_desc* desc,
-                             const cl_image_format* format, void* host_ptr);
+                             const cl_image_format* format, void* host_ptr,
+                             std::vector<cl_mem_properties>&& properties);
 
     VkImage vulkan_image() const { return m_image; }
     VkImageView vulkan_image_view() const { return m_image_view; }
