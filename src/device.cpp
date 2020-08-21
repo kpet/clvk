@@ -17,6 +17,10 @@
 #include "log.hpp"
 #include "memory.hpp"
 
+#ifdef __ANDROID__
+#include <sys/system_properties.h>
+#endif
+
 cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
                                VkPhysicalDevice pdev) {
     cvk_device* device = new cvk_device(platform, pdev);
@@ -27,6 +31,52 @@ cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
     }
 
     return device;
+}
+
+void cvk_device::init_properties() {
+    // Set default values for all properties.
+    m_global_mem_cache_size = 0;
+    m_num_compute_units = 1;
+
+    // Set correct property values for known devices.
+    // These values can be obtained from the native OpenCL driver.
+    if (!strncmp(m_properties.deviceName, "Mali-", 5)) {
+#ifdef __ANDROID__
+        // Find out which SoC this is.
+        char soc[PROP_VALUE_MAX + 1];
+        int len = __system_property_get("ro.hardware", soc);
+        if (len == 0) {
+            cvk_warn("Unable to query 'ro.hardware' system property, some "
+                     "device properties will be incorrect.");
+            return;
+        }
+
+        if (!strcmp(soc, "exynos9820")) {
+            m_global_mem_cache_size = 262144;
+            m_num_compute_units = 12;
+        } else if (!strcmp(soc, "exynos990")) {
+            m_global_mem_cache_size = 262144;
+            m_num_compute_units = 11;
+        } else {
+            cvk_warn("Unrecognized 'ro.hardware' value '%s', some device "
+                     "properties will be incorrect.",
+                     soc);
+        }
+#else
+        cvk_warn("Unrecognized Mali device, some device properties will be "
+                 "incorrect.");
+#endif
+    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 620")) {
+        m_global_mem_cache_size = 65536;
+        m_num_compute_units = 1;
+    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 640")) {
+        m_global_mem_cache_size = 131072;
+        m_num_compute_units = 2;
+    } else {
+        cvk_warn("Unrecognized device '%s', some device properties will be "
+                 "incorrect.",
+                 m_properties.deviceName);
+    }
 }
 
 void cvk_device::init_driver_behaviors(VkInstance instance) {
@@ -465,6 +515,8 @@ bool cvk_device::init(VkInstance instance) {
     if (!init_extensions()) {
         return false;
     }
+
+    init_properties();
 
     init_driver_behaviors(instance);
 
