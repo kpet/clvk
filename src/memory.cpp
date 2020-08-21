@@ -60,12 +60,12 @@ void cvk_mem::unmap() {
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
 }
 
-std::unique_ptr<cvk_buffer> cvk_buffer::create(cvk_context* context,
-                                               cl_mem_flags flags, size_t size,
-                                               void* host_ptr,
-                                               cl_int* errcode_ret) {
-    auto buffer = std::make_unique<cvk_buffer>(context, flags, size, host_ptr,
-                                               nullptr, 0);
+std::unique_ptr<cvk_buffer>
+cvk_buffer::create(cvk_context* context, cl_mem_flags flags, size_t size,
+                   void* host_ptr, std::vector<cl_mem_properties>&& properties,
+                   cl_int* errcode_ret) {
+    auto buffer = std::make_unique<cvk_buffer>(
+        context, flags, size, host_ptr, nullptr, 0, std::move(properties));
 
     if (!buffer->init()) {
         *errcode_ret = CL_OUT_OF_RESOURCES;
@@ -132,8 +132,9 @@ bool cvk_buffer::init() {
 
 cvk_mem* cvk_buffer::create_subbuffer(cl_mem_flags flags, size_t origin,
                                       size_t size) {
-    auto buffer = std::make_unique<cvk_buffer>(m_context, flags, size, nullptr,
-                                               this, origin);
+    std::vector<cl_mem_properties> properties;
+    auto buffer = std::make_unique<cvk_buffer>(
+        m_context, flags, size, nullptr, this, origin, std::move(properties));
 
     return buffer.release();
 }
@@ -230,9 +231,10 @@ bool cvk_sampler::init() {
 
 cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
                              const cl_image_desc* desc,
-                             const cl_image_format* format, void* host_ptr) {
-    auto image =
-        std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr);
+                             const cl_image_format* format, void* host_ptr,
+                             std::vector<cl_mem_properties>&& properties) {
+    auto image = std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr,
+                                             std::move(properties));
 
     if (!image->init()) {
         return nullptr;

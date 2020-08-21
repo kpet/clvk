@@ -1429,6 +1429,38 @@ cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
     }
 }
 
+cl_mem CLVK_API_CALL clCreateBufferWithProperties(
+    cl_context context, const cl_mem_properties* properties, cl_mem_flags flags,
+    size_t size, void* host_ptr, cl_int* errcode_ret) {
+
+    LOG_API_CALL("context = %p, properties = %p, flags = %lx, size = %zu, "
+                 "host_ptr = %p, errcode_ret = %p",
+                 context, properties, flags, size, host_ptr, errcode_ret);
+
+    std::vector<cl_mem_properties> props;
+
+    if (properties != nullptr) {
+        while (*properties) {
+            props.push_back(*properties);
+        }
+        props.push_back(0);
+    }
+
+    cl_int err;
+    auto buffer = cvk_buffer::create(icd_downcast(context), flags, size,
+                                     host_ptr, std::move(props), &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    if (err != CL_SUCCESS) {
+        return nullptr;
+    } else {
+        return buffer.release();
+    }
+}
+
 cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
                                        cl_buffer_create_type buffer_create_type,
                                        const void* buffer_create_info,
@@ -1668,6 +1700,10 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         ret_size = sizeof(val_bool);
+        break;
+    case CL_MEM_PROPERTIES:
+        copy_ptr = memobj->properties().data();
+        ret_size = memobj->properties().size() * sizeof(cl_mem_properties);
         break;
     default:
         ret = CL_INVALID_VALUE;
@@ -3593,6 +3629,7 @@ cl_int CLVK_API_CALL clGetSamplerInfo(cl_sampler samp,
 cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
                         const cl_image_format* image_format,
                         const cl_image_desc* image_desc, void* host_ptr,
+                        std::vector<cl_mem_properties>&& properties,
                         cl_int* errcode_ret) {
     if (!is_valid_context(context)) {
         *errcode_ret = CL_INVALID_CONTEXT;
@@ -3641,14 +3678,24 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
         return nullptr;
     }
 
-    auto image = cvk_image::create(icd_downcast(context), flags, image_desc,
-                                   image_format, host_ptr);
+    auto image =
+        cvk_image::create(icd_downcast(context), flags, image_desc,
+                          image_format, host_ptr, std::move(properties));
 
     *errcode_ret = (image != nullptr)
                        ? CL_SUCCESS
                        : CL_OUT_OF_RESOURCES; // FIXME do this properly
 
     return image;
+}
+
+cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
+                        const cl_image_format* image_format,
+                        const cl_image_desc* image_desc, void* host_ptr,
+                        cl_int* errcode_ret) {
+    std::vector<cl_mem_properties> properties;
+    return cvk_create_image(context, flags, image_format, image_desc, host_ptr,
+                            std::move(properties), errcode_ret);
 }
 
 cl_mem CLVK_API_CALL clCreateImage(cl_context context, cl_mem_flags flags,
@@ -3663,6 +3710,36 @@ cl_mem CLVK_API_CALL clCreateImage(cl_context context, cl_mem_flags flags,
     cl_int err;
     auto image = cvk_create_image(context, flags, image_format, image_desc,
                                   host_ptr, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return image;
+}
+
+cl_mem CLVK_API_CALL clCreateImageWithProperties(
+    cl_context context, const cl_mem_properties* properties, cl_mem_flags flags,
+    const cl_image_format* image_format, const cl_image_desc* image_desc,
+    void* host_ptr, cl_int* errcode_ret) {
+
+    LOG_API_CALL("context = %p, properties = %p, flags = %lx, image_format = "
+                 "%p, image_desc = %p, host_ptr = %p, errcode_ret = %p",
+                 context, properties, flags, image_format, image_desc, host_ptr,
+                 errcode_ret);
+
+    cl_int err;
+    std::vector<cl_mem_properties> props;
+
+    if (properties != nullptr) {
+        while (*properties) {
+            props.push_back(*properties);
+        }
+        props.push_back(0);
+    }
+
+    auto image = cvk_create_image(context, flags, image_format, image_desc,
+                                  host_ptr, std::move(props), &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -5106,8 +5183,8 @@ cl_icd_dispatch gDispatchTable = {
     clSetProgramSpecializationConstant,
 
     /* OpenCL 3.0 */
-    nullptr, // clCreateBufferWithProperties
-    nullptr, // clCreateImageWithProperties
+    clCreateBufferWithProperties,
+    clCreateImageWithProperties,
     clSetContextDestructorCallback,
 };
 // clang-format on

@@ -132,5 +132,7 @@ OPENCL_2.2 {
 
 OPENCL_3.0 {
     clSetContextDestructorCallback;
+    clCreateBufferWithProperties;
+    clCreateImageWithProperties;
 } OPENCL_2.2;
 
