@@ -445,7 +445,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_cache_type);
         break;
     case CL_DEVICE_GLOBAL_MEM_CACHE_SIZE:
-        val_ulong = 0; // FIXME
+        val_ulong = device->global_mem_cache_size();
         copy_ptr = &val_ulong;
         size_ret = sizeof(val_ulong);
         break;
@@ -475,7 +475,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_MAX_COMPUTE_UNITS:
-        val_uint = 1; // TODO can we do any better here?
+        val_uint = device->num_compute_units();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;

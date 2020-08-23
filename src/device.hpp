@@ -157,6 +157,10 @@ struct cvk_device : public _cl_device_id {
         return std::max(required_by_vulkan_impl, 1024U);
     }
 
+    cl_ulong global_mem_cache_size() const { return m_global_mem_cache_size; }
+
+    cl_uint num_compute_units() const { return m_num_compute_units; }
+
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
         // number of supported samplers to that to help with negative testing of
@@ -346,6 +350,7 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
+    void init_properties();
     void init_driver_behaviors(VkInstance instance);
     void init_features(VkInstance instance);
     void build_extension_ils_list();
@@ -383,6 +388,10 @@ private:
     std::vector<cl_name_version> m_ils;
     std::vector<cl_name_version> m_opencl_c_versions;
     std::vector<cl_name_version> m_opencl_c_features;
+
+    // Device properties that do not come from Vulkan
+    cl_ulong m_global_mem_cache_size;
+    cl_ulong m_num_compute_units;
 
     uint32_t m_driver_behaviors;
 
