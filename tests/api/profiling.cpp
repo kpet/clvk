@@ -57,6 +57,50 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity) {
     ASSERT_LT(ts_end - ts_start, max_diff);
 }
 
+TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "donothing");
+
+    // Dispatch kernel
+    size_t gws = 1;
+    size_t lws = 1;
+
+    cl_int dummy = 42;
+    SetKernelArg(kernel, 0, &dummy);
+
+    cl_event ev1, ev2;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev1);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev2);
+
+    // Complete execution
+    Finish();
+
+    cl_ulong ts_queued_1, ts_submit_1, ts_start_1, ts_end_1;
+    GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_QUEUED, &ts_queued_1);
+    GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_1);
+    GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_START, &ts_start_1);
+    GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_END, &ts_end_1);
+
+    cl_ulong ts_queued_2, ts_submit_2, ts_start_2, ts_end_2;
+    GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_QUEUED, &ts_queued_2);
+    GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_2);
+    GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_START, &ts_start_2);
+    GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_END, &ts_end_2);
+
+    // Check that timestamps are ordered for each kernel
+    ASSERT_GE(ts_submit_1, ts_queued_1);
+    ASSERT_GE(ts_start_1, ts_submit_1);
+    ASSERT_GE(ts_end_1, ts_start_1);
+    ASSERT_GE(ts_submit_2, ts_queued_2);
+    ASSERT_GE(ts_start_2, ts_submit_2);
+    ASSERT_GE(ts_end_2, ts_start_2);
+
+    // Check that timestamps are ordered between kernels
+    ASSERT_GE(ts_queued_2, ts_queued_1);
+    ASSERT_GE(ts_submit_2, ts_submit_1);
+    ASSERT_GE(ts_start_2, ts_end_1);
+}
+
 TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
 
     // Check device timer functions are supported
@@ -122,37 +166,25 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_END, &ts_end);
 
     // Check timestamp ordering
-    auto var = getenv("CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES");
-    bool profiling_uses_timestamp_queries = false;
-    if ((var != nullptr) && (atoi(var) == 1)) {
-        profiling_uses_timestamp_queries = true;
+    ASSERT_LT(timer_before_queued, ts_queued);
+    ASSERT_GT(timer_after_queued, ts_queued);
+    ASSERT_LT(timer_after_queued, ts_submit);
+    ASSERT_GT(timer_after_flush, ts_submit);
+    ASSERT_LT(timer_after_flush, ts_start);
+    ASSERT_GT(timer_after_completion, ts_start);
+    ASSERT_GT(timer_after_completion, ts_end);
+}
+
+TEST_F(WithContext, DeviceAndHostTimerEquality) {
+    // Check device timer functions are supported
+    auto res = GetPlatformInfo<cl_ulong>(platform(),
+                                         CL_PLATFORM_HOST_TIMER_RESOLUTION);
+    if (res == 0) {
+        // FIXME use GTEST_SKIP() when LLVM has caught up
+        return;
     }
 
-    // TODO Once #110 is resolved, the following should hold
-    // ASSERT_LT(timer_before_queued, ts_queued);
-    // ASSERT_GT(timer_after_queued, ts_queued);
-    // ASSERT_LT(timer_after_queued, ts_submit);
-    // ASSERT_GT(timer_after_flush, ts_submit);
-    // ASSERT_LT(timer_after_flush, ts_start);
-    // ASSERT_GT(timer_after_completion, ts_start);
-    // ASSERT_GT(timer_after_completion, ts_end);
-
-    // For now, test what we can
-    if (profiling_uses_timestamp_queries) {
-        ASSERT_LT(timer_host_before_queued, ts_queued);
-        ASSERT_GT(timer_host_after_queued, ts_queued);
-        ASSERT_LT(timer_host_after_queued, ts_submit);
-        ASSERT_GT(timer_host_after_flush, ts_submit);
-        ASSERT_LT(timer_after_flush, ts_start);
-        ASSERT_GT(timer_after_completion, ts_start);
-        ASSERT_GT(timer_after_completion, ts_end);
-    } else {
-        ASSERT_LT(timer_host_before_queued, ts_queued);
-        ASSERT_GT(timer_host_after_queued, ts_queued);
-        ASSERT_LT(timer_host_after_queued, ts_submit);
-        ASSERT_GT(timer_host_after_flush, ts_submit);
-        ASSERT_LT(timer_host_after_flush, ts_start);
-        ASSERT_GT(timer_host_after_completion, ts_start);
-        ASSERT_GT(timer_host_after_completion, ts_end);
-    }
+    cl_ulong dev, host;
+    GetDeviceAndHostTimer(gDevice, &dev, &host);
+    ASSERT_EQ(dev, host);
 }

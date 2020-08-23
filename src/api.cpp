@@ -5102,7 +5102,14 @@ cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
         return CL_INVALID_VALUE;
     }
 
-    return dev->get_device_host_timer(device_timestamp, host_timestamp);
+    cl_ulong host;
+
+    cl_int err = dev->get_device_host_timer(nullptr, &host);
+
+    *device_timestamp = host;
+    *host_timestamp = host;
+
+    return err;
 }
 
 // clang-format off

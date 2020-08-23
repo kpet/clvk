@@ -503,6 +503,7 @@ bool cvk_device::init_time_management(VkInstance instance) {
                  "VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT and "
                  "VK_TIME_DOMAIN_DEVICE_EXT time domains");
         cvk_warn("clGetHostTimer and clGetDeviceAndHostTimer will not work");
+        cvk_warn("Command queue profiling will suffer from limitations");
     }
 
     return true;
@@ -642,4 +643,13 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     }
 
     return CL_SUCCESS;
+}
+
+cl_ulong cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong sync_dev,
+                                          cl_ulong sync_host) const {
+    if (sync_host > sync_dev) {
+        return (sync_host - sync_dev) + dev;
+    } else {
+        return dev - (sync_dev - sync_host);
+    }
 }

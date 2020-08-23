@@ -735,7 +735,8 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
+cl_int cvk_command_kernel::get_timestamp_query_results(cl_ulong* start,
+                                                       cl_ulong* end) {
     uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
     auto dev = m_queue->device();
     auto res = vkGetQueryPoolResults(
@@ -748,13 +749,9 @@ cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
 
     auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
     auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
-    uint64_t ts_start, ts_end;
 
-    ts_start = dev->timestamp_to_ns(ts_start_raw);
-    ts_end = dev->timestamp_to_ns(ts_end_raw);
-
-    m_event->set_profiling_info(CL_PROFILING_COMMAND_START, ts_start);
-    m_event->set_profiling_info(CL_PROFILING_COMMAND_END, ts_end);
+    *start = dev->timestamp_to_ns(ts_start_raw);
+    *end = dev->timestamp_to_ns(ts_end_raw);
 
     return CL_COMPLETE;
 }
@@ -762,16 +759,31 @@ cl_int cvk_command_kernel::set_profiling_info_from_query_results() {
 cl_int cvk_command_kernel::do_action() {
     CVK_ASSERT(m_command_buffer);
 
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+    auto dev = m_queue->device();
+
+    cl_ulong sync_host, sync_dev;
+    if (profiling && dev->has_timer_support()) {
+        if (dev->get_device_host_timer(&sync_dev, &sync_host) != CL_SUCCESS) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
     if (!m_command_buffer->submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
     cl_int err = CL_COMPLETE;
 
-    if (profiling && !is_profiled_by_executor()) {
-        err = set_profiling_info_from_query_results();
+    if (profiling && m_queue->profiling_on_device()) {
+        cl_ulong start, end;
+        err = get_timestamp_query_results(&start, &end);
+        if (dev->has_timer_support()) {
+            start = dev->device_timer_to_host(start, sync_dev, sync_host);
+            end = dev->device_timer_to_host(end, sync_dev, sync_host);
+        }
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start);
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end);
     }
 
     return err;
@@ -780,7 +792,7 @@ cl_int cvk_command_kernel::do_action() {
 cl_int cvk_command_kernel_group::submit_and_wait() {
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
-    if (profiling && !gQueueProfilingUsesTimestampQueries) {
+    if (profiling && !m_queue->profiling_on_device()) {
         m_event->set_profiling_info_from_monotonic_clock(
             CL_PROFILING_COMMAND_START);
     }
@@ -789,7 +801,7 @@ cl_int cvk_command_kernel_group::submit_and_wait() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    if (profiling && !gQueueProfilingUsesTimestampQueries) {
+    if (profiling && !m_queue->profiling_on_device()) {
         m_event->set_profiling_info_from_monotonic_clock(
             CL_PROFILING_COMMAND_END);
     }
@@ -801,6 +813,13 @@ cl_int cvk_command_kernel_group::do_action() {
 
     cvk_info("executing batch of %lu kernels", m_kernel_commands.size());
 
+    cl_ulong sync_host, sync_dev;
+    auto dev = m_queue->device();
+    if (dev->has_timer_support()) {
+        if (dev->get_device_host_timer(&sync_dev, &sync_host) != CL_SUCCESS) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
     cl_int status = submit_and_wait();
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
@@ -808,26 +827,27 @@ cl_int cvk_command_kernel_group::do_action() {
     for (auto& kcmd : m_kernel_commands) {
         auto ev = kcmd->event();
         if (profiling) {
-            auto ts_group_submit =
-                m_event->get_profiling_info(CL_PROFILING_COMMAND_SUBMIT);
-            ev->set_profiling_info(CL_PROFILING_COMMAND_SUBMIT,
-                                   ts_group_submit);
 
-            if (gQueueProfilingUsesTimestampQueries) {
-                auto perr = kcmd->set_profiling_info_from_query_results();
+            ev->copy_profiling_info(CL_PROFILING_COMMAND_SUBMIT, m_event);
+
+            if (m_queue->profiling_on_device()) {
+                cl_ulong start, end;
+                auto perr = kcmd->get_timestamp_query_results(&start, &end);
                 // Report the first error if no errors were present
                 // Keep going through the events
                 if (status == CL_COMPLETE) {
                     status = perr;
                 }
+                if (dev->has_timer_support()) {
+                    start =
+                        dev->device_timer_to_host(start, sync_dev, sync_host);
+                    end = dev->device_timer_to_host(end, sync_dev, sync_host);
+                }
+                ev->set_profiling_info(CL_PROFILING_COMMAND_START, start);
+                ev->set_profiling_info(CL_PROFILING_COMMAND_END, end);
             } else {
-                auto ts_group_start =
-                    m_event->get_profiling_info(CL_PROFILING_COMMAND_START);
-                auto ts_group_end =
-                    m_event->get_profiling_info(CL_PROFILING_COMMAND_END);
-                ev->set_profiling_info(CL_PROFILING_COMMAND_START,
-                                       ts_group_start);
-                ev->set_profiling_info(CL_PROFILING_COMMAND_END, ts_group_end);
+                ev->copy_profiling_info(CL_PROFILING_COMMAND_START, m_event);
+                ev->copy_profiling_info(CL_PROFILING_COMMAND_END, m_event);
             }
         }
         ev->set_status(status);
