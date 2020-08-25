@@ -33,7 +33,54 @@ cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
     return device;
 }
 
-void cvk_device::init_properties() {
+void cvk_device::init_vulkan_properties(VkInstance instance) {
+
+    cvk_info("Getting Vulkan device properties");
+
+    m_device_id_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR;
+    m_driver_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+
+#define VER_EXT_PROP(ver, ext, prop)                                           \
+    {ver, ext, reinterpret_cast<VkBaseOutStructure*>(&prop)}
+    std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
+        coreversion_extension_properties = {
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
+                         m_device_id_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
+                         m_driver_properties),
+        };
+#undef VER_EXT_PROP
+
+    VkBaseOutStructure* pNext = nullptr;
+    for (auto& ver_ext_prop : coreversion_extension_properties) {
+        auto corever = std::get<0>(ver_ext_prop);
+        auto ext = std::get<1>(ver_ext_prop);
+        auto prop = std::get<2>(ver_ext_prop);
+        if ((corever != 0) && (m_properties.apiVersion >= corever)) {
+            prop->pNext = pNext;
+            pNext = prop;
+        } else if ((ext != nullptr) && is_vulkan_extension_enabled(ext)) {
+            prop->pNext = pNext;
+            pNext = prop;
+        }
+    }
+
+    VkPhysicalDeviceProperties2KHR properties;
+    properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+    properties.pNext = pNext;
+
+    auto func = GET_INSTANCE_PROC(instance, vkGetPhysicalDeviceProperties2KHR);
+    if (!func) {
+        cvk_fatal(
+            "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
+    }
+    func(m_pdev, &properties);
+}
+
+void cvk_device::init_opencl_properties() {
     // Set default values for all properties.
     m_global_mem_cache_size = 0;
     m_num_compute_units = 1;
@@ -79,7 +126,7 @@ void cvk_device::init_properties() {
     }
 }
 
-void cvk_device::init_driver_behaviors(VkInstance instance) {
+void cvk_device::init_driver_behaviors() {
 
     cvk_info("Initialising driver behaviors");
 
@@ -88,21 +135,6 @@ void cvk_device::init_driver_behaviors(VkInstance instance) {
 
     if (is_vulkan_extension_enabled(VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME) ||
         m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0)) {
-
-        // Get driver properties
-        VkPhysicalDeviceProperties2KHR properties;
-        properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
-        properties.pNext = &m_driver_properties;
-        m_driver_properties.sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
-        m_driver_properties.pNext = nullptr;
-        auto func =
-            GET_INSTANCE_PROC(instance, vkGetPhysicalDeviceProperties2KHR);
-        if (!func) {
-            cvk_fatal(
-                "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
-        }
-        func(m_pdev, &properties);
 
         // Log basic information about the target Vulkan device
         cvk_info("  driverName = %s", m_driver_properties.driverName);
@@ -328,6 +360,11 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
     };
 
+    if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
@@ -506,6 +543,8 @@ void cvk_device::log_limits_and_memory_information() {
 
 bool cvk_device::init(VkInstance instance) {
     cvk_info("Initialising device %s", m_properties.deviceName);
+    cvk_info("  API Version: %s",
+             vulkan_version_string(m_properties.apiVersion).c_str());
 
     uint32_t num_queues, queue_family;
     if (!init_queues(&num_queues, &queue_family)) {
@@ -516,9 +555,11 @@ bool cvk_device::init(VkInstance instance) {
         return false;
     }
 
-    init_properties();
+    init_vulkan_properties(instance);
 
-    init_driver_behaviors(instance);
+    init_opencl_properties();
+
+    init_driver_behaviors();
 
     init_features(instance);
 
