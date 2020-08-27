@@ -344,9 +344,7 @@ struct cvk_device : public _cl_device_id {
     static_assert(CL_UUID_SIZE_KHR == VK_UUID_SIZE);
     static_assert(CL_LUID_SIZE_KHR == VK_LUID_SIZE);
 
-    const cl_uchar* uuid() const {
-        return m_device_id_properties.deviceUUID;
-    }
+    const cl_uchar* uuid() const { return m_device_id_properties.deviceUUID; }
 
     const cl_uchar* driver_uuid() const {
         return m_device_id_properties.driverUUID;
@@ -356,9 +354,7 @@ struct cvk_device : public _cl_device_id {
         return m_device_id_properties.deviceLUIDValid;
     }
 
-    const cl_uchar* luid() const {
-        return m_device_id_properties.deviceLUID;
-    }
+    const cl_uchar* luid() const { return m_device_id_properties.deviceLUID; }
 
     cl_uint node_mask() const { return m_device_id_properties.deviceNodeMask; }
 
