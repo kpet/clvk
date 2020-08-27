@@ -341,8 +341,10 @@ struct cvk_device : public _cl_device_id {
     }
 
     // Device UUID
-    static_assert(CL_UUID_SIZE_KHR == VK_UUID_SIZE);
-    static_assert(CL_LUID_SIZE_KHR == VK_LUID_SIZE);
+    static_assert(CL_UUID_SIZE_KHR == VK_UUID_SIZE,
+                  "Vulkan and CL UUID must have the same size");
+    static_assert(CL_LUID_SIZE_KHR == VK_LUID_SIZE,
+                  "Vulkan and CL LUID must have the same size");
 
     const cl_uchar* uuid() const { return m_device_id_properties.deviceUUID; }
 
