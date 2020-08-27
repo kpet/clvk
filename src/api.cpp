@@ -723,6 +723,28 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
+    case CL_DEVICE_UUID_KHR:
+        copy_ptr = device->uuid();
+        size_ret = CL_UUID_SIZE_KHR;
+        break;
+    case CL_DRIVER_UUID_KHR:
+        copy_ptr = device->driver_uuid();
+        size_ret = CL_UUID_SIZE_KHR;
+        break;
+    case CL_DEVICE_LUID_VALID_KHR:
+        val_bool = device->luid_valid();
+        copy_ptr = &val_bool;
+        size_ret = sizeof(cl_bool);
+        break;
+    case CL_DEVICE_LUID_KHR:
+        copy_ptr = device->luid();
+        size_ret = CL_LUID_SIZE_KHR;
+        break;
+    case CL_DEVICE_NODE_MASK_KHR:
+        val_uint = device->node_mask();
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;

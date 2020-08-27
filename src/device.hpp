@@ -340,6 +340,26 @@ struct cvk_device : public _cl_device_id {
         return m_driver_behaviors & behavior;
     }
 
+    // Device UUID
+    static_assert(CL_UUID_SIZE_KHR == VK_UUID_SIZE,
+                  "Vulkan and CL UUID must have the same size");
+    static_assert(CL_LUID_SIZE_KHR == VK_LUID_SIZE,
+                  "Vulkan and CL LUID must have the same size");
+
+    const cl_uchar* uuid() const { return m_device_id_properties.deviceUUID; }
+
+    const cl_uchar* driver_uuid() const {
+        return m_device_id_properties.driverUUID;
+    }
+
+    cl_bool luid_valid() const {
+        return m_device_id_properties.deviceLUIDValid;
+    }
+
+    const cl_uchar* luid() const { return m_device_id_properties.deviceLUID; }
+
+    cl_uint node_mask() const { return m_device_id_properties.deviceNodeMask; }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -350,8 +370,9 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
-    void init_properties();
-    void init_driver_behaviors(VkInstance instance);
+    void init_opencl_properties();
+    void init_vulkan_properties(VkInstance instance);
+    void init_driver_behaviors();
     void init_features(VkInstance instance);
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
@@ -366,6 +387,7 @@ private:
     VkPhysicalDevice m_pdev;
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
+    VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
