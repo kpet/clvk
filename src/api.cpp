@@ -1310,8 +1310,11 @@ cl_int CLVK_API_CALL clReleaseCommandQueue(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
+    cl_int err = icd_downcast(command_queue)->flush();
+
     icd_downcast(command_queue)->release();
-    return CL_SUCCESS;
+
+    return err;
 }
 
 cl_int CLVK_API_CALL clRetainCommandQueue(cl_command_queue command_queue) {

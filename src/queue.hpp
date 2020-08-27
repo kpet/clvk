@@ -250,9 +250,7 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
 
     CHECK_RETURN static cl_int wait_for_events(cl_uint num_events,
                                                const cl_event* event_list);
-    CHECK_RETURN cl_int flush(cvk_event** event);
-
-    CHECK_RETURN cl_int flush() { return flush(nullptr); }
+    CHECK_RETURN cl_int flush(cvk_event** event = nullptr);
 
     CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer* cmdbuf) {
         return m_command_pool.allocate_command_buffer(cmdbuf) == VK_SUCCESS;
