@@ -1431,6 +1431,23 @@ cl_int CLVK_API_CALL clSetDefaultDeviceCommandQueue(
     return CL_INVALID_OPERATION;
 }
 
+cl_int CLVK_API_CALL clSetCommandQueueProperty(
+    cl_command_queue command_queue, cl_command_queue_properties properties,
+    cl_bool enable, cl_command_queue_properties* old_properties) {
+    LOG_API_CALL("command_queue = %p, properties = %lx, enable = %d, "
+                 "old_properties = %p",
+                 command_queue, properties, enable, old_properties);
+
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    // TODO validate properties
+    // TODO support
+
+    return CL_INVALID_OPERATION;
+}
+
 // Memory Object APIs
 cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                                     size_t size, void* host_ptr,
@@ -1844,6 +1861,45 @@ cl_program CLVK_API_CALL clCreateProgramWithBinary(
     }
 
     return prog;
+}
+
+cl_program CLVK_API_CALL clCreateProgramWithBuiltInKernels(
+    cl_context context, cl_uint num_devices, const cl_device_id* device_list,
+    const char* kernel_names, cl_int* errcode_ret) {
+    LOG_API_CALL("context = %p, num_devices = %u, device_list = %p, "
+                 "kernel_names = \"%s\", errcode_ret = %p",
+                 context, num_devices, device_list, kernel_names, errcode_ret);
+
+    if (!is_valid_context(context)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_CONTEXT;
+        }
+        return nullptr;
+    }
+
+    if ((device_list == nullptr) || (num_devices == 0)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
+
+    if (kernel_names == nullptr) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
+
+    // TODO CL_INVALID_DEVICE if any device in device_list is not in the list of
+    // devices associated with context.
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret =
+            CL_INVALID_VALUE; // Since no built-in kernels are supported
+    }
+
+    return nullptr;
 }
 
 cl_int CLVK_API_CALL
@@ -5048,7 +5104,7 @@ cl_icd_dispatch gDispatchTable = {
     clRetainCommandQueue,
     clReleaseCommandQueue,
     clGetCommandQueueInfo,
-    nullptr, // clSetCommandQueueProperty;
+    clSetCommandQueueProperty,
     clCreateBuffer,
     clCreateImage2D,
     clCreateImage3D,
@@ -5141,7 +5197,7 @@ cl_icd_dispatch gDispatchTable = {
     clRetainDevice,
     clReleaseDevice,
     clCreateImage,
-    nullptr, // clCreateProgramWithBuiltInKernels;
+    clCreateProgramWithBuiltInKernels,
     clCompileProgram,
     clLinkProgram,
     clUnloadPlatformCompiler,
