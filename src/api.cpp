@@ -1228,6 +1228,7 @@ cl_int CLVK_API_CALL clGetEventInfo(cl_event evt, cl_event_info param_name,
 cl_command_queue
 cvk_create_command_queue(cl_context context, cl_device_id device,
                          cl_command_queue_properties properties,
+                         std::vector<cl_queue_properties>&& properties_array,
                          cl_int* errcode_ret) {
 
     if (!is_valid_context(context)) {
@@ -1242,7 +1243,8 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     }
 
     auto queue = std::make_unique<cvk_command_queue>(
-        icd_downcast(context), icd_downcast(device), properties);
+        icd_downcast(context), icd_downcast(device), properties,
+        std::move(properties_array));
 
     cl_int err = queue->init();
 
@@ -1263,7 +1265,9 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueue(
         context, device, properties, errcode_ret);
 
     cl_int err;
-    auto ret = cvk_create_command_queue(context, device, properties, &err);
+    std::vector<cl_queue_properties> properties_array;
+    auto ret = cvk_create_command_queue(context, device, properties,
+                                        std::move(properties_array), &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1277,10 +1281,15 @@ cl_command_queue cvk_create_command_queue_with_properties(
     const cl_queue_properties* properties, cl_int* errcode_ret) {
     cl_command_queue_properties props = 0;
 
+    std::vector<cl_queue_properties> properties_array;
+
     if (properties) {
         while (*properties) {
             auto key = *properties;
             auto value = *(properties + 1);
+
+            properties_array.push_back(key);
+            properties_array.push_back(value);
 
             if (key == CL_QUEUE_PROPERTIES) {
                 props = value;
@@ -1293,10 +1302,13 @@ cl_command_queue cvk_create_command_queue_with_properties(
 
             properties += 2;
         }
+
+        properties_array.push_back(0);
     }
 
     cl_int err;
-    auto ret = cvk_create_command_queue(context, device, props, &err);
+    auto ret = cvk_create_command_queue(context, device, props,
+                                        std::move(properties_array), &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1405,6 +1417,11 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
         val_queue = nullptr;
         copy_ptr = &val_queue;
         ret_size = sizeof(val_queue);
+        break;
+    case CL_QUEUE_PROPERTIES_ARRAY:
+        copy_ptr = command_queue->properties_array().data();
+        ret_size = command_queue->properties_array().size() *
+                   sizeof(cl_queue_properties);
         break;
     default:
         ret = CL_INVALID_VALUE;

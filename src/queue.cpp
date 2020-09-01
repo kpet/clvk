@@ -23,11 +23,13 @@ static cvk_executor_thread_pool* get_thread_pool() {
     return state->thread_pool();
 }
 
-cvk_command_queue::cvk_command_queue(cvk_context* ctx, cvk_device* device,
-                                     cl_command_queue_properties properties)
+cvk_command_queue::cvk_command_queue(
+    cvk_context* ctx, cvk_device* device,
+    cl_command_queue_properties properties,
+    std::vector<cl_queue_properties>&& properties_array)
     : api_object(ctx), m_device(device), m_properties(properties),
-      m_executor(nullptr), m_kernel_group(nullptr),
-      m_vulkan_queue(device->vulkan_queue_allocate()),
+      m_properties_array(std::move(properties_array)), m_executor(nullptr),
+      m_kernel_group(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device, m_vulkan_queue.queue_family()) {
 
     m_groups.push_back(std::make_unique<cvk_command_group>());
