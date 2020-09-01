@@ -1,20 +1,14 @@
-[![Travis Status](https://travis-ci.com/kpet/clvk.svg?branch=master)](https://travis-ci.com/kpet/clvk) [![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=master)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=master)
+[![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=master)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=master)
 
 # What is this?
 
 This project is a prototype implementation of OpenCL 1.2 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
 
-# Disclaimer
-
-This experimental piece of software has been developed as a hobby project
-by a single person.  This is *not production quality code*.  If your whole
-computer crashes and burns, don't blame me! You've been warned.
-
 # Limitations
 
 * Only one device per CL context
-* No support for images
+* No support for images with a `host_ptr`
 * No support for out-of-order queues
 * No support for device partitioning
 * No support for native kernels
@@ -33,6 +27,7 @@ clvk depends on the following external projects:
 * [OpenCL-Headers](https://github.com/KhronosGroup/OpenCL-Headers)
 * [SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers)
 * [SPIRV-Tools](https://github.com/KhronosGroup/SPIRV-Tools)
+* [SPIRV-LLVM-Translator](https://github.com/KhronosGroup/SPIRV-LLVM-Translator)
 
 clvk also (obviously) depends on a Vulkan implementation. The build system
 supports a number of options there (see [Building section](#building)).
@@ -113,10 +108,26 @@ You can build clvk using an external Clspv source tree by setting
 
 # Using
 
-To use clvk to run an OpenCL application, you just need to make sure
-that the clvk libOpenCL.so shared library is picked up by the dynamic
-linker and that clvk has access to the `clspv` binary. The following
-ought to work on most Unix-like systems:
+## Via the OpenCL ICD Loader
+
+clvk supports the `cl_khr_icd` OpenCL extension that makes it possible
+to use the [OpenCL ICD Loader](https://github.com/KhronosGroup/OpenCL-ICD-Loader).
+
+## Directly
+
+To use clvk to run an OpenCL application, you just need to make sure that the
+clvk shared library is picked up by the dynamic linker.
+
+When clspv is not built into the shared library (which is currently the default),
+you also need to make sure that clvk has access to the `clspv` binary. If you
+wish to move the built library and `clspv` binary out of the build tree, you will
+need to make sure that you provide clvk with a path to the `clspv` binary via the
+`CLVK_CLSPV_BIN` environment variable
+(see [Environment variables](#environment-variables)).
+
+### Unix-like systems (Linux, macOS)
+
+The following ought to work on Unix-like systems:
 
 ```
 $ LD_LIBRARY_PATH=/path/to/build /path/to/application
@@ -125,10 +136,10 @@ $ LD_LIBRARY_PATH=/path/to/build /path/to/application
 $ LD_LIBRARY_PATH=./build ./build/simple_test
 ```
 
-If you wish to move the built library and `clspv` binary out of the build
-tree, you will need to make sure that you provide clvk with a path
-to the `clspv` binary via the `CLVK_CLSPV_BIN` environment variable
-(see [Environment variables](#environment-variables)).
+### Windows
+
+Copy `OpenCL.dll` into a system location or alongside the application executable
+you want to run with clvk.
 
 # Environment variables
 
