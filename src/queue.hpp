@@ -228,7 +228,8 @@ private:
 struct cvk_command_queue : public _cl_command_queue, api_object {
 
     cvk_command_queue(cvk_context* ctx, cvk_device* dev,
-                      cl_command_queue_properties props);
+                      cl_command_queue_properties props,
+                      std::vector<cl_queue_properties>&& properties_array);
 
     cl_int init();
 
@@ -268,6 +269,9 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
 
     cvk_device* device() const { return m_device; }
     cl_command_queue_properties properties() const { return m_properties; }
+    const std::vector<cl_queue_properties>& properties_array() const {
+        return m_properties_array;
+    }
 
 private:
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
@@ -276,6 +280,7 @@ private:
 
     cvk_device* m_device;
     cl_command_queue_properties m_properties;
+    std::vector<cl_queue_properties> m_properties_array;
 
     cvk_executor_thread* m_executor;
 
