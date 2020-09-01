@@ -723,6 +723,18 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
+    case CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED:
+        val_string = "FIXME";
+        copy_ptr = val_string.c_str();
+        size_ret = val_string.size_with_null();
+        break;
+    case CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT:
+    case CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT:
+    case CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT:
+        val_uint = 0; // Natural size of the types
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
     case CL_DEVICE_UUID_KHR:
         copy_ptr = device->uuid();
         size_ret = CL_UUID_SIZE_KHR;
@@ -1412,6 +1424,7 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
         val_uint = 0;
         copy_ptr = &val_uint;
         ret_size = sizeof(val_uint);
+        ret = CL_INVALID_COMMAND_QUEUE;
         break;
     case CL_QUEUE_DEVICE_DEFAULT:
         val_queue = nullptr;
@@ -1501,6 +1514,7 @@ cl_mem CLVK_API_CALL clCreateBufferWithProperties(
     if (properties != nullptr) {
         while (*properties) {
             props.push_back(*properties);
+            properties++;
         }
         props.push_back(0);
     }
@@ -3836,6 +3850,7 @@ cl_mem CLVK_API_CALL clCreateImageWithProperties(
     if (properties != nullptr) {
         while (*properties) {
             props.push_back(*properties);
+            properties++;
         }
         props.push_back(0);
     }
@@ -5062,7 +5077,7 @@ cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
                  "param_value = %p, param_value_size_ret = %p",
                  pipe, param_name, param_value_size, param_value,
                  param_value_size_ret);
-    return CL_INVALID_OPERATION;
+    return CL_INVALID_MEM_OBJECT;
 }
 
 // Timer functions

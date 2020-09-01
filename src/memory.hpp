@@ -121,7 +121,7 @@ struct cvk_mem : public _cl_mem, api_object {
     size_t size() const { return m_size; }
     cl_mem_object_type type() const { return m_type; }
     cl_mem_flags flags() const { return m_flags; }
-    const std::vector<cl_mem_properties> properties() const {
+    const std::vector<cl_mem_properties>& properties() const {
         return m_properties;
     }
 
