@@ -27,6 +27,7 @@
 #endif
 
 char* cvk_mkdtemp(std::string& tmpl);
+int cvk_exec(const std::string& cmd, std::string* output = nullptr);
 
 #define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \
     do {                                                                       \

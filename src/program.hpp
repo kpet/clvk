@@ -395,6 +395,11 @@ struct cvk_program : public _cl_program, api_object {
         return CL_BUILD_SUCCESS;
     }
 
+    const std::string& build_log(const cvk_device* device) const {
+        UNUSED(device); // TODO support per-device build log
+        return m_build_log;
+    }
+
     std::vector<const cvk_device*> devices() const {
         std::vector<const cvk_device*> ret;
 
@@ -506,6 +511,7 @@ private:
         m_dev_status;
     std::string m_build_options;
     spir_binary m_binary{SPV_ENV_VULKAN_1_0};
+    std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;
     VkPushConstantRange m_push_constant_range;
     std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>

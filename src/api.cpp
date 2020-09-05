@@ -2326,10 +2326,9 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         copy_ptr = &val_status;
         ret_size = sizeof(val_status);
         break;
-    case CL_PROGRAM_BUILD_LOG: // TODO
-        val_string = "BUILD LOG UNSUPPORTED";
-        copy_ptr = val_string.c_str();
-        ret_size = val_string.size_with_null();
+    case CL_PROGRAM_BUILD_LOG:
+        copy_ptr = program->build_log(device).c_str();
+        ret_size = program->build_log(device).size() + 1;
         break;
     case CL_PROGRAM_BUILD_OPTIONS:
         copy_ptr = program->build_options().c_str();

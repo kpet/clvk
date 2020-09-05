@@ -17,6 +17,7 @@ set(BINARY_NAME api_tests)
 
 add_executable(
     ${BINARY_NAME}
+    compiler.cpp
     dependencies.cpp
     enqueue.cpp
     images.cpp
