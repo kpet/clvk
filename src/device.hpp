@@ -314,6 +314,8 @@ struct cvk_device : public _cl_device_id {
 
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
                                               cl_ulong* host_ts) const;
+    cl_ulong device_timer_to_host(cl_ulong dev, cl_ulong sync_dev,
+                                  cl_ulong sync_host) const;
 
     uint64_t timestamp_to_ns(uint64_t ts) const {
         double ns_per_tick = vulkan_limits().timestampPeriod;
@@ -322,7 +324,7 @@ struct cvk_device : public _cl_device_id {
         if (ns_per_tick == 1.0) {
             return ts;
         } else {
-            return ts * ns_per_tick;
+            return ts * ns_per_tick; // TODO is it good enough?
         }
     }
 

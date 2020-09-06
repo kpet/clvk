@@ -103,6 +103,11 @@ struct cvk_event : public _cl_event, api_object {
         m_profiling_data[pinfo - CL_PROFILING_COMMAND_QUEUED] = val;
     }
 
+    void copy_profiling_info(cl_profiling_info info, const cvk_event* event) {
+        auto val = event->get_profiling_info(info);
+        set_profiling_info(info, val);
+    }
+
     uint64_t get_profiling_info(cl_profiling_info pinfo) const {
         return m_profiling_data[pinfo - CL_PROFILING_COMMAND_QUEUED];
     }
@@ -252,6 +257,10 @@ struct cvk_command_queue : public _cl_command_queue, api_object {
     CHECK_RETURN static cl_int wait_for_events(cl_uint num_events,
                                                const cl_event* event_list);
     CHECK_RETURN cl_int flush(cvk_event** event = nullptr);
+    bool profiling_on_device() const {
+        return m_device->has_timer_support() ||
+               gQueueProfilingUsesTimestampQueries;
+    }
 
     CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer* cmdbuf) {
         return m_command_pool.allocate_command_buffer(cmdbuf) == VK_SUCCESS;
@@ -622,10 +631,12 @@ struct cvk_command_kernel : public cvk_command {
     }
 
     bool is_profiled_by_executor() const override {
-        return !gQueueProfilingUsesTimestampQueries;
+        return !m_queue->device()->has_timer_support() &&
+               !gQueueProfilingUsesTimestampQueries;
     }
 
-    CHECK_RETURN cl_int set_profiling_info_from_query_results();
+    CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,
+                                                    cl_ulong* end);
 
     CHECK_RETURN cl_int build();
     CHECK_RETURN cl_int build(cvk_command_buffer& command_buffer);
