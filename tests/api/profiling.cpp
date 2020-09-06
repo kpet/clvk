@@ -98,7 +98,16 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
     // Check that timestamps are ordered between kernels
     ASSERT_GE(ts_queued_2, ts_queued_1);
     ASSERT_GE(ts_submit_2, ts_submit_1);
-    ASSERT_GE(ts_start_2, ts_end_1);
+    auto res = GetPlatformInfo<cl_ulong>(platform(),
+                                         CL_PLATFORM_HOST_TIMER_RESOLUTION);
+    if (res != 0) {
+        ASSERT_GE(ts_start_2, ts_end_1);
+    } else {
+        // When device timers are not supported, kernels can not be profiled
+        // individually when part of a batch.
+        ASSERT_EQ(ts_start_1, ts_start_2);
+        ASSERT_EQ(ts_end_1, ts_end_2);
+    }
 }
 
 TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
