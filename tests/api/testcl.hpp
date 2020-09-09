@@ -204,33 +204,44 @@ protected:
         ASSERT_CL_SUCCESS(err);
     }
 
-    holder<cl_program> CreateAndBuildProgram(const char* source,
-                                             const char* options = nullptr) {
+    holder<cl_program> CreateProgram(const char* source) {
         cl_int err;
 
         auto program =
             clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         EXPECT_CL_SUCCESS(err);
 
-        err = clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
+        return program;
+    }
+
+    holder<cl_program> CreateAndBuildProgram(const char* source,
+                                             const char* options = nullptr) {
+        auto program = CreateProgram(source);
+
+        cl_int err =
+            clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
         EXPECT_CL_SUCCESS(err);
 
         if (err != CL_SUCCESS) {
-            size_t log_size;
-            err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_LOG,
-                                        0, nullptr, &log_size);
-            EXPECT_CL_SUCCESS(err);
-            std::string build_log;
-            build_log.reserve(log_size);
-            auto data_ptr = const_cast<char*>(build_log.c_str());
-            err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_LOG,
-                                        log_size, data_ptr, nullptr);
-            EXPECT_CL_SUCCESS(err);
-
+            std::string build_log = GetProgramBuildLog(program);
             printf("Build log:\n%s\n", build_log.c_str());
         }
 
         return program;
+    }
+
+    std::string GetProgramBuildLog(cl_program program) {
+        size_t log_size;
+        cl_int err = clGetProgramBuildInfo(
+            program, gDevice, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+        EXPECT_CL_SUCCESS(err);
+        std::string build_log;
+        build_log.resize(log_size);
+        auto data_ptr = const_cast<char*>(build_log.c_str());
+        err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_LOG,
+                                    log_size, data_ptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        return build_log;
     }
 
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {

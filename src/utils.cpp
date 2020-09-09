@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "utils.hpp"
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 
@@ -41,3 +42,31 @@ char* cvk_mkdtemp(std::string& tmpl) {
 #endif
 }
 
+int cvk_exec(const std::string& cmd, std::string* output) {
+#ifdef WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+    std::array<char, 512> buffer;
+    std::string out;
+    std::string cmd_with_err = cmd + " 2>&1";
+    FILE* pipe = popen(cmd_with_err.c_str(), "r");
+
+    if (pipe == nullptr) {
+        return -1;
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
+        out += buffer.data();
+    }
+
+    if (output != nullptr) {
+        *output = std::move(out);
+    }
+
+    return pclose(pipe);
+#ifdef WIN32
+#undef popen
+#undef pclose
+#endif
+}

@@ -708,8 +708,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
 #ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", options.c_str());
-    auto result = clspv::CompileFromSourceString(m_source, "", options,
-                                                 m_binary.raw_binary());
+    auto result = clspv::CompileFromSourceString(
+        m_source, "", options, m_binary.raw_binary(), &m_build_log);
     cvk_info("Return code was: %d", result);
     if (result != 0) {
         cvk_error_fn("failed to compile the program");
@@ -732,8 +732,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         cmd += llvmspirv_input_file;
 
         // Call the translator
-        // TODO Sanity check the command / move away from system()
-        int status = std::system(cmd.c_str());
+        int status = cvk_exec(cmd);
         cvk_info("Return code was: %d", status);
 
         if (status != 0) {
@@ -758,8 +757,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     cvk_info("About to run \"%s\"", cmd.c_str());
 
     // Call clspv
-    // TODO Sanity check the command / move away from system()
-    int status = std::system(cmd.c_str());
+    int status = cvk_exec(cmd, &m_build_log);
     cvk_info("Return code was: %d", status);
 
     if (status != 0) {
