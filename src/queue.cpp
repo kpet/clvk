@@ -464,7 +464,14 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
     auto& vklimits = m_queue->device()->vulkan_limits();
     for (cl_uint i = 0; i < 3; ++i) {
         if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
-            cvk_error_fn("global work size exceeds device limits");
+            cvk_error_fn("global work size (%d, %d, %d) exceeds device limits"
+                         " of (%d, %d, %d)",
+                         num_workgroups[0], num_workgroups[1],
+                         num_workgroups[2],
+                         vklimits.maxComputeWorkGroupCount[0],
+                         vklimits.maxComputeWorkGroupCount[1],
+                         vklimits.maxComputeWorkGroupCount[2]);
+
             // TODO split further
             return CL_INVALID_WORK_ITEM_SIZE;
         }
