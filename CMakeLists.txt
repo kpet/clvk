@@ -23,6 +23,18 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+# Options
+option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
+if (CLVK_CLSPV_ONLINE_COMPILER)
+  add_compile_options(-DCLSPV_ONLINE_COMPILER)
+endif()
+
+option(CLVK_COMPILER_AVAILABLE "Enable compiler support" ON)
+if (NOT CLVK_COMPILER_AVAILABLE AND CLVK_CLSPV_ONLINE_COMPILER)
+  message(FATAL_ERROR "Enabling online compiler support when disabling
+  compiler support does not make sense!")
+endif()
+
 # ccache
 set(CLVK_CCACHE_BUILD OFF CACHE BOOL "Set to ON for a ccache enabled build")
 if(CLVK_CCACHE_BUILD AND UNIX)
@@ -58,9 +70,11 @@ set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
     CACHE STRING "Clspv source directory")
 add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
                  EXCLUDE_FROM_ALL)
+set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+                      ${CMAKE_BINARY_DIR})
 
 # SPIRV-LLVM-Translator
-if (NOT CLVK_CLSPV_ONLINE_COMPILER)
+if (CLVK_COMPILER_AVAILABLE AND NOT CLVK_CLSPV_ONLINE_COMPILER)
   set(LLVM_DIR
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
   set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator)

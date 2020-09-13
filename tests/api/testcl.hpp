@@ -26,6 +26,12 @@
 #define DISABLED_TALVOS_SWIFTSHADER(X) X
 #endif
 
+#ifdef COMPILER_AVAILABLE
+#define DISABLED_NOCOMPILER(X) X
+#else
+#define DISABLED_NOCOMPILER(X) DISABLED_##X
+#endif
+
 #define CL_TARGET_OPENCL_VERSION 300
 #define CL_USE_DEPRECATED_OPENCL_1_0_APIS
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
@@ -401,6 +407,9 @@ protected:
     const cl_device_id device() const { return gDevice; }
 
     void SetUpQueue(cl_command_queue_properties properties) {
+#ifndef COMPILER_AVAILABLE
+        GTEST_SKIP();
+#endif
         WithContext::SetUp();
         auto queue = CreateCommandQueue(device(), properties);
         m_queue = queue.release();
@@ -409,8 +418,10 @@ protected:
     void SetUp() override { SetUpQueue(0); }
 
     void TearDown() override {
+#ifdef COMPILER_AVAILABLE
         ReleaseCommandQueue(m_queue);
         WithContext::TearDown();
+#endif
     }
 
     void Finish() {

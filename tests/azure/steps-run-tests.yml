@@ -8,6 +8,8 @@ parameters:
     default: "$(Pipeline.Workspace)\\swiftshader\\swiftshader-$(Agent.OS)\\vk_swiftshader_icd.json"
   - name: os
     type: string
+  - name: compilerAvailable
+    type: boolean
 
 steps:
   - download: swiftshader
@@ -15,12 +17,24 @@ steps:
   - ${{ if ne(parameters.os, 'windows') }}:
     - script: VK_ICD_FILENAMES=${{ parameters.icd_json_unix }} CLVK_LOG=3 ./build/simple_test_static
       displayName: Simple test (static)
+      condition: ${{ parameters.compilerAvailable }}
     - script: VK_ICD_FILENAMES=${{ parameters.icd_json_unix }} CLVK_LOG=3 ./build/simple_test
       displayName: Simple test
+      condition: ${{ parameters.compilerAvailable }}
     - script: VK_ICD_FILENAMES=${{ parameters.icd_json_unix }} CLVK_LOG=2 ./build/api_tests
       displayName: API tests
+      condition: ${{ parameters.compilerAvailable }}
     - script: ./build/sha1_tests
       displayName: SHA-1 tests
+      condition: ${{ parameters.compilerAvailable }}
+    - script: |
+        set -ex
+        ./build/clspv -o simple.spv ./tests/simple-from-binary/simple.cl
+        export VK_ICD_FILENAMES=${{ parameters.icd_json_unix }}
+        export CLVK_LOG=3
+        ./build/simple_test_from_binary
+        ./build/simple_test_from_binary_static
+      displayName: Offline compilation simple tests
   - ${{ if eq(parameters.os, 'windows') }}:
     - script: |
         cp build/src/Release/OpenCL.dll build/Release
@@ -64,4 +78,14 @@ steps:
         sha1_tests.exe
         echo Done.
       displayName: SHA-1 tests
-
+    - script: |
+        set VK_ICD_FILENAMES=${{ parameters.icd_json_win }}
+        cd build/Release
+        clspv.exe -o simple.spv $(Build.SourcesDirectory)\tests\simple-from-binary\simple.cl
+        set CLVK_LOG=3
+        set CLVK_LOG_DEST=stderr
+        echo Starting tests
+        simple_test_from_binary.exe
+        simple_test_from_binary_static.exe
+        echo Done.
+      displayName: Offline compilation simple tests

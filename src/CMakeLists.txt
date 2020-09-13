@@ -32,9 +32,12 @@ if (UNIX AND NOT APPLE)
         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic")
 endif()
 
-option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
-if (CLVK_CLSPV_ONLINE_COMPILER)
-  add_compile_options(-DCLSPV_ONLINE_COMPILER)
+if (CLVK_COMPILER_AVAILABLE)
+    add_compile_options(-DCOMPILER_AVAILABLE=1)
+endif()
+
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+    add_compile_options(-DUSING_SWIFTSHADER=1)
 endif()
 
 add_library(OpenCL-objects OBJECT
@@ -68,10 +71,16 @@ find_package(Threads)
 
 set(OpenCL-dependencies
   ${CMAKE_THREAD_LIBS_INIT}
-  SPIRV-Tools-opt
-  SPIRV-Tools-link
+  SPIRV-Tools
   ${Vulkan_LIBRARIES}
 )
+
+if (CLVK_COMPILER_AVAILABLE OR ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+  set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-opt)
+endif()
+if (CLVK_COMPILER_AVAILABLE)
+  set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-link)
+endif()
 
 # The reflection parser requires the headers.
 target_include_directories(OpenCL-objects PRIVATE
@@ -79,16 +88,16 @@ target_include_directories(OpenCL-objects PRIVATE
 if (CLVK_CLSPV_ONLINE_COMPILER)
   set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
 else()
-  add_dependencies(OpenCL-objects clspv)
-  set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
-  add_dependencies(OpenCL-objects llvm-spirv)
-  set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
-  target_compile_definitions(OpenCL-objects PRIVATE
-    DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
-  target_compile_definitions(OpenCL-objects PRIVATE
-    DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+  if (CLVK_COMPILER_AVAILABLE)
+    add_dependencies(OpenCL-objects clspv)
+    add_dependencies(OpenCL-objects llvm-spirv)
+    set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+      ${CMAKE_BINARY_DIR})
+    target_compile_definitions(OpenCL-objects PRIVATE
+      DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
+    target_compile_definitions(OpenCL-objects PRIVATE
+      DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+  endif()
 endif()
 
 if(WIN32)
@@ -112,6 +121,6 @@ set_target_properties(OpenCL PROPERTIES
 
 # Basic install rules
 install(TARGETS OpenCL DESTINATION .)
-if (NOT CLVK_CLSPV_ONLINE_COMPILER)
+if (NOT CLVK_CLSPV_ONLINE_COMPILER AND CLVK_COMPILER_AVAILABLE)
   install(TARGETS clspv DESTINATION .)
 endif()

@@ -243,9 +243,10 @@ bool cvk_device::init_extensions() {
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
-        VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+        VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
+        VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
     };
@@ -391,6 +392,15 @@ void cvk_device::build_extension_ils_list() {
          m_features_float16_int8.shaderFloat16)) {
         m_has_fp16_support = true;
         m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
+    }
+
+    // Enable 8-bit integer support if possible
+    if ((is_vulkan_extension_enabled(VK_KHR_8BIT_STORAGE_EXTENSION_NAME) &&
+         m_features_8bit_storage.storageBuffer8BitAccess) &&
+        (is_vulkan_extension_enabled(
+             VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) &&
+         m_features_float16_int8.shaderInt8)) {
+        m_has_int8_support = true;
     }
 
     // Report cl_khr_pci_bus_info if VK_EXT_pci_bus_info is supported
@@ -679,6 +689,8 @@ void cvk_device::log_limits_and_memory_information() {
              limits.maxPerStageDescriptorStorageBuffers);
     cvk_info("Device's max buffer size = %s",
              pretty_size(limits.maxStorageBufferRange).c_str());
+    cvk_info("Device's max uniform buffer size = %s",
+             pretty_size(limits.maxUniformBufferRange).c_str());
     cvk_info("Device's max push constant size = %s",
              pretty_size(limits.maxPushConstantsSize).c_str());
     cvk_info("Device's execution capabilities:");
