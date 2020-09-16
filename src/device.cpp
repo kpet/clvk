@@ -116,6 +116,9 @@ void cvk_device::init_opencl_properties() {
     } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 620")) {
         m_global_mem_cache_size = 65536;
         m_num_compute_units = 1;
+    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 630")) {
+        m_global_mem_cache_size = 131072;
+        m_num_compute_units = 2;
     } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 640")) {
         m_global_mem_cache_size = 131072;
         m_num_compute_units = 2;
