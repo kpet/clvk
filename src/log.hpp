@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cl_headers.hpp"
 #include <vulkan/vulkan.h>
 
 enum loglevel
@@ -63,3 +64,6 @@ static inline std::string vulkan_version_string(uint32_t version) {
     ret += "." + std::to_string(VK_VERSION_PATCH(version));
     return ret;
 }
+
+std::string cl_channel_order_to_string(cl_channel_order order);
+std::string cl_channel_type_to_string(cl_channel_type type);

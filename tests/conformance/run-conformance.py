@@ -44,7 +44,6 @@ TESTS_QUICK = (
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
     ('Profiling', 'profiling/test_profiling'),
-    ('VecStep', 'vec_step/test_vecstep'),
 )
 
 TESTS_MODE_WIMPY = (
@@ -68,7 +67,7 @@ TESTS_MODE_NOT_WIMPY = (
 TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Basic', 'basic/test_basic'),
     ('Buffers', 'buffers/test_buffers'),
-    ('VecAlign', 'vec_align/test_vecalign'),
+    ('Vectors', 'vectors/test_vectors'),
     ('C11 Atomics', 'c11_atomics/test_c11_atomics'),
     ('Device execution', 'device_execution/test_device_execution'),
     ('Device timer', 'device_timer/test_device_timer'),

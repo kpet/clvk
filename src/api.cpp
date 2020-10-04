@@ -4143,7 +4143,7 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
     }
 
     // 3D image writes are not supported
-    if ((flags & CL_MEM_OBJECT_IMAGE3D) &&
+    if ((image_type == CL_MEM_OBJECT_IMAGE3D) &&
         (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
                   CL_MEM_KERNEL_READ_AND_WRITE))) {
         last_format_to_test = 0;
@@ -4170,9 +4170,12 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
                 if ((image_formats != nullptr) &&
                     (num_formats_found < num_entries)) {
                     image_formats[num_formats_found] = clfmt;
-                    // cvk_debug_fn("reporting image format {%d, %d}",
-                    //          clfmt.image_channel_order,
-                    //          clfmt.image_channel_data_type);
+                    cvk_debug_fn(
+                        "reporting image format {%s, %s}",
+                        cl_channel_order_to_string(clfmt.image_channel_order)
+                            .c_str(),
+                        cl_channel_type_to_string(clfmt.image_channel_data_type)
+                            .c_str());
                 }
                 num_formats_found++;
             }

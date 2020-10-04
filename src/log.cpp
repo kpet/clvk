@@ -285,3 +285,58 @@ std::string vulkan_calibrateable_time_domain_string(VkTimeDomainEXT td) {
         return "Unknown";
     }
 }
+
+std::string cl_channel_order_to_string(cl_channel_order order) {
+#define ORDER(o)                                                               \
+    case o:                                                                    \
+        return #o;
+    switch (order) {
+        ORDER(CL_R)
+        ORDER(CL_A)
+        ORDER(CL_DEPTH)
+        ORDER(CL_LUMINANCE)
+        ORDER(CL_INTENSITY)
+        ORDER(CL_RG)
+        ORDER(CL_RA)
+        ORDER(CL_Rx)
+        ORDER(CL_RGB)
+        ORDER(CL_RGx)
+        ORDER(CL_RGBA)
+        ORDER(CL_ARGB)
+        ORDER(CL_BGRA)
+        ORDER(CL_ABGR)
+        ORDER(CL_RGBx)
+        ORDER(CL_sRGB)
+        ORDER(CL_sRGBA)
+        ORDER(CL_sBGRA)
+        ORDER(CL_sRGBx)
+    }
+#undef ORDER
+    return "Unknown channel order";
+}
+
+std::string cl_channel_type_to_string(cl_channel_type type) {
+#define TYPE(t)                                                                \
+    case t:                                                                    \
+        return #t;
+    switch (type) {
+        TYPE(CL_SNORM_INT8)
+        TYPE(CL_SNORM_INT16)
+        TYPE(CL_UNORM_INT8)
+        TYPE(CL_UNORM_INT16)
+        TYPE(CL_UNORM_SHORT_565)
+        TYPE(CL_UNORM_SHORT_555)
+        TYPE(CL_UNORM_INT_101010)
+        TYPE(CL_UNORM_INT_101010_2)
+        TYPE(CL_SIGNED_INT8)
+        TYPE(CL_SIGNED_INT16)
+        TYPE(CL_SIGNED_INT32)
+        TYPE(CL_UNSIGNED_INT8)
+        TYPE(CL_UNSIGNED_INT16)
+        TYPE(CL_UNSIGNED_INT32)
+        TYPE(CL_HALF_FLOAT)
+        TYPE(CL_FLOAT)
+    }
+#undef TYPE
+    return "Unknown channel type";
+}
