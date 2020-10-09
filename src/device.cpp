@@ -335,6 +335,9 @@ void cvk_device::init_features(VkInstance instance) {
     if (supported_features.features.shaderFloat64) {
         m_features.features.shaderFloat64 = VK_TRUE;
     }
+    if (supported_features.features.shaderStorageImageReadWithoutFormat) {
+        m_features.features.shaderStorageImageReadWithoutFormat = VK_TRUE;
+    }
     if (supported_features.features.shaderStorageImageWriteWithoutFormat) {
         m_features.features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
     }
@@ -601,6 +604,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_features.features.shaderInt16;
     case spv::CapabilityInt64:
         return m_features.features.shaderInt64;
+    case spv::CapabilityStorageImageReadWithoutFormat:
+        return m_features.features.shaderStorageImageReadWithoutFormat;
     case spv::CapabilityStorageImageWriteWithoutFormat:
         return m_features.features.shaderStorageImageWriteWithoutFormat;
     case spv::CapabilityVariablePointers:
