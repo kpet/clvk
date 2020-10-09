@@ -75,8 +75,10 @@ template <typename T> struct refcounted_holder {
         }
     }
 
-    refcounted_holder(const refcounted_holder&& other) noexcept
-        : m_refcounted(other.m_refcounted) {}
+    refcounted_holder(refcounted_holder&& other) noexcept
+        : m_refcounted(other.m_refcounted) {
+        other.m_refcounted = nullptr;
+    }
 
     ~refcounted_holder() {
         if (m_refcounted != nullptr) {
