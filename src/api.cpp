@@ -3481,7 +3481,7 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
 
     std::array<uint32_t, 3> goff = {0, 0, 0};
     std::array<uint32_t, 3> gws = {1, 1, 1};
-    std::array<uint32_t, 3> lws = {1, 1, 1}; // FIXME pick a sensible default
+    std::array<uint32_t, 3> lws = {1, 1, 1};
 
     for (cl_uint i = 0; i < work_dim; i++) {
         gws[i] = global_work_size[i];
@@ -3491,6 +3491,55 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         if (global_work_offset != nullptr) {
             goff[i] = global_work_offset[i];
         }
+    }
+
+    // Try to pick a sensible work-group size if the user didn't specify one.
+    if (local_work_size == nullptr) {
+        lws[0] = lws[1] = lws[2] = 1;
+
+        auto& limits = icd_downcast(command_queue)->device()->vulkan_limits();
+
+        // Cap the total work-group size to the Vulkan device's limit.
+        uint32_t maxSize = limits.maxComputeWorkGroupInvocations;
+
+        // Further cap the total size to 64, as this is expected to be a
+        // reasonable size on many devices.
+        maxSize = std::min(maxSize, UINT32_C(64));
+
+        // TODO: We should also take into account the total number of
+        // work-groups that would be launched, to ensure the device is fully
+        // utilized for smaller global work sizes.
+
+        // Approach: Alternate between increasing the X and Y dimensions until
+        // we hit device limits.
+        bool changed;
+        do {
+            changed = false;
+
+            // Increase the X dimension if we can.
+            // TODO: Allow non power-of-two sizes?
+            // TODO: Allow non-uniform sizes if supported?
+            uint32_t newX = lws[0] * 2;
+            if (gws[0] % newX == 0 &&
+                newX <= limits.maxComputeWorkGroupCount[0] &&
+                newX * lws[1] <= maxSize) {
+                lws[0] = newX;
+                changed = true;
+            }
+
+            // Increase the Y dimension if we can.
+            // TODO: Allow non power-of-two sizes?
+            // TODO: Allow non-uniform sizes if supported?
+            uint32_t newY = lws[1] * 2;
+            if (gws[1] % newY == 0 &&
+                newY <= limits.maxComputeWorkGroupCount[1] &&
+                lws[0] * newY <= maxSize) {
+                lws[1] = newY;
+                changed = true;
+            }
+
+            // TODO: Consider increasing the Z dimension as well?
+        } while (changed);
     }
 
     LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);
