@@ -619,6 +619,56 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     }
 }
 
+void cvk_device::select_work_group_size(
+    const std::array<uint32_t, 3>& global_size,
+    std::array<uint32_t, 3>& local_size) const {
+
+    // Start at (1,1,1), which is always valid.
+    local_size = {1, 1, 1};
+
+    // Cap the total work-group size to the Vulkan device's limit.
+    uint32_t maxSize = m_properties.limits.maxComputeWorkGroupInvocations;
+
+    // Further cap the total size to 64, as this is expected to be a
+    // reasonable size on many devices.
+    maxSize = std::min(maxSize, UINT32_C(64));
+
+    // TODO: We should also take into account the total number of
+    // work-groups that would be launched, to ensure the device is fully
+    // utilized for smaller global work sizes.
+
+    // Approach: Alternate between increasing the X and Y dimensions until
+    // we hit device limits.
+    bool changed;
+    do {
+        changed = false;
+
+        // Increase the X dimension if we can.
+        // TODO: Allow non power-of-two sizes?
+        // TODO: Allow non-uniform sizes if supported?
+        uint32_t newX = local_size[0] * 2;
+        if (global_size[0] % newX == 0 &&
+            newX <= m_properties.limits.maxComputeWorkGroupCount[0] &&
+            newX * local_size[1] <= maxSize) {
+            local_size[0] = newX;
+            changed = true;
+        }
+
+        // Increase the Y dimension if we can.
+        // TODO: Allow non power-of-two sizes?
+        // TODO: Allow non-uniform sizes if supported?
+        uint32_t newY = local_size[1] * 2;
+        if (global_size[1] % newY == 0 &&
+            newY <= m_properties.limits.maxComputeWorkGroupCount[1] &&
+            local_size[0] * newY <= maxSize) {
+            local_size[1] = newY;
+            changed = true;
+        }
+
+        // TODO: Consider increasing the Z dimension as well?
+    } while (changed);
+}
+
 cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
                                          cl_ulong* host_timestamp) const {
     auto vkdev = vulkan_device();
