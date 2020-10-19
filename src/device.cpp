@@ -627,45 +627,38 @@ void cvk_device::select_work_group_size(
     local_size = {1, 1, 1};
 
     // Cap the total work-group size to the Vulkan device's limit.
-    uint32_t maxSize = m_properties.limits.maxComputeWorkGroupInvocations;
+    uint32_t max_size = m_properties.limits.maxComputeWorkGroupInvocations;
 
     // Further cap the total size to 64, as this is expected to be a
     // reasonable size on many devices.
-    maxSize = std::min(maxSize, UINT32_C(64));
+    max_size = std::min(max_size, UINT32_C(64));
 
     // TODO: We should also take into account the total number of
     // work-groups that would be launched, to ensure the device is fully
     // utilized for smaller global work sizes.
 
-    // Approach: Alternate between increasing the X and Y dimensions until
-    // we hit device limits.
+    // Increase the work-group size until we hit device limits.
     bool changed;
     do {
         changed = false;
 
-        // Increase the X dimension if we can.
-        // TODO: Allow non power-of-two sizes?
-        // TODO: Allow non-uniform sizes if supported?
-        uint32_t newX = local_size[0] * 2;
-        if (global_size[0] % newX == 0 &&
-            newX <= m_properties.limits.maxComputeWorkGroupCount[0] &&
-            newX * local_size[1] <= maxSize) {
-            local_size[0] = newX;
-            changed = true;
-        }
-
-        // Increase the Y dimension if we can.
-        // TODO: Allow non power-of-two sizes?
-        // TODO: Allow non-uniform sizes if supported?
-        uint32_t newY = local_size[1] * 2;
-        if (global_size[1] % newY == 0 &&
-            newY <= m_properties.limits.maxComputeWorkGroupCount[1] &&
-            local_size[0] * newY <= maxSize) {
-            local_size[1] = newY;
-            changed = true;
-        }
-
+        // Alternate between increasing the X and Y dimensions.
         // TODO: Consider increasing the Z dimension as well?
+        for (int i = 0; i < 2; i++) {
+            // Double the dimension if we can.
+            // TODO: Allow non power-of-two sizes?
+            // TODO: Allow non-uniform sizes if supported?
+            std::array<uint32_t, 3> new_local_size = local_size;
+            new_local_size[i] *= 2;
+            if (global_size[i] % new_local_size[i] == 0 &&
+                new_local_size[i] <=
+                    m_properties.limits.maxComputeWorkGroupCount[i] &&
+                new_local_size[0] * new_local_size[1] * new_local_size[2] <=
+                    max_size) {
+                local_size = new_local_size;
+                changed = true;
+            }
+        }
     } while (changed);
 }
 
