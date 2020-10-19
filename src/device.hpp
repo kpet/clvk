@@ -304,6 +304,9 @@ struct cvk_device : public _cl_device_id {
 
     bool supports_non_uniform_workgroup() const { return true; }
 
+    void select_work_group_size(const std::array<uint32_t, 3>& global_size,
+                                std::array<uint32_t, 3>& local_size) const;
+
     bool is_vulkan_extension_enabled(const char* ext) const {
         return std::find(m_vulkan_device_extensions.begin(),
                          m_vulkan_device_extensions.end(),

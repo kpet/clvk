@@ -3481,7 +3481,7 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
 
     std::array<uint32_t, 3> goff = {0, 0, 0};
     std::array<uint32_t, 3> gws = {1, 1, 1};
-    std::array<uint32_t, 3> lws = {1, 1, 1}; // FIXME pick a sensible default
+    std::array<uint32_t, 3> lws = {1, 1, 1};
 
     for (cl_uint i = 0; i < work_dim; i++) {
         gws[i] = global_work_size[i];
@@ -3491,6 +3491,11 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         if (global_work_offset != nullptr) {
             goff[i] = global_work_offset[i];
         }
+    }
+
+    // Try to pick a sensible work-group size if the user didn't specify one.
+    if (local_work_size == nullptr) {
+        icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
     }
 
     LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);

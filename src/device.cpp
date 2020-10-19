@@ -619,6 +619,49 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     }
 }
 
+void cvk_device::select_work_group_size(
+    const std::array<uint32_t, 3>& global_size,
+    std::array<uint32_t, 3>& local_size) const {
+
+    // Start at (1,1,1), which is always valid.
+    local_size = {1, 1, 1};
+
+    // Cap the total work-group size to the Vulkan device's limit.
+    uint32_t max_size = m_properties.limits.maxComputeWorkGroupInvocations;
+
+    // Further cap the total size to 64, as this is expected to be a
+    // reasonable size on many devices.
+    max_size = std::min(max_size, UINT32_C(64));
+
+    // TODO: We should also take into account the total number of
+    // work-groups that would be launched, to ensure the device is fully
+    // utilized for smaller global work sizes.
+
+    // Increase the work-group size until we hit device limits.
+    bool changed;
+    do {
+        changed = false;
+
+        // Alternate between increasing the X and Y dimensions.
+        // TODO: Consider increasing the Z dimension as well?
+        for (int i = 0; i < 2; i++) {
+            // Double the dimension if we can.
+            // TODO: Allow non power-of-two sizes?
+            // TODO: Allow non-uniform sizes if supported?
+            std::array<uint32_t, 3> new_local_size = local_size;
+            new_local_size[i] *= 2;
+            if (global_size[i] % new_local_size[i] == 0 &&
+                new_local_size[i] <=
+                    m_properties.limits.maxComputeWorkGroupCount[i] &&
+                new_local_size[0] * new_local_size[1] * new_local_size[2] <=
+                    max_size) {
+                local_size = new_local_size;
+                changed = true;
+            }
+        }
+    } while (changed);
+}
+
 cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
                                          cl_ulong* host_timestamp) const {
     auto vkdev = vulkan_device();
