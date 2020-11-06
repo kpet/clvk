@@ -642,6 +642,8 @@ struct cvk_command_kernel : public cvk_command {
     CHECK_RETURN cl_int build(cvk_command_buffer& command_buffer);
     virtual cl_int do_action() override;
 
+    virtual bool prepare_resources_for_device();
+
 private:
     struct cvk_ndrange {
         std::array<uint32_t, 3> offset;

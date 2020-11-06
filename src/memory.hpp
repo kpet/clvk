@@ -18,6 +18,8 @@
 
 #include "objects.hpp"
 
+struct cvk_command_queue;
+
 struct cvk_memory_allocation {
 
     cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index)
@@ -403,7 +405,8 @@ struct cvk_image : public cvk_mem {
                   /* FIXME parent_offset */ 0, std::move(properties),
                   desc->image_type),
           m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
-          m_image_view(VK_NULL_HANDLE) {}
+          m_image_view(VK_NULL_HANDLE), m_device_initialized(false),
+          m_init_data(nullptr) {}
 
     ~cvk_image() {
         auto vkdev = m_context->device()->vulkan_device();
@@ -508,6 +511,8 @@ struct cvk_image : public cvk_mem {
                               fill_pattern_array& pattern,
                               size_t* size_ret) const;
 
+    bool prepare_for_device(cvk_command_queue& queue);
+
 private:
     bool init();
 
@@ -562,9 +567,14 @@ private:
 
     const cl_image_desc m_desc;
     const cl_image_format m_format;
+    VkExtent3D m_extent;
     VkImage m_image;
     VkImageView m_image_view;
     std::unordered_map<void*, cvk_image_mapping> m_mappings;
+
+    bool m_device_initialized;
+    std::mutex m_device_init_lock;
+    std::unique_ptr<cvk_buffer> m_init_data;
 };
 
 using cvk_image_holder = refcounted_holder<cvk_image>;

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "memory.hpp"
+#include "queue.hpp"
 
 bool cvk_mem::map() {
     std::lock_guard<std::mutex> lock(m_map_lock);
@@ -250,38 +251,59 @@ bool cvk_image::init() {
     // Translate image type and size
     VkImageType image_type;
     VkImageViewType view_type;
-    VkExtent3D extent;
 
-    extent.width = m_desc.image_width;
-    extent.height = m_desc.image_height;
-    extent.depth = m_desc.image_depth;
+    m_extent.width = m_desc.image_width;
+    m_extent.height = m_desc.image_height;
+    m_extent.depth = m_desc.image_depth;
+
+    uint32_t array_layers = 1;
+    if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+        (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+        array_layers = m_desc.image_array_size;
+    }
+
+    uint32_t row_pitch = m_desc.image_row_pitch;
+    if (row_pitch == 0) {
+        row_pitch = m_extent.width * element_size();
+    }
+    uint32_t slice_pitch = m_desc.image_slice_pitch;
+    if (slice_pitch == 0) {
+        slice_pitch = row_pitch * m_extent.height;
+    }
+
+    size_t host_ptr_size = 0;
 
     switch (m_desc.image_type) {
     case CL_MEM_OBJECT_IMAGE1D:
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D;
-        extent.height = 1;
-        extent.depth = 1;
+        m_extent.height = 1;
+        m_extent.depth = 1;
+        host_ptr_size = row_pitch;
         break;
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
-        extent.height = 1;
-        extent.depth = 1;
+        m_extent.height = 1;
+        m_extent.depth = 1;
+        host_ptr_size = slice_pitch * array_layers;
         break;
     case CL_MEM_OBJECT_IMAGE2D:
         image_type = VK_IMAGE_TYPE_2D;
         view_type = VK_IMAGE_VIEW_TYPE_2D;
-        extent.depth = 1;
+        m_extent.depth = 1;
+        host_ptr_size = slice_pitch;
         break;
     case CL_MEM_OBJECT_IMAGE2D_ARRAY:
         image_type = VK_IMAGE_TYPE_2D;
         view_type = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-        extent.depth = 1;
+        m_extent.depth = 1;
+        host_ptr_size = slice_pitch * array_layers;
         break;
     case CL_MEM_OBJECT_IMAGE3D:
         image_type = VK_IMAGE_TYPE_3D;
         view_type = VK_IMAGE_VIEW_TYPE_3D;
+        host_ptr_size = slice_pitch * m_extent.depth;
         break;
     case CL_MEM_OBJECT_IMAGE1D_BUFFER: // TODO support that
     default:
@@ -289,12 +311,6 @@ bool cvk_image::init() {
         image_type = VK_IMAGE_TYPE_MAX_ENUM;
         view_type = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
         break;
-    }
-
-    uint32_t array_layers = 1;
-    if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
-        (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
-        array_layers = m_desc.image_array_size;
     }
 
     // Translate format
@@ -311,7 +327,7 @@ bool cvk_image::init() {
         0,                       // flags
         image_type,              // imageType
         format,                  // format
-        extent,                  // extent
+        m_extent,                // extent
         1,                       // mipLevels
         array_layers,            // arrayLayers
         VK_SAMPLE_COUNT_1_BIT,   // samples
@@ -333,7 +349,7 @@ bool cvk_image::init() {
         return false;
     }
 
-    // Selec memory type
+    // Select memory type
     cvk_device::allocation_parameters params =
         device->select_memory_for(m_image);
     if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
@@ -352,7 +368,7 @@ bool cvk_image::init() {
         return false;
     }
 
-    // Bind the buffer to memory
+    // Bind the image to memory
     res = vkBindImageMemory(vkdev, m_image, m_memory->vulkan_memory(), 0);
 
     if (res != VK_SUCCESS) {
@@ -386,7 +402,32 @@ bool cvk_image::init() {
     res =
         vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr, &m_image_view);
 
-    return res == VK_SUCCESS;
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    if (has_any_flag(CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) {
+        // Create a staging buffer to copy to the device later.
+        cl_int ret;
+        m_init_data = cvk_buffer::create(m_context, CL_MEM_READ_ONLY,
+                                         host_ptr_size, nullptr, &ret);
+        if (ret != CL_SUCCESS) {
+            cvk_error("Could not create staging buffer for image host_ptr");
+            return false;
+        }
+
+        if (!m_init_data->map()) {
+            cvk_error("Could not map staging buffer");
+            return false;
+        }
+
+        // Copy data to staging buffer.
+        void* dst = m_init_data->map_ptr(0);
+        memcpy(dst, m_host_ptr, host_ptr_size);
+        m_init_data->unmap();
+    }
+
+    return true;
 }
 
 void cvk_image::prepare_fill_pattern(const void* input_pattern,
@@ -510,4 +551,136 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     default:
         CVK_ASSERT(false);
     }
+}
+
+bool cvk_image::prepare_for_device(cvk_command_queue& queue) {
+    std::lock_guard<std::mutex> lock(m_device_init_lock);
+
+    // Check if we have already initialized image on the device.
+    if (m_device_initialized) {
+        return true;
+    }
+
+    cvk_info("Preparing image %p for use on device", this);
+
+    // Create a command buffer and begin recording commands.
+    cvk_command_buffer command_buffer(&queue);
+    if (!command_buffer.begin()) {
+        cvk_error("Could not create command buffer for image initialization");
+        return false;
+    }
+
+    bool needs_copy = m_init_data != nullptr;
+
+    // Transition image layout to GENERAL or TRANSFER_DST_OPTIMAL.
+    VkImageSubresourceRange subresourceRange = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0,                         // baseMipLevel
+        VK_REMAINING_MIP_LEVELS,   // levelCount
+        0,                         // baseArrayLayer
+        VK_REMAINING_ARRAY_LAYERS, // layerCount
+    };
+    VkImageLayout layout = needs_copy ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                                      : VK_IMAGE_LAYOUT_GENERAL;
+    VkImageMemoryBarrier imageBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        nullptr,
+        0,                                                      // srcAccessMask
+        VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT, // dstAccessMask
+        VK_IMAGE_LAYOUT_UNDEFINED,                              // oldLayout
+        layout,                                                 // newLayout
+        0,                // srcQueueFamilyIndex
+        0,                // dstQueueFamilyIndex
+        vulkan_image(),   // image
+        subresourceRange, // subresourceRange
+    };
+    vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         0,              // dependencyFlags
+                         0,              // memoryBarrierCount
+                         nullptr,        // pMemoryBarriers
+                         0,              // bufferMemoryBarrierCount
+                         nullptr,        // pBufferMemoryBarriers
+                         1,              // imageMemoryBarrierCount
+                         &imageBarrier); // pImageMemoryBarriers
+
+    // Set up a buffer->image copy to initialize the image contents.
+    if (needs_copy) {
+        uint32_t row_length = m_desc.image_row_pitch
+                                  ? m_desc.image_row_pitch / element_size()
+                                  : m_extent.width;
+        uint32_t image_height =
+            m_desc.image_slice_pitch
+                ? m_desc.image_slice_pitch / row_length / element_size()
+                : m_extent.height;
+        uint32_t layer_count = 1;
+        if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+            (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+            layer_count = m_desc.image_array_size;
+        }
+        VkImageSubresourceLayers subresource = {
+            VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+            0,                         // mipLevel
+            0,                         // baseArrayLayer
+            layer_count,               // layerCount
+        };
+        VkBufferImageCopy copy = {
+            0,            // bufferOffset
+            row_length,   // bufferRowLength
+            image_height, // bufferImageHeight
+            subresource,  // imageSubresource
+            {0, 0, 0},    // imageOffset
+            m_extent,     // imageExtent
+        };
+        vkCmdCopyBufferToImage(command_buffer, m_init_data->vulkan_buffer(),
+                               vulkan_image(),
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+        // Transition image layout to GENERAL.
+        VkImageSubresourceRange subresourceRange = {
+            VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+            0,                         // baseMipLevel
+            VK_REMAINING_MIP_LEVELS,   // levelCount
+            0,                         // baseArrayLayer
+            VK_REMAINING_ARRAY_LAYERS, // layerCount
+        };
+        VkImageMemoryBarrier imageBarrier = {
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            nullptr,
+            VK_ACCESS_TRANSFER_WRITE_BIT,         // srcAccessMask
+            VK_ACCESS_MEMORY_READ_BIT,            // dstAccessMask
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // oldLayout
+            VK_IMAGE_LAYOUT_GENERAL,              // newLayout
+            0,                                    // srcQueueFamilyIndex
+            0,                                    // dstQueueFamilyIndex
+            vulkan_image(),                       // image
+            subresourceRange,                     // subresourceRange
+        };
+        vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             0,              // dependencyFlags
+                             0,              // memoryBarrierCount
+                             nullptr,        // pMemoryBarriers
+                             0,              // bufferMemoryBarrierCount
+                             nullptr,        // pBufferMemoryBarriers
+                             1,              // imageMemoryBarrierCount
+                             &imageBarrier); // pImageMemoryBarriers
+    }
+
+    if (!command_buffer.end()) {
+        cvk_error("Could not end image initialization command buffer");
+        return false;
+    }
+
+    // Submit commands and wait for completion.
+    if (!command_buffer.submit_and_wait()) {
+        cvk_error("Could not execute image initialization commands");
+        return false;
+    }
+
+    m_init_data.reset();
+
+    m_device_initialized = true;
+
+    return true;
 }

@@ -766,6 +766,10 @@ cl_int cvk_command_kernel::get_timestamp_query_results(cl_ulong* start,
 cl_int cvk_command_kernel::do_action() {
     CVK_ASSERT(m_command_buffer);
 
+    if (!prepare_resources_for_device()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
     auto dev = m_queue->device();
 
@@ -796,6 +800,20 @@ cl_int cvk_command_kernel::do_action() {
     return err;
 }
 
+bool cvk_command_kernel::prepare_resources_for_device() {
+    for (auto& arg : m_kernel->arguments()) {
+        if (arg.kind == kernel_argument_kind::ro_image ||
+            arg.kind == kernel_argument_kind::wo_image) {
+            auto arg_value = m_argument_values->get_arg_value(arg);
+            if (!static_cast<cvk_image*>(arg_value)->prepare_for_device(
+                    *m_queue)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 cl_int cvk_command_kernel_group::submit_and_wait() {
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
@@ -819,6 +837,12 @@ cl_int cvk_command_kernel_group::submit_and_wait() {
 cl_int cvk_command_kernel_group::do_action() {
 
     cvk_info("executing batch of %lu kernels", m_kernel_commands.size());
+
+    for (auto& kcmd : m_kernel_commands) {
+        if (!kcmd->prepare_resources_for_device()) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
 
     cl_ulong sync_host, sync_dev;
     auto dev = m_queue->device();
@@ -1372,6 +1396,10 @@ cl_int cvk_command_buffer_image_copy::build() {
 }
 
 cl_int cvk_command_buffer_image_copy::do_action() {
+    if (!m_image->prepare_for_device(*m_queue)) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }
@@ -1411,6 +1439,13 @@ cl_int cvk_command_image_image_copy::build() {
 }
 
 cl_int cvk_command_image_image_copy::do_action() {
+    if (!m_src_image->prepare_for_device(*m_queue)) {
+        return CL_OUT_OF_RESOURCES;
+    }
+    if (!m_dst_image->prepare_for_device(*m_queue)) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
     if (!m_command_buffer.submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
     }

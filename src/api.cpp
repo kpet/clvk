@@ -3787,13 +3787,6 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
         return nullptr;
     }
 
-    if ((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) ||
-        (host_ptr != nullptr)) {
-        cvk_error("Creating an image with a host_ptr is not supported yet");
-        *errcode_ret = CL_INVALID_OPERATION;
-        return nullptr;
-    }
-
     auto image =
         cvk_image::create(icd_downcast(context), flags, image_desc,
                           image_format, host_ptr, std::move(properties));

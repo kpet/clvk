@@ -302,3 +302,125 @@ TEST_F(WithCommandQueue,
     EnqueueUnmapMemObject(image, data);
     Finish();
 }
+
+TEST_F(WithCommandQueue, ImageCopyHostPtrPadding) {
+    // Create a 2D image array.
+    const size_t IMAGE_WIDTH = 16;
+    const size_t IMAGE_HEIGHT = 16;
+    const size_t IMAGE_ARRAY_SIZE = 2;
+
+    // Pad the host pointer.
+    const size_t IMAGE_ROW_PITCH = 24;
+    const size_t IMAGE_SLICE_PITCH = IMAGE_ROW_PITCH * 32;
+
+    const cl_uchar init_value = 0xAB;
+    std::vector<cl_uchar> host_data(IMAGE_SLICE_PITCH * IMAGE_ARRAY_SIZE, 0xFF);
+    std::vector<cl_uchar> read_data(
+        IMAGE_WIDTH * IMAGE_HEIGHT * IMAGE_ARRAY_SIZE, 0);
+
+    // Fill the host pointer (skipping the padding bytes).
+    for (int a = 0; a < IMAGE_ARRAY_SIZE; a++) {
+        for (int y = 0; y < IMAGE_HEIGHT; y++) {
+            for (int x = 0; x < IMAGE_WIDTH; x++) {
+                host_data[x + y * IMAGE_ROW_PITCH + a * IMAGE_SLICE_PITCH] =
+                    init_value;
+            }
+        }
+    }
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D_ARRAY, // image_type
+        IMAGE_WIDTH,                 // image_width
+        IMAGE_HEIGHT,                // image_height
+        1,                           // image_depth
+        IMAGE_ARRAY_SIZE,            // image_array_size
+        IMAGE_ROW_PITCH,             // image_row_pitch
+        IMAGE_SLICE_PITCH,           // image_slice_pitch
+        0,                           // num_mip_levels
+        0,                           // num_samples
+        nullptr,                     // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &format,
+                             &desc, host_data.data());
+
+    // Read the data back from the image.
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_ARRAY_SIZE};
+    EnqueueReadImage(image, CL_FALSE, origin, region, 0, 0, read_data.data());
+    Finish();
+
+    // Check that we got the values copied from the initial host pointer.
+    bool success = true;
+    for (int i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH * IMAGE_ARRAY_SIZE; ++i) {
+        auto val = read_data[i];
+        if (val != init_value) {
+            printf("Failed comparison at data[%d]: expected %d but got %d\n", i,
+                   init_value, val);
+            success = false;
+        }
+    }
+    EXPECT_TRUE(success);
+}
+
+TEST_F(WithCommandQueue, ImageCopyHostPtrMultiQueue) {
+    // Create image
+    const size_t IMAGE_WIDTH = 16;
+    const size_t IMAGE_HEIGHT = 16;
+
+    const cl_uchar init_value = 0xAB;
+    const cl_uchar write_value = 0xFF;
+    std::vector<cl_uchar> host_data(IMAGE_WIDTH * IMAGE_HEIGHT, init_value);
+    std::vector<cl_uchar> write_data(IMAGE_WIDTH * IMAGE_HEIGHT, write_value);
+    std::vector<cl_uchar> read_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &format,
+                             &desc, host_data.data());
+
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+
+    // Enqueue a command that writes to the image, blocked behind a user event.
+    auto user_event = CreateUserEvent();
+    cl_event wait_list = user_event;
+    EnqueueWriteImage(image, CL_FALSE, origin, region, 0, 0, write_data.data(),
+                      1, &wait_list, nullptr);
+    Flush();
+
+    // Read from the image with a different queue.
+    auto queue2 = CreateCommandQueue(device(), 0);
+    cl_int err = clEnqueueReadImage(queue2, image, CL_FALSE, origin, region, 0,
+                                    0, read_data.data(), 0, nullptr, nullptr);
+    ASSERT_CL_SUCCESS(err);
+    err = clFinish(queue2);
+    ASSERT_CL_SUCCESS(err);
+
+    // Check that we got the values copied from the initial host pointer.
+    bool success = true;
+    for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
+        auto val = read_data[i];
+        if (val != init_value) {
+            printf("Failed comparison at data[%d]: expected %d but got %d\n", i,
+                   init_value, val);
+            success = false;
+        }
+    }
+    EXPECT_TRUE(success);
+
+    // Unblock the first queue.
+    SetUserEventStatus(user_event, CL_COMPLETE);
+    Finish();
+}
