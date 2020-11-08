@@ -23,6 +23,7 @@ extern std::string gCLSPVPath;
 extern std::string gLLVMSPIRVPath;
 extern std::string gCLSPVOptions;
 extern bool gQueueProfilingUsesTimestampQueries;
+extern bool gKeepTemporaries;
 
 struct cvk_platform;
 struct cvk_executor_thread_pool;

@@ -193,3 +193,9 @@ variables. Here's a quick guide:
 
 * `CLVK_MAX_BATCH_SIZE` to control the maximum number of commands that can be
   recorded in a single command buffer.
+
+* `CLVK_KEEP_TEMPORARIES` to keep temporary files created during program build,
+  compilation and link operations.
+
+   * 0: disabled (default)
+   * 1: enabled

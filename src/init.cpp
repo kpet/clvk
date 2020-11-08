@@ -25,6 +25,7 @@
 #include "queue.hpp"
 
 bool gQueueProfilingUsesTimestampQueries = false;
+bool gKeepTemporaries = false;
 
 #ifndef CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
@@ -212,6 +213,13 @@ static void init_options() {
         int val = atoi(profiling);
         if (val != 0) {
             gQueueProfilingUsesTimestampQueries = true;
+        }
+    }
+    auto keep_temps = getenv("CLVK_KEEP_TEMPORARIES");
+    if (keep_temps != nullptr) {
+        int val = atoi(keep_temps);
+        if (val != 0) {
+            gKeepTemporaries = true;
         }
     }
 }
