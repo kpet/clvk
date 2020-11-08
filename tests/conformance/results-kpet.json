@@ -105,7 +105,7 @@
       "sub_group_dispatch": "skip",
       "zero_sized_enqueue": "skip"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Atomics": {
     "duration": "00:00:08.425153",
@@ -234,7 +234,7 @@
       "writeimage_fp32": "pass",
       "writeimage_int16": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Buffers": {
     "duration": "00:04:57.149131",
@@ -325,7 +325,7 @@
       "buffer_write_ulong": "pass",
       "buffer_write_ushort": "pass",
       "image_migrate": "pass",
-      "mem_alloc_ref_flags": "skip",
+      "mem_alloc_ref_flags": "pass",
       "mem_copy_host_flags": "pass",
       "mem_read_only_flags": "pass",
       "mem_read_write_flags": "pass",
@@ -438,7 +438,7 @@
       "unload_repeated": "pass",
       "unload_valid": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Compute Info": {
     "duration": "00:00:00.275205",
@@ -471,7 +471,7 @@
       "contractions_float_6": "fail",
       "contractions_float_7": "fail"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Conversions": {
     "duration": "00:01:35.273005",
@@ -563,7 +563,7 @@
       "geom_length": "fail",
       "geom_normalize": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Half Ops": {
     "duration": "00:00:01.135629",
@@ -583,7 +583,7 @@
       "vstorea_half_rtp": "fail",
       "vstorea_half_rtz": "fail"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Integer Ops": {
     "duration": "00:02:19.408158",
@@ -595,11 +595,11 @@
       "integer_add_sat": "pass",
       "integer_andAssign": "pass",
       "integer_clamp": "pass",
-      "integer_clz": "fail",
+      "integer_clz": "pass",
       "integer_ctz": "skip",
       "integer_divideAssign": "pass",
       "integer_exclusiveOrAssign": "pass",
-      "integer_hadd": "fail",
+      "integer_hadd": "pass",
       "integer_mad24": "fail",
       "integer_mad_hi": "pass",
       "integer_mad_sat": "fail",
@@ -610,9 +610,9 @@
       "integer_mul_hi": "pass",
       "integer_multiplyAssign": "pass",
       "integer_orAssign": "pass",
-      "integer_rhadd": "fail",
+      "integer_rhadd": "pass",
       "integer_rotate": "pass",
-      "integer_sub_sat": "fail",
+      "integer_sub_sat": "pass",
       "integer_subtractAssign": "pass",
       "integer_upsample": "pass",
       "popcount": "fail",
@@ -652,7 +652,7 @@
       "unary_ops_full": "fail",
       "unary_ops_increment": "fail"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Math": {
     "duration": "00:00:24.783542",
@@ -718,8 +718,8 @@
       "isnan": "pass",
       "isnormal": "fail",
       "isnotequal": "fail",
-      "isordered": "fail",
-      "isunordered": "fail",
+      "isordered": "pass",
+      "isunordered": "pass",
       "lgamma": "fail",
       "lgamma_r": "fail",
       "log": "fail",
@@ -757,7 +757,7 @@
       "tanpi": "fail",
       "trunc": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Mem (Host Flags)": {
     "duration": "00:00:00.282679",
@@ -773,7 +773,7 @@
       "mem_host_write_only_image": "fail",
       "mem_host_write_only_subbuffer": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Multiple Device/Context": {
     "duration": "00:01:45.208176",
@@ -863,7 +863,7 @@
       "vector_3": "fail",
       "vector_4": "fail"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Profiling": {
     "duration": "00:00:06.993772",
@@ -901,7 +901,7 @@
       "write_image_float": "pass",
       "write_image_uchar": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Relationals": {
     "duration": "00:00:06.345003",
@@ -920,7 +920,7 @@
       "relational_select_signed": "pass",
       "relational_select_unsigned": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "SPIR": {
     "duration": "00:00:00.324724",
@@ -1141,7 +1141,7 @@
       "op_vector_times_scalar_double": "pass",
       "op_vector_times_scalar_float": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "SVM": {
     "duration": "00:00:00.282835",
@@ -1220,7 +1220,7 @@
       "vec_align_struct": "fail",
       "vec_align_struct_arr": "fail"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Workgroups": {
     "duration": "00:00:00.278430",
