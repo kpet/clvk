@@ -89,6 +89,50 @@ TEST_F(WithCommandQueue, KernelNoArguments) {
     ASSERT_EQ(status, CL_COMPLETE);
 }
 
+TEST_F(WithCommandQueue, KernelInvalidArguments) {
+    static const char* program_source = R"(
+    kernel void test_invalid_args(global uint* out, uint id)
+    {
+        out[id] = id;
+    }
+    )";
+
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "test_invalid_args");
+
+    // Create buffer
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               sizeof(cl_uint), nullptr);
+
+    size_t gws = 1;
+    size_t lws = 1;
+    cl_int err;
+
+    // Try to enqueue the kernel, expecting it to fail
+    err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws, &lws, 0,
+                                 nullptr, nullptr);
+    EXPECT_EQ(err, CL_INVALID_KERNEL_ARGS);
+
+    // Set the first argument, but not the second
+    SetKernelArg(kernel, 0, buffer);
+
+    // Try to enqueue the kernel, still expecting it to fail
+    err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws, &lws, 0,
+                                 nullptr, nullptr);
+    EXPECT_EQ(err, CL_INVALID_KERNEL_ARGS);
+
+    // Set the second argument
+    cl_uint arg_value = 0;
+    SetKernelArg(kernel, 1, &arg_value);
+
+    // Try to enqueue the kernel, should now succeed
+    err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws, &lws, 0,
+                                 nullptr, nullptr);
+    EXPECT_EQ(err, CL_SUCCESS);
+
+    Finish();
+}
+
 TEST_F(WithCommandQueue, WorkDim) {
 
     static const char* program_source = R"(

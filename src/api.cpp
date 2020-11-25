@@ -3383,9 +3383,10 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
         return CL_INVALID_PROGRAM_EXECUTABLE;
     }
 
-    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
-    // specified or if a kernel argument declared to be a pointer to a type does
-    // not point to a named address space.
+    if (!kernel->args_valid()) {
+        return CL_INVALID_KERNEL_ARGS;
+    }
+
     // TODO CL_INVALID_GLOBAL_WORK_SIZE if any of the values specified in
     // global_work_size[0], … global_work_size[work_dim - 1] exceed the maximum
     // value representable by size_t on the device on which the kernel-instance

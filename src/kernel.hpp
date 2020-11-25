@@ -16,6 +16,7 @@
 
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "memory.hpp"
 #include "objects.hpp"
@@ -70,6 +71,8 @@ struct cvk_kernel : public _cl_kernel, api_object {
 
     cl_ulong local_mem_size() const;
 
+    bool args_valid() const { return m_unset_args.empty(); }
+
 private:
     friend cvk_kernel_argument_values;
 
@@ -79,6 +82,7 @@ private:
     std::string m_name;
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
+    std::unordered_set<cl_uint> m_unset_args;
 };
 
 static inline cvk_kernel* icd_downcast(cl_kernel kernel) {
