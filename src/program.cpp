@@ -1105,7 +1105,7 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_pipeline_cache(VK_NULL_HANDLE) {}
+      m_pipeline_layout(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -1390,22 +1390,6 @@ cl_int cvk_entry_point::init() {
         }
     }
 
-    // Create pipeline cache
-    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
-        nullptr, // pNext
-        0,       // flags
-        0,       // initialDataSize
-        nullptr, // pInitialData
-    };
-
-    res = vkCreatePipelineCache(m_device, &pipelineCacheCreateInfo, nullptr,
-                                &m_pipeline_cache);
-    if (res != VK_SUCCESS) {
-        cvk_error("Could not create pipeline cache.");
-        return CL_OUT_OF_RESOURCES;
-    }
-
     return CL_SUCCESS;
 }
 
@@ -1457,8 +1441,9 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     };
 
     VkPipeline pipeline;
-    VkResult res = vkCreateComputePipelines(m_device, m_pipeline_cache, 1,
-                                            &createInfo, nullptr, &pipeline);
+    VkResult res = vkCreateComputePipelines(
+        m_device, m_context->device()->pipeline_cache(), 1, &createInfo,
+        nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create compute pipeline: %s",

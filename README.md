@@ -199,3 +199,7 @@ variables. Here's a quick guide:
 
    * 0: disabled (default)
    * 1: enabled
+
+* `CLVK_CACHE_DIR` specifies a directory used for caching compiled program data
+  between applications runs. The user is responsible for ensuring that this
+  directory is not used concurrently by more than one application.
