@@ -374,6 +374,14 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
     }
 
+    // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
+    if (is_vulkan_extension_enabled(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) &&
+        is_vulkan_extension_enabled(
+            VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) &&
+        m_features_float16_int8.shaderFloat16) {
+        m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
