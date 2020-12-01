@@ -41,7 +41,8 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
+        : m_platform(platform), m_pdev(pd), m_pipeline_cache(VK_NULL_HANDLE),
+          m_has_timer_support(false) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
@@ -49,7 +50,13 @@ struct cvk_device : public _cl_device_id {
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
                               VkPhysicalDevice pdev);
 
-    virtual ~cvk_device() { vkDestroyDevice(m_dev, nullptr); }
+    virtual ~cvk_device() {
+        if (m_pipeline_cache != VK_NULL_HANDLE) {
+            save_pipeline_cache();
+            vkDestroyPipelineCache(m_dev, m_pipeline_cache, nullptr);
+        }
+        vkDestroyDevice(m_dev, nullptr);
+    }
 
     const VkPhysicalDeviceLimits& vulkan_limits() const {
         return m_properties.limits;
@@ -313,6 +320,8 @@ struct cvk_device : public _cl_device_id {
                          ext) != m_vulkan_device_extensions.end();
     }
 
+    VkPipelineCache pipeline_cache() const { return m_pipeline_cache; }
+
     CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
 
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
@@ -383,8 +392,11 @@ private:
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
     CHECK_RETURN bool init_time_management(VkInstance instance);
+    CHECK_RETURN bool init_pipeline_cache();
     void log_limits_and_memory_information();
     CHECK_RETURN bool init(VkInstance instance);
+
+    void save_pipeline_cache();
 
     cvk_platform* m_platform;
 
@@ -421,6 +433,8 @@ private:
     cl_ulong m_num_compute_units;
 
     uint32_t m_driver_behaviors;
+
+    VkPipelineCache m_pipeline_cache;
 
     bool m_has_timer_support;
 };

@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fstream>
+#include <sstream>
+
 #include "device.hpp"
 #include "init.hpp"
 #include "log.hpp"
@@ -515,6 +518,112 @@ bool cvk_device::init_time_management(VkInstance instance) {
     return true;
 }
 
+// Returns the pipeline cache file path for a given Vulkan implementation.
+// If pipeline cache serialization is not enabled, an empty string is returned.
+static std::string
+get_pipeline_cache_filename(VkPhysicalDeviceProperties properties) {
+    const char* cache_dir = getenv("CLVK_CACHE_DIR");
+    if (cache_dir == nullptr) {
+        return "";
+    }
+
+    // The pipeline cache file path is:
+    // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.bin
+    std::stringstream uuid_ss;
+    for (int i = 0; i < VK_UUID_SIZE; i++) {
+        uuid_ss << std::hex << (int)properties.pipelineCacheUUID[i];
+    }
+    std::string cache_path = cache_dir;
+    cache_path += "/";
+    cache_path += "clvk-pipeline-cache.";
+    cache_path += uuid_ss.str();
+    cache_path += ".bin";
+    return cache_path;
+}
+
+bool cvk_device::init_pipeline_cache() {
+    std::vector<char> cache_data;
+
+    // Load initial pipeline cache data from file if this is enabled
+    std::string cache_path = get_pipeline_cache_filename(m_properties);
+    if (!cache_path.empty()) {
+        std::ifstream cache_file(cache_path, std::ios::in | std::ios::binary);
+        if (cache_file.is_open()) {
+            // Get the size of the pipeline cache file
+            cache_file.seekg(0, std::ios::end);
+            uint32_t size = cache_file.tellg();
+            cache_file.seekg(0, std::ios::beg);
+
+            // Load the pipeline cache data into memory
+            cache_data.resize(size);
+            cache_file.read(cache_data.data(), size);
+            if (!cache_file.good()) {
+                cvk_warn("Failed to read pipeline cache data");
+                cache_data.clear();
+            }
+        } else {
+            cvk_warn("Failed to open pipeline cache file: %s",
+                     cache_path.c_str());
+        }
+    }
+
+    // Create pipeline cache
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        nullptr,           // pNext
+        0,                 // flags
+        cache_data.size(), // initialDataSize
+        cache_data.data(), // pInitialData
+    };
+
+    VkResult res = vkCreatePipelineCache(m_dev, &pipelineCacheCreateInfo,
+                                         nullptr, &m_pipeline_cache);
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create pipeline cache.");
+        return false;
+    }
+
+    return true;
+}
+
+void cvk_device::save_pipeline_cache() {
+    VkResult res;
+
+    std::string cache_path = get_pipeline_cache_filename(m_properties);
+    if (cache_path.empty()) {
+        return;
+    }
+
+    // Retrieve the pipeline cache data from the Vulkan implementation
+    size_t size;
+    res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size, nullptr);
+    if (res != VK_SUCCESS) {
+        cvk_error("Failed to retrieve pipeline cache size");
+        return;
+    }
+    std::vector<char> cache_data(size);
+    res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size,
+                                 cache_data.data());
+    if (res != VK_SUCCESS) {
+        cvk_error("Failed to retrieve pipeline cache data");
+        return;
+    }
+
+    cvk_info("Writing %lu bytes of pipeline cache data to file", size);
+
+    // Write the pipeline cache data to file
+    std::ofstream cache_file(cache_path, std::ios::out | std::ios::binary);
+    if (!cache_file.is_open()) {
+        cvk_error("Failed to open pipeline cache file for writing: %s",
+                  cache_path.c_str());
+        return;
+    }
+    cache_file.write(cache_data.data(), size);
+    if (!cache_file.good()) {
+        cvk_error("Failed to write pipeline cache data");
+    }
+}
+
 void cvk_device::log_limits_and_memory_information() {
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
@@ -577,6 +686,10 @@ bool cvk_device::init(VkInstance instance) {
     }
 
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
+        return false;
+    }
+
+    if (!init_pipeline_cache()) {
         return false;
     }
 

@@ -214,9 +214,6 @@ public:
                      m_name.c_str());
             vkDestroyPipeline(m_device, pipeline.second, nullptr);
         }
-        if (m_pipeline_cache != VK_NULL_HANDLE) {
-            vkDestroyPipelineCache(m_device, m_pipeline_cache, nullptr);
-        }
         if (m_descriptor_pool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(m_device, m_descriptor_pool, nullptr);
         }
@@ -278,7 +275,6 @@ private:
     VkDescriptorPool m_descriptor_pool;
     std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
     VkPipelineLayout m_pipeline_layout;
-    VkPipelineCache m_pipeline_cache;
 
     std::mutex m_pipeline_cache_lock;
     std::mutex m_descriptor_pool_lock;
