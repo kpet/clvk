@@ -528,15 +528,16 @@ get_pipeline_cache_filename(VkPhysicalDeviceProperties properties) {
     }
 
     // The pipeline cache file path is:
-    // ${CLVK_CACHE_DIR}/<UUID>.clvk-pipeline-cache.bin
+    // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.bin
     std::stringstream uuid_ss;
     for (int i = 0; i < VK_UUID_SIZE; i++) {
         uuid_ss << std::hex << (int)properties.pipelineCacheUUID[i];
     }
     std::string cache_path = cache_dir;
     cache_path += "/";
+    cache_path += "clvk-pipeline-cache.";
     cache_path += uuid_ss.str();
-    cache_path += ".clvk-pipeline-cache.bin";
+    cache_path += ".bin";
     return cache_path;
 }
 
