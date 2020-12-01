@@ -520,7 +520,8 @@ bool cvk_device::init_time_management(VkInstance instance) {
 
 // Returns the pipeline cache file path for a given Vulkan implementation.
 // If pipeline cache serialization is not enabled, an empty string is returned.
-std::string get_pipeline_cache_filename(VkPhysicalDeviceProperties properties) {
+static std::string
+get_pipeline_cache_filename(VkPhysicalDeviceProperties properties) {
     const char* cache_dir = getenv("CLVK_CACHE_DIR");
     if (cache_dir == nullptr) {
         return "";
