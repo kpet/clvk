@@ -596,14 +596,14 @@ void cvk_device::save_pipeline_cache() {
     size_t size;
     res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size, nullptr);
     if (res != VK_SUCCESS) {
-        cvk_warn("Failed to retrieve pipeline cache size");
+        cvk_error("Failed to retrieve pipeline cache size");
         return;
     }
     std::vector<char> cache_data(size);
     res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size,
                                  cache_data.data());
     if (res != VK_SUCCESS) {
-        cvk_warn("failed to retrieve pipeline cache data");
+        cvk_error("Failed to retrieve pipeline cache data");
         return;
     }
 
