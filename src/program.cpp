@@ -486,7 +486,9 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
     spvtools::Optimizer opt(m_target_env);
     opt.SetMessageConsumer(consumer);
     opt.RegisterPass(spvtools::CreateStripReflectInfoPass());
-    if (!opt.Run(m_code.data(), m_code.size(), stripped)) {
+    spvtools::OptimizerOptions options;
+    options.set_run_validator(false);
+    if (!opt.Run(m_code.data(), m_code.size(), stripped, options)) {
         return false;
     }
     return true;
