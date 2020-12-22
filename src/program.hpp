@@ -477,6 +477,8 @@ struct cvk_program : public _cl_program, api_object {
         return m_binary.spec_constants();
     }
 
+    const VkPipelineCache& pipeline_cache() const { return m_pipeline_cache; }
+
     CHECK_RETURN cvk_entry_point* get_entry_point(std::string& name,
                                                   cl_int* errcode_ret);
 
@@ -513,6 +515,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>
         m_entry_points;
     std::vector<uint32_t> m_stripped_binary;
+    VkPipelineCache m_pipeline_cache;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {

@@ -15,7 +15,9 @@
 #pragma once
 
 #include <algorithm>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <spirv/1.0/spirv.hpp>
@@ -23,6 +25,7 @@
 
 #include "cl_headers.hpp"
 #include "icd.hpp"
+#include "sha1.hpp"
 #include "vkutils.hpp"
 
 struct cvk_vulkan_extension_functions {
@@ -41,8 +44,7 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd), m_pipeline_cache(VK_NULL_HANDLE),
-          m_has_timer_support(false) {
+        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
@@ -51,9 +53,9 @@ struct cvk_device : public _cl_device_id {
                               VkPhysicalDevice pdev);
 
     virtual ~cvk_device() {
-        if (m_pipeline_cache != VK_NULL_HANDLE) {
-            save_pipeline_cache();
-            vkDestroyPipelineCache(m_dev, m_pipeline_cache, nullptr);
+        for (auto entry : m_pipeline_caches) {
+            save_pipeline_cache(entry.first, entry.second);
+            vkDestroyPipelineCache(m_dev, entry.second, nullptr);
         }
         vkDestroyDevice(m_dev, nullptr);
     }
@@ -320,7 +322,11 @@ struct cvk_device : public _cl_device_id {
                          ext) != m_vulkan_device_extensions.end();
     }
 
-    VkPipelineCache pipeline_cache() const { return m_pipeline_cache; }
+    // Get a previously created Vulkan pipeline cache for a given SPIR-V binary,
+    // or create a new one if necessary. Returns true if an existing pipeline
+    // cache was found and reused.
+    bool get_pipeline_cache(const std::vector<uint32_t>& spirv,
+                            VkPipelineCache& pipeline_cache);
 
     CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
 
@@ -392,11 +398,8 @@ private:
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
     CHECK_RETURN bool init_time_management(VkInstance instance);
-    CHECK_RETURN bool init_pipeline_cache();
     void log_limits_and_memory_information();
     CHECK_RETURN bool init(VkInstance instance);
-
-    void save_pipeline_cache();
 
     cvk_platform* m_platform;
 
@@ -434,7 +437,24 @@ private:
 
     uint32_t m_driver_behaviors;
 
-    VkPipelineCache m_pipeline_cache;
+    // Pipeline caching
+    std::string get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const;
+    void save_pipeline_cache(const cvk_sha1_hash& sha1,
+                             const VkPipelineCache& pipeline_cache) const;
+    struct sha1_hasher {
+        size_t operator()(const cvk_sha1_hash& sha1) const {
+            size_t result = 0;
+            for (unsigned i = 0; i < SHA1_DIGEST_NUM_WORDS; i++) {
+                // TODO: Better hash?
+                result *= 59;
+                result += sha1[i];
+            }
+            return result;
+        }
+    };
+    std::unordered_map<cvk_sha1_hash, VkPipelineCache, sha1_hasher>
+        m_pipeline_caches;
+    std::mutex m_pipeline_cache_mutex;
 
     bool m_has_timer_support;
 };
