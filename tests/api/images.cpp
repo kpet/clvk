@@ -302,3 +302,105 @@ TEST_F(WithCommandQueue,
     EnqueueUnmapMemObject(image, data);
     Finish();
 }
+
+TEST_F(WithCommandQueue, ImageWriteOffset) {
+    // Create a 2D image.
+    const size_t IMAGE_WIDTH = 16;
+    const size_t IMAGE_HEIGHT = 16;
+
+    // This is the full image (used for initial fill and final read back).
+    size_t full_origin[3] = {0, 0, 0};
+    size_t full_region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+
+    // We are going to write to this region.
+    size_t write_origin[3] = {IMAGE_WIDTH / 4, IMAGE_HEIGHT / 4, 0};
+    size_t write_region[3] = {IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2, 1};
+
+    cl_uchar fill_value = 0xFF;
+    std::vector<cl_uchar> write_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+    std::vector<cl_uchar> read_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+
+    // Fill the source data.
+    for (int y = 0; y < IMAGE_HEIGHT; y++) {
+        for (int x = 0; x < IMAGE_WIDTH; x++) {
+            write_data[x + y * IMAGE_WIDTH] = x + y * IMAGE_WIDTH;
+        }
+    }
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+
+    // Fill the image.
+    {
+        cl_uint pattern[4] = {fill_value, fill_value, fill_value, fill_value};
+        EnqueueFillImage(image, &pattern, full_origin, full_region);
+        Finish();
+    }
+
+    // Write data to subsection of the image.
+    {
+        EnqueueWriteImage(image, CL_FALSE, write_origin, write_region, 0, 0,
+                          write_data.data());
+        Finish();
+    }
+
+    // Read the data back from the image.
+    {
+        EnqueueReadImage(image, CL_FALSE, full_origin, full_region, 0, 0,
+                         read_data.data());
+        Finish();
+    }
+
+    // Returns true if (x, y) is inside the target write region.
+    auto in_target = [&](int x, int y) {
+        return x >= write_origin[0] && x < write_origin[0] + write_region[0] &&
+               y >= write_origin[1] && y < write_origin[1] + write_region[1];
+    };
+
+    // Check that we got the correct values.
+    bool success = true;
+
+    // Outside the target write region should match the initial fill_value.
+    for (int y = 0; y < IMAGE_HEIGHT; ++y) {
+        for (int x = 0; x < IMAGE_WIDTH; ++x) {
+            cl_uchar val = read_data[x + y * IMAGE_WIDTH];
+            if (in_target(x, y)) {
+                continue;
+            }
+            if (val != fill_value) {
+                printf("Failed comparison at (%d,%d): expected %d but got %d\n",
+                       x, y, fill_value, val);
+                success = false;
+            }
+        }
+    }
+
+    // Inside the target write region should be the same as `write_data`.
+    for (int y = 0; y < write_region[1]; ++y) {
+        for (int x = 0; x < write_region[0]; ++x) {
+            cl_uchar val = read_data[(x + write_origin[0]) +
+                                     (y + write_origin[1]) * IMAGE_WIDTH];
+            cl_uchar ref = write_data[x + y * write_region[0]];
+            if (val != ref) {
+                printf("Failed comparison at (%d,%d): expected %d but got "
+                       "%d\n",
+                       x, y, ref, val);
+                success = false;
+            }
+        }
+    }
+
+    EXPECT_TRUE(success);
+}
