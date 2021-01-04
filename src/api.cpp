@@ -2689,8 +2689,11 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         copy_ptr = &val_ulong;
         ret_size = sizeof(val_ulong);
         break;
+    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE:
+        copy_ptr = kernel->required_work_group_size().data();
+        ret_size = sizeof(size_t[3]);
+        break;
     case CL_KERNEL_GLOBAL_WORK_SIZE:        // TODO
-    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE: // TODO
     case CL_KERNEL_PRIVATE_MEM_SIZE:        // TODO
     default:
         ret = CL_INVALID_VALUE;
@@ -3394,8 +3397,6 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // + the corresponding values in global_work_offset for any dimensions is
     // greater than the maximum value representable by size t on the device on
     // which the kernel-instance will be enqueued.
-    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and does
-    // not match the required work-group size for kernel in the program source.
     // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and is
     // not consistent with the required number of sub-groups for kernel in the
     // program source.
@@ -3443,6 +3444,16 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as arguments to a kernel and/or stored inside SVM allocations
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
+
+    // Check work-group size matches the required size if specified
+    auto reqd_work_group_size = kernel->required_work_group_size();
+    if (reqd_work_group_size[0] != 0) {
+        if (reqd_work_group_size[0] != workgroup_size[0] ||
+            reqd_work_group_size[1] != workgroup_size[1] ||
+            reqd_work_group_size[2] != workgroup_size[2]) {
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
 
     // Check uniformity of the NDRange if needed
     if (!command_queue->device()->supports_non_uniform_workgroup()) {
