@@ -30,14 +30,14 @@ stages:
   jobs:
   - template: job-precommit.yml
     parameters:
-      namePrefix: Windows_2016_MSVC_2017_online_clspv
+      namePrefix: Windows_2019_MSVC_2019_online_clspv
       vmImage: windows-2019
       os: windows
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
   - template: job-precommit.yml
     parameters:
-      namePrefix: Windows_2016_MSVC_2017_offline_clspv
+      namePrefix: Windows_2019_MSVC_2019_offline_clspv
       vmImage: windows-2019
       os: windows
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
