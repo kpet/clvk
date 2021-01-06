@@ -34,7 +34,7 @@ jobs:
     swiftshaderBranch: ${{ parameters.swiftshaderBranch }}
 - template: job-swiftshader.yml
   parameters:
-    vmImage: vs2017-win2016
+    vmImage: windows-2019
     os: windows
     swiftshaderRepo: ${{ parameters.swiftshaderRepo }}
     swiftshaderBranch: ${{ parameters.swiftshaderBranch }}
