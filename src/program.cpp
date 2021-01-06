@@ -896,9 +896,10 @@ cl_build_status cvk_program::link() {
 
     m_binary.use(std::move(linked_opt));
 
-    // Merge descriptor maps
-    for (cl_uint i = 0; i < m_num_input_programs; i++) {
-        m_binary.insert_descriptor_map(m_input_programs[i]->m_binary);
+    // Load descriptor map
+    if (!m_binary.load_descriptor_map()) {
+      cvk_error("Could not load descriptor map for SPIR-V binary.");
+      return CL_BUILD_ERROR;
     }
 
     cvk_debug_fn("linked binary has %zu kernels",
@@ -961,12 +962,13 @@ void cvk_program::do_build() {
         if (!m_binary.loaded_from_binary()) {
             status = compile_source(device);
         }
-        prepare_push_constant_range();
         break;
     case build_operation::link:
         status = link();
         break;
     }
+
+    prepare_push_constant_range();
 
     if ((m_operation == build_operation::compile) ||
         (status != CL_BUILD_SUCCESS)) {

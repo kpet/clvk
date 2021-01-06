@@ -35,3 +35,61 @@ TEST_F(WithContext, BuildLog) {
     build_log = GetProgramBuildLog(program_error);
     ASSERT_TRUE(build_log.find("THIS IS AN ERROR") != std::string::npos);
 }
+
+TEST_F(WithCommandQueue, SimpleLink) {
+    static const char* source = R"(
+        kernel void test(global uint *gws_output,
+                         global uint *lws_output,
+                         global uint *dim_output) {
+          *gws_output = get_global_size(0);
+          *lws_output = get_local_size(0);
+          *dim_output = get_work_dim();
+        }
+    )";
+
+    cl_int err;
+    auto program = CreateProgram(source);
+
+    // Enable 2.0 to generate push constants for the global size.
+    err = clCompileProgram(program, 1, &gDevice, "-cl-std=CL2.0", 0, nullptr,
+                           nullptr, nullptr, nullptr);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    cl_program program_list = program;
+    holder<cl_program> linked_program =
+        clLinkProgram(m_context, 1, &gDevice, nullptr, 1, &program_list,
+                      nullptr, nullptr, &err);
+    ASSERT_EQ(err, CL_SUCCESS);
+
+    auto gws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
+    auto lws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
+    auto dim_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
+    cl_uint value = 42;
+
+    auto kernel = CreateKernel(linked_program, "test");
+    SetKernelArg(kernel, 0, gws_output);
+    SetKernelArg(kernel, 1, lws_output);
+    SetKernelArg(kernel, 2, dim_output);
+
+    size_t gws[3] = {32, 1, 1};
+    size_t lws[3] = {8, 1, 1};
+    EnqueueNDRangeKernel(kernel, 1, nullptr, gws, lws);
+    Finish();
+
+    cl_uint result = -1;
+
+    err = clEnqueueReadBuffer(m_queue, gws_output, CL_TRUE, 0, sizeof(cl_uint),
+                              &result, 0, nullptr, nullptr);
+    ASSERT_EQ(err, CL_SUCCESS);
+    EXPECT_EQ(result, gws[0]);
+
+    err = clEnqueueReadBuffer(m_queue, lws_output, CL_TRUE, 0, sizeof(cl_uint),
+                              &result, 0, nullptr, nullptr);
+    ASSERT_EQ(err, CL_SUCCESS);
+    EXPECT_EQ(result, lws[0]);
+
+    err = clEnqueueReadBuffer(m_queue, dim_output, CL_TRUE, 0, sizeof(cl_uint),
+                              &result, 0, nullptr, nullptr);
+    ASSERT_EQ(err, CL_SUCCESS);
+    EXPECT_EQ(result, 1);
+}
