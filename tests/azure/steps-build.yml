@@ -35,7 +35,6 @@ steps:
                   -DCLVK_CCACHE_BUILD=${{ parameters.useCCache }}
                   -DCLVK_VULKAN_IMPLEMENTATION=${{ parameters.vulkanImplementation }}
                   -DCLVK_VULKAN_LOADER_DIR=${{ parameters.vulkanLoaderDir }}
-                  -DLLVM_TARGETS_TO_BUILD=ARM
                   -DSPIRV_WERROR=OFF
                   ${{ parameters.cmakeFlags }} ..'
   - ${{ if eq(parameters.os, 'windows') }}:
