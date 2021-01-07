@@ -898,8 +898,8 @@ cl_build_status cvk_program::link() {
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map()) {
-      cvk_error("Could not load descriptor map for SPIR-V binary.");
-      return CL_BUILD_ERROR;
+        cvk_error("Could not load descriptor map for SPIR-V binary.");
+        return CL_BUILD_ERROR;
     }
 
     cvk_debug_fn("linked binary has %zu kernels",
