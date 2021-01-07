@@ -347,7 +347,7 @@ protected:
     holder<cl_mem> CreateImage(cl_mem_flags flags,
                                const cl_image_format* image_format,
                                const cl_image_desc* image_desc,
-                               void* host_ptr) {
+                               void* host_ptr = nullptr) {
         cl_int err;
         auto mem = clCreateImage(m_context, flags, image_format, image_desc,
                                  host_ptr, &err);
