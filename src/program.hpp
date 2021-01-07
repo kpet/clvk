@@ -119,7 +119,6 @@ public:
     CHECK_RETURN bool load_spir(const char* fname);
     CHECK_RETURN bool load_spir(std::istream& istream, uint32_t size);
     CHECK_RETURN bool load_descriptor_map();
-    void insert_descriptor_map(const spir_binary& other);
     CHECK_RETURN bool save_spir(const char* fname) const;
     CHECK_RETURN bool load(std::istream& istream);
     CHECK_RETURN bool save(std::ostream& ostream) const;
@@ -201,7 +200,6 @@ private:
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
-    std::string m_dmaps_text;
     bool m_loaded_from_binary;
     spv_target_env m_target_env;
 };

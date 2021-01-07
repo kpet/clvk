@@ -516,13 +516,6 @@ bool spir_binary::load_descriptor_map() {
     return true;
 }
 
-void spir_binary::insert_descriptor_map(const spir_binary& other) {
-    for (auto& args : other.kernels_arguments()) {
-        m_dmaps[args.first] = args.second;
-    }
-    m_dmaps_text += other.m_dmaps_text;
-}
-
 bool spir_binary::get_capabilities(
     std::vector<spv::Capability>& capabilities) const {
     // Callback for receiving parsed instructions.
