@@ -36,7 +36,8 @@ TEST_F(WithContext, BuildLog) {
     ASSERT_TRUE(build_log.find("THIS IS AN ERROR") != std::string::npos);
 }
 
-TEST_F(WithCommandQueue, SimpleLink) {
+// Test that push constant information is propagated correctly when linking.
+TEST_F(WithCommandQueue, CompileAndLinkWithPushConstants) {
     static const char* source = R"(
         kernel void test(global uint *gws_output,
                          global uint *lws_output,
@@ -47,24 +48,17 @@ TEST_F(WithCommandQueue, SimpleLink) {
         }
     )";
 
-    cl_int err;
     auto program = CreateProgram(source);
 
     // Enable 2.0 to generate push constants for the global size.
-    err = clCompileProgram(program, 1, &gDevice, "-cl-std=CL2.0", 0, nullptr,
-                           nullptr, nullptr, nullptr);
-    ASSERT_EQ(err, CL_SUCCESS);
+    CompileProgram(program, "-cl-std=CL2.0");
 
     cl_program program_list = program;
-    holder<cl_program> linked_program =
-        clLinkProgram(m_context, 1, &gDevice, nullptr, 1, &program_list,
-                      nullptr, nullptr, &err);
-    ASSERT_EQ(err, CL_SUCCESS);
+    holder<cl_program> linked_program = LinkProgram(1, &program_list);
 
-    auto gws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
-    auto lws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
-    auto dim_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint), nullptr);
-    cl_uint value = 42;
+    auto gws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+    auto lws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+    auto dim_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
 
     auto kernel = CreateKernel(linked_program, "test");
     SetKernelArg(kernel, 0, gws_output);
@@ -76,20 +70,12 @@ TEST_F(WithCommandQueue, SimpleLink) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, gws, lws);
     Finish();
 
+    // Check results.
     cl_uint result = -1;
-
-    err = clEnqueueReadBuffer(m_queue, gws_output, CL_TRUE, 0, sizeof(cl_uint),
-                              &result, 0, nullptr, nullptr);
-    ASSERT_EQ(err, CL_SUCCESS);
+    EnqueueReadBuffer(gws_output, CL_TRUE, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, gws[0]);
-
-    err = clEnqueueReadBuffer(m_queue, lws_output, CL_TRUE, 0, sizeof(cl_uint),
-                              &result, 0, nullptr, nullptr);
-    ASSERT_EQ(err, CL_SUCCESS);
+    EnqueueReadBuffer(lws_output, CL_TRUE, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, lws[0]);
-
-    err = clEnqueueReadBuffer(m_queue, dim_output, CL_TRUE, 0, sizeof(cl_uint),
-                              &result, 0, nullptr, nullptr);
-    ASSERT_EQ(err, CL_SUCCESS);
+    EnqueueReadBuffer(dim_output, CL_TRUE, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, 1);
 }
