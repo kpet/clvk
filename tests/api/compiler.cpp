@@ -54,7 +54,7 @@ TEST_F(WithCommandQueue, CompileAndLinkWithPushConstants) {
     CompileProgram(program, "-cl-std=CL2.0");
 
     cl_program program_list = program;
-    holder<cl_program> linked_program = LinkProgram(1, &program_list);
+    auto linked_program = LinkProgram(1, &program_list);
 
     auto gws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
     auto lws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
@@ -103,7 +103,7 @@ TEST_F(WithCommandQueue, CompileAndLinkWithLiteralSamplers) {
     CompileProgram(program);
 
     cl_program program_list = program;
-    holder<cl_program> linked_program = LinkProgram(1, &program_list);
+    auto linked_program = LinkProgram(1, &program_list);
 
     // Create a 1D input image.
     size_t IMAGE_WIDTH = 4;
