@@ -72,11 +72,11 @@ TEST_F(WithCommandQueue, CompileAndLinkWithPushConstants) {
 
     // Check results.
     cl_uint result = -1;
-    EnqueueReadBuffer(gws_output, CL_TRUE, 0, sizeof(cl_uint), &result);
+    EnqueueReadBuffer(gws_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, gws[0]);
-    EnqueueReadBuffer(lws_output, CL_TRUE, 0, sizeof(cl_uint), &result);
+    EnqueueReadBuffer(lws_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, lws[0]);
-    EnqueueReadBuffer(dim_output, CL_TRUE, 0, sizeof(cl_uint), &result);
+    EnqueueReadBuffer(dim_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, 1);
 }
 
@@ -150,8 +150,8 @@ TEST_F(WithCommandQueue, CompileAndLinkWithLiteralSamplers) {
 
     // Check results.
     cl_uint result = -1;
-    EnqueueReadBuffer(clamp_output, CL_TRUE, 0, sizeof(cl_uint), &result);
+    EnqueueReadBuffer(clamp_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, value_end);
-    EnqueueReadBuffer(repeat_output, CL_TRUE, 0, sizeof(cl_uint), &result);
+    EnqueueReadBuffer(repeat_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, value_start);
 }
