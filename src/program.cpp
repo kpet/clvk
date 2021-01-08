@@ -314,9 +314,14 @@ spv_result_t parse_reflection(void* user_data,
                                                      addressing, filter});
                 break;
             }
-            case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize:
-                // TODO: parse this.
+            case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize: {
+                auto kernel = helper->strings[inst->words[5]];
+                auto x = helper->constants[inst->words[6]];
+                auto y = helper->constants[inst->words[7]];
+                auto z = helper->constants[inst->words[8]];
+                helper->binary->set_required_work_group_size(kernel, x, y, z);
                 break;
+            }
             default:
                 break;
             }

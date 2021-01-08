@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <fstream>
@@ -105,6 +106,8 @@ class spir_binary {
 
     using kernels_arguments_map =
         std::unordered_map<std::string, std::vector<kernel_argument>>;
+    using kernels_reqd_work_group_size_map =
+        std::unordered_map<std::string, std::array<size_t, 3>>;
     const uint32_t MAGIC = 0x00BEEF00;
 
 public:
@@ -137,6 +140,10 @@ public:
     const std::vector<sampler_desc>& literal_samplers() {
         return m_literal_samplers;
     }
+    const std::array<size_t, 3>&
+    required_work_group_size(const std::string& kernel) const {
+        return m_reqd_work_group_sizes.at(kernel);
+    }
     CHECK_RETURN bool
     get_capabilities(std::vector<spv::Capability>& capabilities) const;
     static constexpr uint32_t MAX_DESCRIPTOR_SETS = 2;
@@ -158,7 +165,10 @@ public:
         }
     }
 
-    void add_kernel(const std::string& name) { m_dmaps[name] = {}; }
+    void add_kernel(const std::string& name) {
+        m_dmaps[name] = {};
+        m_reqd_work_group_sizes[name] = {0, 0, 0};
+    }
 
     void add_kernel_argument(const std::string& name, kernel_argument&& arg) {
         m_dmaps[name].push_back(arg);
@@ -176,6 +186,11 @@ public:
         m_literal_samplers.push_back(desc);
     }
 
+    void set_required_work_group_size(const std::string& kernel, uint32_t x,
+                                      uint32_t y, uint32_t z) {
+        m_reqd_work_group_sizes[kernel] = {x, y, z};
+    }
+
     bool strip_reflection(std::vector<uint32_t>* stripped);
 
 private:
@@ -185,6 +200,7 @@ private:
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
     kernels_arguments_map m_dmaps;
+    kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
     std::string m_dmaps_text;
     bool m_loaded_from_binary;
     spv_target_env m_target_env;
@@ -475,6 +491,11 @@ struct cvk_program : public _cl_program, api_object {
     CHECK_RETURN const std::unordered_map<spec_constant, uint32_t>&
     spec_constants() const {
         return m_binary.spec_constants();
+    }
+
+    const std::array<size_t, 3>&
+    required_work_group_size(const std::string& kernel) const {
+        return m_binary.required_work_group_size(kernel);
     }
 
     const VkPipelineCache& pipeline_cache() const { return m_pipeline_cache; }
