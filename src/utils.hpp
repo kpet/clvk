@@ -64,3 +64,14 @@ static inline uint32_t round_up(uint32_t num, uint32_t multiple) {
     CVK_ASSERT(multiple != 0);
     return ((num + multiple - 1) / multiple) * multiple;
 }
+
+// Return the hex string representation of `bytes`.
+static inline std::string to_hex_string(const uint8_t* bytes, uint32_t len) {
+    const char chars[] = "0123456789abcdef";
+    std::string str = "";
+    for (uint32_t i = 0; i < len; i++) {
+        str += *(chars + (bytes[i] >> 4));
+        str += *(chars + (bytes[i] & 0xF));
+    }
+    return str;
+}

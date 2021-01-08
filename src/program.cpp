@@ -969,13 +969,22 @@ void cvk_program::do_build() {
         return;
     }
 
-    // Validate
-    // TODO validate with different rules depending on the binary type
-    if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !m_binary.validate()) {
-        cvk_error("Could not validate SPIR-V binary.");
+    bool cache_hit =
+        device->get_pipeline_cache(m_binary.code(), m_pipeline_cache);
+    if (m_pipeline_cache == VK_NULL_HANDLE) {
         complete_operation(device, CL_BUILD_ERROR);
         return;
+    }
+
+    if (!cache_hit) {
+        // Validate
+        // TODO validate with different rules depending on the binary type
+        if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
+            !m_binary.validate()) {
+            cvk_error("Could not validate SPIR-V binary.");
+            complete_operation(device, CL_BUILD_ERROR);
+            return;
+        }
     }
 
     // Check capabilities against the device.
@@ -1443,9 +1452,9 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     };
 
     VkPipeline pipeline;
-    VkResult res = vkCreateComputePipelines(
-        m_device, m_context->device()->pipeline_cache(), 1, &createInfo,
-        nullptr, &pipeline);
+    VkResult res =
+        vkCreateComputePipelines(m_device, m_program->pipeline_cache(), 1,
+                                 &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create compute pipeline: %s",

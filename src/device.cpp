@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <fstream>
-#include <sstream>
 
 #include "device.hpp"
 #include "init.hpp"
@@ -527,35 +526,51 @@ bool cvk_device::init_time_management(VkInstance instance) {
     return true;
 }
 
-// Returns the pipeline cache file path for a given Vulkan implementation.
+// Returns the pipeline cache file path for a given SPIR-V SHA-1 hash.
 // If pipeline cache serialization is not enabled, an empty string is returned.
-static std::string
-get_pipeline_cache_filename(VkPhysicalDeviceProperties properties) {
+std::string
+cvk_device::get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const {
     const char* cache_dir = getenv("CLVK_CACHE_DIR");
     if (cache_dir == nullptr) {
         return "";
     }
 
     // The pipeline cache file path is:
-    // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.bin
-    std::stringstream uuid_ss;
-    for (int i = 0; i < VK_UUID_SIZE; i++) {
-        uuid_ss << std::hex << (int)properties.pipelineCacheUUID[i];
-    }
+    // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.<SHA1>.bin
     std::string cache_path = cache_dir;
     cache_path += "/";
     cache_path += "clvk-pipeline-cache.";
-    cache_path += uuid_ss.str();
+    cache_path += to_hex_string(m_properties.pipelineCacheUUID, VK_UUID_SIZE);
+    cache_path += ".";
+    cache_path += to_hex_string(reinterpret_cast<const uint8_t*>(sha1.data()),
+                                SHA1_DIGEST_NUM_BYTES);
     cache_path += ".bin";
     return cache_path;
 }
 
-bool cvk_device::init_pipeline_cache() {
+bool cvk_device::get_pipeline_cache(const std::vector<uint32_t>& spirv,
+                                    VkPipelineCache& pipeline_cache) {
+
+    std::lock_guard<std::mutex> lock(m_pipeline_cache_mutex);
+
+    pipeline_cache = VK_NULL_HANDLE;
+
+    // Compute SHA-1 hash of the SPIR-V binary
+    cvk_sha1_hash sha1 =
+        cvk_sha1(spirv.data(), spirv.size() * sizeof(uint32_t));
+
+    // Check the in-memory cache of pipeline caches
+    if (m_pipeline_caches.count(sha1)) {
+        pipeline_cache = m_pipeline_caches.at(sha1);
+        return true;
+    }
+
     std::vector<char> cache_data;
 
-    // Load initial pipeline cache data from file if this is enabled
-    std::string cache_path = get_pipeline_cache_filename(m_properties);
+    // Load pipeline cache data from file if this is enabled
+    std::string cache_path = get_pipeline_cache_filename(sha1);
     if (!cache_path.empty()) {
+        cvk_info("Looking for pipeline cache at %s", cache_path.c_str());
         std::ifstream cache_file(cache_path, std::ios::in | std::ios::binary);
         if (cache_file.is_open()) {
             // Get the size of the pipeline cache file
@@ -571,8 +586,7 @@ bool cvk_device::init_pipeline_cache() {
                 cache_data.clear();
             }
         } else {
-            cvk_warn("Failed to open pipeline cache file: %s",
-                     cache_path.c_str());
+            cvk_warn("Failed to open pipeline cache file");
         }
     }
 
@@ -586,33 +600,37 @@ bool cvk_device::init_pipeline_cache() {
     };
 
     VkResult res = vkCreatePipelineCache(m_dev, &pipelineCacheCreateInfo,
-                                         nullptr, &m_pipeline_cache);
+                                         nullptr, &pipeline_cache);
     if (res != VK_SUCCESS) {
         cvk_error("Could not create pipeline cache.");
         return false;
     }
 
-    return true;
+    // Add pipeline cache to the in-memory cache
+    m_pipeline_caches[sha1] = pipeline_cache;
+
+    return cache_data.size() != 0;
 }
 
-void cvk_device::save_pipeline_cache() {
+void cvk_device::save_pipeline_cache(
+    const cvk_sha1_hash& sha1, const VkPipelineCache& pipeline_cache) const {
     VkResult res;
 
-    std::string cache_path = get_pipeline_cache_filename(m_properties);
+    std::string cache_path = get_pipeline_cache_filename(sha1);
     if (cache_path.empty()) {
         return;
     }
 
     // Retrieve the pipeline cache data from the Vulkan implementation
     size_t size;
-    res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size, nullptr);
+    res = vkGetPipelineCacheData(m_dev, pipeline_cache, &size, nullptr);
     if (res != VK_SUCCESS) {
         cvk_error("Failed to retrieve pipeline cache size");
         return;
     }
     std::vector<char> cache_data(size);
-    res = vkGetPipelineCacheData(m_dev, m_pipeline_cache, &size,
-                                 cache_data.data());
+    res =
+        vkGetPipelineCacheData(m_dev, pipeline_cache, &size, cache_data.data());
     if (res != VK_SUCCESS) {
         cvk_error("Failed to retrieve pipeline cache data");
         return;
@@ -695,10 +713,6 @@ bool cvk_device::init(VkInstance instance) {
     }
 
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
-        return false;
-    }
-
-    if (!init_pipeline_cache()) {
         return false;
     }
 
