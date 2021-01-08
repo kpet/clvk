@@ -557,8 +557,7 @@ bool cvk_device::get_pipeline_cache(const std::vector<uint32_t>& spirv,
 
     // Compute SHA-1 hash of the SPIR-V binary
     cvk_sha1_hash sha1 =
-        cvk_sha1(reinterpret_cast<const uint8_t*>(spirv.data()),
-                 spirv.size() * sizeof(uint32_t));
+        cvk_sha1(spirv.data(), spirv.size() * sizeof(uint32_t));
 
     // Check the in-memory cache of pipeline caches
     if (m_pipeline_caches.count(sha1)) {

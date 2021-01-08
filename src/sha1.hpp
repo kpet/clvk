@@ -21,4 +21,4 @@ constexpr unsigned SHA1_DIGEST_NUM_BYTES = 20;
 using cvk_sha1_hash = std::array<uint32_t, 5>;
 
 // Compute the SHA-1 hash for `length` bytes of `data`.
-cvk_sha1_hash cvk_sha1(const uint8_t* data, uint32_t length);
+cvk_sha1_hash cvk_sha1(const void* data, uint32_t length);

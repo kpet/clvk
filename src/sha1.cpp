@@ -181,7 +181,9 @@ static void sha1_process_block(cvk_sha1_hash& H, uint32_t block[16]) {
     H[4] += e;
 }
 
-cvk_sha1_hash cvk_sha1(const uint8_t* data, uint32_t length) {
+cvk_sha1_hash cvk_sha1(const void* data, uint32_t length) {
+    const uint8_t* data_i8 = reinterpret_cast<const uint8_t*>(data);
+
     // Initialize state (constants defined in Section 5.3.1).
     cvk_sha1_hash H;
     H[0] = 0x67452301;
@@ -199,15 +201,15 @@ cvk_sha1_hash cvk_sha1(const uint8_t* data, uint32_t length) {
     // Process data in 512-bit blocks.
     while (length >= 64) {
         // Copy block to local buffer and process it.
-        memcpy(block, data, 64);
+        memcpy(block, data_i8, 64);
         sha1_process_block(H, block);
 
         length -= 64;
-        data += 64;
+        data_i8 += 64;
     }
 
     // Copy remaining data to local buffer.
-    memcpy(block, data, length);
+    memcpy(block, data_i8, length);
 
     // Add padding to the last block as described in Section 5.1.1.
 
