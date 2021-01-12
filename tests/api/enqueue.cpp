@@ -15,6 +15,7 @@
 #include "testcl.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <thread>
 
 TEST_F(WithCommandQueue, ManyInstancesInFlight) {
@@ -365,11 +366,13 @@ TEST_F(WithCommandQueue, FinishAfterFlush) {
     auto thread =
         std::make_unique<std::thread>(finish_after_flush_thread, &thread_data);
 
+    using namespace std::literals;
+
     while (!thread_data.started_running) {
-        usleep(500);
+        std::this_thread::sleep_for(500us);
     }
 
-    usleep(1000);
+    std::this_thread::sleep_for(1000us);
 
     int res = thread_data.finish_returned;
     if (res != 42) {
