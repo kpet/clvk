@@ -317,13 +317,13 @@ TEST_F(WithCommandQueue, ImageWriteOffset) {
     size_t write_region[3] = {IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2, 1};
 
     cl_uchar fill_value = 0xFF;
-    std::vector<cl_uchar> write_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+    std::vector<cl_uchar> write_data(write_region[0] * write_region[1], 0);
     std::vector<cl_uchar> read_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
 
     // Fill the source data.
-    for (int y = 0; y < IMAGE_HEIGHT; y++) {
-        for (int x = 0; x < IMAGE_WIDTH; x++) {
-            write_data[x + y * IMAGE_WIDTH] = x + y * IMAGE_WIDTH;
+    for (int y = 0; y < write_region[1]; y++) {
+        for (int x = 0; x < write_region[0]; x++) {
+            write_data[x + y * write_region[0]] = x + y * write_region[0];
         }
     }
 
