@@ -571,6 +571,61 @@ protected:
         EnqueueWriteBuffer(buffer, blocking_write, offset, size, ptr, 0,
                            nullptr, nullptr);
     }
+
+    void EnqueueReadImage(cl_mem image, cl_bool blocking_read,
+                          const size_t* origin, const size_t* region,
+                          size_t row_pitch, size_t slice_pitch, void* ptr,
+                          cl_uint num_events_in_wait_list,
+                          const cl_event* event_wait_list, cl_event* event) {
+        auto err = clEnqueueReadImage(
+            m_queue, image, blocking_read, origin, region, row_pitch,
+            slice_pitch, ptr, num_events_in_wait_list, event_wait_list, event);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueReadImage(cl_mem image, cl_bool blocking_read,
+                          const size_t* origin, const size_t* region,
+                          size_t row_pitch, size_t slice_pitch, void* ptr) {
+        EnqueueReadImage(image, blocking_read, origin, region, row_pitch,
+                         slice_pitch, ptr, 0, nullptr, nullptr);
+    }
+
+    void EnqueueWriteImage(cl_mem image, cl_bool blocking_write,
+                           const size_t* origin, const size_t* region,
+                           size_t input_row_pitch, size_t input_slice_pitch,
+                           const void* ptr, cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list, cl_event* event) {
+        auto err = clEnqueueWriteImage(
+            m_queue, image, blocking_write, origin, region, input_row_pitch,
+            input_slice_pitch, ptr, num_events_in_wait_list, event_wait_list,
+            event);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueWriteImage(cl_mem image, cl_bool blocking_write,
+                           const size_t* origin, const size_t* region,
+                           size_t input_row_pitch, size_t input_slice_pitch,
+                           const void* ptr) {
+        EnqueueWriteImage(image, blocking_write, origin, region,
+                          input_row_pitch, input_slice_pitch, ptr, 0, nullptr,
+                          nullptr);
+    }
+
+    void EnqueueFillImage(cl_mem image, const void* fill_color,
+                          const size_t* origin, const size_t* region,
+                          cl_uint num_events_in_wait_list,
+                          const cl_event* event_wait_list, cl_event* event) {
+        auto err =
+            clEnqueueFillImage(m_queue, image, fill_color, origin, region,
+                               num_events_in_wait_list, event_wait_list, event);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueFillImage(cl_mem image, const void* fill_color,
+                          const size_t* origin, const size_t* region) {
+        EnqueueFillImage(image, fill_color, origin, region, 0, nullptr,
+                         nullptr);
+    }
 };
 
 class WithProfiledCommandQueue : public WithCommandQueue {

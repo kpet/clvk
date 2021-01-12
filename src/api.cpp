@@ -4252,16 +4252,17 @@ cl_int cvk_enqueue_image_copy(
     // Create copy command
     auto rpitch = row_pitch;
     if (rpitch == 0) {
-        rpitch = img->width() * img->element_size();
+        rpitch = region[0] * img->element_size();
     }
 
     auto spitch = slice_pitch;
     if (spitch == 0) {
-        spitch = img->height() * rpitch;
+        spitch = region[1] * rpitch;
     }
+    const size_t zero_origin[3] = {0, 0, 0};
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
-        queue, command_type, map_buffer, ptr, origin, origin, region, rpitch,
-        spitch, cmd_map->map_buffer_row_pitch(),
+        queue, command_type, map_buffer, ptr, zero_origin, zero_origin, region,
+        rpitch, spitch, cmd_map->map_buffer_row_pitch(),
         cmd_map->map_buffer_slice_pitch(), img->element_size());
 
     // Create unmap command
