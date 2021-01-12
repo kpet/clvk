@@ -343,7 +343,6 @@ void finish_after_flush_thread(void* data) {
 
 } // namespace
 
-
 TEST_F(WithCommandQueue, FinishAfterFlush) {
     auto uevent = CreateUserEvent();
 
@@ -363,7 +362,8 @@ TEST_F(WithCommandQueue, FinishAfterFlush) {
     thread_data.finish_returned = 42;
     thread_data.started_running = false;
 
-    auto thread = std::make_unique<std::thread>(finish_after_flush_thread, &thread_data);
+    auto thread =
+        std::make_unique<std::thread>(finish_after_flush_thread, &thread_data);
 
     while (!thread_data.started_running) {
         usleep(500);
