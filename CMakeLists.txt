@@ -50,6 +50,10 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
 
 # clspv
+# FIXME remove the defintion of LLVM_TARGETS_TO_BUILD when LLVM supports an
+# empty list again
+set(LLVM_TARGETS_TO_BUILD AArch64 CACHE STRING
+    "Semicolon-separated list of targets to build, or \"all\".")
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
     CACHE STRING "Clspv source directory")
 add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv

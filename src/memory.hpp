@@ -23,7 +23,8 @@ struct cvk_command_queue;
 struct cvk_memory_allocation {
 
     cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index)
-        : m_device(dev), m_size(size), m_memory_type_index(type_index) {}
+        : m_device(dev), m_size(size), m_memory(VK_NULL_HANDLE),
+          m_memory_type_index(type_index) {}
 
     ~cvk_memory_allocation() {
         if (m_memory != VK_NULL_HANDLE) {

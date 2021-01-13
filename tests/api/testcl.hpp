@@ -230,6 +230,34 @@ protected:
         return program;
     }
 
+    void CompileProgram(cl_program program, const char* options = nullptr) {
+        cl_int err = clCompileProgram(program, 1, &gDevice, options, 0, nullptr,
+                                      nullptr, nullptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+
+        if (err != CL_SUCCESS) {
+            std::string build_log = GetProgramBuildLog(program);
+            printf("Build log:\n%s\n", build_log.c_str());
+        }
+    }
+
+    holder<cl_program> LinkProgram(cl_uint num_input_programs,
+                                   cl_program* input_programs,
+                                   const char* options = nullptr) {
+        cl_int err;
+        auto program =
+            clLinkProgram(m_context, 1, &gDevice, options, num_input_programs,
+                          input_programs, nullptr, nullptr, &err);
+        EXPECT_CL_SUCCESS(err);
+
+        if (err != CL_SUCCESS) {
+            std::string build_log = GetProgramBuildLog(program);
+            printf("Build log:\n%s\n", build_log.c_str());
+        }
+
+        return program;
+    }
+
     std::string GetProgramBuildLog(cl_program program) {
         size_t log_size;
         cl_int err = clGetProgramBuildInfo(
@@ -299,7 +327,7 @@ protected:
     }
 
     holder<cl_mem> CreateBuffer(cl_mem_flags flags, size_t size,
-                                void* host_ptr) {
+                                void* host_ptr = nullptr) {
         cl_int err;
         auto mem = clCreateBuffer(m_context, flags, size, host_ptr, &err);
         EXPECT_CL_SUCCESS(err);
@@ -319,7 +347,7 @@ protected:
     holder<cl_mem> CreateImage(cl_mem_flags flags,
                                const cl_image_format* image_format,
                                const cl_image_desc* image_desc,
-                               void* host_ptr) {
+                               void* host_ptr = nullptr) {
         cl_int err;
         auto mem = clCreateImage(m_context, flags, image_format, image_desc,
                                  host_ptr, &err);
@@ -512,6 +540,22 @@ protected:
         EnqueueUnmapMemObject(memobj, mapped_ptr, 0, nullptr, nullptr);
     }
 
+    void EnqueueReadBuffer(cl_mem buffer, cl_bool blocking_read, size_t offset,
+                           size_t size, void* ptr,
+                           cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list, cl_event* event) {
+        auto err = clEnqueueReadBuffer(m_queue, buffer, blocking_read, offset,
+                                       size, ptr, num_events_in_wait_list,
+                                       event_wait_list, event);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueReadBuffer(cl_mem buffer, cl_bool blocking_read, size_t offset,
+                           size_t size, void* ptr) {
+        EnqueueReadBuffer(buffer, blocking_read, offset, size, ptr, 0, nullptr,
+                          nullptr);
+    }
+
     void EnqueueWriteBuffer(cl_mem buffer, cl_bool blocking_write,
                             size_t offset, size_t size, const void* ptr,
                             cl_uint num_events_in_wait_list,
@@ -565,6 +609,22 @@ protected:
         EnqueueWriteImage(image, blocking_write, origin, region,
                           input_row_pitch, input_slice_pitch, ptr, 0, nullptr,
                           nullptr);
+    }
+
+    void EnqueueFillImage(cl_mem image, const void* fill_color,
+                          const size_t* origin, const size_t* region,
+                          cl_uint num_events_in_wait_list,
+                          const cl_event* event_wait_list, cl_event* event) {
+        auto err =
+            clEnqueueFillImage(m_queue, image, fill_color, origin, region,
+                               num_events_in_wait_list, event_wait_list, event);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueFillImage(cl_mem image, const void* fill_color,
+                          const size_t* origin, const size_t* region) {
+        EnqueueFillImage(image, fill_color, origin, region, 0, nullptr,
+                         nullptr);
     }
 };
 

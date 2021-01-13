@@ -2689,8 +2689,11 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         copy_ptr = &val_ulong;
         ret_size = sizeof(val_ulong);
         break;
+    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE:
+        copy_ptr = kernel->required_work_group_size().data();
+        ret_size = sizeof(size_t[3]);
+        break;
     case CL_KERNEL_GLOBAL_WORK_SIZE:        // TODO
-    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE: // TODO
     case CL_KERNEL_PRIVATE_MEM_SIZE:        // TODO
     default:
         ret = CL_INVALID_VALUE;
@@ -2820,15 +2823,7 @@ cl_int CLVK_API_CALL clFinish(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    cvk_event* event = nullptr;
-    cl_int status = icd_downcast(command_queue)->flush(&event);
-
-    if ((status == CL_SUCCESS) && (event != nullptr)) {
-        event->wait();
-        event->release();
-    }
-
-    return status;
+    return icd_downcast(command_queue)->finish();
 }
 
 /* Enqueued Commands APIs */
@@ -3394,8 +3389,6 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // + the corresponding values in global_work_offset for any dimensions is
     // greater than the maximum value representable by size t on the device on
     // which the kernel-instance will be enqueued.
-    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and does
-    // not match the required work-group size for kernel in the program source.
     // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and is
     // not consistent with the required number of sub-groups for kernel in the
     // program source.
@@ -3443,6 +3436,16 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as arguments to a kernel and/or stored inside SVM allocations
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
+
+    // Check work-group size matches the required size if specified
+    auto reqd_work_group_size = kernel->required_work_group_size();
+    if (reqd_work_group_size[0] != 0) {
+        if (reqd_work_group_size[0] != workgroup_size[0] ||
+            reqd_work_group_size[1] != workgroup_size[1] ||
+            reqd_work_group_size[2] != workgroup_size[2]) {
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
 
     // Check uniformity of the NDRange if needed
     if (!command_queue->device()->supports_non_uniform_workgroup()) {
@@ -4234,16 +4237,17 @@ cl_int cvk_enqueue_image_copy(
     // Create copy command
     auto rpitch = row_pitch;
     if (rpitch == 0) {
-        rpitch = img->width() * img->element_size();
+        rpitch = region[0] * img->element_size();
     }
 
     auto spitch = slice_pitch;
     if (spitch == 0) {
-        spitch = img->height() * rpitch;
+        spitch = region[1] * rpitch;
     }
+    const size_t zero_origin[3] = {0, 0, 0};
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
-        queue, command_type, map_buffer, ptr, origin, origin, region, rpitch,
-        spitch, cmd_map->map_buffer_row_pitch(),
+        queue, command_type, map_buffer, ptr, zero_origin, zero_origin, region,
+        rpitch, spitch, cmd_map->map_buffer_row_pitch(),
         cmd_map->map_buffer_slice_pitch(), img->element_size());
 
     // Create unmap command

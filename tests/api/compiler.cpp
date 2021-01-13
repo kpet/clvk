@@ -35,3 +35,123 @@ TEST_F(WithContext, BuildLog) {
     build_log = GetProgramBuildLog(program_error);
     ASSERT_TRUE(build_log.find("THIS IS AN ERROR") != std::string::npos);
 }
+
+// Test that push constant information is propagated correctly when linking.
+TEST_F(WithCommandQueue, CompileAndLinkWithPushConstants) {
+    static const char* source = R"(
+        kernel void test(global uint *gws_output,
+                         global uint *lws_output,
+                         global uint *dim_output) {
+          *gws_output = get_global_size(0);
+          *lws_output = get_local_size(0);
+          *dim_output = get_work_dim();
+        }
+    )";
+
+    auto program = CreateProgram(source);
+
+    // Enable 2.0 to generate push constants for the global size.
+    CompileProgram(program, "-cl-std=CL2.0");
+
+    cl_program program_list = program;
+    auto linked_program = LinkProgram(1, &program_list);
+
+    auto gws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+    auto lws_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+    auto dim_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+
+    auto kernel = CreateKernel(linked_program, "test");
+    SetKernelArg(kernel, 0, gws_output);
+    SetKernelArg(kernel, 1, lws_output);
+    SetKernelArg(kernel, 2, dim_output);
+
+    size_t gws[3] = {32, 1, 1};
+    size_t lws[3] = {8, 1, 1};
+    EnqueueNDRangeKernel(kernel, 1, nullptr, gws, lws);
+    Finish();
+
+    // Check results.
+    cl_uint result = -1;
+    EnqueueReadBuffer(gws_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, gws[0]);
+    EnqueueReadBuffer(lws_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, lws[0]);
+    EnqueueReadBuffer(dim_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 1);
+}
+
+// Test that literal sampler information is propagated correctly when linking.
+TEST_F(WithCommandQueue, CompileAndLinkWithLiteralSamplers) {
+    // Read just past the end of a 1D image with two different samplers.
+    static const char* source = R"(
+        static constant sampler_t sampler_clamp = CLK_ADDRESS_CLAMP_TO_EDGE |
+                                                  CLK_NORMALIZED_COORDS_TRUE |
+                                                  CLK_FILTER_NEAREST;
+        static constant sampler_t sampler_repeat = CLK_ADDRESS_REPEAT |
+                                                   CLK_NORMALIZED_COORDS_TRUE |
+                                                   CLK_FILTER_NEAREST;
+        kernel void test(read_only image1d_t input,
+                         global uint *output_clamp,
+                         global uint *output_repeat) {
+          *output_clamp = read_imageui(input, sampler_clamp, 1.f).x;
+          *output_repeat = read_imageui(input, sampler_repeat, 1.f).x;
+        }
+    )";
+
+    auto program = CreateProgram(source);
+
+    CompileProgram(program);
+
+    cl_program program_list = program;
+    auto linked_program = LinkProgram(1, &program_list);
+
+    // Create a 1D input image.
+    size_t IMAGE_WIDTH = 4;
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D, // image_type
+        IMAGE_WIDTH,           // image_width
+        1,                     // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+    auto input = CreateImage(CL_MEM_READ_ONLY, &format, &desc);
+
+    // Set the input image values.
+    cl_uchar value_start = 7;
+    cl_uchar value_end = 42;
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    size_t row_pitch = IMAGE_WIDTH;
+    auto data = EnqueueMapImage<cl_uchar>(input, CL_BLOCKING,
+                                          CL_MAP_WRITE_INVALIDATE_REGION,
+                                          origin, region, &row_pitch, nullptr);
+    memset(data, 0xFF, IMAGE_WIDTH);
+    data[0] = value_start;
+    data[IMAGE_WIDTH - 1] = value_end;
+    EnqueueUnmapMemObject(input, data);
+
+    auto clamp_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+    auto repeat_output = CreateBuffer(CL_MEM_READ_WRITE, sizeof(cl_uint));
+
+    auto kernel = CreateKernel(linked_program, "test");
+    SetKernelArg(kernel, 0, input);
+    SetKernelArg(kernel, 1, clamp_output);
+    SetKernelArg(kernel, 2, repeat_output);
+    size_t gws[3] = {32, 1, 1};
+    size_t lws[3] = {8, 1, 1};
+    EnqueueNDRangeKernel(kernel, 1, nullptr, gws, lws);
+    Finish();
+
+    // Check results.
+    cl_uint result = -1;
+    EnqueueReadBuffer(clamp_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, value_end);
+    EnqueueReadBuffer(repeat_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, value_start);
+}

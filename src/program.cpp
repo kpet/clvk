@@ -314,9 +314,14 @@ spv_result_t parse_reflection(void* user_data,
                                                      addressing, filter});
                 break;
             }
-            case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize:
-                // TODO: parse this.
+            case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize: {
+                auto kernel = helper->strings[inst->words[5]];
+                auto x = helper->constants[inst->words[6]];
+                auto y = helper->constants[inst->words[7]];
+                auto z = helper->constants[inst->words[8]];
+                helper->binary->set_required_work_group_size(kernel, x, y, z);
                 break;
+            }
             default:
                 break;
             }
@@ -486,7 +491,9 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
     spvtools::Optimizer opt(m_target_env);
     opt.SetMessageConsumer(consumer);
     opt.RegisterPass(spvtools::CreateStripReflectInfoPass());
-    if (!opt.Run(m_code.data(), m_code.size(), stripped)) {
+    spvtools::OptimizerOptions options;
+    options.set_run_validator(false);
+    if (!opt.Run(m_code.data(), m_code.size(), stripped, options)) {
         return false;
     }
     return true;
@@ -507,13 +514,6 @@ bool spir_binary::load_descriptor_map() {
     }
 
     return true;
-}
-
-void spir_binary::insert_descriptor_map(const spir_binary& other) {
-    for (auto& args : other.kernels_arguments()) {
-        m_dmaps[args.first] = args.second;
-    }
-    m_dmaps_text += other.m_dmaps_text;
 }
 
 bool spir_binary::get_capabilities(
@@ -889,9 +889,10 @@ cl_build_status cvk_program::link() {
 
     m_binary.use(std::move(linked_opt));
 
-    // Merge descriptor maps
-    for (cl_uint i = 0; i < m_num_input_programs; i++) {
-        m_binary.insert_descriptor_map(m_input_programs[i]->m_binary);
+    // Load descriptor map
+    if (!m_binary.load_descriptor_map()) {
+        cvk_error("Could not load descriptor map for SPIR-V binary.");
+        return CL_BUILD_ERROR;
     }
 
     cvk_debug_fn("linked binary has %zu kernels",
@@ -954,12 +955,13 @@ void cvk_program::do_build() {
         if (!m_binary.loaded_from_binary()) {
             status = compile_source(device);
         }
-        prepare_push_constant_range();
         break;
     case build_operation::link:
         status = link();
         break;
     }
+
+    prepare_push_constant_range();
 
     if ((m_operation == build_operation::compile) ||
         (status != CL_BUILD_SUCCESS)) {
@@ -967,13 +969,22 @@ void cvk_program::do_build() {
         return;
     }
 
-    // Validate
-    // TODO validate with different rules depending on the binary type
-    if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !m_binary.validate()) {
-        cvk_error("Could not validate SPIR-V binary.");
+    bool cache_hit =
+        device->get_pipeline_cache(m_binary.code(), m_pipeline_cache);
+    if (m_pipeline_cache == VK_NULL_HANDLE) {
         complete_operation(device, CL_BUILD_ERROR);
         return;
+    }
+
+    if (!cache_hit) {
+        // Validate
+        // TODO validate with different rules depending on the binary type
+        if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
+            !m_binary.validate()) {
+            cvk_error("Could not validate SPIR-V binary.");
+            complete_operation(device, CL_BUILD_ERROR);
+            return;
+        }
     }
 
     // Check capabilities against the device.
@@ -1105,7 +1116,7 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_pipeline_cache(VK_NULL_HANDLE) {}
+      m_pipeline_layout(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -1390,22 +1401,6 @@ cl_int cvk_entry_point::init() {
         }
     }
 
-    // Create pipeline cache
-    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
-        nullptr, // pNext
-        0,       // flags
-        0,       // initialDataSize
-        nullptr, // pInitialData
-    };
-
-    res = vkCreatePipelineCache(m_device, &pipelineCacheCreateInfo, nullptr,
-                                &m_pipeline_cache);
-    if (res != VK_SUCCESS) {
-        cvk_error("Could not create pipeline cache.");
-        return CL_OUT_OF_RESOURCES;
-    }
-
     return CL_SUCCESS;
 }
 
@@ -1457,8 +1452,9 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     };
 
     VkPipeline pipeline;
-    VkResult res = vkCreateComputePipelines(m_device, m_pipeline_cache, 1,
-                                            &createInfo, nullptr, &pipeline);
+    VkResult res =
+        vkCreateComputePipelines(m_device, m_program->pipeline_cache(), 1,
+                                 &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create compute pipeline: %s",
