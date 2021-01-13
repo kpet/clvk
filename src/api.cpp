@@ -2823,15 +2823,7 @@ cl_int CLVK_API_CALL clFinish(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    cvk_event* event = nullptr;
-    cl_int status = icd_downcast(command_queue)->flush(&event);
-
-    if ((status == CL_SUCCESS) && (event != nullptr)) {
-        event->wait();
-        event->release();
-    }
-
-    return status;
+    return icd_downcast(command_queue)->finish();
 }
 
 /* Enqueued Commands APIs */
