@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cmath>
+
 #include "memory.hpp"
 
 bool cvk_mem::map() {
@@ -431,24 +433,36 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     size_t size = element_size();
     *size_ret = size;
 
-    cl_uchar pat_unorm_int8[4] = {static_cast<cl_uchar>(pat_float[0] * 255.0f),
-                                  static_cast<cl_uchar>(pat_float[1] * 255.0f),
-                                  static_cast<cl_uchar>(pat_float[2] * 255.0f),
-                                  static_cast<cl_uchar>(pat_float[3] * 255.0f)};
-    cl_uchar pat_snorm_int8[4] = {static_cast<cl_uchar>(pat_float[0] * 127.0f),
-                                  static_cast<cl_uchar>(pat_float[1] * 127.0f),
-                                  static_cast<cl_uchar>(pat_float[2] * 127.0f),
-                                  static_cast<cl_uchar>(pat_float[3] * 127.0f)};
+    auto saturate = [](float x, float min, float max) {
+        if (std::isnan(x)) {
+            return 0.f;
+        } else if (x < min) {
+            return min;
+        } else if (x > max) {
+            return max;
+        }
+        return x;
+    };
+    cl_uchar pat_unorm_int8[4] = {
+        static_cast<cl_uchar>(saturate(pat_float[0], 0.f, 1.f) * 255.0f),
+        static_cast<cl_uchar>(saturate(pat_float[1], 0.f, 1.f) * 255.0f),
+        static_cast<cl_uchar>(saturate(pat_float[2], 0.f, 1.f) * 255.0f),
+        static_cast<cl_uchar>(saturate(pat_float[3], 0.f, 1.f) * 255.0f)};
+    cl_char pat_snorm_int8[4] = {
+        static_cast<cl_char>(saturate(pat_float[0], -1.f, 1.f) * 127.0f),
+        static_cast<cl_char>(saturate(pat_float[1], -1.f, 1.f) * 127.0f),
+        static_cast<cl_char>(saturate(pat_float[2], -1.f, 1.f) * 127.0f),
+        static_cast<cl_char>(saturate(pat_float[3], -1.f, 1.f) * 127.0f)};
     cl_ushort pat_unorm_int16[4] = {
-        static_cast<cl_ushort>(pat_float[0] * 65535.0f),
-        static_cast<cl_ushort>(pat_float[1] * 65535.0f),
-        static_cast<cl_ushort>(pat_float[2] * 65535.0f),
-        static_cast<cl_ushort>(pat_float[3] * 65535.0f)};
-    cl_ushort pat_snorm_int16[4] = {
-        static_cast<cl_ushort>(pat_float[0] * 32767.0f),
-        static_cast<cl_ushort>(pat_float[1] * 32767.0f),
-        static_cast<cl_ushort>(pat_float[2] * 32767.0f),
-        static_cast<cl_ushort>(pat_float[3] * 32767.0f)};
+        static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 65535.0f),
+        static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 65535.0f),
+        static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 65535.0f),
+        static_cast<cl_ushort>(saturate(pat_float[3], 0.f, 1.f) * 65535.0f)};
+    cl_short pat_snorm_int16[4] = {
+        static_cast<cl_short>(saturate(pat_float[0], -1.f, 1.f) * 32767.0f),
+        static_cast<cl_short>(saturate(pat_float[1], -1.f, 1.f) * 32767.0f),
+        static_cast<cl_short>(saturate(pat_float[2], -1.f, 1.f) * 32767.0f),
+        static_cast<cl_short>(saturate(pat_float[3], -1.f, 1.f) * 32767.0f)};
 
     const void* cast_pattern = nullptr;
     switch (format().image_channel_data_type) {
