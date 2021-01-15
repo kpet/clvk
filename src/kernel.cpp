@@ -41,9 +41,7 @@ cl_int cvk_kernel::init() {
     m_args = m_entry_point->args();
 
     // Mark all arguments as unset
-    for (auto& arg : m_args) {
-        m_unset_args.insert(arg.pos);
-    }
+    m_args_set.resize(m_args.size(), false);
 
     // Init argument values
     m_argument_values = cvk_kernel_argument_values::create(m_entry_point);
@@ -93,7 +91,7 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
 
     if (ret == CL_SUCCESS) {
         // Mark argument as set
-        m_unset_args.erase(index);
+        m_args_set[index] = true;
     }
 
     return ret;

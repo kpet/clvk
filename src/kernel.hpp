@@ -14,9 +14,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <limits>
 #include <unordered_map>
-#include <unordered_set>
+#include <vector>
 
 #include "memory.hpp"
 #include "objects.hpp"
@@ -75,7 +76,10 @@ struct cvk_kernel : public _cl_kernel, api_object {
         return m_program->required_work_group_size(m_name);
     }
 
-    bool args_valid() const { return m_unset_args.empty(); }
+    bool args_valid() const {
+        return std::all_of(m_args_set.begin(), m_args_set.end(),
+                           [](bool b) { return b; });
+    }
 
 private:
     friend cvk_kernel_argument_values;
@@ -86,7 +90,7 @@ private:
     std::string m_name;
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
-    std::unordered_set<cl_uint> m_unset_args;
+    std::vector<bool> m_args_set;
 };
 
 static inline cvk_kernel* icd_downcast(cl_kernel kernel) {
