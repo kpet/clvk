@@ -286,7 +286,7 @@ bool cvk_image::init() {
         view_type = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
         m_extent.height = 1;
         m_extent.depth = 1;
-        host_ptr_size = slice_pitch * array_layers;
+        host_ptr_size = row_pitch * array_layers;
         break;
     case CL_MEM_OBJECT_IMAGE2D:
         image_type = VK_IMAGE_TYPE_2D;
