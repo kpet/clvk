@@ -56,7 +56,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS_SWIFTSHADER(SimpleImage)) {
         0,                     // num_samples
         nullptr,               // buffer
     };
-    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     // Create the sampler
     auto sampler = CreateSampler(CL_FALSE, CL_ADDRESS_CLAMP, CL_FILTER_NEAREST);

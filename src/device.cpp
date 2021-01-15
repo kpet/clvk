@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fstream>
+
 #include "device.hpp"
 #include "init.hpp"
 #include "log.hpp"
@@ -371,6 +373,15 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
     }
 
+    // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
+    if ((is_vulkan_extension_enabled(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) &&
+         m_features_16bit_storage.storageBuffer16BitAccess) &&
+        (is_vulkan_extension_enabled(
+             VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) &&
+         m_features_float16_int8.shaderFloat16)) {
+        m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
@@ -513,6 +524,131 @@ bool cvk_device::init_time_management(VkInstance instance) {
     }
 
     return true;
+}
+
+// Returns the pipeline cache file path for a given SPIR-V SHA-1 hash.
+// If pipeline cache serialization is not enabled, an empty string is returned.
+std::string
+cvk_device::get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const {
+    const char* cache_dir = getenv("CLVK_CACHE_DIR");
+    if (cache_dir == nullptr) {
+        return "";
+    }
+
+    // The pipeline cache file path is:
+    // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.<SHA1>.bin
+    std::string cache_path = cache_dir;
+    cache_path += "/";
+    cache_path += "clvk-pipeline-cache.";
+    cache_path += to_hex_string(m_properties.pipelineCacheUUID, VK_UUID_SIZE);
+    cache_path += ".";
+    cache_path += to_hex_string(reinterpret_cast<const uint8_t*>(sha1.data()),
+                                SHA1_DIGEST_NUM_BYTES);
+    cache_path += ".bin";
+    return cache_path;
+}
+
+bool cvk_device::get_pipeline_cache(const std::vector<uint32_t>& spirv,
+                                    VkPipelineCache& pipeline_cache) {
+
+    std::lock_guard<std::mutex> lock(m_pipeline_cache_mutex);
+
+    pipeline_cache = VK_NULL_HANDLE;
+
+    // Compute SHA-1 hash of the SPIR-V binary
+    cvk_sha1_hash sha1 =
+        cvk_sha1(spirv.data(), spirv.size() * sizeof(uint32_t));
+
+    // Check the in-memory cache of pipeline caches
+    if (m_pipeline_caches.count(sha1)) {
+        pipeline_cache = m_pipeline_caches.at(sha1);
+        return true;
+    }
+
+    std::vector<char> cache_data;
+
+    // Load pipeline cache data from file if this is enabled
+    std::string cache_path = get_pipeline_cache_filename(sha1);
+    if (!cache_path.empty()) {
+        cvk_info("Looking for pipeline cache at %s", cache_path.c_str());
+        std::ifstream cache_file(cache_path, std::ios::in | std::ios::binary);
+        if (cache_file.is_open()) {
+            // Get the size of the pipeline cache file
+            cache_file.seekg(0, std::ios::end);
+            uint32_t size = cache_file.tellg();
+            cache_file.seekg(0, std::ios::beg);
+
+            // Load the pipeline cache data into memory
+            cache_data.resize(size);
+            cache_file.read(cache_data.data(), size);
+            if (!cache_file.good()) {
+                cvk_warn("Failed to read pipeline cache data");
+                cache_data.clear();
+            }
+        } else {
+            cvk_warn("Failed to open pipeline cache file");
+        }
+    }
+
+    // Create pipeline cache
+    VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        nullptr,           // pNext
+        0,                 // flags
+        cache_data.size(), // initialDataSize
+        cache_data.data(), // pInitialData
+    };
+
+    VkResult res = vkCreatePipelineCache(m_dev, &pipelineCacheCreateInfo,
+                                         nullptr, &pipeline_cache);
+    if (res != VK_SUCCESS) {
+        cvk_error("Could not create pipeline cache.");
+        return false;
+    }
+
+    // Add pipeline cache to the in-memory cache
+    m_pipeline_caches[sha1] = pipeline_cache;
+
+    return cache_data.size() != 0;
+}
+
+void cvk_device::save_pipeline_cache(
+    const cvk_sha1_hash& sha1, const VkPipelineCache& pipeline_cache) const {
+    VkResult res;
+
+    std::string cache_path = get_pipeline_cache_filename(sha1);
+    if (cache_path.empty()) {
+        return;
+    }
+
+    // Retrieve the pipeline cache data from the Vulkan implementation
+    size_t size;
+    res = vkGetPipelineCacheData(m_dev, pipeline_cache, &size, nullptr);
+    if (res != VK_SUCCESS) {
+        cvk_error("Failed to retrieve pipeline cache size");
+        return;
+    }
+    std::vector<char> cache_data(size);
+    res =
+        vkGetPipelineCacheData(m_dev, pipeline_cache, &size, cache_data.data());
+    if (res != VK_SUCCESS) {
+        cvk_error("Failed to retrieve pipeline cache data");
+        return;
+    }
+
+    cvk_info("Writing %lu bytes of pipeline cache data to file", size);
+
+    // Write the pipeline cache data to file
+    std::ofstream cache_file(cache_path, std::ios::out | std::ios::binary);
+    if (!cache_file.is_open()) {
+        cvk_error("Failed to open pipeline cache file for writing: %s",
+                  cache_path.c_str());
+        return;
+    }
+    cache_file.write(cache_data.data(), size);
+    if (!cache_file.good()) {
+        cvk_error("Failed to write pipeline cache data");
+    }
 }
 
 void cvk_device::log_limits_and_memory_information() {

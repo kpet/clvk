@@ -15,7 +15,9 @@
 #pragma once
 
 #include <algorithm>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <spirv/1.0/spirv.hpp>
@@ -23,6 +25,7 @@
 
 #include "cl_headers.hpp"
 #include "icd.hpp"
+#include "sha1.hpp"
 #include "vkutils.hpp"
 
 struct cvk_vulkan_extension_functions {
@@ -49,7 +52,13 @@ struct cvk_device : public _cl_device_id {
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
                               VkPhysicalDevice pdev);
 
-    virtual ~cvk_device() { vkDestroyDevice(m_dev, nullptr); }
+    virtual ~cvk_device() {
+        for (auto entry : m_pipeline_caches) {
+            save_pipeline_cache(entry.first, entry.second);
+            vkDestroyPipelineCache(m_dev, entry.second, nullptr);
+        }
+        vkDestroyDevice(m_dev, nullptr);
+    }
 
     const VkPhysicalDeviceLimits& vulkan_limits() const {
         return m_properties.limits;
@@ -313,6 +322,12 @@ struct cvk_device : public _cl_device_id {
                          ext) != m_vulkan_device_extensions.end();
     }
 
+    // Get a previously created Vulkan pipeline cache for a given SPIR-V binary,
+    // or create a new one if necessary. Returns true if an existing pipeline
+    // cache was found and reused.
+    bool get_pipeline_cache(const std::vector<uint32_t>& spirv,
+                            VkPipelineCache& pipeline_cache);
+
     CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
 
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
@@ -421,6 +436,25 @@ private:
     cl_ulong m_num_compute_units;
 
     uint32_t m_driver_behaviors;
+
+    // Pipeline caching
+    std::string get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const;
+    void save_pipeline_cache(const cvk_sha1_hash& sha1,
+                             const VkPipelineCache& pipeline_cache) const;
+    struct sha1_hasher {
+        size_t operator()(const cvk_sha1_hash& sha1) const {
+            size_t result = 0;
+            for (unsigned i = 0; i < SHA1_DIGEST_NUM_WORDS; i++) {
+                // TODO: Better hash?
+                result *= 59;
+                result += sha1[i];
+            }
+            return result;
+        }
+    };
+    std::unordered_map<cvk_sha1_hash, VkPipelineCache, sha1_hasher>
+        m_pipeline_caches;
+    std::mutex m_pipeline_cache_mutex;
 
     bool m_has_timer_support;
 };

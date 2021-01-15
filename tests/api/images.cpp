@@ -91,7 +91,7 @@ TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap)) {
         0,                     // num_samples
         nullptr,               // buffer
     };
-    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     // Map it
     size_t origin[3] = {0, 0, 0};
@@ -185,7 +185,7 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage) {
         0,                     // num_samples
         nullptr,               // buffer
     };
-    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     // Init with pattern
     size_t origin[3] = {0, 0, 0};
@@ -257,7 +257,7 @@ TEST_F(WithCommandQueue,
         0,                     // num_samples
         nullptr,               // buffer
     };
-    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     // Init content
     size_t origin[3] = {0, 0, 0};

@@ -14,6 +14,7 @@
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sha1)
 
 option(CLVK_BUILD_CONFORMANCE_TESTS "Build OpenCL conformance tests")
 if (CLVK_BUILD_CONFORMANCE_TESTS)

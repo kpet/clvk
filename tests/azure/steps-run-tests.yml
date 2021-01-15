@@ -19,6 +19,8 @@ steps:
       displayName: Simple test
     - script: VK_ICD_FILENAMES=${{ parameters.icd_json_unix }} CLVK_LOG=2 ./build/api_tests
       displayName: API tests
+    - script: ./build/sha1_tests
+      displayName: SHA-1 tests
   - ${{ if eq(parameters.os, 'windows') }}:
     - script: |
         cp build/src/Release/OpenCL.dll build/Release
@@ -56,4 +58,10 @@ steps:
         api_tests.exe
         echo Done.
       displayName: API tests
+    - script: |
+        cd build/Release
+        echo Starting test
+        sha1_tests.exe
+        echo Done.
+      displayName: SHA-1 tests
 

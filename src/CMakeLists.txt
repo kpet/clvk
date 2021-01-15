@@ -46,6 +46,7 @@ add_library(OpenCL-objects OBJECT
   memory.cpp
   program.cpp
   queue.cpp
+  sha1.cpp
   utils.cpp
   exports.map
 )
