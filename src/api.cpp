@@ -75,6 +75,10 @@ bool is_same_context(cl_command_queue queue, cl_uint num_events,
     return true;
 }
 
+bool is_valid_device_type(cl_device_type type) {
+    return type <= CL_DEVICE_TYPE_CUSTOM || type == CL_DEVICE_TYPE_ALL;
+}
+
 bool map_flags_are_valid(cl_map_flags flags) {
     if ((flags & CL_MAP_WRITE_INVALIDATE_REGION) &&
         (flags & (CL_MAP_READ | CL_MAP_WRITE))) {
@@ -147,6 +151,10 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     api_query_string val_string;
     cl_ulong val_ulong;
 
+    if (!is_valid_platform(platform)) {
+        return CL_INVALID_PLATFORM;
+    }
+
     const cvk_platform* plat = state->platform();
     if (platform != nullptr) {
         plat = icd_downcast(platform);
@@ -200,6 +208,10 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     default:
         ret = CL_INVALID_VALUE;
         break;
+    }
+
+    if ((param_value != nullptr) && (param_value_size < size_ret)) {
+        ret = CL_INVALID_VALUE;
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
@@ -271,6 +283,10 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
 
     if ((num_devices == nullptr) && (devices == nullptr)) {
         return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_device_type(device_type)) {
+        return CL_INVALID_DEVICE_TYPE;
     }
 
     cl_uint num = 0;
@@ -781,6 +797,26 @@ cl_int CLVK_API_CALL clCreateSubDevices(
                  in_device, properties, num_devices, out_devices,
                  num_devices_ret);
 
+    // TODO CL_INVALID_DEVICE if in_device is not valid.
+    // TODO CL_INVALID_VALUE if values specified in properties are not valid or
+    // if values specified in properties are valid but not supported by the
+    // device.
+    // TODO CL_INVALID_VALUE if out_devices is not NULL and num_devices is less
+    // than the number of sub-devices created by the partition scheme.
+    // TODO CL_DEVICE_PARTITION_FAILED if the partition name is supported by the
+    // implementation but in_device could not be further partitioned.
+    // TODO CL_INVALID_DEVICE_PARTITION_COUNT if the partition name specified in
+    // properties is CL_DEVICE_PARTITION_BY_COUNTS and the number of sub-devices
+    // requested exceeds CL_DEVICE_PARTITION_MAX_SUB_DEVICES or the total number
+    // of compute units requested exceeds CL_DEVICE_PARTITION_MAX_COMPUTE_UNITS
+    // for in_device, or the number of compute units requested for one or more
+    // sub-devices is less than zero or the number of sub-devices requested
+    // exceeds CL_DEVICE_PARTITION_MAX_COMPUTE_UNITS for in_device.
+    // TODO CL_OUT_OF_RESOURCES if there is a failure to allocate resources
+    // required by the OpenCL implementation on the device.
+    // TODO CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources
+    // required by the OpenCL implementation on the host.
+
     return CL_INVALID_OPERATION;
 }
 
@@ -814,6 +850,14 @@ cl_context CLVK_API_CALL clCreateContext(
                  "= %p, user_data = %p, errcode_ret = %p",
                  properties, num_devices, devices, pfn_notify, user_data,
                  errcode_ret);
+
+    if ((devices == nullptr) || (num_devices == 0) ||
+        ((pfn_notify == nullptr) && (user_data != nullptr))) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
 
     if (num_devices > 1) {
         cvk_error("Only one device per context is supported.");
@@ -2362,7 +2406,9 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         ret = CL_INVALID_VALUE;
     }
 
-    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+    if ((param_value != nullptr) && (ret_size > param_value_size)) {
+        ret = CL_INVALID_VALUE;
+    } else if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
     }
 
@@ -3092,7 +3138,13 @@ cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    // TODO validate the contexts
+    if (!is_same_context(cq, srcbuf) || !is_same_context(cq, dstbuf)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_same_context(cq, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
 
     if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
         return CL_INVALID_MEM_OBJECT;
