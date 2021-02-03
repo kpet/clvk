@@ -115,6 +115,9 @@ void cvk_device::init_opencl_properties() {
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
+    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 615")) {
+        m_global_mem_cache_size = 65536;
+        m_num_compute_units = 1;
     } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 620")) {
         m_global_mem_cache_size = 65536;
         m_num_compute_units = 1;
