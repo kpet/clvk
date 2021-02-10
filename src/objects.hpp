@@ -30,6 +30,7 @@
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
+#include "icd.hpp"
 #include "log.hpp"
 
 enum class object_magic : uint32_t
