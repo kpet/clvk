@@ -125,7 +125,7 @@ struct cvk_command_queue : public _cl_command_queue,
                       cl_command_queue_properties props,
                       std::vector<cl_queue_properties>&& properties_array);
 
-    cl_int init();
+    CHECK_RETURN cl_int init();
 
     virtual ~cvk_command_queue();
 
