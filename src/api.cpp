@@ -21,6 +21,7 @@
 #include "objects.hpp"
 #include "program.hpp"
 #include "queue.hpp"
+#include "semaphore.hpp"
 #include "tracing.hpp"
 
 #define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
@@ -74,6 +75,10 @@ bool is_valid_event(cl_event event) {
     return event != nullptr && icd_downcast(event)->is_valid();
 }
 
+bool is_valid_semaphore(cl_semaphore_khr sem) {
+    return sem != nullptr && icd_downcast(sem)->is_valid();
+}
+
 bool is_valid_event_wait_list(cl_uint num_events_in_wait_list,
                               const cl_event* event_wait_list) {
 
@@ -104,6 +109,18 @@ bool is_same_context(cl_command_queue queue, cl_uint num_events,
     for (cl_uint i = 0; i < num_events; i++) {
         if (icd_downcast(queue)->context() !=
             icd_downcast(event_list[i])->context()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool is_same_context(cl_command_queue queue, cl_uint num_semas,
+                     const cl_semaphore_khr* semas) {
+    for (cl_uint i = 0; i < num_semas; i++) {
+        if (icd_downcast(queue)->context() !=
+            icd_downcast(semas[i])->context()) {
             return false;
         }
     }
@@ -284,6 +301,12 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clGetKernelSuggestedLocalWorkSizeKHR),
     {"clGetKernelSubGroupInfoKHR", FUNC_PTR(clGetKernelSubGroupInfo)},
+    EXTENSION_ENTRYPOINT(clCreateSemaphoreWithPropertiesKHR),
+    EXTENSION_ENTRYPOINT(clEnqueueWaitSemaphoresKHR),
+    EXTENSION_ENTRYPOINT(clEnqueueSignalSemaphoresKHR),
+    EXTENSION_ENTRYPOINT(clGetSemaphoreInfoKHR),
+    EXTENSION_ENTRYPOINT(clRetainSemaphoreKHR),
+    EXTENSION_ENTRYPOINT(clReleaseSemaphoreKHR),
 #undef EXTENSION_ENTRYPOINT
 #undef FUNC_PTR
 };
@@ -5705,6 +5728,325 @@ cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
     *host_timestamp = host;
 
     return err;
+}
+
+// cl_khr_semaphore
+cl_semaphore_khr cvk_create_semaphore_with_properties_khr(
+    cl_context context, const cl_semaphore_properties_khr* sema_props,
+    cl_int* errcode_ret) {
+
+    if (!is_valid_context(context)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    if ((sema_props == nullptr)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    cl_semaphore_type_khr type = 0;
+    std::vector<cl_semaphore_properties_khr> properties;
+    std::vector<cl_device_id> devices;
+
+    if (sema_props) {
+        bool has_type = false;
+        while (*sema_props) {
+            auto key = *sema_props;
+            auto value = *(sema_props + 1);
+
+            if (key == CL_SEMAPHORE_TYPE_KHR) {
+                properties.push_back(key);
+                properties.push_back(value);
+                type = value;
+                sema_props += 2;
+                has_type = true;
+            } else if (key == CL_DEVICE_HANDLE_LIST_KHR) {
+                properties.push_back(key);
+                sema_props++;
+                while (*sema_props != CL_DEVICE_HANDLE_LIST_END_KHR) {
+                    auto devapi = reinterpret_cast<cl_device_id>(*sema_props);
+                    if (!is_valid_device(devapi)) {
+                        *errcode_ret = CL_INVALID_DEVICE;
+                        return nullptr;
+                    }
+                    auto dev = static_cast<cvk_device*>(devapi);
+                    if (!icd_downcast(context)->has_device(dev)) {
+                        *errcode_ret = CL_INVALID_DEVICE;
+                        return nullptr;
+                    }
+                    devices.push_back(devapi);
+                    properties.push_back(*sema_props);
+                    sema_props++;
+                }
+                properties.push_back(*sema_props);
+                sema_props++;
+            } else {
+                *errcode_ret = CL_INVALID_PROPERTY;
+                return nullptr;
+            }
+        }
+
+        if (!has_type) {
+            *errcode_ret = CL_INVALID_VALUE;
+            return nullptr;
+        }
+
+        properties.push_back(0);
+    }
+
+    if (type == 0) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    auto sem = std::make_unique<cvk_semaphore>(
+        icd_downcast(context), type, std::move(devices), std::move(properties));
+
+    auto err = sem->init();
+    if (err != CL_SUCCESS) {
+        *errcode_ret = err;
+        return nullptr;
+    }
+
+    *errcode_ret = CL_SUCCESS;
+
+    return sem.release();
+}
+
+cl_semaphore_khr clCreateSemaphoreWithPropertiesKHR(
+    cl_context context, const cl_semaphore_properties_khr* sema_props,
+    cl_int* errcode_ret) {
+
+    TRACE_FUNCTION("context", (uintptr_t)context);
+    LOG_API_CALL("context = %p, sema_props = %p, errcode_ret = %p", context,
+                 sema_props, errcode_ret);
+
+    cl_int err;
+    auto sem =
+        cvk_create_semaphore_with_properties_khr(context, sema_props, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return sem;
+}
+
+cl_int
+clEnqueueWaitSemaphoresKHR(cl_command_queue command_queue,
+                           cl_uint num_sema_objects,
+                           const cl_semaphore_khr* sema_objects,
+                           const cl_semaphore_payload_khr* sema_payload_list,
+                           cl_uint num_events_in_wait_list,
+                           const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
+    LOG_API_CALL("command_queue = %p, num_sema_objects = %u, sema_objects = "
+                 "%p, sema_payload_list = %p, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, num_sema_objects, sema_objects,
+                 sema_payload_list, num_events_in_wait_list, event_wait_list,
+                 event);
+
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (num_sema_objects == 0) {
+        return CL_INVALID_VALUE;
+    }
+
+    for (cl_uint i = 0; i < num_sema_objects; i++) {
+        if (!is_valid_semaphore(sema_objects[i])) {
+            return CL_INVALID_SEMAPHORE_KHR;
+        }
+        auto sem = icd_downcast(sema_objects[i]);
+        if (sem->requires_payload() && sema_payload_list == nullptr) {
+            return CL_INVALID_VALUE;
+        }
+        auto queue = icd_downcast(command_queue);
+        if (!sem->can_be_used_with_device(queue->device())) {
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+    }
+
+    if (!is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_same_context(command_queue, num_sema_objects, sema_objects)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    for (cl_uint i = 0; i < num_events_in_wait_list; i++) {
+        if (icd_downcast(event_wait_list[i])->terminated()) {
+            return CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
+        }
+    }
+
+    return CL_INVALID_OPERATION;
+}
+
+cl_int
+clEnqueueSignalSemaphoresKHR(cl_command_queue command_queue,
+                             cl_uint num_sema_objects,
+                             const cl_semaphore_khr* sema_objects,
+                             const cl_semaphore_payload_khr* sema_payload_list,
+                             cl_uint num_events_in_wait_list,
+                             const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
+    LOG_API_CALL("command_queue = %p, num_sema_objects = %u, sema_objects = "
+                 "%p, sema_payload_list = %p, num_events_in_wait_list = %u, "
+                 "event_wait_list = %p, event = %p",
+                 command_queue, num_sema_objects, sema_objects,
+                 sema_payload_list, num_events_in_wait_list, event_wait_list,
+                 event);
+
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (num_sema_objects == 0) {
+        return CL_INVALID_VALUE;
+    }
+
+    for (cl_uint i = 0; i < num_sema_objects; i++) {
+        if (!is_valid_semaphore(sema_objects[i])) {
+            return CL_INVALID_SEMAPHORE_KHR;
+        }
+        auto sem = icd_downcast(sema_objects[i]);
+        if (sem->requires_payload() && sema_payload_list == nullptr) {
+            return CL_INVALID_VALUE;
+        }
+        auto queue = icd_downcast(command_queue);
+        if (!sem->can_be_used_with_device(queue->device())) {
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+    }
+
+    if (!is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_same_context(command_queue, num_sema_objects, sema_objects)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    for (cl_uint i = 0; i < num_events_in_wait_list; i++) {
+        if (icd_downcast(event_wait_list[i])->terminated()) {
+            return CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
+        }
+    }
+
+    return CL_INVALID_OPERATION;
+}
+
+cl_int clGetSemaphoreInfoKHR(const cl_semaphore_khr sema_object,
+                             cl_semaphore_info_khr param_name,
+                             size_t param_value_size, void* param_value,
+                             size_t* param_value_size_ret) {
+    TRACE_FUNCTION("sema_object", (uintptr_t)sema_object);
+    LOG_API_CALL("sema_object = %p, param_name = %x, param_value_size = %zu, "
+                 "param_value = %p, param_value_size_ret = %p",
+                 sema_object, param_name, param_value_size, param_value,
+                 param_value_size_ret);
+
+    cl_int ret = CL_SUCCESS;
+    size_t ret_size = 0;
+    const void* copy_ptr = nullptr;
+    cl_context val_context;
+    cl_uint val_uint;
+    cl_semaphore_type_khr val_semaphore_type;
+    cl_semaphore_payload_khr val_semaphore_payload;
+
+    auto sem = icd_downcast(sema_object);
+
+    if (!is_valid_semaphore(sem)) {
+        return CL_INVALID_SEMAPHORE_KHR;
+    }
+
+    switch (param_name) {
+    case CL_SEMAPHORE_CONTEXT_KHR:
+        val_context = sem->context();
+        copy_ptr = &val_context;
+        ret_size = sizeof(val_context);
+        break;
+    case CL_SEMAPHORE_REFERENCE_COUNT_KHR:
+        val_uint = sem->refcount();
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_SEMAPHORE_TYPE_KHR:
+        val_semaphore_type = sem->type();
+        copy_ptr = &val_semaphore_type;
+        ret_size = sizeof(val_semaphore_type);
+        break;
+    case CL_SEMAPHORE_PAYLOAD_KHR:
+        val_semaphore_payload = sem->payload();
+        copy_ptr = &val_semaphore_payload;
+        ret_size = sizeof(val_semaphore_payload);
+        break;
+    case CL_SEMAPHORE_PROPERTIES_KHR:
+        copy_ptr = sem->properties().data();
+        ret_size =
+            sem->properties().size() * sizeof(cl_semaphore_properties_khr);
+        break;
+    case CL_DEVICE_HANDLE_LIST_KHR:
+        copy_ptr = sem->devices().data();
+        ret_size = sem->devices().size() * sizeof(cl_device_id);
+        break;
+    default:
+        ret = CL_INVALID_VALUE;
+    }
+
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+        if (param_value_size < ret_size) {
+            ret = CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = ret_size;
+    }
+
+    return ret;
+}
+
+cl_int clReleaseSemaphoreKHR(cl_semaphore_khr sema_object) {
+    TRACE_FUNCTION("sema_object", (uintptr_t)sema_object);
+    LOG_API_CALL("sema_object = %p", sema_object);
+
+    if (!is_valid_semaphore(sema_object)) {
+        return CL_INVALID_SEMAPHORE_KHR;
+    }
+
+    icd_downcast(sema_object)->release();
+
+    return CL_SUCCESS;
+}
+
+cl_int clRetainSemaphoreKHR(cl_semaphore_khr sema_object) {
+    TRACE_FUNCTION("sema_object", (uintptr_t)sema_object);
+    LOG_API_CALL("sema_object = %p", sema_object);
+
+    if (!is_valid_semaphore(sema_object)) {
+        return CL_INVALID_SEMAPHORE_KHR;
+    }
+
+    icd_downcast(sema_object)->retain();
+
+    return CL_SUCCESS;
 }
 
 // clang-format off

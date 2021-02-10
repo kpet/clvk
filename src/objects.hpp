@@ -43,7 +43,8 @@ enum class object_magic : uint32_t
     program = 0x66778899U,
     kernel = 0x778899AAU,
     memory_object = 0x8899AABBU,
-    sampler = 0x99AABBCCU
+    sampler = 0x99AABBCCU,
+    semaphore = 0xAABBCCDDU,
 };
 
 template <object_magic magic> struct object_magic_header {
@@ -171,6 +172,9 @@ struct cvk_context : public _cl_context,
 
     cvk_device* device() const { return m_device; }
     unsigned num_devices() const { return 1u; }
+    bool has_device(const cvk_device* device) const {
+        return device == m_device;
+    }
 
     void add_destructor_callback(cvk_context_callback_pointer_type ptr,
                                  void* user_data) {

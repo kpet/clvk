@@ -386,6 +386,8 @@ const char* cl_command_type_to_string(cl_command_type type) {
         CASE(CL_COMMAND_MARKER);
         CASE(CL_COMMAND_ACQUIRE_GL_OBJECTS);
         CASE(CL_COMMAND_RELEASE_GL_OBJECTS);
+        CASE(CL_COMMAND_SEMAPHORE_WAIT_KHR);
+        CASE(CL_COMMAND_SEMAPHORE_SIGNAL_KHR);
         CASE(CLVK_COMMAND_BATCH);
         CASE(CLVK_COMMAND_IMAGE_INIT);
     default:
