@@ -2713,7 +2713,7 @@ cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kernel, cl_uint arg_indx,
                  kernel, arg_indx, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
-    return CL_INVALID_OPERATION;
+    return CL_KERNEL_ARG_INFO_NOT_AVAILABLE;
 }
 
 cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
