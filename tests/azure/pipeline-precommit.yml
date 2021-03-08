@@ -35,6 +35,7 @@ stages:
       os: windows
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
+      artifactName: Windows_Builtin_Compiler
   - template: job-precommit.yml
     parameters:
       namePrefix: Windows_2019_MSVC_2019_offline_clspv
@@ -42,6 +43,7 @@ stages:
       os: windows
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Release
+      artifactName: Windows_Separate_Compiler
   - template: job-precommit.yml
     parameters:
       namePrefix: Ubuntu_18_04_online_clspv
@@ -49,6 +51,7 @@ stages:
       os: linux
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
+      artifactName: Linux_Builtin_Compiler
   - template: job-precommit.yml
     parameters:
       namePrefix: Ubuntu_18_04_offline_clspv
@@ -56,6 +59,7 @@ stages:
       os: linux
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Release
+      artifactName: Linux_Separate_Compiler
   - template: job-precommit.yml
     parameters:
       namePrefix: macOS_X_Catalina_10_15_online_clspv
@@ -63,6 +67,7 @@ stages:
       os: osx
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
+      artifactName: macOS_Builtin_Compiler
   - template: job-precommit.yml
     parameters:
       namePrefix: macOS_X_Catalina_10_15_offline_clspv
@@ -70,4 +75,5 @@ stages:
       os: osx
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Debug
+      artifactName: macOS_Separate_Compiler_Debug
 

@@ -24,6 +24,8 @@ parameters:
     - name: 'useCCache'
       type: boolean
       default: true
+    - name: artifactName
+      type: string
 
 steps:
   - script: mkdir build
@@ -36,6 +38,7 @@ steps:
                   -DCLVK_VULKAN_IMPLEMENTATION=${{ parameters.vulkanImplementation }}
                   -DCLVK_VULKAN_LOADER_DIR=${{ parameters.vulkanLoaderDir }}
                   -DSPIRV_WERROR=OFF
+                  -DCMAKE_INSTALL_PREFIX=./install
                   ${{ parameters.cmakeFlags }} ..'
   - ${{ if eq(parameters.os, 'windows') }}:
     - task: MSBuild@1
@@ -53,4 +56,8 @@ steps:
         make -C build -j3
         which ccache && ccache --show-stats || echo "ccache not available"
       displayName: make
+  - script: cmake --install ./build
+    displayName: install
+  - publish: ./build/install
+    artifact: clvk-${{ parameters.artifactName }}
 

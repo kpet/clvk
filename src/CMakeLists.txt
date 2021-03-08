@@ -110,3 +110,8 @@ set_target_properties(OpenCL PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
 
+# Basic install rules
+install(TARGETS OpenCL DESTINATION .)
+if (NOT CLVK_CLSPV_ONLINE_COMPILER)
+  install(TARGETS clspv DESTINATION .)
+endif()

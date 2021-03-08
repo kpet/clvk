@@ -11,6 +11,8 @@ parameters:
     default: ''
   - name: buildType
     type: string
+  - name: artifactName
+    type: string
 
 jobs:
 - job: ${{ parameters.namePrefix }}_${{ parameters.buildType }}
@@ -36,6 +38,7 @@ jobs:
       os: ${{ parameters.os }}
       cmakeFlags: ${{ parameters.cmakeFlags }}
       buildType: ${{ parameters.buildType }}
+      artifactName: ${{ parameters.artifactName }}
       vulkanImplementation: swiftshader
   - template: steps-run-tests.yml
     parameters:
