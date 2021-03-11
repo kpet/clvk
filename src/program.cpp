@@ -664,9 +664,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         // FIXME The 1.2 conformance tests shouldn't pass this option.
         //       It doesn't exist after OpenCL 1.0.
         {"-cl-strict-aliasing", ""},
-        // Some applications pass this even when using uniform NDRanges
-        // Swallow the flag to enable these use cases
-        {"-cl-arm-non-uniform-work-group-size", ""},
         // clspv require entrypoint inlining for OpenCL 2.0
         {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
     };
