@@ -244,7 +244,7 @@ void cvk_executor_thread::executor() {
 
 cl_int cvk_command_queue::flush_no_lock() {
 
-    cvk_info_fn("queue = %p", this);
+    cvk_debug_fn("queue = %p", this);
 
     std::unique_ptr<cvk_command_group> group;
 

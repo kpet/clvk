@@ -89,7 +89,7 @@ struct cvk_device : public _cl_device_id,
 
     CHECK_RETURN uint32_t memory_type_index_for_resource(
         uint32_t valid_memory_type_bits, int num_supported,
-        uint32_t* supported_memory_types) const {
+        const VkMemoryPropertyFlags* supported_memory_types) const {
 
         for (int i = 0; i < num_supported; i++) {
             auto k = memory_type_index_for_resource(valid_memory_type_bits,
@@ -108,6 +108,19 @@ struct cvk_device : public _cl_device_id,
         uint32_t memory_type_index;
     };
 
+    static constexpr VkMemoryPropertyFlags image_supported_memory_types[] = {
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    };
+
+    static constexpr VkMemoryPropertyFlags buffer_supported_memory_types[] = {
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+    };
+
     CHECK_RETURN allocation_parameters select_memory_for(VkImage image) const {
         VkMemoryRequirements memreqs;
         vkGetImageMemoryRequirements(m_dev, image, &memreqs);
@@ -115,7 +128,8 @@ struct cvk_device : public _cl_device_id,
         allocation_parameters ret;
         ret.size = memreqs.size;
         ret.memory_type_index = memory_type_index_for_resource(
-            memreqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+            memreqs.memoryTypeBits, ARRAY_SIZE(image_supported_memory_types),
+            image_supported_memory_types);
 
         return ret;
     }
@@ -126,30 +140,36 @@ struct cvk_device : public _cl_device_id,
         VkMemoryRequirements memreqs;
         vkGetBufferMemoryRequirements(m_dev, buffer, &memreqs);
 
-        uint32_t supported_memory_types[] = {
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        };
-
         allocation_parameters ret;
         ret.size = memreqs.size;
         ret.memory_type_index = memory_type_index_for_resource(
-            memreqs.memoryTypeBits, ARRAY_SIZE(supported_memory_types),
-            supported_memory_types);
+            memreqs.memoryTypeBits, ARRAY_SIZE(buffer_supported_memory_types),
+            buffer_supported_memory_types);
 
         return ret;
     }
 
     uint64_t actual_memory_size() const {
-        // Be conservative for now and return the size of the smallest memory heap
+        // Return the size of the smallest memory heap that can be used to
+        // allocate images or buffers
         uint64_t size = UINT64_MAX;
-        for (uint32_t i = 0; i < m_mem_properties.memoryHeapCount; i++) {
-            size = std::min(size, m_mem_properties.memoryHeaps[i].size);
-        }
+        uint32_t type_index = VK_MAX_MEMORY_TYPES;
+        uint32_t heap_index = VK_MAX_MEMORY_HEAPS;
+
+        // buffers
+        type_index = memory_type_index_for_resource(
+            0xFFFFFFFFU, ARRAY_SIZE(buffer_supported_memory_types),
+            buffer_supported_memory_types);
+        heap_index = m_mem_properties.memoryTypes[type_index].heapIndex;
+        size = std::min(size, m_mem_properties.memoryHeaps[heap_index].size);
+
+        // images
+        type_index = memory_type_index_for_resource(
+            0xFFFFFFFFU, ARRAY_SIZE(image_supported_memory_types),
+            image_supported_memory_types);
+        heap_index = m_mem_properties.memoryTypes[type_index].heapIndex;
+        size = std::min(size, m_mem_properties.memoryHeaps[heap_index].size);
+
         return size;
     }
 
