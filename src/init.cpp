@@ -278,22 +278,8 @@ clvk_global_state::~clvk_global_state() {
     term_logging();
 }
 
-static clvk_global_state* gGlobalState;
-static std::once_flag gInitOnceFlag;
-
-static void destroy_global_state() { delete gGlobalState; }
-
-static void init_global_state() {
-    gGlobalState = new clvk_global_state();
-#ifndef WIN32
-    if (atexit(destroy_global_state) != 0) {
-        cvk_fatal(
-            "Could not register global state destructor using atexit()\n");
-    }
-#endif
-}
 
 clvk_global_state* get_or_init_global_state() {
-    std::call_once(gInitOnceFlag, init_global_state);
-    return gGlobalState;
+    static clvk_global_state state;
+    return &state;
 }
