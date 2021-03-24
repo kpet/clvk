@@ -369,6 +369,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_arm_non_uniform_work_group_size"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
