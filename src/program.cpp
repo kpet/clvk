@@ -764,6 +764,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         options += " -std430-ubo-layout ";
     }
     options += " -global-offset ";
+    options += " -long-vector ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER

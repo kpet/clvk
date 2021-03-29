@@ -604,7 +604,7 @@
       "integer_divideAssign": "pass",
       "integer_exclusiveOrAssign": "pass",
       "integer_hadd": "pass",
-      "integer_mad24": "fail",
+      "integer_mad24": "pass",
       "integer_mad_hi": "pass",
       "integer_mad_sat": "fail",
       "integer_max": "pass",
@@ -652,9 +652,9 @@
       "quick_ushort_logic": "pass",
       "quick_ushort_math": "pass",
       "quick_ushort_shift": "pass",
-      "unary_ops_decrement": "fail",
-      "unary_ops_full": "fail",
-      "unary_ops_increment": "fail"
+      "unary_ops_decrement": "pass",
+      "unary_ops_full": "pass",
+      "unary_ops_increment": "pass"
     },
     "retcode": 1
   },
