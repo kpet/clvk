@@ -188,6 +188,12 @@ variables. Here's a quick guide:
   `CL_PROFILING_COMMAND_{QUEUED,SUBMIT}` but this allows to get
   closer-to-the-execution timestamps.
 
+* `CLVK_SPIRV_VALIDATION` controls SPIR-V validation behaviour.
+
+   * 0: skip validation
+   * 1: warn when validation fails
+   * 2: fail compilation and report an error when validation fails (default)
+
 * `CLVK_SKIP_SPIRV_CAPABILITY_CHECK` to avoid checking whether the Vulkan device
   supports all of the SPIR-V capabilities declared by each SPIR-V module.
 

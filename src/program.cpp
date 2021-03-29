@@ -593,6 +593,44 @@ private:
     std::vector<std::string> m_paths;
 };
 
+enum class spirv_validation_level
+{
+    skip,
+    warn,
+    error,
+};
+
+bool validate_binary(spir_binary const& binary) {
+    auto level = spirv_validation_level::error; // default.
+    if (char* validate_env = getenv("CLVK_SPIRV_VALIDATION")) {
+        if (std::strcmp(validate_env, "0") == 0) {
+            level = spirv_validation_level::skip;
+        } else if (std::strcmp(validate_env, "1") == 0) {
+            level = spirv_validation_level::warn;
+        } else {
+            // "error" or invalid values, which we ignore.
+        }
+    }
+
+    if (level == spirv_validation_level::skip) {
+        cvk_info("Skipping validation of SPIR-V binary.");
+        return true;
+    }
+
+    if (binary.validate()) {
+        cvk_info("SPIR-V binary is valid.");
+        return true;
+    }
+
+    if (level == spirv_validation_level::warn) {
+        cvk_warn("SPIR-V binary is invalid.");
+        return true;
+    }
+
+    cvk_error("SPIR-V binary is invalid.");
+    return false;
+}
+
 } // namespace
 
 cl_build_status cvk_program::compile_source(const cvk_device* device) {
@@ -976,11 +1014,11 @@ void cvk_program::do_build() {
     if (!cache_hit) {
         // Validate
         // TODO validate with different rules depending on the binary type
-        if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-            !m_binary.validate()) {
-            cvk_error("Could not validate SPIR-V binary.");
-            complete_operation(device, CL_BUILD_ERROR);
-            return;
+        if (m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
+            if (!validate_binary(m_binary)) {
+                complete_operation(device, CL_BUILD_ERROR);
+                return;
+            }
         }
     }
 
