@@ -732,8 +732,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 
     // 8-bit storage capability restrictions.
-    const auto& features_8bit_storage =
-        m_context->device()->device_8bit_storage_features();
+    const auto& features_8bit_storage = device->device_8bit_storage_features();
     if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
         options += " -no-8bit-storage=ssbo ";
     }
@@ -746,7 +745,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // 16-bit storage capability restrictions.
     const auto& features_16bit_storage =
-        m_context->device()->device_16bit_storage_features();
+        device->device_16bit_storage_features();
     if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
         options += " -no-16bit-storage=ssbo ";
     }
@@ -755,6 +754,14 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
     if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
         options += " -no-16bit-storage=pushconstant ";
+    }
+
+    // Floating-point support
+    if (!device->supports_fp16()) {
+        options += " -fp16=0 ";
+    }
+    if (!device->supports_fp64()) {
+        options += " -fp64=0 ";
     }
 
     options += " -max-pushconstant-size=" +

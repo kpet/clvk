@@ -46,7 +46,7 @@ struct cvk_device : public _cl_device_id,
                     object_magic_header<object_magic::device> {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
-        : m_platform(platform), m_pdev(pd), m_has_timer_support(false) {
+        : m_platform(platform), m_pdev(pd) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
     }
@@ -185,6 +185,10 @@ struct cvk_device : public _cl_device_id,
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
+
+    bool supports_fp16() const { return m_has_fp16_support; }
+
+    bool supports_fp64() const { return m_has_fp64_support; }
 
     CHECK_RETURN const std::string& extension_string() const {
         return m_extension_string;
@@ -458,7 +462,9 @@ private:
         m_pipeline_caches;
     std::mutex m_pipeline_cache_mutex;
 
-    bool m_has_timer_support;
+    bool m_has_timer_support{};
+    bool m_has_fp16_support{};
+    bool m_has_fp64_support{};
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {

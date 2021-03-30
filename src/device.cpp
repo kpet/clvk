@@ -383,6 +383,7 @@ void cvk_device::build_extension_ils_list() {
         (is_vulkan_extension_enabled(
              VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) &&
          m_features_float16_int8.shaderFloat16)) {
+        m_has_fp16_support = true;
         m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
     }
 
