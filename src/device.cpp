@@ -462,12 +462,12 @@ bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
     CVK_VK_CHECK_ERROR_RET(res, false, "Failed to create a device");
 
     // Construct the queue wrappers now that our queues exist
+    m_vulkan_queues.reserve(num_queues);
     for (auto i = 0U; i < num_queues; i++) {
         VkQueue queue;
 
         vkGetDeviceQueue(m_dev, queue_family, i, &queue);
-        m_vulkan_queues.emplace_back(
-            cvk_vulkan_queue_wrapper(queue, queue_family));
+        m_vulkan_queues.emplace_back(queue, queue_family);
     }
 
     return true;
