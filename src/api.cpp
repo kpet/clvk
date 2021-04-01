@@ -4542,10 +4542,6 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
 
     auto cmd = std::make_unique<cvk_command_image_image_copy>(
         command_queue, src_img, dst_img, src_orig, dst_orig, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
@@ -4712,10 +4708,6 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
     auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
         CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, buffer, image,
         dst_offset, origin, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
@@ -4789,10 +4781,6 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
     auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
         CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue, buffer, image,
         src_offset, origin, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);

@@ -23,7 +23,7 @@
 
 struct cvk_command;
 struct cvk_command_queue;
-struct cvk_command_kernel_group;
+struct cvk_command_batch;
 using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 using cvk_event_callback_pointer_type = void(CL_CALLBACK*)(
@@ -289,7 +289,7 @@ struct cvk_command_queue : public _cl_command_queue,
 
 private:
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
-    CHECK_RETURN cl_int end_current_kernel_group();
+    CHECK_RETURN cl_int end_current_command_batch();
     void executor();
 
     cvk_device* m_device;
@@ -303,7 +303,7 @@ private:
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
 
     cl_uint m_max_batch_size;
-    cvk_command_kernel_group* m_kernel_group;
+    cvk_command_batch* m_command_batch;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
@@ -365,6 +365,33 @@ private:
     std::unordered_map<cvk_executor_thread*, executor_state> m_executors;
 };
 
+struct cvk_command_buffer {
+    cvk_command_buffer(cvk_command_queue* queue)
+        : m_queue(queue), m_command_buffer(VK_NULL_HANDLE) {}
+
+    ~cvk_command_buffer() {
+        if (m_command_buffer != VK_NULL_HANDLE) {
+            m_queue->free_command_buffer(m_command_buffer);
+        }
+    }
+
+    CHECK_RETURN bool begin();
+
+    CHECK_RETURN bool end() {
+        auto res = vkEndCommandBuffer(m_command_buffer);
+        m_queue->command_pool_unlock();
+        return res == VK_SUCCESS;
+    }
+
+    CHECK_RETURN bool submit_and_wait();
+
+    operator VkCommandBuffer() { return m_command_buffer; }
+
+protected:
+    cvk_command_queue_holder m_queue;
+    VkCommandBuffer m_command_buffer;
+};
+
 struct cvk_command {
 
     cvk_command(cl_command_type type, cvk_command_queue* queue)
@@ -389,6 +416,10 @@ struct cvk_command {
         CVK_ASSERT(m_event_deps.size() == 0);
         m_event_deps = deps;
     }
+
+    virtual bool can_be_batched() const { return false; }
+
+    virtual bool is_built_before_enqueue() const { return true; }
 
     CHECK_RETURN cl_int execute() {
 
@@ -588,53 +619,19 @@ private:
     size_t m_pattern_size;
 };
 
-struct cvk_command_buffer {
-    cvk_command_buffer(cvk_command_queue* queue)
-        : m_queue(queue), m_command_buffer(VK_NULL_HANDLE) {}
+struct cvk_command_batchable : public cvk_command {
+    cvk_command_batchable(cl_command_type type, cvk_command_queue* queue)
+        : cvk_command(type, queue), m_query_pool(VK_NULL_HANDLE) {}
 
-    ~cvk_command_buffer() {
-        if (m_command_buffer != VK_NULL_HANDLE) {
-            m_queue->free_command_buffer(m_command_buffer);
-        }
-    }
-
-    CHECK_RETURN bool begin();
-
-    CHECK_RETURN bool end() {
-        auto res = vkEndCommandBuffer(m_command_buffer);
-        m_queue->command_pool_unlock();
-        return res == VK_SUCCESS;
-    }
-
-    CHECK_RETURN bool submit_and_wait();
-
-    operator VkCommandBuffer() { return m_command_buffer; }
-
-protected:
-    cvk_command_queue_holder m_queue;
-    VkCommandBuffer m_command_buffer;
-};
-
-struct cvk_command_kernel : public cvk_command {
-
-    cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
-                       const std::array<uint32_t, 3>& global_offsets,
-                       const std::array<uint32_t, 3>& gws,
-                       const std::array<uint32_t, 3>& lws)
-        : cvk_command(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
-          m_lws(lws), m_pipeline(VK_NULL_HANDLE), m_query_pool(VK_NULL_HANDLE),
-          m_argument_values(nullptr) {}
-
-    ~cvk_command_kernel() {
+    ~cvk_command_batchable() {
         if (m_query_pool != VK_NULL_HANDLE) {
             auto vkdev = m_queue->device()->vulkan_device();
             vkDestroyQueryPool(vkdev, m_query_pool, nullptr);
         }
-        if (m_argument_values) {
-            m_argument_values->release_resources();
-        }
     }
+
+    bool can_be_batched() const override final;
+    bool is_built_before_enqueue() const override final { return false; }
 
     bool is_profiled_by_executor() const override final {
         return !m_queue->device()->has_timer_support() &&
@@ -645,8 +642,38 @@ struct cvk_command_kernel : public cvk_command {
                                                     cl_ulong* end);
 
     CHECK_RETURN cl_int build();
-    CHECK_RETURN cl_int build(cvk_command_buffer& command_buffer);
-    CHECK_RETURN cl_int do_action() override final;
+    CHECK_RETURN cl_int build(cvk_command_buffer& cmdbuf);
+    CHECK_RETURN virtual cl_int
+    build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
+    CHECK_RETURN cl_int do_action() override;
+
+private:
+    std::unique_ptr<cvk_command_buffer> m_command_buffer;
+    VkQueryPool m_query_pool;
+
+    static const int NUM_POOL_QUERIES_PER_COMMAND = 2;
+    static const int POOL_QUERY_CMD_START = 0;
+    static const int POOL_QUERY_CMD_END = 1;
+};
+
+struct cvk_command_kernel : public cvk_command_batchable {
+
+    cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
+                       const std::array<uint32_t, 3>& global_offsets,
+                       const std::array<uint32_t, 3>& gws,
+                       const std::array<uint32_t, 3>& lws)
+        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
+          m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
+          m_lws(lws), m_pipeline(VK_NULL_HANDLE), m_argument_values(nullptr) {}
+
+    ~cvk_command_kernel() {
+        if (m_argument_values) {
+            m_argument_values->release_resources();
+        }
+    }
+
+    CHECK_RETURN cl_int
+    build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
 
 private:
     struct cvk_ndrange {
@@ -666,23 +693,17 @@ private:
     std::array<uint32_t, 3> m_gws;
     std::array<uint32_t, 3> m_lws;
     VkPipeline m_pipeline;
-    VkQueryPool m_query_pool;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
-
-    std::unique_ptr<cvk_command_buffer> m_command_buffer;
-
-    static const int NUM_POOL_QUERIES_PER_KERNEL = 2;
-    static const int POOL_QUERY_KERNEL_START = 0;
-    static const int POOL_QUERY_KERNEL_END = 1;
 };
 
-struct cvk_command_kernel_group : public cvk_command {
-    cvk_command_kernel_group(cvk_command_queue* queue)
-        : cvk_command(CL_COMMAND_NDRANGE_KERNEL, queue) {}
-    ~cvk_command_kernel_group() {}
+#define CLVK_COMMAND_BATCH 0x5000
 
-    CHECK_RETURN cl_int do_action() override final;
-    cl_int add_kernel(cvk_command_kernel* cmd) {
+struct cvk_command_batch : public cvk_command {
+    cvk_command_batch(cvk_command_queue* queue)
+        : cvk_command(CLVK_COMMAND_BATCH, queue) {}
+
+    cl_int do_action() override final;
+    cl_int add_command(cvk_command_batchable* cmd) {
         if (!m_command_buffer) {
             // Create command buffer and start recording on first call
             // Command pool is locked on exit from cvk_command_buffer::begin()
@@ -694,7 +715,8 @@ struct cvk_command_kernel_group : public cvk_command {
             m_queue->command_pool_lock();
         }
 
-        m_kernel_commands.emplace_back(cmd);
+        cvk_debug_fn("add command %p to batch %p", cmd, this);
+        m_commands.emplace_back(cmd);
 
         cl_int ret = cmd->build(*m_command_buffer);
 
@@ -709,14 +731,14 @@ struct cvk_command_kernel_group : public cvk_command {
         return m_command_buffer->end();
     }
 
-    cl_uint batch_size() { return m_kernel_commands.size(); }
+    cl_uint batch_size() { return m_commands.size(); }
 
     bool is_profiled_by_executor() const override final { return false; }
 
 private:
     CHECK_RETURN cl_int submit_and_wait();
 
-    std::vector<std::unique_ptr<cvk_command_kernel>> m_kernel_commands;
+    std::vector<std::unique_ptr<cvk_command_batchable>> m_commands;
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
 };
 
@@ -754,23 +776,24 @@ struct cvk_command_dep : public cvk_command {
     CHECK_RETURN cl_int do_action() override final { return CL_COMPLETE; }
 };
 
-struct cvk_command_buffer_image_copy : public cvk_command {
+struct cvk_command_buffer_image_copy : public cvk_command_batchable {
     cvk_command_buffer_image_copy(cl_command_type type,
                                   cvk_command_queue* queue, cvk_buffer* buffer,
                                   cvk_image* image, size_t offset,
                                   const std::array<size_t, 3>& origin,
                                   const std::array<size_t, 3>& region)
-        : cvk_command(type, queue), m_command_buffer(queue), m_buffer(buffer),
-          m_image(image), m_offset(offset), m_origin(origin), m_region(region) {
-    }
+        : cvk_command_batchable(type, queue), m_buffer(buffer), m_image(image),
+          m_offset(offset), m_origin(origin), m_region(region) {}
 
-    void build_inner_image_to_buffer(const VkBufferImageCopy& region);
-    void build_inner_buffer_to_image(const VkBufferImageCopy& region);
-    CHECK_RETURN cl_int build();
-    CHECK_RETURN cl_int do_action() override final;
+    CHECK_RETURN cl_int
+    build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
 
 private:
-    cvk_command_buffer m_command_buffer;
+    void build_inner_image_to_buffer(cvk_command_buffer& cmdbuf,
+                                     const VkBufferImageCopy& region);
+    void build_inner_buffer_to_image(cvk_command_buffer& cmdbuf,
+                                     const VkBufferImageCopy& region);
+
     cvk_buffer_holder m_buffer;
     cvk_image_holder m_image;
     size_t m_offset;
@@ -866,19 +889,19 @@ private:
     cvk_command_buffer_image_copy m_cmd_copy;
 };
 
-struct cvk_command_image_image_copy : public cvk_command {
+struct cvk_command_image_image_copy : public cvk_command_batchable {
 
     cvk_command_image_image_copy(cvk_command_queue* queue, cvk_image* src_image,
                                  cvk_image* dst_image,
                                  const std::array<size_t, 3>& src_origin,
                                  const std::array<size_t, 3>& dst_origin,
                                  const std::array<size_t, 3>& region)
-        : cvk_command(CL_COMMAND_COPY_IMAGE, queue), m_src_image(src_image),
-          m_dst_image(dst_image), m_src_origin(src_origin),
-          m_dst_origin(dst_origin), m_region(region),
-          m_command_buffer(m_queue) {}
-    cl_int build();
-    CHECK_RETURN cl_int do_action() override final;
+        : cvk_command_batchable(CL_COMMAND_COPY_IMAGE, queue),
+          m_src_image(src_image), m_dst_image(dst_image),
+          m_src_origin(src_origin), m_dst_origin(dst_origin), m_region(region) {
+    }
+    CHECK_RETURN cl_int
+    build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
 
 private:
     cvk_image_holder m_src_image;
@@ -886,7 +909,6 @@ private:
     std::array<size_t, 3> m_src_origin;
     std::array<size_t, 3> m_dst_origin;
     std::array<size_t, 3> m_region;
-    cvk_command_buffer m_command_buffer;
 };
 
 struct cvk_command_fill_image : public cvk_command {
