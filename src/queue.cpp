@@ -29,7 +29,7 @@ cvk_command_queue::cvk_command_queue(
     std::vector<cl_queue_properties>&& properties_array)
     : api_object(ctx), m_device(device), m_properties(properties),
       m_properties_array(std::move(properties_array)), m_executor(nullptr),
-      m_kernel_group(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
+      m_command_batch(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device, m_vulkan_queue.queue_family()) {
 
     m_groups.push_back(std::make_unique<cvk_command_group>());
@@ -60,74 +60,41 @@ cvk_command_queue::~cvk_command_queue() {
     }
 }
 
-namespace {
-
-bool is_kernel_command(const cvk_command* cmd) {
-    return cmd->type() == CL_COMMAND_NDRANGE_KERNEL ||
-           cmd->type() == CL_COMMAND_TASK;
-}
-
-bool is_command_batchable(const cvk_command* cmd) {
-    bool batchable_type = is_kernel_command(cmd);
-    bool unresolved_user_event_dependencies = false;
-    bool unresolved_other_queue_dependencies = false;
-
-    for (auto ev : cmd->dependencies()) {
-        if (ev->is_user_event()) {
-            if (!ev->completed()) {
-                unresolved_user_event_dependencies = true;
-                break;
-            } else {
-                continue;
-            }
-        }
-
-        if ((ev->queue() != cmd->queue()) && !ev->completed()) {
-            unresolved_other_queue_dependencies = true;
-            break;
-        }
-    }
-
-    return batchable_type && !unresolved_user_event_dependencies &&
-           !unresolved_other_queue_dependencies;
-}
-
-} // namespace
-
 cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
     cl_int err;
 
-    if (is_command_batchable(cmd)) {
-        if (!m_kernel_group) {
-            // Create a new kernel batch
-            m_kernel_group = new cvk_command_kernel_group(this);
+    if (cmd->can_be_batched()) {
+        if (!m_command_batch) {
+            // Create a new command batch
+            m_command_batch = new cvk_command_batch(this);
         }
 
-        // Add kernel to current batch
-        CVK_ASSERT(is_kernel_command(cmd));
-        err = m_kernel_group->add_kernel(static_cast<cvk_command_kernel*>(cmd));
+        // Add command to current batch
+        err = m_command_batch->add_command(
+            static_cast<cvk_command_batchable*>(cmd));
         if (err != CL_SUCCESS) {
             return err;
         }
 
-        // End kernel batch when size limit reached
-        if (m_kernel_group->batch_size() >= m_max_batch_size) {
-            if ((err = end_current_kernel_group()) != CL_SUCCESS) {
+        // End command batch when size limit reached
+        if (m_command_batch->batch_size() >= m_max_batch_size) {
+            if ((err = end_current_command_batch()) != CL_SUCCESS) {
                 return err;
             }
         }
     } else {
-        // End the current kernel batch
-        if ((err = end_current_kernel_group()) != CL_SUCCESS) {
+        // End the current command batch
+        if ((err = end_current_command_batch()) != CL_SUCCESS) {
             return err;
         }
 
-        if (is_kernel_command(cmd)) {
-            // Build a non-batchable kernel command
-            err = static_cast<cvk_command_kernel*>(cmd)->build();
+        if (!cmd->is_built_before_enqueue()) {
+            // Build batchable command as non-batched (in its own command
+            // buffer)
+            err = static_cast<cvk_command_batchable*>(cmd)->build();
             if (err != CL_SUCCESS) {
                 return err;
             }
@@ -182,13 +149,13 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     return err;
 }
 
-cl_int cvk_command_queue::end_current_kernel_group() {
-    if (m_kernel_group) {
-        if (!m_kernel_group->end()) {
+cl_int cvk_command_queue::end_current_command_batch() {
+    if (m_command_batch) {
+        if (!m_command_batch->end()) {
             return CL_OUT_OF_RESOURCES;
         }
-        m_groups.back()->commands.push_back(m_kernel_group);
-        m_kernel_group = nullptr;
+        m_groups.back()->commands.push_back(m_command_batch);
+        m_command_batch = nullptr;
     }
     return CL_SUCCESS;
 }
@@ -275,28 +242,28 @@ void cvk_executor_thread::executor() {
     }
 }
 
-cl_int cvk_command_queue::flush(cvk_event** event) {
+cl_int cvk_command_queue::flush_no_lock() {
 
-    cvk_info_fn("queue = %p, event = %p", this, event);
+    cvk_info_fn("queue = %p", this);
 
-    // Get command group to the executor's queue
     std::unique_ptr<cvk_command_group> group;
-    {
-        std::lock_guard<std::mutex> lock(m_lock);
 
-        // End current kernel group
-        cl_int err = end_current_kernel_group();
-        if (err != CL_SUCCESS) {
-            return err;
-        }
-
-        if (m_groups.front()->commands.size() == 0) {
-            return CL_SUCCESS;
-        }
-        group = std::move(m_groups.front());
-        m_groups.pop_front();
-        m_groups.push_back(std::make_unique<cvk_command_group>());
+    // End current command batch
+    cl_int err = end_current_command_batch();
+    if (err != CL_SUCCESS) {
+        return err;
     }
+
+    // Early exit if there are no commands in the queue
+    if (m_groups.front()->commands.size() == 0) {
+        return CL_SUCCESS;
+    }
+
+    // Get the commands from the queue and prepare the queue to receive
+    // further commands
+    group = std::move(m_groups.front());
+    m_groups.pop_front();
+    m_groups.push_back(std::make_unique<cvk_command_group>());
 
     cvk_debug_fn("groups.size() = %zu", m_groups.size());
 
@@ -312,24 +279,35 @@ cl_int cvk_command_queue::flush(cvk_event** event) {
     }
 
     // Create execution thread if it doesn't exist
-    {
-        std::lock_guard<std::mutex> lock(m_lock);
-        if (m_executor == nullptr) {
-            m_executor = get_thread_pool()->get_executor(this);
-        }
+    if (m_executor == nullptr) {
+        m_executor = get_thread_pool()->get_executor(this);
     }
 
-    if (event != nullptr) {
-        auto ev = group->commands.back()->event();
-        ev->retain();
-        *event = ev;
-        cvk_debug_fn("returned event %p", *event);
-    }
+    auto ev = group->commands.back()->event();
+    m_finish_event.reset(ev);
+    cvk_debug_fn("stored event %p", ev);
 
     // Submit command group to executor
     m_executor->send_group(std::move(group));
 
     return CL_SUCCESS;
+}
+
+cl_int cvk_command_queue::flush() {
+    std::lock_guard<std::mutex> lock(m_lock);
+    return flush_no_lock();
+}
+
+cl_int cvk_command_queue::finish() {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    auto status = flush_no_lock();
+
+    if ((status == CL_SUCCESS) && (m_finish_event != nullptr)) {
+        m_finish_event->wait();
+    }
+
+    return status;
 }
 
 VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {
@@ -630,25 +608,8 @@ cl_int cvk_command_kernel::build_and_dispatch_regions(
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_kernel::build() {
-    m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
-    if (!m_command_buffer->begin()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    cl_int err = build(*m_command_buffer);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
-
-    if (!m_command_buffer->end()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    return CL_SUCCESS;
-}
-
-cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
+cl_int
+cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
     // TODO check against the size specified at compile time, if any
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
@@ -660,36 +621,6 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
     // Setup descriptors
     if (!m_argument_values->setup_descriptor_sets()) {
         return CL_OUT_OF_RESOURCES;
-    }
-
-    // Create query pool
-    VkQueryPoolCreateInfo query_pool_create_info = {
-        VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
-        nullptr,
-        0,                           // flags
-        VK_QUERY_TYPE_TIMESTAMP,     // queryType
-        NUM_POOL_QUERIES_PER_KERNEL, // queryCount
-        0,                           // pipelineStatistics
-    };
-
-    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
-    if (profiling && !is_profiled_by_executor()) {
-        auto vkdev = m_queue->device()->vulkan_device();
-        auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
-                                     &m_query_pool);
-        if (res != VK_SUCCESS) {
-            return CL_OUT_OF_RESOURCES;
-        }
-    }
-
-    // Sample timestamp if profiling
-    if (profiling && !is_profiled_by_executor()) {
-        vkCmdResetQueryPool(command_buffer, m_query_pool, 0,
-                            NUM_POOL_QUERIES_PER_KERNEL);
-        vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_KERNEL_START);
     }
 
     // Bind descriptors and update push constants
@@ -732,30 +663,111 @@ cl_int cvk_command_kernel::build(cvk_command_buffer& command_buffer) {
         0,        // imageMemoryBarrierCount
         nullptr); // pImageMemoryBarriers
 
-    // Sample timestamp if profiling
-    if (profiling && !is_profiled_by_executor()) {
-        vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_KERNEL_END);
+    return CL_SUCCESS;
+}
+
+bool cvk_command_batchable::can_be_batched() const {
+    bool unresolved_user_event_dependencies = false;
+    bool unresolved_other_queue_dependencies = false;
+
+    for (auto ev : dependencies()) {
+        if (ev->is_user_event()) {
+            if (!ev->completed()) {
+                unresolved_user_event_dependencies = true;
+                break;
+            } else {
+                continue;
+            }
+        }
+
+        if ((ev->queue() != queue()) && !ev->completed()) {
+            unresolved_other_queue_dependencies = true;
+            break;
+        }
+    }
+
+    return !unresolved_user_event_dependencies &&
+           !unresolved_other_queue_dependencies;
+}
+
+cl_int cvk_command_batchable::build() {
+    m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
+    if (!m_command_buffer->begin()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    cl_int err = build(*m_command_buffer);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    if (!m_command_buffer->end()) {
+        return CL_OUT_OF_RESOURCES;
     }
 
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_kernel::get_timestamp_query_results(cl_ulong* start,
-                                                       cl_ulong* end) {
-    uint64_t timestamps[NUM_POOL_QUERIES_PER_KERNEL];
+cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
+    // Create query pool
+    VkQueryPoolCreateInfo query_pool_create_info = {
+        VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+        nullptr,
+        0,                            // flags
+        VK_QUERY_TYPE_TIMESTAMP,      // queryType
+        NUM_POOL_QUERIES_PER_COMMAND, // queryCount
+        0,                            // pipelineStatistics
+    };
+
+    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+
+    if (profiling && !is_profiled_by_executor()) {
+        auto vkdev = m_queue->device()->vulkan_device();
+        auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
+                                     &m_query_pool);
+        if (res != VK_SUCCESS) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
+    // Sample timestamp if profiling
+    if (profiling && !is_profiled_by_executor()) {
+        vkCmdResetQueryPool(command_buffer, m_query_pool, 0,
+                            NUM_POOL_QUERIES_PER_COMMAND);
+        vkCmdWriteTimestamp(command_buffer,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
+                            POOL_QUERY_CMD_START);
+    }
+
+    auto err = build_batchable_inner(command_buffer);
+    if (err != CL_SUCCESS) {
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    // Sample timestamp if profiling
+    if (profiling && !is_profiled_by_executor()) {
+        vkCmdWriteTimestamp(command_buffer,
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
+                            POOL_QUERY_CMD_END);
+    }
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_batchable::get_timestamp_query_results(cl_ulong* start,
+                                                          cl_ulong* end) {
+    uint64_t timestamps[NUM_POOL_QUERIES_PER_COMMAND];
     auto dev = m_queue->device();
     auto res = vkGetQueryPoolResults(
-        dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_KERNEL,
+        dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_COMMAND,
         sizeof(timestamps), timestamps, sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
     if (res != VK_SUCCESS) {
         return CL_OUT_OF_RESOURCES;
     }
 
-    auto ts_start_raw = timestamps[POOL_QUERY_KERNEL_START];
-    auto ts_end_raw = timestamps[POOL_QUERY_KERNEL_END];
+    auto ts_start_raw = timestamps[POOL_QUERY_CMD_START];
+    auto ts_end_raw = timestamps[POOL_QUERY_CMD_END];
 
     *start = dev->timestamp_to_ns(ts_start_raw);
     *end = dev->timestamp_to_ns(ts_end_raw);
@@ -763,7 +775,7 @@ cl_int cvk_command_kernel::get_timestamp_query_results(cl_ulong* start,
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_kernel::do_action() {
+cl_int cvk_command_batchable::do_action() {
     CVK_ASSERT(m_command_buffer);
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
@@ -796,7 +808,7 @@ cl_int cvk_command_kernel::do_action() {
     return err;
 }
 
-cl_int cvk_command_kernel_group::submit_and_wait() {
+cl_int cvk_command_batch::submit_and_wait() {
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
     if (profiling && !m_queue->profiling_on_device()) {
@@ -816,9 +828,9 @@ cl_int cvk_command_kernel_group::submit_and_wait() {
     return CL_COMPLETE;
 }
 
-cl_int cvk_command_kernel_group::do_action() {
+cl_int cvk_command_batch::do_action() {
 
-    cvk_info("executing batch of %lu kernels", m_kernel_commands.size());
+    cvk_info("executing batch of %lu commands", m_commands.size());
 
     cl_ulong sync_host, sync_dev;
     auto dev = m_queue->device();
@@ -831,15 +843,15 @@ cl_int cvk_command_kernel_group::do_action() {
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
-    for (auto& kcmd : m_kernel_commands) {
-        auto ev = kcmd->event();
+    for (auto& cmd : m_commands) {
+
+        auto ev = cmd->event();
+
         if (profiling) {
-
             ev->copy_profiling_info(CL_PROFILING_COMMAND_SUBMIT, m_event);
-
             if (m_queue->profiling_on_device()) {
                 cl_ulong start, end;
-                auto perr = kcmd->get_timestamp_query_results(&start, &end);
+                auto perr = cmd->get_timestamp_query_results(&start, &end);
                 // Report the first error if no errors were present
                 // Keep going through the events
                 if (status == CL_COMPLETE) {
@@ -857,6 +869,7 @@ cl_int cvk_command_kernel_group::do_action() {
                 ev->copy_profiling_info(CL_PROFILING_COMMAND_END, m_event);
             }
         }
+
         ev->set_status(status);
     }
 
@@ -1261,7 +1274,7 @@ cl_int cvk_command_map_image::do_action() {
 }
 
 void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
-    const VkBufferImageCopy& region) {
+    cvk_command_buffer& cmdbuf, const VkBufferImageCopy& region) {
     VkImageSubresourceRange subresourceRange = {
         VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
         0,                         // baseMipLevel
@@ -1283,7 +1296,7 @@ void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
         subresourceRange,
     };
 
-    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT,
                          0,              // dependencyFlags
                          0,              // memoryBarrierCount
@@ -1293,13 +1306,13 @@ void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
                          1,              // imageMemoryBarrierCount
                          &imageBarrier); // pImageMemoryBarriers
 
-    vkCmdCopyImageToBuffer(m_command_buffer, m_image->vulkan_image(),
+    vkCmdCopyImageToBuffer(cmdbuf, m_image->vulkan_image(),
                            VK_IMAGE_LAYOUT_GENERAL, m_buffer->vulkan_buffer(),
                            1, &region);
 }
 
 void cvk_command_buffer_image_copy::build_inner_buffer_to_image(
-    const VkBufferImageCopy& region) {
+    cvk_command_buffer& cmdbuf, const VkBufferImageCopy& region) {
     VkBufferMemoryBarrier bufferBarrier = {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
         nullptr,
@@ -1311,7 +1324,7 @@ void cvk_command_buffer_image_copy::build_inner_buffer_to_image(
         0, // offset
         VK_WHOLE_SIZE};
 
-    vkCmdPipelineBarrier(m_command_buffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                          VK_PIPELINE_STAGE_TRANSFER_BIT,
                          0,              // dependencyFlags
                          0,              // memoryBarrierCount
@@ -1321,15 +1334,13 @@ void cvk_command_buffer_image_copy::build_inner_buffer_to_image(
                          0,              // imageMemoryBarrierCount
                          nullptr);       // pImageMemoryBarriers
 
-    vkCmdCopyBufferToImage(m_command_buffer, m_buffer->vulkan_buffer(),
+    vkCmdCopyBufferToImage(cmdbuf, m_buffer->vulkan_buffer(),
                            m_image->vulkan_image(), VK_IMAGE_LAYOUT_GENERAL, 1,
                            &region);
 }
 
-cl_int cvk_command_buffer_image_copy::build() {
-    if (!m_command_buffer.begin()) {
-        return CL_OUT_OF_RESOURCES;
-    }
+cl_int cvk_command_buffer_image_copy::build_batchable_inner(
+    cvk_command_buffer& cmdbuf) {
 
     VkBufferImageCopy region =
         prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
@@ -1337,11 +1348,11 @@ cl_int cvk_command_buffer_image_copy::build() {
     switch (type()) {
     case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
     case CL_COMMAND_MAP_IMAGE:
-        build_inner_image_to_buffer(region);
+        build_inner_image_to_buffer(cmdbuf, region);
         break;
     case CL_COMMAND_COPY_BUFFER_TO_IMAGE:
     case CL_COMMAND_UNMAP_MEM_OBJECT:
-        build_inner_buffer_to_image(region);
+        build_inner_buffer_to_image(cmdbuf, region);
         break;
     default:
         CVK_ASSERT(false);
@@ -1353,7 +1364,7 @@ cl_int cvk_command_buffer_image_copy::build() {
         VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
 
     vkCmdPipelineBarrier(
-        m_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
         // TODO HOST only when the dest buffer is an image mapping buffer
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
         0, // dependencyFlags
@@ -1364,25 +1375,11 @@ cl_int cvk_command_buffer_image_copy::build() {
         0,        // imageMemoryBarrierCount
         nullptr); // pImageMemoryBarriers
 
-    if (!m_command_buffer.end()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
     return CL_SUCCESS;
 }
 
-cl_int cvk_command_buffer_image_copy::do_action() {
-    if (!m_command_buffer.submit_and_wait()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    return CL_COMPLETE;
-}
-
-cl_int cvk_command_image_image_copy::build() {
-    if (!m_command_buffer.begin()) {
-        return CL_OUT_OF_RESOURCES;
-    }
+cl_int cvk_command_image_image_copy::build_batchable_inner(
+    cvk_command_buffer& cmdbuf) {
 
     VkImageSubresourceLayers srcSubresource =
         prepare_subresource(m_src_image, m_src_origin, m_region);
@@ -1399,23 +1396,11 @@ cl_int cvk_command_image_image_copy::build() {
     VkImageCopy region = {srcSubresource, srcOffset, dstSubresource, dstOffset,
                           extent};
 
-    vkCmdCopyImage(m_command_buffer, m_src_image->vulkan_image(),
-                   VK_IMAGE_LAYOUT_GENERAL, m_dst_image->vulkan_image(),
-                   VK_IMAGE_LAYOUT_GENERAL, 1, &region);
-
-    if (!m_command_buffer.end()) {
-        return CL_OUT_OF_RESOURCES;
-    }
+    vkCmdCopyImage(cmdbuf, m_src_image->vulkan_image(), VK_IMAGE_LAYOUT_GENERAL,
+                   m_dst_image->vulkan_image(), VK_IMAGE_LAYOUT_GENERAL, 1,
+                   &region);
 
     return CL_SUCCESS;
-}
-
-cl_int cvk_command_image_image_copy::do_action() {
-    if (!m_command_buffer.submit_and_wait()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    return CL_COMPLETE;
 }
 
 cl_int cvk_command_fill_image::do_action() {

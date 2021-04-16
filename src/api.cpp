@@ -29,19 +29,33 @@
 namespace {
 
 // Validation functions
-bool is_valid_platform(cl_platform_id platform) { return platform != nullptr; }
+bool is_valid_platform(cl_platform_id platform) {
+    return platform != nullptr && icd_downcast(platform)->is_valid();
+}
 
-bool is_valid_device(cl_device_id device) { return device != nullptr; }
+bool is_valid_device(cl_device_id device) {
+    return device != nullptr && icd_downcast(device)->is_valid();
+}
 
-bool is_valid_context(cl_context context) { return context != nullptr; }
+bool is_valid_context(cl_context context) {
+    return context != nullptr && icd_downcast(context)->is_valid();
+}
 
-bool is_valid_program(cl_program program) { return program != nullptr; }
+bool is_valid_program(cl_program program) {
+    return program != nullptr && icd_downcast(program)->is_valid();
+}
 
-bool is_valid_kernel(cl_kernel kernel) { return kernel != nullptr; }
+bool is_valid_kernel(cl_kernel kernel) {
+    return kernel != nullptr && icd_downcast(kernel)->is_valid();
+}
 
-bool is_valid_sampler(cl_sampler sampler) { return sampler != nullptr; }
+bool is_valid_sampler(cl_sampler sampler) {
+    return sampler != nullptr && icd_downcast(sampler)->is_valid();
+}
 
-bool is_valid_mem_object(cl_mem mem) { return mem != nullptr; }
+bool is_valid_mem_object(cl_mem mem) {
+    return mem != nullptr && icd_downcast(mem)->is_valid();
+}
 
 bool is_valid_buffer(cl_mem mem) {
     return is_valid_mem_object(mem) && icd_downcast(mem)->is_buffer_type();
@@ -51,9 +65,13 @@ bool is_valid_image(cl_mem mem) {
     return is_valid_mem_object(mem) && icd_downcast(mem)->is_image_type();
 }
 
-bool is_valid_command_queue(cl_command_queue queue) { return queue != nullptr; }
+bool is_valid_command_queue(cl_command_queue queue) {
+    return queue != nullptr && icd_downcast(queue)->is_valid();
+}
 
-bool is_valid_event(cl_event event) { return event != nullptr; }
+bool is_valid_event(cl_event event) {
+    return event != nullptr && icd_downcast(event)->is_valid();
+}
 
 bool is_same_context(cl_command_queue queue, cl_mem mem) {
     return icd_downcast(queue)->context() == icd_downcast(mem)->context();
@@ -73,6 +91,10 @@ bool is_same_context(cl_command_queue queue, cl_uint num_events,
     }
 
     return true;
+}
+
+bool is_valid_device_type(cl_device_type type) {
+    return type <= CL_DEVICE_TYPE_CUSTOM || type == CL_DEVICE_TYPE_ALL;
 }
 
 bool map_flags_are_valid(cl_map_flags flags) {
@@ -147,6 +169,10 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     api_query_string val_string;
     cl_ulong val_ulong;
 
+    if (!is_valid_platform(platform)) {
+        return CL_INVALID_PLATFORM;
+    }
+
     const cvk_platform* plat = state->platform();
     if (platform != nullptr) {
         plat = icd_downcast(platform);
@@ -200,6 +226,10 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     default:
         ret = CL_INVALID_VALUE;
         break;
+    }
+
+    if ((param_value != nullptr) && (param_value_size < size_ret)) {
+        ret = CL_INVALID_VALUE;
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
@@ -271,6 +301,10 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
 
     if ((num_devices == nullptr) && (devices == nullptr)) {
         return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_device_type(device_type)) {
+        return CL_INVALID_DEVICE_TYPE;
     }
 
     cl_uint num = 0;
@@ -781,6 +815,26 @@ cl_int CLVK_API_CALL clCreateSubDevices(
                  in_device, properties, num_devices, out_devices,
                  num_devices_ret);
 
+    // TODO CL_INVALID_DEVICE if in_device is not valid.
+    // TODO CL_INVALID_VALUE if values specified in properties are not valid or
+    // if values specified in properties are valid but not supported by the
+    // device.
+    // TODO CL_INVALID_VALUE if out_devices is not NULL and num_devices is less
+    // than the number of sub-devices created by the partition scheme.
+    // TODO CL_DEVICE_PARTITION_FAILED if the partition name is supported by the
+    // implementation but in_device could not be further partitioned.
+    // TODO CL_INVALID_DEVICE_PARTITION_COUNT if the partition name specified in
+    // properties is CL_DEVICE_PARTITION_BY_COUNTS and the number of sub-devices
+    // requested exceeds CL_DEVICE_PARTITION_MAX_SUB_DEVICES or the total number
+    // of compute units requested exceeds CL_DEVICE_PARTITION_MAX_COMPUTE_UNITS
+    // for in_device, or the number of compute units requested for one or more
+    // sub-devices is less than zero or the number of sub-devices requested
+    // exceeds CL_DEVICE_PARTITION_MAX_COMPUTE_UNITS for in_device.
+    // TODO CL_OUT_OF_RESOURCES if there is a failure to allocate resources
+    // required by the OpenCL implementation on the device.
+    // TODO CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources
+    // required by the OpenCL implementation on the host.
+
     return CL_INVALID_OPERATION;
 }
 
@@ -814,6 +868,14 @@ cl_context CLVK_API_CALL clCreateContext(
                  "= %p, user_data = %p, errcode_ret = %p",
                  properties, num_devices, devices, pfn_notify, user_data,
                  errcode_ret);
+
+    if ((devices == nullptr) || (num_devices == 0) ||
+        ((pfn_notify == nullptr) && (user_data != nullptr))) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
 
     if (num_devices > 1) {
         cvk_error("Only one device per context is supported.");
@@ -2362,7 +2424,9 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         ret = CL_INVALID_VALUE;
     }
 
-    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+    if ((param_value != nullptr) && (ret_size > param_value_size)) {
+        ret = CL_INVALID_VALUE;
+    } else if ((param_value != nullptr) && (copy_ptr != nullptr)) {
         memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
     }
 
@@ -2649,7 +2713,7 @@ cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kernel, cl_uint arg_indx,
                  kernel, arg_indx, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
-    return CL_INVALID_OPERATION;
+    return CL_KERNEL_ARG_INFO_NOT_AVAILABLE;
 }
 
 cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
@@ -2823,15 +2887,7 @@ cl_int CLVK_API_CALL clFinish(cl_command_queue command_queue) {
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    cvk_event* event = nullptr;
-    cl_int status = icd_downcast(command_queue)->flush(&event);
-
-    if ((status == CL_SUCCESS) && (event != nullptr)) {
-        event->wait();
-        event->release();
-    }
-
-    return status;
+    return icd_downcast(command_queue)->finish();
 }
 
 /* Enqueued Commands APIs */
@@ -3100,7 +3156,13 @@ cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    // TODO validate the contexts
+    if (!is_same_context(cq, srcbuf) || !is_same_context(cq, dstbuf)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_same_context(cq, num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
 
     if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
         return CL_INVALID_MEM_OBJECT;
@@ -4253,16 +4315,17 @@ cl_int cvk_enqueue_image_copy(
     // Create copy command
     auto rpitch = row_pitch;
     if (rpitch == 0) {
-        rpitch = img->width() * img->element_size();
+        rpitch = region[0] * img->element_size();
     }
 
     auto spitch = slice_pitch;
     if (spitch == 0) {
-        spitch = img->height() * rpitch;
+        spitch = region[1] * rpitch;
     }
+    const size_t zero_origin[3] = {0, 0, 0};
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
-        queue, command_type, map_buffer, ptr, origin, origin, region, rpitch,
-        spitch, cmd_map->map_buffer_row_pitch(),
+        queue, command_type, map_buffer, ptr, zero_origin, zero_origin, region,
+        rpitch, spitch, cmd_map->map_buffer_row_pitch(),
         cmd_map->map_buffer_slice_pitch(), img->element_size());
 
     // Create unmap command
@@ -4480,10 +4543,6 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
 
     auto cmd = std::make_unique<cvk_command_image_image_copy>(
         command_queue, src_img, dst_img, src_orig, dst_orig, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
@@ -4650,10 +4709,6 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
     auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
         CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, buffer, image,
         dst_offset, origin, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);
@@ -4727,10 +4782,6 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
     auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
         CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue, buffer, image,
         src_offset, origin, reg);
-    auto err = cmd->build();
-    if (err != CL_SUCCESS) {
-        return err;
-    }
 
     return command_queue->enqueue_command_with_deps(
         cmd.release(), num_events_in_wait_list, event_wait_list, event);

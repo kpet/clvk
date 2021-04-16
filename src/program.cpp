@@ -593,6 +593,44 @@ private:
     std::vector<std::string> m_paths;
 };
 
+enum class spirv_validation_level
+{
+    skip,
+    warn,
+    error,
+};
+
+bool validate_binary(spir_binary const& binary) {
+    auto level = spirv_validation_level::error; // default.
+    if (char* validate_env = getenv("CLVK_SPIRV_VALIDATION")) {
+        if (std::strcmp(validate_env, "0") == 0) {
+            level = spirv_validation_level::skip;
+        } else if (std::strcmp(validate_env, "1") == 0) {
+            level = spirv_validation_level::warn;
+        } else {
+            // "error" or invalid values, which we ignore.
+        }
+    }
+
+    if (level == spirv_validation_level::skip) {
+        cvk_info("Skipping validation of SPIR-V binary.");
+        return true;
+    }
+
+    if (binary.validate()) {
+        cvk_info("SPIR-V binary is valid.");
+        return true;
+    }
+
+    if (level == spirv_validation_level::warn) {
+        cvk_warn("SPIR-V binary is invalid.");
+        return true;
+    }
+
+    cvk_error("SPIR-V binary is invalid.");
+    return false;
+}
+
 } // namespace
 
 cl_build_status cvk_program::compile_source(const cvk_device* device) {
@@ -664,9 +702,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         // FIXME The 1.2 conformance tests shouldn't pass this option.
         //       It doesn't exist after OpenCL 1.0.
         {"-cl-strict-aliasing", ""},
-        // Some applications pass this even when using uniform NDRanges
-        // Swallow the flag to enable these use cases
-        {"-cl-arm-non-uniform-work-group-size", ""},
         // clspv require entrypoint inlining for OpenCL 2.0
         {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
     };
@@ -697,8 +732,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 
     // 8-bit storage capability restrictions.
-    const auto& features_8bit_storage =
-        m_context->device()->device_8bit_storage_features();
+    const auto& features_8bit_storage = device->device_8bit_storage_features();
     if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
         options += " -no-8bit-storage=ssbo ";
     }
@@ -711,7 +745,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // 16-bit storage capability restrictions.
     const auto& features_16bit_storage =
-        m_context->device()->device_16bit_storage_features();
+        device->device_16bit_storage_features();
     if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
         options += " -no-16bit-storage=ssbo ";
     }
@@ -722,6 +756,14 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         options += " -no-16bit-storage=pushconstant ";
     }
 
+    // Floating-point support
+    if (!device->supports_fp16()) {
+        options += " -fp16=0 ";
+    }
+    if (!device->supports_fp64()) {
+        options += " -fp64=0 ";
+    }
+
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
     options += " -int8 ";
@@ -729,6 +771,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         options += " -std430-ubo-layout ";
     }
     options += " -global-offset ";
+    options += " -long-vector ";
     options += " " + gCLSPVOptions + " ";
 
 #ifdef CLSPV_ONLINE_COMPILER
@@ -979,11 +1022,11 @@ void cvk_program::do_build() {
     if (!cache_hit) {
         // Validate
         // TODO validate with different rules depending on the binary type
-        if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-            !m_binary.validate()) {
-            cvk_error("Could not validate SPIR-V binary.");
-            complete_operation(device, CL_BUILD_ERROR);
-            return;
+        if (m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
+            if (!validate_binary(m_binary)) {
+                complete_operation(device, CL_BUILD_ERROR);
+                return;
+            }
         }
     }
 

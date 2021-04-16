@@ -115,6 +115,9 @@ void cvk_device::init_opencl_properties() {
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
+    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 615")) {
+        m_global_mem_cache_size = 65536;
+        m_num_compute_units = 1;
     } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 620")) {
         m_global_mem_cache_size = 65536;
         m_num_compute_units = 1;
@@ -366,6 +369,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_arm_non_uniform_work_group_size"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -379,6 +383,7 @@ void cvk_device::build_extension_ils_list() {
         (is_vulkan_extension_enabled(
              VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME) &&
          m_features_float16_int8.shaderFloat16)) {
+        m_has_fp16_support = true;
         m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
     }
 
@@ -457,12 +462,12 @@ bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
     CVK_VK_CHECK_ERROR_RET(res, false, "Failed to create a device");
 
     // Construct the queue wrappers now that our queues exist
+    m_vulkan_queues.reserve(num_queues);
     for (auto i = 0U; i < num_queues; i++) {
         VkQueue queue;
 
         vkGetDeviceQueue(m_dev, queue_family, i, &queue);
-        m_vulkan_queues.emplace_back(
-            cvk_vulkan_queue_wrapper(queue, queue_family));
+        m_vulkan_queues.emplace_back(queue, queue_family);
     }
 
     return true;
