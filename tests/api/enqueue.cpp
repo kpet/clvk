@@ -134,6 +134,15 @@ TEST_F(WithCommandQueue, KernelInvalidArguments) {
                                  nullptr, nullptr);
     EXPECT_EQ(err, CL_SUCCESS);
 
+    // Try to set the second argument again, but fail.
+    err = clSetKernelArg(kernel, 1, 7, &arg_value);
+    EXPECT_EQ(err, CL_INVALID_ARG_SIZE);
+
+    // Try to enqueue the kernel, should still succeed.
+    err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws, &lws, 0,
+                                 nullptr, nullptr);
+    EXPECT_EQ(err, CL_SUCCESS);
+
     Finish();
 }
 
