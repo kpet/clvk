@@ -43,6 +43,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR;
     m_driver_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
+    m_pci_bus_info_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
 
 #define VER_EXT_PROP(ver, ext, prop)                                           \
     {ver, ext, reinterpret_cast<VkBaseOutStructure*>(&prop)}
@@ -53,6 +55,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
             VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
                          m_driver_properties),
+            VER_EXT_PROP(0, VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
+                         m_pci_bus_info_properties),
         };
 #undef VER_EXT_PROP
 
@@ -243,6 +247,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
+        VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numext; i++) {
@@ -385,6 +390,12 @@ void cvk_device::build_extension_ils_list() {
          m_features_float16_int8.shaderFloat16)) {
         m_has_fp16_support = true;
         m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
+    }
+
+    // Report cl_khr_pci_bus_info if VK_EXT_pci_bus_info is supported
+    if (is_vulkan_extension_enabled(VK_EXT_PCI_BUS_INFO_EXTENSION_NAME)) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 0, "cl_khr_pci_bus_info"));
     }
 
     // Build extension string

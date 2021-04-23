@@ -386,6 +386,15 @@ struct cvk_device : public _cl_device_id,
 
     cl_uint node_mask() const { return m_device_id_properties.deviceNodeMask; }
 
+    cl_device_pci_bus_info_khr pci_bus_info() const {
+        return {
+            m_pci_bus_info_properties.pciDomain,
+            m_pci_bus_info_properties.pciBus,
+            m_pci_bus_info_properties.pciDevice,
+            m_pci_bus_info_properties.pciFunction,
+        };
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -411,10 +420,12 @@ private:
 
     cvk_vulkan_extension_functions m_vkfns{};
     VkPhysicalDevice m_pdev;
+    // Properties
     VkPhysicalDeviceProperties m_properties;
+    VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
-    VkPhysicalDeviceMemoryProperties m_mem_properties;
+    VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
     VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer{};
