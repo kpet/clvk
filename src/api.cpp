@@ -4107,97 +4107,112 @@ cl_int CLVK_API_CALL clGetImageInfo(cl_mem image, cl_image_info param_name,
     return ret;
 }
 
-std::unordered_map<VkFormat, cl_image_format> gFormatMaps = {
-    // R formats
-    {VK_FORMAT_R8_UNORM, {CL_R, CL_UNORM_INT8}},
-    {VK_FORMAT_R8_SNORM, {CL_R, CL_SNORM_INT8}},
-    {VK_FORMAT_R8_UINT, {CL_R, CL_UNSIGNED_INT8}},
-    {VK_FORMAT_R8_SINT, {CL_R, CL_SIGNED_INT8}},
-    {VK_FORMAT_R16_UNORM, {CL_R, CL_UNORM_INT16}},
-    {VK_FORMAT_R16_SNORM, {CL_R, CL_SNORM_INT16}},
-    {VK_FORMAT_R16_UINT, {CL_R, CL_UNSIGNED_INT16}},
-    {VK_FORMAT_R16_SINT, {CL_R, CL_SIGNED_INT16}},
-    {VK_FORMAT_R16_SFLOAT, {CL_R, CL_HALF_FLOAT}},
-    {VK_FORMAT_R32_UINT, {CL_R, CL_UNSIGNED_INT32}},
-    {VK_FORMAT_R32_SINT, {CL_R, CL_SIGNED_INT32}},
-    {VK_FORMAT_R32_SFLOAT, {CL_R, CL_FLOAT}},
-
-    // RG formats
-    {VK_FORMAT_R8G8_UNORM, {CL_RG, CL_UNORM_INT8}},
-    {VK_FORMAT_R8G8_SNORM, {CL_RG, CL_SNORM_INT8}},
-    {VK_FORMAT_R8G8_UINT, {CL_RG, CL_UNSIGNED_INT8}},
-    {VK_FORMAT_R8G8_SINT, {CL_RG, CL_SIGNED_INT8}},
-    {VK_FORMAT_R16G16_UNORM, {CL_RG, CL_UNORM_INT16}},
-    {VK_FORMAT_R16G16_SNORM, {CL_RG, CL_SNORM_INT16}},
-    {VK_FORMAT_R16G16_UINT, {CL_RG, CL_UNSIGNED_INT16}},
-    {VK_FORMAT_R16G16_SINT, {CL_RG, CL_SIGNED_INT16}},
-    {VK_FORMAT_R16G16_SFLOAT, {CL_RG, CL_HALF_FLOAT}},
-    {VK_FORMAT_R32G32_UINT, {CL_RG, CL_UNSIGNED_INT32}},
-    {VK_FORMAT_R32G32_SINT, {CL_RG, CL_SIGNED_INT32}},
-    {VK_FORMAT_R32G32_SFLOAT, {CL_RG, CL_FLOAT}},
-
-    // RGB formats
-    {VK_FORMAT_R8G8B8_UNORM, {CL_RGB, CL_UNORM_INT8}},
-    {VK_FORMAT_R8G8B8_SNORM, {CL_RGB, CL_SNORM_INT8}},
-    {VK_FORMAT_R8G8B8_UINT, {CL_RGB, CL_UNSIGNED_INT8}},
-    {VK_FORMAT_R8G8B8_SINT, {CL_RGB, CL_SIGNED_INT8}},
-    {VK_FORMAT_R16G16B16_UNORM, {CL_RGB, CL_UNORM_INT16}},
-    {VK_FORMAT_R16G16B16_SNORM, {CL_RGB, CL_SNORM_INT16}},
-    {VK_FORMAT_R16G16B16_UINT, {CL_RGB, CL_UNSIGNED_INT16}},
-    {VK_FORMAT_R16G16B16_SINT, {CL_RGB, CL_SIGNED_INT16}},
-    {VK_FORMAT_R16G16B16_SFLOAT, {CL_RGB, CL_HALF_FLOAT}},
-    {VK_FORMAT_R32G32B32_UINT, {CL_RGB, CL_UNSIGNED_INT32}},
-    {VK_FORMAT_R32G32B32_SINT, {CL_RGB, CL_SIGNED_INT32}},
-    {VK_FORMAT_R32G32B32_SFLOAT, {CL_RGB, CL_FLOAT}},
-    {VK_FORMAT_R5G6B5_UNORM_PACK16, {CL_RGB, CL_UNORM_SHORT_565}},
-
-    // RGBA formats
-    {VK_FORMAT_R8G8B8A8_UNORM, {CL_RGBA, CL_UNORM_INT8}},
-    {VK_FORMAT_R8G8B8A8_SNORM, {CL_RGBA, CL_SNORM_INT8}},
-    {VK_FORMAT_R8G8B8A8_UINT, {CL_RGBA, CL_UNSIGNED_INT8}},
-    {VK_FORMAT_R8G8B8A8_SINT, {CL_RGBA, CL_SIGNED_INT8}},
-    {VK_FORMAT_R16G16B16A16_UNORM, {CL_RGBA, CL_UNORM_INT16}},
-    {VK_FORMAT_R16G16B16A16_SNORM, {CL_RGBA, CL_SNORM_INT16}},
-    {VK_FORMAT_R16G16B16A16_UINT, {CL_RGBA, CL_UNSIGNED_INT16}},
-    {VK_FORMAT_R16G16B16A16_SINT, {CL_RGBA, CL_SIGNED_INT16}},
-    {VK_FORMAT_R16G16B16A16_SFLOAT, {CL_RGBA, CL_HALF_FLOAT}},
-    {VK_FORMAT_R32G32B32A32_UINT, {CL_RGBA, CL_UNSIGNED_INT32}},
-    {VK_FORMAT_R32G32B32A32_SINT, {CL_RGBA, CL_SIGNED_INT32}},
-    {VK_FORMAT_R32G32B32A32_SFLOAT, {CL_RGBA, CL_FLOAT}},
-
-    // BGRA formats
-    {VK_FORMAT_B8G8R8A8_UNORM, {CL_BGRA, CL_UNORM_INT8}},
-    {VK_FORMAT_B8G8R8A8_SNORM, {CL_BGRA, CL_SNORM_INT8}},
-    {VK_FORMAT_B8G8R8A8_UINT, {CL_BGRA, CL_UNSIGNED_INT8}},
-    {VK_FORMAT_B8G8R8A8_SINT, {CL_BGRA, CL_SIGNED_INT8}},
+struct ClFormatMapHash {
+    size_t operator()(const cl_image_format& format) const {
+        return format.image_channel_order << 16 |
+               format.image_channel_data_type;
+    }
 };
 
-static bool vulkan_format_to_cl_image_format(VkFormat format,
-                                             cl_image_format* clfmt) {
-    auto m = gFormatMaps.find(format);
+struct ClFormatMapEqual {
+    bool operator()(const cl_image_format& lhs,
+                    const cl_image_format& rhs) const {
+        return lhs.image_channel_order == rhs.image_channel_order &&
+               lhs.image_channel_data_type == rhs.image_channel_data_type;
+    }
+};
+
+std::unordered_map<cl_image_format, VkFormat, ClFormatMapHash, ClFormatMapEqual>
+    gFormatMaps = {
+        // R formats
+        {{CL_R, CL_UNORM_INT8}, VK_FORMAT_R8_UNORM},
+        {{CL_R, CL_SNORM_INT8}, VK_FORMAT_R8_SNORM},
+        {{CL_R, CL_UNSIGNED_INT8}, VK_FORMAT_R8_UINT},
+        {{CL_R, CL_SIGNED_INT8}, VK_FORMAT_R8_SINT},
+        {{CL_R, CL_UNORM_INT16}, VK_FORMAT_R16_UNORM},
+        {{CL_R, CL_SNORM_INT16}, VK_FORMAT_R16_SNORM},
+        {{CL_R, CL_UNSIGNED_INT16}, VK_FORMAT_R16_UINT},
+        {{CL_R, CL_SIGNED_INT16}, VK_FORMAT_R16_SINT},
+        {{CL_R, CL_HALF_FLOAT}, VK_FORMAT_R16_SFLOAT},
+        {{CL_R, CL_UNSIGNED_INT32}, VK_FORMAT_R32_UINT},
+        {{CL_R, CL_SIGNED_INT32}, VK_FORMAT_R32_SINT},
+        {{CL_R, CL_FLOAT}, VK_FORMAT_R32_SFLOAT},
+
+        // LUMINANCE formats
+        {{CL_LUMINANCE, CL_UNORM_INT8}, VK_FORMAT_R8_UNORM},
+        {{CL_LUMINANCE, CL_SNORM_INT8}, VK_FORMAT_R8_SNORM},
+        {{CL_LUMINANCE, CL_UNSIGNED_INT8}, VK_FORMAT_R8_UINT},
+        {{CL_LUMINANCE, CL_SIGNED_INT8}, VK_FORMAT_R8_SINT},
+        {{CL_LUMINANCE, CL_UNORM_INT16}, VK_FORMAT_R16_UNORM},
+        {{CL_LUMINANCE, CL_SNORM_INT16}, VK_FORMAT_R16_SNORM},
+        {{CL_LUMINANCE, CL_UNSIGNED_INT16}, VK_FORMAT_R16_UINT},
+        {{CL_LUMINANCE, CL_SIGNED_INT16}, VK_FORMAT_R16_SINT},
+        {{CL_LUMINANCE, CL_HALF_FLOAT}, VK_FORMAT_R16_SFLOAT},
+        {{CL_LUMINANCE, CL_UNSIGNED_INT32}, VK_FORMAT_R32_UINT},
+        {{CL_LUMINANCE, CL_SIGNED_INT32}, VK_FORMAT_R32_SINT},
+        {{CL_LUMINANCE, CL_FLOAT}, VK_FORMAT_R32_SFLOAT},
+
+        // RG formats
+        {{CL_RG, CL_UNORM_INT8}, VK_FORMAT_R8G8_UNORM},
+        {{CL_RG, CL_SNORM_INT8}, VK_FORMAT_R8G8_SNORM},
+        {{CL_RG, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8_UINT},
+        {{CL_RG, CL_SIGNED_INT8}, VK_FORMAT_R8G8_SINT},
+        {{CL_RG, CL_UNORM_INT16}, VK_FORMAT_R16G16_UNORM},
+        {{CL_RG, CL_SNORM_INT16}, VK_FORMAT_R16G16_SNORM},
+        {{CL_RG, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16_UINT},
+        {{CL_RG, CL_SIGNED_INT16}, VK_FORMAT_R16G16_SINT},
+        {{CL_RG, CL_HALF_FLOAT}, VK_FORMAT_R16G16_SFLOAT},
+        {{CL_RG, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32_UINT},
+        {{CL_RG, CL_SIGNED_INT32}, VK_FORMAT_R32G32_SINT},
+        {{CL_RG, CL_FLOAT}, VK_FORMAT_R32G32_SFLOAT},
+
+        // RGB formats
+        {{CL_RGB, CL_UNORM_INT8}, VK_FORMAT_R8G8B8_UNORM},
+        {{CL_RGB, CL_SNORM_INT8}, VK_FORMAT_R8G8B8_SNORM},
+        {{CL_RGB, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8B8_UINT},
+        {{CL_RGB, CL_SIGNED_INT8}, VK_FORMAT_R8G8B8_SINT},
+        {{CL_RGB, CL_UNORM_INT16}, VK_FORMAT_R16G16B16_UNORM},
+        {{CL_RGB, CL_SNORM_INT16}, VK_FORMAT_R16G16B16_SNORM},
+        {{CL_RGB, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16B16_UINT},
+        {{CL_RGB, CL_SIGNED_INT16}, VK_FORMAT_R16G16B16_SINT},
+        {{CL_RGB, CL_HALF_FLOAT}, VK_FORMAT_R16G16B16_SFLOAT},
+        {{CL_RGB, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32B32_UINT},
+        {{CL_RGB, CL_SIGNED_INT32}, VK_FORMAT_R32G32B32_SINT},
+        {{CL_RGB, CL_FLOAT}, VK_FORMAT_R32G32B32_SFLOAT},
+        {{CL_RGB, CL_UNORM_SHORT_565}, VK_FORMAT_R5G6B5_UNORM_PACK16},
+
+        // RGBA formats
+        {{CL_RGBA, CL_UNORM_INT8}, VK_FORMAT_R8G8B8A8_UNORM},
+        {{CL_RGBA, CL_SNORM_INT8}, VK_FORMAT_R8G8B8A8_SNORM},
+        {{CL_RGBA, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8B8A8_UINT},
+        {{CL_RGBA, CL_SIGNED_INT8}, VK_FORMAT_R8G8B8A8_SINT},
+        {{CL_RGBA, CL_UNORM_INT16}, VK_FORMAT_R16G16B16A16_UNORM},
+        {{CL_RGBA, CL_SNORM_INT16}, VK_FORMAT_R16G16B16A16_SNORM},
+        {{CL_RGBA, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16B16A16_UINT},
+        {{CL_RGBA, CL_SIGNED_INT16}, VK_FORMAT_R16G16B16A16_SINT},
+        {{CL_RGBA, CL_HALF_FLOAT}, VK_FORMAT_R16G16B16A16_SFLOAT},
+        {{CL_RGBA, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32B32A32_UINT},
+        {{CL_RGBA, CL_SIGNED_INT32}, VK_FORMAT_R32G32B32A32_SINT},
+        {{CL_RGBA, CL_FLOAT}, VK_FORMAT_R32G32B32A32_SFLOAT},
+
+        // BGRA formats
+        {{CL_BGRA, CL_UNORM_INT8}, VK_FORMAT_B8G8R8A8_UNORM},
+        {{CL_BGRA, CL_SNORM_INT8}, VK_FORMAT_B8G8R8A8_SNORM},
+        {{CL_BGRA, CL_UNSIGNED_INT8}, VK_FORMAT_B8G8R8A8_UINT},
+        {{CL_BGRA, CL_SIGNED_INT8}, VK_FORMAT_B8G8R8A8_SINT},
+};
+
+bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
+                                      VkFormat& format) {
+    auto m = gFormatMaps.find(clformat);
     bool success = false;
 
     if (m != gFormatMaps.end()) {
-        *clfmt = (*m).second;
+        format = (*m).second;
         success = true;
     }
 
     return success;
-}
-
-bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
-                                      VkFormat& format) {
-    for (auto const& vkcl : gFormatMaps) {
-        auto const& clfmt = vkcl.second;
-        if ((clfmt.image_channel_order == clformat.image_channel_order) &&
-            (clfmt.image_channel_data_type ==
-             clformat.image_channel_data_type)) {
-            format = vkcl.first;
-            return true;
-        }
-    }
-
-    return false;
 }
 
 cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
@@ -4228,38 +4243,32 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
-    int last_format_to_test = VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
+    bool report_formats = true;
 
     // No formats are support for read and write
     if (flags & CL_MEM_KERNEL_READ_AND_WRITE) {
-        last_format_to_test = 0;
+        report_formats = false;
     }
 
     // 3D image writes are not supported
     if ((image_type == CL_MEM_OBJECT_IMAGE3D) &&
         (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
                   CL_MEM_KERNEL_READ_AND_WRITE))) {
-        last_format_to_test = 0;
+        report_formats = false;
     }
 
-    // Iterate over all vulkan formats
-    for (int fmt = 1; fmt < last_format_to_test + 1; fmt++) {
-        // cvk_debug_fn("fmt = %u", fmt);
+    if (report_formats) {
+        // Iterate over all known CL/VK format associations and report the CL
+        // formats for which the Vulkan format is supported
+        for (auto const& clvkfmt : gFormatMaps) {
+            VkFormat format = static_cast<VkFormat>(clvkfmt.second);
+            VkFormatProperties properties;
+            vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
 
-        VkFormat format = static_cast<VkFormat>(fmt);
-        VkFormatProperties properties;
-
-        vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
-
-        // FIXME do that properly
-        if (properties.optimalTilingFeatures &
-            VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) {
-
-            cl_image_format clfmt;
-
-            bool success = vulkan_format_to_cl_image_format(format, &clfmt);
-
-            if (success) {
+            // TODO handle linear tiling and sampled images
+            if (properties.optimalTilingFeatures &
+                VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) {
+                const cl_image_format& clfmt = clvkfmt.first;
                 if ((image_formats != nullptr) &&
                     (num_formats_found < num_entries)) {
                     image_formats[num_formats_found] = clfmt;
