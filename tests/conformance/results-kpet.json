@@ -1265,9 +1265,9 @@
       "work_group_scan_inclusive_add": "skip",
       "work_group_scan_inclusive_max": "skip",
       "work_group_scan_inclusive_min": "skip",
-      "work_group_suggested_local_size_1D": "skip",
-      "work_group_suggested_local_size_2D": "skip",
-      "work_group_suggested_local_size_3D": "skip"
+      "work_group_suggested_local_size_1D": "pass",
+      "work_group_suggested_local_size_2D": "pass",
+      "work_group_suggested_local_size_3D": "pass"
     },
     "retcode": 0
   }

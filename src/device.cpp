@@ -375,6 +375,7 @@ void cvk_device::build_extension_ils_list() {
 #endif
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_arm_non_uniform_work_group_size"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_suggested_local_work_size"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -680,6 +681,17 @@ void cvk_device::log_limits_and_memory_information() {
              pretty_size(limits.maxStorageBufferRange).c_str());
     cvk_info("Device's max push constant size = %s",
              pretty_size(limits.maxPushConstantsSize).c_str());
+    cvk_info("Device's execution capabilities:");
+    cvk_info("    Max work-group count: {%u,%u,%u}",
+             limits.maxComputeWorkGroupCount[0],
+             limits.maxComputeWorkGroupCount[1],
+             limits.maxComputeWorkGroupCount[2]);
+    cvk_info("    Max invocations per work-group: %u",
+             limits.maxComputeWorkGroupInvocations);
+    cvk_info("    Max work-group size: {%u,%u,%u}",
+             limits.maxComputeWorkGroupSize[0],
+             limits.maxComputeWorkGroupSize[1],
+             limits.maxComputeWorkGroupSize[2]);
 
     // Print memoy information
     cvk_info("Device has %u memory types:", m_mem_properties.memoryTypeCount);
