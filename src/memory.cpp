@@ -509,6 +509,7 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     case CL_R:
     case CL_RG:
     case CL_RGBA:
+    case CL_LUMINANCE:
         memcpy(pattern.data(), cast_pattern, size);
         break;
     case CL_BGRA:
