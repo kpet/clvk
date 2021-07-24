@@ -256,13 +256,16 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
 }
 
 static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
+#define FUNC_PTR(X) reinterpret_cast<void*>(X)
 #define EXTENSION_ENTRYPOINT(X)                                                \
-    { #X, reinterpret_cast < void*>(X) }
+    { #X, FUNC_PTR(X) }
     EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
     EXTENSION_ENTRYPOINT(clIcdGetPlatformIDsKHR),
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clGetKernelSuggestedLocalWorkSizeKHR),
+    {"clGetKernelSubGroupInfoKHR", FUNC_PTR(clGetKernelSubGroupInfo)},
 #undef EXTENSION_ENTRYPOINT
+#undef FUNC_PTR
 };
 
 void* cvk_get_extension_function_pointer(const char* funcname) {
@@ -518,7 +521,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_bool);
         break;
     case CL_DEVICE_MAX_WORK_GROUP_SIZE:
-        val_sizet = device->vulkan_limits().maxComputeWorkGroupInvocations;
+        val_sizet = device->max_work_group_size();
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
@@ -724,8 +727,12 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_svmcaps;
         size_ret = sizeof(val_svmcaps);
         break;
-    case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
+        val_bool = CL_TRUE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
     case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
         val_bool = CL_FALSE;
@@ -749,8 +756,12 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     case CL_DEVICE_MAX_PIPE_ARGS:
     case CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS:
     case CL_DEVICE_PIPE_MAX_PACKET_SIZE:
-    case CL_DEVICE_MAX_NUM_SUB_GROUPS:
         val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_MAX_NUM_SUB_GROUPS:
+        val_uint = device->max_num_sub_groups();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
@@ -2849,7 +2860,7 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
 
     switch (param_name) {
     case CL_KERNEL_WORK_GROUP_SIZE:
-        val_sizet = device->vulkan_limits().maxComputeWorkGroupInvocations;
+        val_sizet = kernel->max_work_group_size(device);
         copy_ptr = &val_sizet;
         ret_size = sizeof(val_sizet);
         break;
@@ -2900,15 +2911,87 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
 }
 
 cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
-    cl_kernel kernel, cl_device_id device, cl_kernel_sub_group_info param_name,
+    cl_kernel kern, cl_device_id dev, cl_kernel_sub_group_info param_name,
     size_t input_value_size, const void* input_value, size_t param_value_size,
     void* param_value, size_t* param_value_size_ret) {
     LOG_API_CALL("kernel = %p, device = %p, param_name = %x, input_value_size "
                  "= %zu, input_value = %p, param_value_size = %zu, param_value "
                  "= %p, param_value_size_ret = %p",
-                 kernel, device, param_name, input_value_size, input_value,
+                 kern, dev, param_name, input_value_size, input_value,
                  param_value_size, param_value, param_value_size_ret);
-    return CL_INVALID_OPERATION;
+
+    cl_int ret = CL_SUCCESS;
+    const void* copy_ptr = nullptr;
+    size_t val_sizet, ret_size = 0;
+    std::array<size_t, 3> val_lws;
+
+    auto device = icd_downcast(dev);
+    auto kernel = icd_downcast(kern);
+
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    if (!is_valid_device(device)) {
+        return CL_INVALID_DEVICE;
+    }
+
+    switch (param_name) {
+    case CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE:
+        val_sizet = kernel->max_sub_group_size_for_ndrange(device);
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE: {
+        std::array<uint32_t, 3> lws = {1, 1, 1};
+        unsigned num_dims = input_value_size / sizeof(size_t);
+        if (input_value_size % sizeof(size_t) != 0) {
+            ret = CL_INVALID_VALUE;
+            break;
+        }
+        for (unsigned dim = 0; dim < num_dims; dim++) {
+            lws[dim] = static_cast<const size_t*>(input_value)[dim];
+        }
+        val_sizet = kernel->sub_group_count_for_ndrange(device, lws);
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    }
+    case CL_KERNEL_LOCAL_SIZE_FOR_SUB_GROUP_COUNT: {
+        if (input_value_size % sizeof(size_t) != 0) {
+            ret = CL_INVALID_VALUE;
+            break;
+        }
+        auto num_sub_groups = *static_cast<const size_t*>(input_value);
+        val_lws =
+            kernel->local_size_for_sub_group_count(device, num_sub_groups);
+        copy_ptr = &val_lws;
+        ret_size = param_value_size;
+        break;
+    }
+    case CL_KERNEL_MAX_NUM_SUB_GROUPS:
+        val_sizet = kernel->max_num_sub_groups(device);
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    case CL_KERNEL_COMPILE_NUM_SUB_GROUPS: // TODO
+    default:
+        ret = CL_INVALID_VALUE;
+        break;
+    }
+
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+        if (param_value_size < ret_size) {
+            ret = CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = ret_size;
+    }
+
+    return ret;
 }
 
 cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
@@ -5537,7 +5620,7 @@ cl_icd_dispatch gDispatchTable = {
     clSetKernelExecInfo,
 
     /* cl_khr_sub_groups */
-    nullptr, // clGetKernelSubGroupInfoKHR;
+    clGetKernelSubGroupInfo,
 
     /* OpenCL 2.1 */
     clCloneKernel,

@@ -72,6 +72,38 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cl_ulong local_mem_size() const;
 
+    size_t max_work_group_size(const cvk_device* device) const {
+        return device->max_work_group_size();
+    }
+
+    size_t max_sub_group_size_for_ndrange(const cvk_device* device) const {
+        return device->sub_group_size();
+    }
+
+    size_t
+    sub_group_count_for_ndrange(const cvk_device* device,
+                                const std::array<uint32_t, 3>& lws) const {
+        uint32_t work_items_per_work_group = lws[0] * lws[1] * lws[2];
+        return ceil_div(work_items_per_work_group, device->sub_group_size());
+    }
+    std::array<size_t, 3>
+    local_size_for_sub_group_count(const cvk_device* device,
+                                   size_t num_sub_groups) const {
+        std::array<size_t, 3> ret = {1, 1, 1};
+        size_t wgs = num_sub_groups * device->sub_group_size();
+        if (wgs > max_work_group_size(device)) {
+            ret = {0, 0, 0};
+        } else {
+            ret[0] = wgs;
+        }
+        return ret;
+    }
+
+    size_t max_num_sub_groups(const cvk_device* device) const {
+        return ceil_div(max_work_group_size(device),
+                        static_cast<size_t>(device->sub_group_size()));
+    }
+
     const std::array<uint32_t, 3>& required_work_group_size() const {
         return m_program->required_work_group_size(m_name);
     }

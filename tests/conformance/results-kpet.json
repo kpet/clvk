@@ -106,7 +106,7 @@
       "set_kernel_arg_by_index": "pass",
       "set_kernel_arg_constant": "pass",
       "set_kernel_arg_struct_array": "pass",
-      "sub_group_dispatch": "skip",
+      "sub_group_dispatch": "pass",
       "zero_sized_enqueue": "pass"
     },
     "retcode": 1
@@ -1484,25 +1484,25 @@
     "duration": "00:00:00.212465",
     "has_results": true,
     "results": {
-      "barrier_functions_core": "skip",
-      "barrier_functions_ext": "skip",
-      "ifp_core": "skip",
-      "ifp_ext": "skip",
-      "sub_group_info_core": "skip",
-      "sub_group_info_ext": "skip",
+      "barrier_functions_core": "pass",
+      "barrier_functions_ext": "pass",
+      "ifp_core": "fail",
+      "ifp_ext": "fail",
+      "sub_group_info_core": "pass",
+      "sub_group_info_ext": "pass",
       "subgroup_functions_ballot": "skip",
       "subgroup_functions_clustered_reduce": "skip",
-      "subgroup_functions_core": "skip",
-      "subgroup_functions_ext": "skip",
+      "subgroup_functions_core": "pass",
+      "subgroup_functions_ext": "pass",
       "subgroup_functions_extended_types": "skip",
       "subgroup_functions_non_uniform_arithmetic": "skip",
       "subgroup_functions_non_uniform_vote": "skip",
       "subgroup_functions_shuffle": "skip",
       "subgroup_functions_shuffle_relative": "skip",
-      "work_item_functions_core": "skip",
-      "work_item_functions_ext": "skip"
+      "work_item_functions_core": "pass",
+      "work_item_functions_ext": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Thread Dimensions": {
     "duration": "00:00:37.552855",

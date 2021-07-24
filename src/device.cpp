@@ -48,6 +48,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR;
     m_pci_bus_info_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
+    m_subgroup_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
 
 #define VER_EXT_PROP(ver, ext, prop)                                           \
     {ver, ext, reinterpret_cast<VkBaseOutStructure*>(&prop)}
@@ -60,6 +62,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_driver_properties),
             VER_EXT_PROP(0, VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
                          m_pci_bus_info_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
+                         m_subgroup_properties),
         };
 #undef VER_EXT_PROP
 
@@ -392,6 +396,14 @@ void cvk_device::build_extension_ils_list() {
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
+        auto required_subgroup_ops =
+            VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+        if (m_subgroup_properties.supportedOperations &
+            required_subgroup_ops == required_subgroup_ops) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
+            m_has_subgroups_support = true;
+        }
     }
 
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
@@ -823,6 +835,18 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_features_variable_pointer.variablePointers;
     case spv::CapabilityVariablePointersStorageBuffer:
         return m_features_variable_pointer.variablePointersStorageBuffer;
+    case spv::CapabilityGroupNonUniform:
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_BASIC_BIT;
+    case spv::CapabilityGroupNonUniformVote:
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_VOTE_BIT;
+    case spv::CapabilityGroupNonUniformArithmetic:
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    case spv::CapabilityGroupNonUniformBallot:
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_BALLOT_BIT;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
