@@ -361,6 +361,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_version val_version;
     cl_device_svm_capabilities val_svmcaps;
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
+    cl_device_pci_bus_info_khr val_pci_bus_info;
 
     auto device = icd_downcast(dev);
 
@@ -790,6 +791,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_uint = device->node_mask();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_PCI_BUS_INFO_KHR:
+        val_pci_bus_info = device->pci_bus_info();
+        copy_ptr = &val_pci_bus_info;
+        size_ret = sizeof(val_pci_bus_info);
         break;
     default:
         ret = CL_INVALID_VALUE;
