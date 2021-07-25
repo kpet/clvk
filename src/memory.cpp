@@ -246,7 +246,8 @@ cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
 }
 
 extern bool cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
-                                             VkFormat& format);
+                                             VkFormat* format,
+                                             VkComponentMapping* components);
 
 bool cvk_image::init() {
     // Translate image type and size
@@ -301,7 +302,10 @@ bool cvk_image::init() {
 
     // Translate format
     VkFormat format;
-    auto success = cl_image_format_to_vulkan_format(m_format, format);
+    VkComponentMapping components;
+
+    auto success =
+        cl_image_format_to_vulkan_format(m_format, &format, &components);
     if (!success) {
         return false; // TODO error code
     }
@@ -362,10 +366,6 @@ bool cvk_image::init() {
     }
 
     // Create image view
-    VkComponentMapping components = {
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
-
     VkImageSubresourceRange subresource = {
         VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
         0,                         // baseMipLevel
