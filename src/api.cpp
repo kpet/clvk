@@ -3591,7 +3591,7 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
     if (local_work_size == nullptr) {
         icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
         cvk_info_fn("selected local work size: {%u,%u,%u}", lws[0], lws[1],
-                     lws[2]);
+                    lws[2]);
     }
 
     LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);
