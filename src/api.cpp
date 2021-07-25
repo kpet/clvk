@@ -249,6 +249,7 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
     EXTENSION_ENTRYPOINT(clIcdGetPlatformIDsKHR),
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
+    EXTENSION_ENTRYPOINT(clGetKernelSuggestedLocalWorkSizeKHR),
 #undef EXTENSION_ENTRYPOINT
 };
 
@@ -3589,6 +3590,8 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
     // Try to pick a sensible work-group size if the user didn't specify one.
     if (local_work_size == nullptr) {
         icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
+        cvk_info_fn("selected local work size: {%u,%u,%u}", lws[0], lws[1],
+                    lws[2]);
     }
 
     LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);
@@ -5402,4 +5405,85 @@ cl_int CLVK_API_CALL clIcdGetPlatformIDsKHR(cl_uint num_entries,
                  num_entries, platforms, num_platforms);
 
     return cvk_get_platform_ids(state, num_entries, platforms, num_platforms);
+}
+
+cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
+    cl_command_queue command_queue, cl_kernel kernel, cl_uint work_dim,
+    const size_t* global_work_offset, const size_t* global_work_size,
+    size_t* suggested_local_work_size) {
+
+    LOG_API_CALL(
+        "command_queue = %p, kernel = %p, work_dim = %u, global_work_offset = "
+        "%p, global_work_size = %p, suggested_local_work_size = %p",
+        command_queue, kernel, work_dim, global_work_offset, global_work_size,
+        suggested_local_work_size);
+
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    if (!is_same_context(command_queue, kernel)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    // TODO CL_INVALID_PROGRAM_EXECUTABLE if there is no successfully built
+    // program executable available for kernel for the device associated with
+    // command_queue.
+    // TODO CL_INVALID_KERNEL_ARGS if all argument values for kernel have not
+    // been set.
+    // TODO CL_MISALIGNED_SUB_BUFFER_OFFSET if a sub-buffer object is set as an
+    // argument to kernel and the offset specified when the sub-buffer object
+    // was created is not aligned to CL_DEVICE_MEM_BASE_ADDR_ALIGN for the
+    // device associated with command_queue.
+    // TODO CL_INVALID_IMAGE_SIZE if an image object is set as an argument to
+    // kernel and the image dimensions are not supported by device associated
+    // with command_queue.
+    // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if an image object is set as an
+    // argument to kernel and the image format is not supported by the device
+    // associated with command_queue.
+    // TODO CL_INVALID_OPERATION if an SVM pointer is set as an argument to
+    // kernel and the device associated with command_queue does not support SVM
+    // or the required SVM capabilities for the SVM pointer.
+
+    if ((work_dim < 1) ||
+        (work_dim >
+         icd_downcast(command_queue)->device()->max_work_item_dimensions())) {
+        return CL_INVALID_WORK_DIMENSION;
+    }
+
+    if (global_work_size == nullptr) {
+        return CL_INVALID_GLOBAL_WORK_SIZE;
+    }
+
+    for (cl_uint i = 0; i < work_dim; i++) {
+        if (global_work_size[i] == 0) {
+            return CL_INVALID_GLOBAL_WORK_SIZE;
+        }
+    }
+
+    // TODO CL_INVALID_GLOBAL_WORK_SIZE if any of the values specified in
+    // global_work_size exceed the maximum value representable by size_t on the
+    // device associated with command_queue.
+    // TODO CL_INVALID_GLOBAL_OFFSET if the value specified in global_work_size
+    // plus the corresponding value in global_work_offset for dimension exceeds
+    // the maximum value representable by size_t on the device associated with
+    // command_queue.
+
+    std::array<uint32_t, 3> lws;
+    std::array<uint32_t, 3> gws = {1, 1, 1};
+    for (cl_uint i = 0; i < work_dim; i++) {
+        gws[i] = global_work_size[i];
+    }
+
+    icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
+
+    for (cl_uint i = 0; i < work_dim; i++) {
+        suggested_local_work_size[i] = lws[i];
+    }
+
+    return CL_SUCCESS;
 }
