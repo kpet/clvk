@@ -20,7 +20,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include <spirv/1.0/spirv.hpp>
+#include "spirv-tools/libspirv.h"
+#include "spirv/unified1/spirv.hpp"
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
@@ -348,6 +349,8 @@ struct cvk_device : public _cl_device_id,
     bool get_pipeline_cache(const std::vector<uint32_t>& spirv,
                             VkPipelineCache& pipeline_cache);
 
+    spv_target_env vulkan_spirv_env() const { return m_vulkan_spirv_env; }
+
     CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
 
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
@@ -427,6 +430,7 @@ private:
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
     CHECK_RETURN bool init_time_management(VkInstance instance);
+    void init_spirv_environment();
     void log_limits_and_memory_information();
     CHECK_RETURN bool init(VkInstance instance);
 
@@ -491,6 +495,8 @@ private:
     bool m_has_fp16_support{};
     bool m_has_fp64_support{};
     bool m_has_int8_support{};
+
+    spv_target_env m_vulkan_spirv_env;
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {

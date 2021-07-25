@@ -47,6 +47,8 @@ int cvk_exec(const std::string& cmd, std::string* output) {
 #define popen _popen
 #define pclose _pclose
 #endif
+    cvk_info("About to run \"%s\"", cmd.c_str());
+
     std::array<char, 512> buffer;
     std::string out;
     std::string cmd_with_err = cmd + " 2>&1";
@@ -64,7 +66,11 @@ int cvk_exec(const std::string& cmd, std::string* output) {
         *output = std::move(out);
     }
 
-    return pclose(pipe);
+    int ret = pclose(pipe);
+
+    cvk_info("Return code was: %d", ret);
+
+    return ret;
 #ifdef WIN32
 #undef popen
 #undef pclose
