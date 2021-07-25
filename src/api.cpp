@@ -4212,13 +4212,23 @@ std::unordered_map<cl_image_format, VkFormat, ClFormatMapHash, ClFormatMapEqual>
 };
 
 bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
-                                      VkFormat& format) {
+                                      VkFormat* format,
+                                      VkComponentMapping* components) {
     auto m = gFormatMaps.find(clformat);
     bool success = false;
 
     if (m != gFormatMaps.end()) {
-        format = (*m).second;
+        *format = (*m).second;
         success = true;
+    }
+
+    if (clformat.image_channel_order == CL_LUMINANCE) {
+        *components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+                       VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A};
+    } else {
+        *components = {
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
     }
 
     return success;
