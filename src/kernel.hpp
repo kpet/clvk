@@ -260,6 +260,7 @@ private:
     bool m_is_enqueued;
     const std::vector<kernel_argument>& m_args;
     const kernel_argument* m_pod_arg;
+    const constant_data_buffer_info* m_module_constant_data_buffer_info;
     std::vector<refcounted*> m_kernel_resources;
     std::vector<size_t> m_local_args_size;
     std::unordered_map<uint32_t, uint32_t> m_specialization_constants;

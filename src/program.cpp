@@ -108,20 +108,20 @@ spv_result_t parse_reflection(void* user_data,
         return pushconstant::global_offset;
     };
 
-    auto* helper = reinterpret_cast<reflection_parse_data*>(user_data);
+    auto* parse_data = reinterpret_cast<reflection_parse_data*>(user_data);
     switch (inst->opcode) {
     case spv::OpTypeInt:
         if (inst->words[2] == 32 && inst->words[3] == 0) {
-            helper->uint_id = inst->result_id;
+            parse_data->uint_id = inst->result_id;
         }
         break;
     case spv::OpConstant:
-        if (inst->words[1] == helper->uint_id) {
-            helper->constants[inst->result_id] = inst->words[3];
+        if (inst->words[1] == parse_data->uint_id) {
+            parse_data->constants[inst->result_id] = inst->words[3];
         }
         break;
     case spv::OpString:
-        helper->strings[inst->result_id] =
+        parse_data->strings[inst->result_id] =
             std::string(reinterpret_cast<const char*>(&inst->words[2]));
         break;
     case spv::OpExtInst:
@@ -131,17 +131,17 @@ spv_result_t parse_reflection(void* user_data,
             switch (ext_inst) {
             case NonSemanticClspvReflectionKernel: {
                 // Record the kernel name.
-                const auto& name = helper->strings[inst->words[6]];
-                helper->strings[inst->result_id] = name;
-                helper->binary->add_kernel(name);
+                const auto& name = parse_data->strings[inst->words[6]];
+                parse_data->strings[inst->result_id] = name;
+                parse_data->binary->add_kernel(name);
                 break;
             }
             case NonSemanticClspvReflectionArgumentInfo: {
                 // Record the argument name.
                 // TODO: parse the rest of the information when clspv produces
                 // it.
-                const auto& name = helper->strings[inst->words[5]];
-                helper->strings[inst->result_id] = name;
+                const auto& name = parse_data->strings[inst->words[5]];
+                parse_data->strings[inst->result_id] = name;
                 break;
             }
             case NonSemanticClspvReflectionArgumentStorageBuffer:
@@ -151,111 +151,111 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionArgumentSampler: {
                 // These arguments have descriptor set, binding and an optional
                 // arg info.
-                auto kernel = helper->strings[inst->words[5]];
-                auto ordinal = helper->constants[inst->words[6]];
-                auto descriptor_set = helper->constants[inst->words[7]];
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto descriptor_set = parse_data->constants[inst->words[7]];
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
                     return SPV_ERROR_INVALID_DATA;
-                auto binding = helper->constants[inst->words[8]];
+                auto binding = parse_data->constants[inst->words[8]];
                 std::string arg_name;
                 if (inst->num_operands == 9) {
-                    arg_name = helper->strings[inst->words[9]];
+                    arg_name = parse_data->strings[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
                 kernel_argument arg = {arg_name, ordinal, descriptor_set,
                                        binding,  0,       0,
                                        kind,     0,       0};
-                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
             case NonSemanticClspvReflectionArgumentPodStorageBuffer:
             case NonSemanticClspvReflectionArgumentPodUniform: {
                 // These arguments have descriptor set, binding, offset, size
                 // and an optional arg info.
-                auto kernel = helper->strings[inst->words[5]];
-                auto ordinal = helper->constants[inst->words[6]];
-                auto descriptor_set = helper->constants[inst->words[7]];
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto descriptor_set = parse_data->constants[inst->words[7]];
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
                     return SPV_ERROR_INVALID_DATA;
-                auto binding = helper->constants[inst->words[8]];
-                auto offset = helper->constants[inst->words[9]];
-                auto size = helper->constants[inst->words[10]];
+                auto binding = parse_data->constants[inst->words[8]];
+                auto offset = parse_data->constants[inst->words[9]];
+                auto size = parse_data->constants[inst->words[10]];
                 std::string arg_name;
                 if (inst->num_operands == 11) {
-                    arg_name = helper->strings[inst->words[11]];
+                    arg_name = parse_data->strings[inst->words[11]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
                 kernel_argument arg = {arg_name, ordinal, descriptor_set,
                                        binding,  offset,  size,
                                        kind,     0,       0};
-                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
             case NonSemanticClspvReflectionArgumentPodPushConstant: {
                 // These arguments have offset, size and an optional arg info.
-                auto kernel = helper->strings[inst->words[5]];
-                auto ordinal = helper->constants[inst->words[6]];
-                auto offset = helper->constants[inst->words[7]];
-                auto size = helper->constants[inst->words[8]];
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto offset = parse_data->constants[inst->words[7]];
+                auto size = parse_data->constants[inst->words[8]];
                 std::string arg_name;
                 if (inst->num_operands == 9) {
-                    arg_name = helper->strings[inst->words[9]];
+                    arg_name = parse_data->strings[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
                 kernel_argument arg = {arg_name, ordinal, 0, 0, offset,
                                        size,     kind,    0, 0};
-                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
             case NonSemanticClspvReflectionArgumentWorkgroup: {
                 // These arguments have spec id, elem size and an optional arg
                 // info.
-                auto kernel = helper->strings[inst->words[5]];
-                auto ordinal = helper->constants[inst->words[6]];
-                auto spec_id = helper->constants[inst->words[7]];
-                auto size = helper->constants[inst->words[8]];
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto spec_id = parse_data->constants[inst->words[7]];
+                auto size = parse_data->constants[inst->words[8]];
                 std::string arg_name;
                 if (inst->num_operands == 9) {
-                    arg_name = helper->strings[inst->words[9]];
+                    arg_name = parse_data->strings[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
                 kernel_argument arg = {arg_name, ordinal, 0,       0,   0,
                                        0,        kind,    spec_id, size};
-                helper->binary->add_kernel_argument(kernel, std::move(arg));
+                parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
             case NonSemanticClspvReflectionSpecConstantWorkgroupSize: {
                 // Reflection encodes all three spec ids in a single
                 // instruction.
-                auto x_id = helper->constants[inst->words[5]];
-                auto y_id = helper->constants[inst->words[6]];
-                auto z_id = helper->constants[inst->words[7]];
-                helper->binary->add_spec_constant(
+                auto x_id = parse_data->constants[inst->words[5]];
+                auto y_id = parse_data->constants[inst->words[6]];
+                auto z_id = parse_data->constants[inst->words[7]];
+                parse_data->binary->add_spec_constant(
                     spec_constant::workgroup_size_x, x_id);
-                helper->binary->add_spec_constant(
+                parse_data->binary->add_spec_constant(
                     spec_constant::workgroup_size_y, y_id);
-                helper->binary->add_spec_constant(
+                parse_data->binary->add_spec_constant(
                     spec_constant::workgroup_size_z, z_id);
                 break;
             }
             case NonSemanticClspvReflectionSpecConstantGlobalOffset: {
                 // Reflection encodes all three spec ids in a single
                 // instruction.
-                auto x_id = helper->constants[inst->words[5]];
-                auto y_id = helper->constants[inst->words[6]];
-                auto z_id = helper->constants[inst->words[7]];
-                helper->binary->add_spec_constant(
+                auto x_id = parse_data->constants[inst->words[5]];
+                auto y_id = parse_data->constants[inst->words[6]];
+                auto z_id = parse_data->constants[inst->words[7]];
+                parse_data->binary->add_spec_constant(
                     spec_constant::global_offset_x, x_id);
-                helper->binary->add_spec_constant(
+                parse_data->binary->add_spec_constant(
                     spec_constant::global_offset_y, y_id);
-                helper->binary->add_spec_constant(
+                parse_data->binary->add_spec_constant(
                     spec_constant::global_offset_z, z_id);
                 break;
             }
             case NonSemanticClspvReflectionSpecConstantWorkDim: {
-                auto dim_id = helper->constants[inst->words[5]];
-                helper->binary->add_spec_constant(spec_constant::work_dim,
-                                                  dim_id);
+                auto dim_id = parse_data->constants[inst->words[5]];
+                parse_data->binary->add_spec_constant(spec_constant::work_dim,
+                                                      dim_id);
                 break;
             }
             case NonSemanticClspvReflectionPushConstantGlobalOffset:
@@ -264,19 +264,19 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionPushConstantRegionOffset:
             case NonSemanticClspvReflectionPushConstantNumWorkgroups:
             case NonSemanticClspvReflectionPushConstantRegionGroupOffset: {
-                auto offset = helper->constants[inst->words[5]];
-                auto size = helper->constants[inst->words[6]];
+                auto offset = parse_data->constants[inst->words[5]];
+                auto size = parse_data->constants[inst->words[6]];
                 auto pc = inst_to_push_constant(ext_inst);
-                helper->binary->add_push_constant(pc, {offset, size});
+                parse_data->binary->add_push_constant(pc, {offset, size});
                 break;
             }
             case NonSemanticClspvReflectionLiteralSampler: {
                 // Track descriptor set and binding. Decode the sampler mask.
-                auto descriptor_set = helper->constants[inst->words[5]];
+                auto descriptor_set = parse_data->constants[inst->words[5]];
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
                     return SPV_ERROR_INVALID_DATA;
-                auto binding = helper->constants[inst->words[6]];
-                auto mask = helper->constants[inst->words[7]];
+                auto binding = parse_data->constants[inst->words[6]];
+                auto mask = parse_data->constants[inst->words[7]];
                 uint32_t coords = mask & clspv::kSamplerNormalizedCoordsMask;
                 bool normalized_coords =
                     coords == clspv::CLK_NORMALIZED_COORDS_TRUE;
@@ -309,21 +309,56 @@ spv_result_t parse_reflection(void* user_data,
                     filter = CL_FILTER_LINEAR;
                     break;
                 }
-                helper->binary->add_literal_sampler({descriptor_set, binding,
-                                                     normalized_coords,
-                                                     addressing, filter});
+                parse_data->binary->add_literal_sampler(
+                    {descriptor_set, binding, normalized_coords, addressing,
+                     filter});
                 break;
             }
             case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize: {
-                auto kernel = helper->strings[inst->words[5]];
-                auto x = helper->constants[inst->words[6]];
-                auto y = helper->constants[inst->words[7]];
-                auto z = helper->constants[inst->words[8]];
-                helper->binary->set_required_work_group_size(kernel, x, y, z);
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto x = parse_data->constants[inst->words[6]];
+                auto y = parse_data->constants[inst->words[7]];
+                auto z = parse_data->constants[inst->words[8]];
+                parse_data->binary->set_required_work_group_size(kernel, x, y,
+                                                                 z);
+                break;
+            }
+            case NonSemanticClspvReflectionConstantDataStorageBuffer: {
+
+                auto char2int = [](char c) {
+                    if (c >= '0' && c <= '9')
+                        return c - '0';
+                    if (c >= 'A' && c <= 'F')
+                        return c - 'A' + 10;
+                    if (c >= 'a' && c <= 'f')
+                        return c - 'a' + 10;
+                    return 0;
+                };
+
+                auto hex2bin = [&char2int](const char* str, char* bin) {
+                    while (str[0] && str[1]) {
+                        *(bin++) = char2int(str[0]) * 16 + char2int(str[1]);
+                        str += 2;
+                    }
+                };
+
+                auto data = parse_data->strings[inst->words[7]];
+                constant_data_buffer_info binfo;
+                binfo.set = parse_data->constants[inst->words[5]];
+                binfo.binding = parse_data->constants[inst->words[6]];
+                if (data.size() & 1) {
+                    cvk_error_fn("invalid constant data buffer string (odd "
+                                 "number of digits)");
+                    return SPV_ERROR_INVALID_DATA;
+                }
+                auto data_size = data.size() / 2;
+                binfo.data.resize(data_size);
+                hex2bin(data.c_str(), binfo.data.data());
+                parse_data->binary->set_constant_data_buffer(binfo);
                 break;
             }
             default:
-                break;
+                return SPV_ERROR_INVALID_DATA;
             }
         }
         break;
@@ -500,13 +535,13 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
 }
 
 bool spir_binary::load_descriptor_map() {
-    reflection_parse_data helper;
-    helper.binary = this;
+    reflection_parse_data parse_data;
+    parse_data.binary = this;
 
     // TODO: The parser assumes a valid SPIR-V module, but validation is not
     // run until later.
     auto result =
-        spvBinaryParse(m_context, &helper, m_code.data(), m_code.size(),
+        spvBinaryParse(m_context, &parse_data, m_code.data(), m_code.size(),
                        nullptr, parse_reflection, nullptr);
     if (result != SPV_SUCCESS) {
         cvk_error_fn("Parsing SPIR-V module reflection failed: %d", result);
@@ -633,6 +668,86 @@ bool validate_binary(spir_binary const& binary) {
 
 } // namespace
 
+std::string cvk_program::prepare_build_options(const cvk_device* device) const {
+    // Strip off a few options we can't handle
+    std::string options;
+    if (m_build_options.size() > 0) {
+        options += " ";
+        options += m_build_options;
+    }
+    std::vector<std::pair<std::string, std::string>> option_substitutions = {
+        // TODO Enable in clspv and figure out interface
+        {"-cl-kernel-arg-info", ""},
+        // FIXME The 1.2 conformance tests shouldn't pass this option.
+        //       It doesn't exist after OpenCL 1.0.
+        {"-cl-strict-aliasing", ""},
+        // clspv require entrypoint inlining for OpenCL 2.0
+        {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
+    };
+
+    for (auto& subst : option_substitutions) {
+        size_t loc = options.find(subst.first);
+        if (loc != std::string::npos) {
+            options.replace(loc, subst.first.length(), subst.second);
+        }
+    }
+
+    // Prepare options
+    std::string single_precision_option = "-cl-single-precision-constant";
+    if (options.find(single_precision_option) == std::string::npos) {
+        options += " " + single_precision_option + " ";
+    }
+    if (!devices_support_images()) {
+        options += " -images=0 ";
+    }
+
+    // 8-bit storage capability restrictions.
+    const auto& features_8bit_storage = device->device_8bit_storage_features();
+    if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ssbo ";
+    }
+    if (features_8bit_storage.uniformAndStorageBuffer8BitAccess == VK_FALSE) {
+        options += " -no-8bit-storage=ubo ";
+    }
+    if (features_8bit_storage.storagePushConstant8 == VK_FALSE) {
+        options += " -no-8bit-storage=pushconstant ";
+    }
+
+    // 16-bit storage capability restrictions.
+    const auto& features_16bit_storage =
+        device->device_16bit_storage_features();
+    if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ssbo ";
+    }
+    if (features_16bit_storage.uniformAndStorageBuffer16BitAccess == VK_FALSE) {
+        options += " -no-16bit-storage=ubo ";
+    }
+    if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
+        options += " -no-16bit-storage=pushconstant ";
+    }
+
+    // Floating-point support
+    if (!device->supports_fp16()) {
+        options += " -fp16=0 ";
+    }
+    if (!device->supports_fp64()) {
+        options += " -fp64=0 ";
+    }
+
+    options += " -max-pushconstant-size=" +
+               std::to_string(device->vulkan_max_push_constants_size()) + " ";
+    options += " -int8 ";
+    if (device->supports_ubo_stdlayout()) {
+        options += " -std430-ubo-layout ";
+    }
+    options += " -global-offset ";
+    options += " -long-vector ";
+    options += " -module-constants-in-storage-buffer ";
+    options += " " + gCLSPVOptions + " ";
+
+    return options;
+}
+
 cl_build_status cvk_program::compile_source(const cvk_device* device) {
     bool use_tmp_folder = true;
     bool save_headers = true;
@@ -690,28 +805,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         }
     }
 
-    // Strip off a few options we can't handle
-    std::string processed_options;
-    if (m_build_options.size() > 0) {
-        processed_options += " ";
-        processed_options += m_build_options;
-    }
-    std::vector<std::pair<std::string, std::string>> option_substitutions = {
-        // TODO Enable in clspv and figure out interface
-        {"-cl-kernel-arg-info", ""},
-        // FIXME The 1.2 conformance tests shouldn't pass this option.
-        //       It doesn't exist after OpenCL 1.0.
-        {"-cl-strict-aliasing", ""},
-        // clspv require entrypoint inlining for OpenCL 2.0
-        {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
-    };
-
-    for (auto& subst : option_substitutions) {
-        size_t loc = processed_options.find(subst.first);
-        if (loc != std::string::npos) {
-            processed_options.replace(loc, subst.first.length(), subst.second);
-        }
-    }
+    // Prepare build options
+    auto build_options = prepare_build_options(device);
 
     // Select operation
     // TODO support building a library with clBuildProgram
@@ -721,72 +816,13 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
     }
 
-    // Prepare options
-    std::string options = processed_options;
-    std::string single_precision_option = "-cl-single-precision-constant";
-    if (processed_options.find(single_precision_option) == std::string::npos) {
-        options += " " + single_precision_option + " ";
-    }
-    if (!devices_support_images()) {
-        options += " -images=0 ";
-    }
-
-    // 8-bit storage capability restrictions.
-    const auto& features_8bit_storage = device->device_8bit_storage_features();
-    if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
-        options += " -no-8bit-storage=ssbo ";
-    }
-    if (features_8bit_storage.uniformAndStorageBuffer8BitAccess == VK_FALSE) {
-        options += " -no-8bit-storage=ubo ";
-    }
-    if (features_8bit_storage.storagePushConstant8 == VK_FALSE) {
-        options += " -no-8bit-storage=pushconstant ";
-    }
-
-    // 16-bit storage capability restrictions.
-    const auto& features_16bit_storage =
-        device->device_16bit_storage_features();
-    if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
-        options += " -no-16bit-storage=ssbo ";
-    }
-    if (features_16bit_storage.uniformAndStorageBuffer16BitAccess == VK_FALSE) {
-        options += " -no-16bit-storage=ubo ";
-    }
-    if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
-        options += " -no-16bit-storage=pushconstant ";
-    }
-
-    // Floating-point support
-    if (!device->supports_fp16()) {
-        options += " -fp16=0 ";
-    }
-    if (!device->supports_fp64()) {
-        options += " -fp64=0 ";
-    }
-
-    options += " -max-pushconstant-size=" +
-               std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    options += " -int8 ";
-    if (device->supports_ubo_stdlayout()) {
-        options += " -std430-ubo-layout ";
-    }
-    options += " -global-offset ";
-    options += " -long-vector ";
-    options += " " + gCLSPVOptions + " ";
-
 #ifdef CLSPV_ONLINE_COMPILER
-    cvk_info("About to compile \"%s\"", options.c_str());
+    cvk_info("About to compile \"%s\"", build_options.c_str());
     auto result = clspv::CompileFromSourceString(
-        m_source, "", options, m_binary.raw_binary(), &m_build_log);
+        m_source, "", build_options, m_binary.raw_binary(), &m_build_log);
     cvk_info("Return code was: %d", result);
     if (result != 0) {
         cvk_error_fn("failed to compile the program");
-        return CL_BUILD_ERROR;
-    }
-
-    // Load descriptor map
-    if (!m_binary.load_descriptor_map()) {
-        cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
 #else
@@ -823,7 +859,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     cmd += " ";
     cmd += clspv_input_file;
     cmd += " ";
-    cmd += options;
+    cmd += build_options;
     cmd += " -o ";
     cmd += spirv_file;
     cvk_info("About to run \"%s\"", cmd.c_str());
@@ -846,13 +882,17 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename,
                  m_binary.code().size());
     }
+#endif
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map()) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         return CL_BUILD_ERROR;
     }
-#endif
+
+    if (!create_module_constant_data_buffer()) {
+        return CL_BUILD_ERROR;
+    }
 
     return CL_BUILD_SUCCESS;
 }
@@ -1305,6 +1345,31 @@ bool cvk_entry_point::
     return true;
 }
 
+bool cvk_entry_point::
+    build_descriptor_sets_layout_bindings_for_program_scope_buffers(
+        binding_stat_map& smap) {
+
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    if (m_program->module_constant_data_buffer() != nullptr) {
+        auto info = m_program->module_constant_data_buffer_info();
+        VkDescriptorSetLayoutBinding binding = {
+            info->binding,                     // binding
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+            1,                                 // decriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT,       // stageFlags
+            nullptr                            // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+    }
+
+    if (!build_descriptor_set_layout(layoutBindings)) {
+        return false;
+    }
+
+    return true;
+}
+
 cl_int cvk_entry_point::init() {
     VkResult res;
 
@@ -1330,6 +1395,10 @@ cl_int cvk_entry_point::init() {
     }
     if (!build_descriptor_sets_layout_bindings_for_arguments(
             bindingTypes, m_num_resource_slots)) {
+        return CL_INVALID_VALUE;
+    }
+    if (!build_descriptor_sets_layout_bindings_for_program_scope_buffers(
+            bindingTypes)) {
         return CL_INVALID_VALUE;
     }
 
