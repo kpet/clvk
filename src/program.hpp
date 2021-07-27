@@ -102,6 +102,12 @@ enum class spec_constant
     global_offset_z,
 };
 
+struct constant_data_buffer_info {
+    uint32_t set;
+    uint32_t binding;
+    std::vector<char> data;
+};
+
 class spir_binary {
 
     using kernels_arguments_map =
@@ -192,12 +198,21 @@ public:
 
     bool strip_reflection(std::vector<uint32_t>* stripped);
 
+    const constant_data_buffer_info* constant_data_buffer() const {
+        return m_constant_data_buffer.get();
+    }
+
+    void set_constant_data_buffer(const constant_data_buffer_info& info) {
+        m_constant_data_buffer.reset(new constant_data_buffer_info(info));
+    }
+
 private:
     spv_context m_context;
     std::vector<uint32_t> m_code;
     std::vector<sampler_desc> m_literal_samplers;
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
+    std::unique_ptr<constant_data_buffer_info> m_constant_data_buffer;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
     bool m_loaded_from_binary;
@@ -299,6 +314,8 @@ private:
     bool build_descriptor_sets_layout_bindings_for_arguments(
         binding_stat_map& smap, uint32_t& num_resource_slots);
     bool build_descriptor_sets_layout_bindings_for_literal_samplers(
+        binding_stat_map& smap);
+    bool build_descriptor_sets_layout_bindings_for_program_scope_buffers(
         binding_stat_map& smap);
 
     // Structures for caching pipelines based on specialization constants
@@ -501,8 +518,33 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     CHECK_RETURN cvk_entry_point* get_entry_point(std::string& name,
                                                   cl_int* errcode_ret);
 
+    bool create_module_constant_data_buffer() {
+        cl_int err;
+        if (m_binary.constant_data_buffer() != nullptr) {
+            auto& init_data = m_binary.constant_data_buffer()->data;
+            void* init_data_ptr =
+                reinterpret_cast<void*>(const_cast<char*>(init_data.data()));
+            m_module_constant_data_buffer =
+                cvk_buffer::create(m_context, CL_MEM_COPY_HOST_PTR,
+                                   init_data.size(), init_data_ptr, &err);
+            if (m_module_constant_data_buffer == nullptr) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const cvk_buffer* module_constant_data_buffer() const {
+        return m_module_constant_data_buffer.get();
+    }
+
+    const constant_data_buffer_info* module_constant_data_buffer_info() const {
+        return m_binary.constant_data_buffer();
+    }
+
 private:
     void do_build();
+    std::string prepare_build_options(const cvk_device* device) const;
     CHECK_RETURN cl_build_status compile_source(const cvk_device* device);
     CHECK_RETURN cl_build_status link();
     void prepare_push_constant_range();
@@ -535,6 +577,7 @@ private:
         m_entry_points;
     std::vector<uint32_t> m_stripped_binary;
     VkPipelineCache m_pipeline_cache;
+    std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {

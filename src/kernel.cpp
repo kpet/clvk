@@ -108,13 +108,43 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
 
     // Make enough space to store all descriptor write structures
     size_t max_descriptor_writes =
-        m_args.size() + program->literal_sampler_descs().size();
+        m_args.size() // upper bound that includes POD buffers
+        + program->literal_sampler_descs().size() +
+        1; // module constant data buffer
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
     descriptor_writes.reserve(max_descriptor_writes);
     buffer_info.reserve(max_descriptor_writes);
     image_info.reserve(max_descriptor_writes);
+
+    // Setup module-scope variables
+    if (program->module_constant_data_buffer() != nullptr) {
+        auto buffer = program->module_constant_data_buffer();
+        auto info = program->module_constant_data_buffer_info();
+        cvk_debug_fn(
+            "constant data buffer %p, size = %zu @ set = %u, binding = %u",
+            buffer->vulkan_buffer(), buffer->size(), info->set, info->binding);
+        // Update descriptors
+        VkDescriptorBufferInfo bufferInfo = {buffer->vulkan_buffer(),
+                                             0, // offset
+                                             VK_WHOLE_SIZE};
+        buffer_info.push_back(bufferInfo);
+
+        VkWriteDescriptorSet writeDescriptorSet = {
+            VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            nullptr,
+            ds[info->set],
+            info->binding,                     // dstBinding
+            0,                                 // dstArrayElement
+            1,                                 // descriptorCount
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+            nullptr,                           // pImageInfo
+            &buffer_info.back(),
+            nullptr, // pTexelBufferView
+        };
+        descriptor_writes.push_back(writeDescriptorSet);
+    }
 
     // Setup descriptors for POD arguments
     if (m_entry_point->has_pod_buffer_arguments()) {
@@ -124,6 +154,9 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         }
 
         // Update descriptors
+        cvk_debug_fn("pod buffer %p, size = %zu @ set = %u, binding = %u",
+                     m_pod_buffer->vulkan_buffer(), m_pod_buffer->size(),
+                     m_pod_arg->descriptorSet, m_pod_arg->binding);
         VkDescriptorBufferInfo bufferInfo = {m_pod_buffer->vulkan_buffer(),
                                              0, // offset
                                              VK_WHOLE_SIZE};
@@ -154,7 +187,10 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         case kernel_argument_kind::buffer_ubo: {
             auto buffer = static_cast<cvk_buffer*>(get_arg_value(arg));
             auto vkbuf = buffer->vulkan_buffer();
-            cvk_debug_fn("buffer = %p", buffer);
+            cvk_debug_fn(
+                "buffer %p, offset = %zu, size = %zu @ set = %u, binding = %u",
+                buffer->vulkan_buffer(), buffer->vulkan_buffer_offset(),
+                buffer->size(), arg.descriptorSet, arg.binding);
             VkDescriptorBufferInfo bufferInfo = {
                 vkbuf,
                 buffer->vulkan_buffer_offset(), // offset
@@ -183,6 +219,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
             auto clsampler = static_cast<cvk_sampler*>(get_arg_value(arg));
             auto sampler = clsampler->vulkan_sampler();
 
+            cvk_debug_fn("sampler %p @ set = %u, binding = %u", sampler,
+                         arg.descriptorSet, arg.binding);
             VkDescriptorImageInfo imageInfo = {
                 sampler,
                 VK_NULL_HANDLE,           // imageView
@@ -209,6 +247,9 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         case kernel_argument_kind::wo_image: {
             auto image = static_cast<cvk_image*>(get_arg_value(arg));
 
+            cvk_debug_fn("image view %p @ set = %u, binding = %u",
+                         image->vulkan_image_view(), arg.descriptorSet,
+                         arg.binding);
             VkDescriptorImageInfo imageInfo = {
                 VK_NULL_HANDLE,
                 image->vulkan_image_view(), // imageView

@@ -155,3 +155,39 @@ TEST_F(WithCommandQueue, CompileAndLinkWithLiteralSamplers) {
     EnqueueReadBuffer(repeat_output, CL_BLOCKING, 0, sizeof(cl_uint), &result);
     EXPECT_EQ(result, value_start);
 }
+
+// Test that module scope constant setup is working
+TEST_F(WithCommandQueue, ModuleScopeConstantData) {
+    static const char* source = R"(
+        __constant uint ppp[2][3] = {{1,2,3}, {5}};
+        kernel void test(global uint *output, uint off) {
+          output[0] = ppp[0+off][0];
+          output[1] = ppp[0+off][1];
+          output[2] = ppp[0+off][2];
+          output[3] = ppp[1+off][0];
+          output[4] = ppp[1+off][1];
+          output[5] = ppp[1+off][2];
+        }
+    )";
+
+    auto kernel = CreateKernel(source, "test");
+
+    auto output = CreateBuffer(CL_MEM_READ_WRITE, 24);
+
+    cl_uint off = 0;
+    SetKernelArg(kernel, 0, output);
+    SetKernelArg(kernel, 1, &off);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+
+    // Check results.
+    cl_int result[6] = {-1};
+    EnqueueReadBuffer(output, CL_BLOCKING, 0, 24, &result);
+    EXPECT_EQ(result[0], 1);
+    EXPECT_EQ(result[1], 2);
+    EXPECT_EQ(result[2], 3);
+    EXPECT_EQ(result[3], 5);
+    EXPECT_EQ(result[4], 0);
+    EXPECT_EQ(result[5], 0);
+}
