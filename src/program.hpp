@@ -122,7 +122,7 @@ class spir_binary {
     using kernels_arguments_map =
         std::unordered_map<std::string, std::vector<kernel_argument>>;
     using kernels_reqd_work_group_size_map =
-        std::unordered_map<std::string, std::array<size_t, 3>>;
+        std::unordered_map<std::string, std::array<uint32_t, 3>>;
 
 public:
     spir_binary(spv_target_env env)
@@ -151,7 +151,7 @@ public:
     const std::vector<sampler_desc>& literal_samplers() {
         return m_literal_samplers;
     }
-    const std::array<size_t, 3>&
+    const std::array<uint32_t, 3>&
     required_work_group_size(const std::string& kernel) const {
         return m_reqd_work_group_sizes.at(kernel);
     }
@@ -516,7 +516,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_binary.spec_constants();
     }
 
-    const std::array<size_t, 3>&
+    const std::array<uint32_t, 3>&
     required_work_group_size(const std::string& kernel) const {
         return m_binary.required_work_group_size(kernel);
     }

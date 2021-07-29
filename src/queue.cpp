@@ -377,30 +377,31 @@ void cvk_command_kernel::update_global_push_constants(
         CVK_ASSERT(pc->size == 12);
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_global_offsets);
+                           &m_ndrange.offset);
     }
 
     if (auto pc = program->push_constant(pushconstant::enqueued_local_size)) {
         CVK_ASSERT(pc->size == 12);
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_lws);
+                           &m_ndrange.lws);
     }
 
     if (auto pc = program->push_constant(pushconstant::global_size)) {
         CVK_ASSERT(pc->size == 12);
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_gws);
+                           &m_ndrange.gws);
     }
 
     if (auto pc = program->push_constant(pushconstant::num_workgroups)) {
         CVK_ASSERT(pc->size == 12);
-        uint32_t num_workgroups[3] = {m_gws[0] / m_lws[0], m_gws[1] / m_lws[1],
-                                      m_gws[2] / m_lws[2]};
+        uint32_t num_workgroups[3] = {m_ndrange.gws[0] / m_ndrange.lws[0],
+                                      m_ndrange.gws[1] / m_ndrange.lws[1],
+                                      m_ndrange.gws[2] / m_ndrange.lws[2]};
 
         for (int i = 0; i < 3; i++) {
-            if (m_gws[i] % m_lws[i] != 0) {
+            if (m_ndrange.gws[i] % m_ndrange.lws[i] != 0) {
                 num_workgroups[i]++;
             }
         }
@@ -508,17 +509,17 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
     where = constants.find(spec_constant::global_offset_x);
     if (where != constants.end()) {
         uint32_t offset_id = where->second;
-        specConstants[offset_id] = m_global_offsets[0];
+        specConstants[offset_id] = m_ndrange.offset[0];
     }
     where = constants.find(spec_constant::global_offset_y);
     if (where != constants.end()) {
         uint32_t offset_id = where->second;
-        specConstants[offset_id] = m_global_offsets[1];
+        specConstants[offset_id] = m_ndrange.offset[1];
     }
     where = constants.find(spec_constant::global_offset_z);
     if (where != constants.end()) {
         uint32_t offset_id = where->second;
-        specConstants[offset_id] = m_global_offsets[2];
+        specConstants[offset_id] = m_ndrange.offset[2];
     }
 
     m_pipeline = m_kernel->create_pipeline(specConstants);
@@ -533,9 +534,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
     if (auto pc = program->push_constant(pushconstant::region_offset)) {
         CVK_ASSERT(pc->size == 12);
         uint32_t region_offsets[3] = {
-            m_global_offsets[0] + region.offset[0],
-            m_global_offsets[1] + region.offset[1],
-            m_global_offsets[2] + region.offset[2],
+            m_ndrange.offset[0] + region.offset[0],
+            m_ndrange.offset[1] + region.offset[1],
+            m_ndrange.offset[2] + region.offset[2],
         };
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
@@ -545,9 +546,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
     if (auto pc = program->push_constant(pushconstant::region_group_offset)) {
         CVK_ASSERT(pc->size == 12);
         uint32_t region_group_offsets[3] = {
-            region.offset[0] / m_lws[0],
-            region.offset[1] / m_lws[1],
-            region.offset[2] / m_lws[2],
+            region.offset[0] / m_ndrange.lws[0],
+            region.offset[1] / m_ndrange.lws[1],
+            region.offset[2] / m_ndrange.lws[2],
         };
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
@@ -565,7 +566,9 @@ cl_int cvk_command_kernel::build_and_dispatch_regions(
 
     // Split non-uniform NDRange into uniform regions
     cvk_ndrange regions[8];
-    regions[0] = {{0}, m_gws, m_lws};
+    regions[0].offset = {0};
+    regions[0].gws = m_ndrange.gws;
+    regions[0].lws = m_ndrange.lws;
     uint32_t stackpos = 0;
     uint32_t num_regions = 1;
     do {

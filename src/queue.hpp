@@ -656,15 +656,45 @@ private:
     static const int POOL_QUERY_CMD_END = 1;
 };
 
+struct cvk_ndrange {
+
+    cvk_ndrange() : offset({0}), gws({1, 1, 1}), lws({1, 1, 1}) {}
+
+    cvk_ndrange(cl_uint work_dim, const size_t* global_work_offset,
+                const size_t* global_work_size, const size_t* local_work_size)
+        : cvk_ndrange() {
+        for (cl_uint dim = 0; dim < work_dim; dim++) {
+            if (global_work_offset != nullptr) {
+                offset[dim] = global_work_offset[dim];
+            }
+            gws[dim] = global_work_size[dim];
+            if (local_work_size != nullptr) {
+                lws[dim] = local_work_size[dim];
+            }
+        }
+    }
+
+    bool is_uniform() const {
+        for (cl_uint i = 0; i < 3; i++) {
+            if (gws[i] % lws[i] != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    std::array<uint32_t, 3> offset;
+    std::array<uint32_t, 3> gws;
+    std::array<uint32_t, 3> lws;
+};
+
 struct cvk_command_kernel : public cvk_command_batchable {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
-                       const std::array<uint32_t, 3>& global_offsets,
-                       const std::array<uint32_t, 3>& gws,
-                       const std::array<uint32_t, 3>& lws)
+                       const cvk_ndrange& ndrange)
         : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims), m_global_offsets(global_offsets), m_gws(gws),
-          m_lws(lws), m_pipeline(VK_NULL_HANDLE), m_argument_values(nullptr) {}
+          m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
+          m_argument_values(nullptr) {}
 
     ~cvk_command_kernel() {
         if (m_argument_values) {
@@ -676,11 +706,6 @@ struct cvk_command_kernel : public cvk_command_batchable {
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
 
 private:
-    struct cvk_ndrange {
-        std::array<uint32_t, 3> offset;
-        std::array<uint32_t, 3> gws;
-        std::array<uint32_t, 3> lws;
-    };
     CHECK_RETURN cl_int
     build_and_dispatch_regions(cvk_command_buffer& command_buffer);
     void update_global_push_constants(cvk_command_buffer& command_buffer);
@@ -689,9 +714,7 @@ private:
 
     cvk_kernel_holder m_kernel;
     uint32_t m_dimensions;
-    std::array<uint32_t, 3> m_global_offsets;
-    std::array<uint32_t, 3> m_gws;
-    std::array<uint32_t, 3> m_lws;
+    cvk_ndrange m_ndrange;
     VkPipeline m_pipeline;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
 };

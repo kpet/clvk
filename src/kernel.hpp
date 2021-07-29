@@ -72,7 +72,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cl_ulong local_mem_size() const;
 
-    const std::array<size_t, 3>& required_work_group_size() const {
+    const std::array<uint32_t, 3>& required_work_group_size() const {
         return m_program->required_work_group_size(m_name);
     }
 

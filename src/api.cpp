@@ -2821,6 +2821,7 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
     const void* copy_ptr = nullptr;
     size_t val_sizet, ret_size = 0;
     cl_ulong val_ulong;
+    std::array<size_t, 3> val_wgs;
 
     auto device = icd_downcast(dev);
     auto kernel = icd_downcast(kern);
@@ -2845,10 +2846,15 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         copy_ptr = &val_ulong;
         ret_size = sizeof(val_ulong);
         break;
-    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE:
-        copy_ptr = kernel->required_work_group_size().data();
-        ret_size = sizeof(size_t[3]);
+    case CL_KERNEL_COMPILE_WORK_GROUP_SIZE: {
+        auto const& val_wgs_uint = kernel->required_work_group_size();
+        val_wgs[0] = val_wgs_uint[0];
+        val_wgs[1] = val_wgs_uint[1];
+        val_wgs[2] = val_wgs_uint[3];
+        copy_ptr = val_wgs.data();
+        ret_size = sizeof(val_wgs);
         break;
+    }
     case CL_KERNEL_PRIVATE_MEM_SIZE: // TODO
         // Return 0 as it is a lower bound of the private memory size needed by
         // a kernel.
@@ -3505,9 +3511,7 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
 
 cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
                                   cvk_kernel* kernel, uint32_t dims,
-                                  const std::array<uint32_t, 3>& global_offsets,
-                                  const std::array<uint32_t, 3>& global_size,
-                                  const std::array<uint32_t, 3>& workgroup_size,
+                                  const cvk_ndrange& ndrange,
                                   cl_uint num_events_in_wait_list,
                                   const cl_event* event_wait_list,
                                   cl_event* event) {
@@ -3609,25 +3613,19 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // Check work-group size matches the required size if specified
     auto reqd_work_group_size = kernel->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
-        if (reqd_work_group_size[0] != workgroup_size[0] ||
-            reqd_work_group_size[1] != workgroup_size[1] ||
-            reqd_work_group_size[2] != workgroup_size[2]) {
+        if (reqd_work_group_size != ndrange.lws) {
             return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
 
     // Check uniformity of the NDRange if needed
     if (!command_queue->device()->supports_non_uniform_workgroup()) {
-        for (cl_uint i = 0; i < 3; i++) {
-            if (global_size[i] % workgroup_size[i] != 0) {
-                return CL_INVALID_WORK_GROUP_SIZE;
-            }
+        if (!ndrange.is_uniform()) {
+            return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
 
-    auto cmd =
-        new cvk_command_kernel(command_queue, kernel, dims, global_offsets,
-                               global_size, workgroup_size);
+    auto cmd = new cvk_command_kernel(command_queue, kernel, dims, ndrange);
 
     return command_queue->enqueue_command_with_deps(
         cmd, num_events_in_wait_list, event_wait_list, event);
@@ -3643,14 +3641,12 @@ cl_int CLVK_API_CALL clEnqueueTask(cl_command_queue command_queue,
         " event_wait_list = %p, event = %p",
         command_queue, kernel, num_events_in_wait_list, event_wait_list, event);
 
-    std::array<uint32_t, 3> global_size = {1, 1, 1};
-    std::array<uint32_t, 3> workgroup_size = {1, 1, 1};
-    std::array<uint32_t, 3> global_offsets = {0, 0, 0};
+    cvk_ndrange ndrange;
+    ndrange.gws = {1};
 
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), 1, global_offsets,
-        global_size, workgroup_size, num_events_in_wait_list, event_wait_list,
-        event);
+        icd_downcast(command_queue), icd_downcast(kernel), 1, ndrange,
+        num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
@@ -3665,34 +3661,28 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         command_queue, kernel, work_dim, num_events_in_wait_list,
         event_wait_list, event);
 
-    std::array<uint32_t, 3> goff = {0, 0, 0};
-    std::array<uint32_t, 3> gws = {1, 1, 1};
-    std::array<uint32_t, 3> lws = {1, 1, 1};
-
-    for (cl_uint i = 0; i < work_dim; i++) {
-        gws[i] = global_work_size[i];
-        if (local_work_size != nullptr) {
-            lws[i] = local_work_size[i];
-        }
-        if (global_work_offset != nullptr) {
-            goff[i] = global_work_offset[i];
-        }
-    }
+    cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
+                        local_work_size);
 
     // Try to pick a sensible work-group size if the user didn't specify one.
     if (local_work_size == nullptr) {
-        icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
-        cvk_info_fn("selected local work size: {%u,%u,%u}", lws[0], lws[1],
-                    lws[2]);
+        icd_downcast(command_queue)
+            ->device()
+            ->select_work_group_size(ndrange.gws, ndrange.lws);
+        cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
+                    ndrange.lws[1], ndrange.lws[2]);
     }
 
-    LOG_API_CALL("goff = {%u,%u,%u}", goff[0], goff[1], goff[2]);
-    LOG_API_CALL("gws = {%u,%u,%u}", gws[0], gws[1], gws[2]);
-    LOG_API_CALL("lws = {%u,%u,%u}", lws[0], lws[1], lws[2]);
+    LOG_API_CALL("goff = {%u,%u,%u}", ndrange.offset[0], ndrange.offset[1],
+                 ndrange.offset[2]);
+    LOG_API_CALL("gws = {%u,%u,%u}", ndrange.gws[0], ndrange.gws[1],
+                 ndrange.gws[2]);
+    LOG_API_CALL("lws = {%u,%u,%u}", ndrange.lws[0], ndrange.lws[1],
+                 ndrange.lws[2]);
 
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), work_dim, goff, gws,
-        lws, num_events_in_wait_list, event_wait_list, event);
+        icd_downcast(command_queue), icd_downcast(kernel), work_dim, ndrange,
+        num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueNativeKernel(
@@ -5575,16 +5565,15 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
     // the maximum value representable by size_t on the device associated with
     // command_queue.
 
-    std::array<uint32_t, 3> lws;
-    std::array<uint32_t, 3> gws = {1, 1, 1};
-    for (cl_uint i = 0; i < work_dim; i++) {
-        gws[i] = global_work_size[i];
-    }
+    cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
+                        nullptr);
 
-    icd_downcast(command_queue)->device()->select_work_group_size(gws, lws);
+    icd_downcast(command_queue)
+        ->device()
+        ->select_work_group_size(ndrange.gws, ndrange.lws);
 
     for (cl_uint i = 0; i < work_dim; i++) {
-        suggested_local_work_size[i] = lws[i];
+        suggested_local_work_size[i] = ndrange.lws[i];
     }
 
     return CL_SUCCESS;
