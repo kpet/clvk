@@ -190,6 +190,16 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_fp64() const { return m_has_fp64_support; }
 
+    bool supports_int8() const { return m_has_int8_support; }
+
+    bool compiler_available() const {
+#ifdef COMPILER_AVAILABLE
+        return true;
+#else
+        return false;
+#endif
+    }
+
     CHECK_RETURN const std::string& extension_string() const {
         return m_extension_string;
     }
@@ -315,6 +325,10 @@ struct cvk_device : public _cl_device_id,
 
     uint32_t vulkan_max_push_constants_size() const {
         return m_properties.limits.maxPushConstantsSize;
+    }
+
+    uint32_t vulkan_max_uniform_buffer_range() const {
+        return m_properties.limits.maxUniformBufferRange;
     }
 
     bool supports_non_uniform_workgroup() const { return true; }
@@ -476,6 +490,7 @@ private:
     bool m_has_timer_support{};
     bool m_has_fp16_support{};
     bool m_has_fp64_support{};
+    bool m_has_int8_support{};
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {

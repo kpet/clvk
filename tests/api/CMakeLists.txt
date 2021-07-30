@@ -33,6 +33,10 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
   add_definitions(-DUSING_TALVOS)
 endif()
 
+if (${CLVK_COMPILER_AVAILABLE})
+  add_definitions(-DCOMPILER_AVAILABLE)
+endif()
+
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   add_definitions(-DUSING_SWIFTSHADER)
 endif()

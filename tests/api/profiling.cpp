@@ -116,8 +116,7 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
     auto res = GetPlatformInfo<cl_ulong>(platform(),
                                          CL_PLATFORM_HOST_TIMER_RESOLUTION);
     if (res == 0) {
-        // FIXME use GTEST_SKIP() when LLVM has caught up
-        return;
+        GTEST_SKIP();
     }
 
     // Create kernel
@@ -189,8 +188,7 @@ TEST_F(WithContext, DeviceAndHostTimerEquality) {
     auto res = GetPlatformInfo<cl_ulong>(platform(),
                                          CL_PLATFORM_HOST_TIMER_RESOLUTION);
     if (res == 0) {
-        // FIXME use GTEST_SKIP() when LLVM has caught up
-        return;
+        GTEST_SKIP();
     }
 
     cl_ulong dev, host;

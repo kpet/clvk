@@ -369,22 +369,7 @@ spv_result_t parse_reflection(void* user_data,
     return SPV_SUCCESS;
 }
 
-/*
- * BINARY FILE FORMAT
- * +---------+-----------------------+
- * | U32     | Version               |
- * | U32     | SPIR Size             |
- * | N * U32 | SPIR                  |
- * +---------+-----------------------+
- */
-
-bool spir_binary::load_spir(std::istream& istream, uint32_t size) {
-    m_code.assign(size / SPIR_WORD_SIZE, 0);
-    istream.read(reinterpret_cast<char*>(m_code.data()), size);
-    return istream.good();
-}
-
-bool spir_binary::load_spir(const char* fname) {
+bool spir_binary::load(const char* fname) {
     std::ifstream ifile;
 
     ifile.open(fname, std::ios::in | std::ios::binary);
@@ -398,29 +383,15 @@ bool spir_binary::load_spir(const char* fname) {
     uint32_t size = ifile.tellg();
     ifile.seekg(0, std::ios::beg);
 
-    return load_spir(ifile, size);
+    return load(ifile, size);
 }
 
-bool spir_binary::load(std::istream& istream) {
-    m_loaded_from_binary = true;
+bool spir_binary::load(std::istream& istream, uint32_t size) {
+    m_code.assign(size / SPIR_WORD_SIZE, 0);
+    istream.read(reinterpret_cast<char*>(m_code.data()), size);
 
-    // Check magic
-    uint32_t magic;
-    istream.read(reinterpret_cast<char*>(&magic), sizeof(uint32_t));
-
-    if (magic != MAGIC) {
-        return false;
-    }
-
-    // Load SPIR
-    uint32_t size_spir;
-    istream.read(reinterpret_cast<char*>(&size_spir), sizeof(uint32_t));
-
-    if (size_spir % SPIR_WORD_SIZE != 0) {
-        return false;
-    }
-
-    if (!load_spir(istream, size_spir)) {
+    if (!istream.good()) {
+        cvk_warn("Failed to load SPIR-V (size: %u)", size);
         return false;
     }
 
@@ -428,35 +399,14 @@ bool spir_binary::load(std::istream& istream) {
 }
 
 bool spir_binary::read(const unsigned char* src, size_t size) {
+    m_loaded_from_binary = true;
     membuf bufview(src, src + size);
     std::istream istream(&bufview);
-    return load(istream);
-}
-
-bool spir_binary::save_spir(const char* fname) const {
-    std::ofstream ofile;
-
-    ofile.open(fname, std::ios::out | std::ios::binary);
-
-    if (!ofile.is_open()) {
-        return false;
-    }
-
-    ofile.write(reinterpret_cast<const char*>(m_code.data()),
-                m_code.size() * sizeof(SPIR_WORD_SIZE));
-
-    return ofile.good();
+    return load(istream, size);
 }
 
 bool spir_binary::save(std::ostream& ostream) const {
-    // Write magic
-    ostream.write(reinterpret_cast<const char*>(&MAGIC), sizeof(MAGIC));
-
-    // Write SPIR
-    uint32_t spir_size = m_code.size() * SPIR_WORD_SIZE;
-    ostream.write(reinterpret_cast<const char*>(&spir_size), sizeof(spir_size));
-    ostream.write(reinterpret_cast<const char*>(m_code.data()), spir_size);
-
+    ostream.write(reinterpret_cast<const char*>(m_code.data()), size());
     return ostream.good();
 }
 
@@ -472,9 +422,7 @@ bool spir_binary::save(const char* fname) const {
     return save(ofile);
 }
 
-size_t spir_binary::size() const {
-    return sizeof(MAGIC) + sizeof(uint32_t) + (m_code.size() * SPIR_WORD_SIZE);
-}
+size_t spir_binary::size() const { return m_code.size() * SPIR_WORD_SIZE; }
 
 bool spir_binary::write(unsigned char* dst) const {
     membuf bufview(dst, dst + size());
@@ -523,6 +471,7 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
 #undef msgtpl
         };
 
+#if COMPILER_AVAILABLE || USING_SWIFTSHADER
     spvtools::Optimizer opt(m_target_env);
     opt.SetMessageConsumer(consumer);
     opt.RegisterPass(spvtools::CreateStripReflectInfoPass());
@@ -531,6 +480,9 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
     if (!opt.Run(m_code.data(), m_code.size(), stripped, options)) {
         return false;
     }
+#else
+    *stripped = m_code;
+#endif
     return true;
 }
 
@@ -586,6 +538,7 @@ bool spir_binary::get_capabilities(
 
 namespace {
 
+#if COMPILER_AVAILABLE
 bool save_string_to_file(const std::string& fname, const std::string& text) {
     std::ofstream ofile{fname};
 
@@ -611,6 +564,7 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 
     return ofile.good();
 }
+#endif // COMPILER_AVAILABLE
 
 struct temp_file_deletion_stack {
 
@@ -726,29 +680,39 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += " -no-16bit-storage=pushconstant ";
     }
 
-    // Floating-point support
+    // Types support
     if (!device->supports_fp16()) {
         options += " -fp16=0 ";
     }
     if (!device->supports_fp64()) {
         options += " -fp64=0 ";
     }
-
-    options += " -max-pushconstant-size=" +
-               std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    options += " -int8 ";
+    if (device->supports_int8()) {
+        options += " -int8 ";
+    }
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
+
+    // Limits
+    options += " -max-pushconstant-size=" +
+               std::to_string(device->vulkan_max_push_constants_size()) + " ";
+    options += " -max-ubo-size=" +
+               std::to_string(device->vulkan_max_uniform_buffer_range()) + " ";
     options += " -global-offset ";
     options += " -long-vector ";
     options += " -module-constants-in-storage-buffer ";
+#if COMPILER_AVAILABLE
     options += " " + gCLSPVOptions + " ";
+#endif
 
     return options;
 }
 
 cl_build_status cvk_program::compile_source(const cvk_device* device) {
+#if !COMPILER_AVAILABLE
+    UNUSED(device);
+#else // !COMPILER_AVAILABLE
     bool use_tmp_folder = true;
     bool save_headers = true;
     temp_file_deletion_stack temps;
@@ -875,14 +839,15 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
     // Load SPIR-V program
     const char* filename = spirv_file.c_str();
-    if (!m_binary.load_spir(filename)) {
+    if (!m_binary.load(filename)) {
         cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
         return CL_BUILD_ERROR;
     } else {
         cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename,
                  m_binary.code().size());
     }
-#endif
+#endif // CLSPV_ONLINE_COMPILER
+#endif // !COMPILER_AVAILABLE
 
     // Load descriptor map
     if (!m_binary.load_descriptor_map()) {
@@ -898,6 +863,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 }
 
 cl_build_status cvk_program::link() {
+#if COMPILER_AVAILABLE
     spvtools::Context context(SPV_ENV_VULKAN_1_0);
     std::vector<uint32_t> linked;
     std::vector<std::vector<uint32_t>> binaries(m_num_input_programs);
@@ -980,6 +946,7 @@ cl_build_status cvk_program::link() {
 
     cvk_debug_fn("linked binary has %zu kernels",
                  m_binary.kernels_arguments().size());
+#endif
 
     return CL_BUILD_SUCCESS;
 }
@@ -1034,10 +1001,9 @@ void cvk_program::do_build() {
     switch (m_operation) {
     case build_operation::compile:
     case build_operation::build:
-        // Compile source and load binary
-        if (!m_binary.loaded_from_binary()) {
-            status = compile_source(device);
-        }
+        status = compile_source(device);
+        break;
+    case build_operation::build_binary:
         break;
     case build_operation::link:
         status = link();

@@ -27,11 +27,13 @@
 bool gQueueProfilingUsesTimestampQueries = false;
 bool gKeepTemporaries = false;
 
-#ifndef CLSPV_ONLINE_COMPILER
+#if COMPILER_AVAILABLE
+#if !CLSPV_ONLINE_COMPILER
 std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
 std::string gLLVMSPIRVPath = DEFAULT_LLVMSPIRV_BINARY_PATH;
 #endif
 std::string gCLSPVOptions;
+#endif // COMPILER_AVAILABLE
 
 static VkBool32 VKAPI_PTR debugCallback(
     VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
@@ -194,7 +196,8 @@ void clvk_global_state::term_vulkan() {
 }
 
 static void init_options() {
-#ifndef CLSPV_ONLINE_COMPILER
+#if COMPILER_AVAILABLE
+#if !CLSPV_ONLINE_COMPILER
     char* llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
     if (llvmspirv_binary != nullptr) {
         gLLVMSPIRVPath = llvmspirv_binary;
@@ -208,6 +211,7 @@ static void init_options() {
     if (clspv_options != nullptr) {
         gCLSPVOptions = clspv_options;
     }
+#endif // COMPILER_AVAILABLE
     auto profiling = getenv("CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES");
     if (profiling != nullptr) {
         int val = atoi(profiling);

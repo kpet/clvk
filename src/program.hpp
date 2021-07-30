@@ -114,7 +114,6 @@ class spir_binary {
         std::unordered_map<std::string, std::vector<kernel_argument>>;
     using kernels_reqd_work_group_size_map =
         std::unordered_map<std::string, std::array<size_t, 3>>;
-    const uint32_t MAGIC = 0x00BEEF00;
 
 public:
     spir_binary(spv_target_env env)
@@ -122,11 +121,9 @@ public:
         m_context = spvContextCreate(env);
     }
     ~spir_binary() { spvContextDestroy(m_context); }
-    CHECK_RETURN bool load_spir(const char* fname);
-    CHECK_RETURN bool load_spir(std::istream& istream, uint32_t size);
+    CHECK_RETURN bool load(const char* fname);
+    CHECK_RETURN bool load(std::istream& istream, uint32_t size);
     CHECK_RETURN bool load_descriptor_map();
-    CHECK_RETURN bool save_spir(const char* fname) const;
-    CHECK_RETURN bool load(std::istream& istream);
     CHECK_RETURN bool save(std::ostream& ostream) const;
     CHECK_RETURN bool save(const char* fname) const;
     CHECK_RETURN bool read(const unsigned char* src, size_t size);
@@ -222,6 +219,7 @@ private:
 enum class build_operation
 {
     build,
+    build_binary,
     compile,
     link
 };

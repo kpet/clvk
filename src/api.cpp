@@ -105,6 +105,17 @@ bool map_flags_are_valid(cl_map_flags flags) {
     return true;
 }
 
+bool is_compiler_available(cl_uint num_devices, const cl_device_id* devices) {
+    for (cl_uint i = 0; i < num_devices; i++) {
+        auto dev = icd_downcast(devices[i]);
+        if (!dev->compiler_available()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 // Utilities
 struct api_query_string : public std::string {
     api_query_string() : std::string() {}
@@ -427,9 +438,13 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_AVAILABLE:
+        val_bool = CL_TRUE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
     case CL_DEVICE_COMPILER_AVAILABLE:
     case CL_DEVICE_LINKER_AVAILABLE:
-        val_bool = CL_TRUE;
+        val_bool = device->compiler_available();
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
         break;
@@ -2035,10 +2050,12 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
     // valid program binary loaded.
     // TODO CL_INVALID_BUILD_OPTIONS if the build options specified by options
     // are invalid.
-    // TODO CL_COMPILER_NOT_AVAILABLE if program is created with
-    // clCreateProgramWithSource and a compiler is not available i.e.
-    // CL_DEVICE_COMPILER_AVAILABLE specified in the table of OpenCL Device
-    // Queries for clGetDeviceInfo is set to CL_FALSE.
+    build_operation build_op = build_operation::build;
+    if (program->loaded_from_binary()) {
+        build_op = build_operation::build_binary;
+    } else if (!is_compiler_available(num_devices, device_list)) {
+        return CL_COMPILER_NOT_AVAILABLE;
+    }
     // TODO CL_BUILD_PROGRAM_FAILURE if there is a failure to build the program
     // executable. This error will be returned if clBuildProgram does not return
     // until the build has completed.
@@ -2048,8 +2065,8 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
     // clCreateProgramWithSource or clCreateProgramWithBinary or
     // clCreateProgramWithILKHR.
 
-    if (!program->build(build_operation::build, num_devices, device_list,
-                        options, 0, nullptr, nullptr, pfn_notify, user_data)) {
+    if (!program->build(build_op, num_devices, device_list, options, 0, nullptr,
+                        nullptr, pfn_notify, user_data)) {
         return CL_INVALID_OPERATION;
     }
 
@@ -2104,9 +2121,9 @@ cl_int CLVK_API_CALL clCompileProgram(
     // TODO CL_INVALID_COMPILER_OPTIONS if the compiler options specified by
     // options are invalid.
 
-    // TODO CL_COMPILER_NOT_AVAILABLE if a compiler is not available i.e.
-    // CL_DEVICE_COMPILER_AVAILABLE specified in in the table of allowed values
-    // for param_name for clGetDeviceInfo is set to CL_FALSE.
+    if (!is_compiler_available(num_devices, device_list)) {
+        return CL_COMPILER_NOT_AVAILABLE;
+    }
     // TODO CL_COMPILE_PROGRAM_FAILURE if there is a failure to compile the
     // program source. This error will be returned if clCompileProgram does not
     // return until the compile has completed.
@@ -2189,6 +2206,12 @@ cl_program CLVK_API_CALL clLinkProgram(
 
     // TODO CL_INVALID_DEVICE if OpenCL devices listed in device_list are not in
     // the list of devices associated with context.
+    if (!is_compiler_available(num_devices, device_list)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_LINKER_NOT_AVAILABLE;
+        }
+        return nullptr;
+    }
     // TODO CL_INVALID_LINKER_OPTIONS if the linker options specified by options
     // are invalid
     // TODO CL_INVALID_OPERATION if the rules for devices containing compiled

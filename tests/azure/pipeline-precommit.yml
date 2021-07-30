@@ -76,4 +76,12 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Debug
       artifactName: macOS_Separate_Compiler_Debug
-
+  - template: job-precommit.yml
+    parameters:
+      namePrefix: Ubuntu_18_04_nocompiler
+      vmImage: ubuntu-18.04
+      os: linux
+      cmakeFlags: '-DCLVK_COMPILER_AVAILABLE=0 -DCLVK_CLSPV_ONLINE_COMPILER=0'
+      buildType: Release
+      artifactName: Linux_NoCompiler
+      compilerAvailable: false

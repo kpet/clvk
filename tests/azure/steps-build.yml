@@ -49,12 +49,21 @@ steps:
         configuration: ${{ parameters.buildType }}
         ${{ if eq(parameters.useClCache, true) }}:
           msbuildArguments: '/p:CLToolExe=clcache.exe'
+    - task: MSBuild@1
+      inputs:
+        solution: 'build/external/clspv/tools/driver/clspv.vcxproj'
+        msbuildArchitecture: 'x64'
+        maximumCpuCount: true platform
+        configuration: ${{ parameters.buildType }}
+        ${{ if eq(parameters.useClCache, true) }}:
+          msbuildArguments: '/p:CLToolExe=clcache.exe'
   - ${{ if ne(parameters.os, 'windows') }}:
     - script: |
         set -ex
         which ccache && ccache --show-stats || echo "ccache not available"
         make -C build -j3
         which ccache && ccache --show-stats || echo "ccache not available"
+        make -C build -j3 clspv
       displayName: make
   - script: cmake --install ./build
     displayName: install

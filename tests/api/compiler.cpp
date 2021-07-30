@@ -14,7 +14,7 @@
 
 #include "testcl.hpp"
 
-TEST_F(WithContext, BuildLog) {
+TEST_F(WithContext, DISABLED_NOCOMPILER(BuildLog)) {
     static const char* source_warning =
         "#warning THIS IS A WARNING\nvoid kernel test(){}\n";
     static const char* source_error = "#error THIS IS AN ERROR";
