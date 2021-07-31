@@ -196,6 +196,10 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         case kernel_argument_kind::buffer:
         case kernel_argument_kind::buffer_ubo: {
             auto buffer = static_cast<cvk_buffer*>(get_arg_value(arg));
+            if (buffer == nullptr) {
+                cvk_debug_fn("ignoring NULL buffer argument");
+                break;
+            }
             auto vkbuf = buffer->vulkan_buffer();
             cvk_debug_fn(
                 "buffer %p, offset = %zu, size = %zu @ set = %u, binding = %u",
