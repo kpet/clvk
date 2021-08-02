@@ -1,0 +1,11 @@
+steps:
+  - script: |
+      mkdir ndk
+      cd ndk
+      wget https://dl.google.com/android/repository/android-ndk-r22-linux-x86_64.zip
+      unzip android-ndk-r22-linux-x86_64.zip
+      rm android-ndk-r22-linux-x86_64.zip
+      pwd
+      ls -l
+    displayName: Download and extract Android NDK
+

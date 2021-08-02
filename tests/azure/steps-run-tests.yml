@@ -14,7 +14,7 @@ parameters:
 steps:
   - download: swiftshader
     artifact: swiftshader-$(Agent.OS)
-  - ${{ if ne(parameters.os, 'windows') }}:
+  - ${{ if or(eq(parameters.os, 'linux'), eq(parameters.os, 'osx')) }}:
     - script: VK_ICD_FILENAMES=${{ parameters.icd_json_unix }} CLVK_LOG=3 ./build/simple_test_static
       displayName: Simple test (static)
       condition: ${{ parameters.compilerAvailable }}

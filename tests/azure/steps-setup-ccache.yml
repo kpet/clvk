@@ -6,6 +6,7 @@ parameters:
       values:
       - linux
       - osx
+      - android
     - name: buildType
       type: string
     - name: cacheName
@@ -13,7 +14,7 @@ parameters:
       default: ccache
 
 steps:
-  - ${{ if eq(parameters.os , 'linux') }}:
+  - ${{ if or(eq(parameters.os , 'linux'), eq(parameters.os, 'android')) }}:
     - script: sudo apt-get install ccache
       displayName: Install ccache
   - ${{ if eq(parameters.os , 'osx') }}:
@@ -21,11 +22,11 @@ steps:
       displayName: Install ccache
   - task: Cache@2
     inputs:
-      key: '${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)" | "$(Build.BuildNumber)"'
+      key: '${{ parameters.cacheName }} | ${{ parameters.os }} | ${{ parameters.buildType }} | "$(Build.SourceVersion)" | "$(Build.BuildNumber)"'
       restoreKeys: |
-        ${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }} | "$(Build.SourceVersion)"
-        ${{ parameters.cacheName }} | "$(Agent.OS)" | ${{ parameters.buildType }}
-        ${{ parameters.cacheName }} | "$(Agent.OS)"
+        ${{ parameters.cacheName }} | ${{ parameters.os }} | ${{ parameters.buildType }} | "$(Build.SourceVersion)"
+        ${{ parameters.cacheName }} | ${{ parameters.os }} | ${{ parameters.buildType }}
+        ${{ parameters.cacheName }} | ${{ parameters.os }}
       path: "$(CCACHE_DIR)"
     displayName: Setup ccache cache
   - script: |

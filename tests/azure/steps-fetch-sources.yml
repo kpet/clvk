@@ -5,7 +5,7 @@ parameters:
     default: python
   - name: 'loaderRevision'
     type: string
-    default: v1.2.166
+    default: v1.2.169
 
 steps:
   - script: git submodule update --depth 1 --init

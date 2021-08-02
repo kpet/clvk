@@ -76,7 +76,8 @@ supported:
   `CLVK_TALVOS_DIR`.
 
 * `-DCLVK_VULKAN_IMPLEMENTATION=loader` enables building against a copy of the
-  Vulkan Loader sources provided by the user using `CLVK_VULKAN_LOADER_DIR`.
+  [Vulkan Loader](https://github.com/KhronosGroup/Vulkan-Loader) sources
+  provided by the user using `CLVK_VULKAN_LOADER_DIR`.
   The configuration of the loader to target Vulkan ICDs is left to the user.
 
 * `-DCLVK_VULKAN_IMPLEMENTATION=custom` instructs the build system to use the
@@ -105,6 +106,19 @@ in the same process via the Clspv C++ API.
 
 You can build clvk using an external Clspv source tree by setting
 `-DCLSPV_SOURCE_DIR=/path/to/clspv/source/`.
+
+## Building for Android
+
+clvk can be built for Android using the
+[Android NDK](https://developer.android.com/ndk) toolchain.
+
+1. Download and extract the NDK toolchain to a directory (`/path/to/ndk`)
+2. Pass the following options to CMake:
+    - `-DCMAKE_TOOLCHAIN_FILE=/path/to/ndk/build/cmake/android.toolchain.cmake`
+    - `-DANDROID_ABI=<ABI_FOR_THE_TARGET_DEVICE>`, most likely `arm64-v8a`
+    - `-DCLVK_VULKAN_IMPLEMENTATION=loader`
+    - `-DCLVK_VULKAN_LOADER_DIR=/path/to/Vulkan-Loader` (see above)
+3. That should be it!
 
 # Using
 

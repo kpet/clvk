@@ -6,6 +6,7 @@ parameters:
       - windows
       - linux
       - osx
+      - android
     - name: 'buildType'
       type: string
       default: Release

@@ -23,6 +23,8 @@ jobs:
   pool:
     vmImage: ${{ parameters.vmImage }}
   steps:
+  - ${{ if eq(parameters.os, 'android') }}:
+    - template: steps-get-android-ndk.yml
   - ${{ if eq(parameters.os, 'windows') }}:
     - template: steps-setup-clcache.yml
       parameters:
