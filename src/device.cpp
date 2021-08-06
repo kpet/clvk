@@ -249,6 +249,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
+        VK_KHR_SPIRV_1_4_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numext; i++) {
@@ -678,6 +679,23 @@ void cvk_device::save_pipeline_cache(
     }
 }
 
+void cvk_device::init_spirv_environment() {
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        m_vulkan_spirv_env = SPV_ENV_VULKAN_1_0;
+    } else if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
+        if (is_vulkan_extension_enabled(VK_KHR_SPIRV_1_4_EXTENSION_NAME)) {
+            m_vulkan_spirv_env = SPV_ENV_VULKAN_1_1_SPIRV_1_4;
+        } else {
+            m_vulkan_spirv_env = SPV_ENV_VULKAN_1_1;
+        }
+    } else {
+        // Assume 1.2
+        m_vulkan_spirv_env = SPV_ENV_VULKAN_1_2;
+    }
+    cvk_info("Vulkan SPIR-V environment: %s",
+             spvTargetEnvDescription(m_vulkan_spirv_env));
+}
+
 void cvk_device::log_limits_and_memory_information() {
     // Print relevant device limits
     const VkPhysicalDeviceLimits& limits = vulkan_limits();
@@ -755,6 +773,8 @@ bool cvk_device::init(VkInstance instance) {
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
         return false;
     }
+
+    init_spirv_environment();
 
     log_limits_and_memory_information();
 

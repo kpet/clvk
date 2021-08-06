@@ -694,6 +694,24 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += " -std430-ubo-layout ";
     }
 
+    // Select target SPIR-V version
+    options += " -spv-version=";
+    switch (device->vulkan_spirv_env()) {
+    default:
+    case SPV_ENV_VULKAN_1_0:
+        options += "1.0 ";
+        break;
+    case SPV_ENV_VULKAN_1_1:
+        options += "1.3 ";
+        break;
+    case SPV_ENV_VULKAN_1_1_SPIRV_1_4:
+        options += "1.4 ";
+        break;
+    case SPV_ENV_VULKAN_1_2:
+        options += "1.5 ";
+        break;
+    }
+
     // Limits
     options += " -max-pushconstant-size=" +
                std::to_string(device->vulkan_max_push_constants_size()) + " ";
@@ -803,7 +821,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
         // Call the translator
         int status = cvk_exec(cmd);
-        cvk_info("Return code was: %d", status);
 
         if (status != 0) {
             cvk_error_fn("failed to translate SPIR-V to LLVM IR");
@@ -826,11 +843,9 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     cmd += build_options;
     cmd += " -o ";
     cmd += spirv_file;
-    cvk_info("About to run \"%s\"", cmd.c_str());
 
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
-    cvk_info("Return code was: %d", status);
 
     if (status != 0) {
         cvk_error_fn("failed to compile the program");
@@ -864,7 +879,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
 cl_build_status cvk_program::link() {
 #if COMPILER_AVAILABLE
-    spvtools::Context context(SPV_ENV_VULKAN_1_0);
+    spvtools::Context context(m_context->device()->vulkan_spirv_env());
     std::vector<uint32_t> linked;
     std::vector<std::vector<uint32_t>> binaries(m_num_input_programs);
 
@@ -925,7 +940,7 @@ cl_build_status cvk_program::link() {
     }
 
     // Optimise linked binary
-    spvtools::Optimizer opt(SPV_ENV_VULKAN_1_0);
+    spvtools::Optimizer opt(m_context->device()->vulkan_spirv_env());
     opt.SetMessageConsumer(consumer);
     opt.RegisterPass(spvtools::CreateInlineExhaustivePass());
 

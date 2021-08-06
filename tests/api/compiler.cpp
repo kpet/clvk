@@ -81,7 +81,8 @@ TEST_F(WithCommandQueue, CompileAndLinkWithPushConstants) {
 }
 
 // Test that literal sampler information is propagated correctly when linking.
-TEST_F(WithCommandQueue, CompileAndLinkWithLiteralSamplers) {
+TEST_F(WithCommandQueue,
+       DISABLED_TALVOS_SWIFTSHADER(CompileAndLinkWithLiteralSamplers)) {
     // Read just past the end of a 1D image with two different samplers.
     static const char* source = R"(
         static constant sampler_t sampler_clamp = CLK_ADDRESS_CLAMP_TO_EDGE |

@@ -352,7 +352,8 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),
           m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
-          m_shader_module(VK_NULL_HANDLE) {
+          m_shader_module(VK_NULL_HANDLE),
+          m_binary(m_context->device()->vulkan_spirv_env()) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
 
@@ -567,7 +568,7 @@ private:
     std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>
         m_dev_status;
     std::string m_build_options;
-    spir_binary m_binary{SPV_ENV_VULKAN_1_0};
+    spir_binary m_binary;
     std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;
     VkPushConstantRange m_push_constant_range;
