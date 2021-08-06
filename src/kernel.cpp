@@ -40,6 +40,9 @@ cl_int cvk_kernel::init() {
     // Store a copy of the arguments
     m_args = m_entry_point->args();
 
+    // Mark all arguments as unset
+    m_args_set.resize(m_args.size(), false);
+
     // Init argument values
     m_argument_values = cvk_kernel_argument_values::create(m_entry_point);
     if (m_argument_values == nullptr) {
@@ -84,7 +87,14 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
 
     auto const& arg = m_args[index];
 
-    return m_argument_values->set_arg(arg, size, value);
+    cl_int ret = m_argument_values->set_arg(arg, size, value);
+
+    if (ret == CL_SUCCESS) {
+        // Mark argument as set
+        m_args_set[index] = true;
+    }
+
+    return ret;
 }
 
 bool cvk_kernel_argument_values::setup_descriptor_sets() {
