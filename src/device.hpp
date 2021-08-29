@@ -298,14 +298,15 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_device_fp_config fp_config(cl_device_info fptype) const {
+        if ((fptype == CL_DEVICE_HALF_FP_CONFIG) && supports_fp16()) {
+            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
+        }
         if (fptype == CL_DEVICE_SINGLE_FP_CONFIG) {
-            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN;
+            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
         }
 
-        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) &&
-            m_features.features.shaderFloat64) {
-            return CL_FP_FMA | CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
-                   CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_DENORM;
+        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && supports_fp64()) {
+            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
         }
 
         return 0;

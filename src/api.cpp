@@ -466,13 +466,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
+    case CL_DEVICE_HALF_FP_CONFIG:
     case CL_DEVICE_SINGLE_FP_CONFIG:
-        val_fpconfig = device->fp_config(CL_DEVICE_SINGLE_FP_CONFIG);
-        copy_ptr = &val_fpconfig;
-        size_ret = sizeof(val_fpconfig);
-        break;
     case CL_DEVICE_DOUBLE_FP_CONFIG:
-        val_fpconfig = device->fp_config(CL_DEVICE_DOUBLE_FP_CONFIG);
+        val_fpconfig = device->fp_config(param_name);
         copy_ptr = &val_fpconfig;
         size_ret = sizeof(val_fpconfig);
         break;

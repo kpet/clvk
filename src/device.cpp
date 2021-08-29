@@ -447,6 +447,7 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_int64"));
     }
     if (m_features.features.shaderFloat64) {
+        m_has_fp64_support = true;
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_fp64"));
     }
