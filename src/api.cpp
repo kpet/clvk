@@ -2784,8 +2784,14 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         copy_ptr = kernel->required_work_group_size().data();
         ret_size = sizeof(size_t[3]);
         break;
-    case CL_KERNEL_GLOBAL_WORK_SIZE:        // TODO
-    case CL_KERNEL_PRIVATE_MEM_SIZE:        // TODO
+    case CL_KERNEL_PRIVATE_MEM_SIZE: // TODO
+        // Return 0 as it is a lower bound of the private memory size needed by
+        // a kernel.
+        val_ulong = 0;
+        copy_ptr = &val_ulong;
+        ret_size = sizeof(val_ulong);
+        break;
+    case CL_KERNEL_GLOBAL_WORK_SIZE: // TODO
     default:
         ret = CL_INVALID_VALUE;
         break;
