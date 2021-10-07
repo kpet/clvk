@@ -52,14 +52,19 @@ endif()
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
 
 # SPIR-V Headers
-set(SPIRV_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Headers)
+set(SPIRV_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Headers CACHE STRING
+    "Path to SPIRV headers directory")
 
 # SPIR-V Tools
-set(SPIRV_TOOLS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Tools)
+set(SPIRV_TOOLS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Tools CACHE STRING
+    "Path to SPIRV-Tools directory")
 
 set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 
-add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
+set(CLVK_BUILD_SPIRV_TOOLS ON CACHE BOOL "Set to OFF to disable SPIRV-Tools build")
+if (CLVK_BUILD_SPIRV_TOOLS)
+  add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
+endif()
 
 # clspv
 # FIXME remove the defintion of LLVM_TARGETS_TO_BUILD when LLVM supports an
