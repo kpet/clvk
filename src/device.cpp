@@ -237,12 +237,7 @@ bool cvk_device::init_extensions() {
     CVK_VK_CHECK_ERROR_RET(res, false,
                            "Could not enumerate device extension properties");
 
-    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
-        m_vulkan_device_extensions.push_back(
-            VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
-    }
-
-    std::vector<const char*> desired_extensions = {
+    std::vector<const char*> desired_extensions{
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
@@ -252,10 +247,19 @@ bool cvk_device::init_extensions() {
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
+        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
         desired_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+    }
+
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        m_vulkan_device_extensions.push_back(
+            VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
+    } else {
+        desired_extensions.push_back(
+            VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
     }
 
     for (size_t i = 0; i < numext; i++) {

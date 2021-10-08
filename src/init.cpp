@@ -128,21 +128,29 @@ void clvk_global_state::init_vulkan() {
 
     std::vector<const char*> enabledExtensions;
 
+    const std::vector<const char*> desired_extensions = {
+        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+        VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
+    };
+
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("  %s, spec version %u", extensionProperties[i].extensionName,
                  extensionProperties[i].specVersion);
 
-        if (!strcmp(extensionProperties[i].extensionName,
-                    VK_EXT_DEBUG_REPORT_EXTENSION_NAME)) {
-            enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
-            m_debug_report_enabled = true;
-        } else if (
-            !strcmp(extensionProperties[i].extensionName,
-                    VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME)) {
-            enabledExtensions.push_back(
-                VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        for (auto name : desired_extensions) {
+            if (!strcmp(name, extensionProperties[i].extensionName)) {
+                enabledExtensions.push_back(name);
+                cvk_info("    ENABLING");
+                break;
+            }
         }
     }
+
+    m_debug_report_enabled =
+        std::find(enabledExtensions.begin(), enabledExtensions.end(),
+                  VK_EXT_DEBUG_REPORT_EXTENSION_NAME) !=
+        enabledExtensions.end();
 
     // Create the instance
     VkApplicationInfo appInfo = {
