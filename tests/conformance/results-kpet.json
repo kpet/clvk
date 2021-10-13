@@ -601,6 +601,228 @@
     },
     "retcode": 1
   },
+  "Images (API Info)": {
+    "duration": "00:00:02.604261",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (Kernel Methods)": {
+    "duration": "00:01:36.355387",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (Kernel max size)": {
+    "duration": "00:07:46.762297",
+    "has_results": true,
+    "results": {
+      "1D": "skip",
+      "1Darray": "skip",
+      "2D": "skip",
+      "2Darray": "skip",
+      "3D": "skip"
+    },
+    "retcode": 0
+  },
+  "Images (Kernel pitch)": {
+    "duration": "00:29:00.826391",
+    "has_results": true,
+    "results": {
+      "1D": "skip",
+      "1Darray": "skip",
+      "2D": "skip",
+      "2Darray": "skip",
+      "3D": "skip"
+    },
+    "retcode": 0
+  },
+  "Images (Kernel)": {
+    "duration": "00:33:11.574345",
+    "has_results": true,
+    "results": {
+      "1D": "skip",
+      "1Darray": "skip",
+      "2D": "skip",
+      "2Darray": "skip",
+      "3D": "skip"
+    },
+    "retcode": 0
+  },
+  "Images (Samplerless max size)": {
+    "duration": "00:01:02.518806",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (Samplerless pitch)": {
+    "duration": "00:01:02.701511",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (Samplerless)": {
+    "duration": "00:01:01.585071",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (clCopyImage max size)": {
+    "duration": "00:02:24.078141",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "2Darrayto2D": "pass",
+      "2Darrayto3D": "pass",
+      "2Dto2Darray": "pass",
+      "2Dto3D": "pass",
+      "3D": "pass",
+      "3Dto2D": "pass",
+      "3Dto2Darray": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clCopyImage small)": {
+    "duration": "00:32:01.551202",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "2Darrayto2D": "pass",
+      "2Darrayto3D": "pass",
+      "2Dto2Darray": "pass",
+      "2Dto3D": "pass",
+      "3D": "pass",
+      "3Dto2D": "pass",
+      "3Dto2Darray": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clCopyImage)": {
+    "duration": "00:02:00.759141",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "2Darrayto2D": "pass",
+      "2Darrayto3D": "pass",
+      "2Dto2Darray": "pass",
+      "2Dto3D": "pass",
+      "3D": "pass",
+      "3Dto2D": "pass",
+      "3Dto2Darray": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clFillImage max size)": {
+    "duration": "00:01:04.034316",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clFillImage pitch)": {
+    "duration": "00:00:00.699710",
+    "has_results": true,
+    "results": {
+      "1D": "fail",
+      "1Darray": "fail",
+      "2D": "fail",
+      "2Darray": "fail",
+      "3D": "fail"
+    },
+    "retcode": 1
+  },
+  "Images (clFillImage)": {
+    "duration": "00:00:38.539826",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clReadWriteImage max size)": {
+    "duration": "00:00:09.440613",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clReadWriteImage pitch)": {
+    "duration": "00:00:05.117396",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
+    },
+    "retcode": 0
+  },
+  "Images (clReadWriteImage)": {
+    "duration": "00:00:04.934609",
+    "has_results": true,
+    "results": {
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
+    },
+    "retcode": 0
+  },
   "Integer Ops": {
     "duration": "00:02:19.408158",
     "has_results": true,

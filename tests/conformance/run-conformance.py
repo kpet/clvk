@@ -81,26 +81,33 @@ TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Workgroups', 'workgroups/test_workgroups'),
 )
 
-TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY
-
-TESTS_IMAGES = (
+TESTS_IMAGES_FAST = (
     ('Images (API Info)', 'images/clGetInfo/test_cl_get_info'),
-    ('Images (Kernel Methods)', 'images/kernel_image_methods/test_kernel_image_methods'),
-    ('Images (Kernel)', 'images/kernel_read_write/test_image_streams', 'CL_FILTER_NEAREST'),
-    ('Images (Kernel pitch)', 'images/kernel_read_write/test_image_streams', 'use_pitches', 'CL_FILTER_NEAREST'),    ('Images (Kernel max size)', 'images/kernel_read_write/test_image_streams', 'max_images', 'CL_FILTER_NEAREST'),
-    ('Images (clCopyImage)', 'images/clCopyImage/test_cl_copy_images'),
-    ('Images (clCopyImage small)', 'images/clCopyImage/test_cl_copy_images', 'small_images'),
-    ('Images (clCopyImage max size)', 'images/clCopyImage/test_cl_copy_images', 'max_images'),
     ('Images (clReadWriteImage)', 'images/clReadWriteImage/test_cl_read_write_images'),
     ('Images (clReadWriteImage pitch)', 'images/clReadWriteImage/test_cl_read_write_images', 'use_pitches'),
     ('Images (clReadWriteImage max size)', 'images/clReadWriteImage/test_cl_read_write_images', 'max_images'),
     ('Images (clFillImage)', 'images/clFillImage/test_cl_fill_images'),
     ('Images (clFillImage pitch)', 'images/clFillImage/test_cl_fill_images', 'use_pitches'),
     ('Images (clFillImage max size)', 'images/clFillImage/test_cl_fill_images', 'max_images'),
+)
+
+
+TESTS_IMAGES_SLOW = (
+    ('Images (Kernel Methods)', 'images/kernel_image_methods/test_kernel_image_methods'),
+    ('Images (Kernel)', 'images/kernel_read_write/test_image_streams', 'CL_FILTER_NEAREST'),
+    ('Images (Kernel pitch)', 'images/kernel_read_write/test_image_streams', 'use_pitches', 'CL_FILTER_NEAREST'),
+    ('Images (Kernel max size)', 'images/kernel_read_write/test_image_streams', 'max_images', 'CL_FILTER_NEAREST'),
     ('Images (Samplerless)', 'images/samplerlessReads/test_samplerless_reads'),
     ('Images (Samplerless pitch)', 'images/samplerlessReads/test_samplerless_reads', 'use_pitches'),
     ('Images (Samplerless max size)', 'images/samplerlessReads/test_samplerless_reads', 'max_images'),
+    ('Images (clCopyImage)', 'images/clCopyImage/test_cl_copy_images'),
+    ('Images (clCopyImage small)', 'images/clCopyImage/test_cl_copy_images', 'small_images'),
+    ('Images (clCopyImage max size)', 'images/clCopyImage/test_cl_copy_images', 'max_images'),
 )
+
+TESTS_IMAGES = TESTS_IMAGES_FAST + TESTS_IMAGES_SLOW
+
+TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY + TESTS_IMAGES_FAST
 
 TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
     ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
@@ -116,6 +123,8 @@ TEST_SETS = {
     'wimpy': TESTS_WIMPY,
     'full': TESTS_FULL_CONFORMANCE,
     'images': TESTS_IMAGES,
+    'images-fast': TESTS_IMAGES_FAST,
+    'images-slow': TESTS_IMAGES_SLOW,
 }
 
 TIME_SERIALISATION_FORMAT = '%H:%M:%S.%f'
