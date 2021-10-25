@@ -45,8 +45,17 @@ enum class kernel_argument_kind
     local,
 };
 
-struct kernel_argument {
+struct kernel_argument_info {
     std::string name;
+    bool extended_valid = false;
+    std::string type_name;
+    uint32_t address_qualifier;
+    uint32_t access_qualifier;
+    uint32_t type_qualifier;
+};
+
+struct kernel_argument {
+    kernel_argument_info info;
     uint32_t pos;
     uint32_t descriptorSet;
     uint32_t binding;

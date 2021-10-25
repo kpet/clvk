@@ -54,6 +54,7 @@ struct reflection_parse_data {
     std::unordered_map<uint32_t, uint32_t> constants;
     std::unordered_map<uint32_t, std::string> strings;
     spir_binary* binary;
+    std::unordered_map<uint32_t, kernel_argument_info> arg_infos;
 };
 
 spv_result_t parse_reflection(void* user_data,
@@ -137,11 +138,19 @@ spv_result_t parse_reflection(void* user_data,
                 break;
             }
             case NonSemanticClspvReflectionArgumentInfo: {
-                // Record the argument name.
-                // TODO: parse the rest of the information when clspv produces
-                // it.
-                const auto& name = parse_data->strings[inst->words[5]];
-                parse_data->strings[inst->result_id] = name;
+                // Record the argument info.
+                kernel_argument_info info;
+                info.name = parse_data->strings[inst->words[5]];
+                if (inst->num_operands > 6) {
+                    info.type_name = parse_data->strings[inst->words[6]];
+                    info.address_qualifier =
+                        parse_data->constants[inst->words[7]];
+                    info.access_qualifier =
+                        parse_data->constants[inst->words[8]];
+                    info.type_qualifier = parse_data->constants[inst->words[9]];
+                    info.extended_valid = true;
+                }
+                parse_data->arg_infos[inst->result_id] = info;
                 break;
             }
             case NonSemanticClspvReflectionArgumentStorageBuffer:
@@ -157,12 +166,12 @@ spv_result_t parse_reflection(void* user_data,
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
                     return SPV_ERROR_INVALID_DATA;
                 auto binding = parse_data->constants[inst->words[8]];
-                std::string arg_name;
+                kernel_argument_info arg_info;
                 if (inst->num_operands == 9) {
-                    arg_name = parse_data->strings[inst->words[9]];
+                    arg_info = parse_data->arg_infos[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
-                kernel_argument arg = {arg_name, ordinal, descriptor_set,
+                kernel_argument arg = {arg_info, ordinal, descriptor_set,
                                        binding,  0,       0,
                                        kind,     0,       0};
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
@@ -180,12 +189,12 @@ spv_result_t parse_reflection(void* user_data,
                 auto binding = parse_data->constants[inst->words[8]];
                 auto offset = parse_data->constants[inst->words[9]];
                 auto size = parse_data->constants[inst->words[10]];
-                std::string arg_name;
+                kernel_argument_info arg_info;
                 if (inst->num_operands == 11) {
-                    arg_name = parse_data->strings[inst->words[11]];
+                    arg_info = parse_data->arg_infos[inst->words[11]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
-                kernel_argument arg = {arg_name, ordinal, descriptor_set,
+                kernel_argument arg = {arg_info, ordinal, descriptor_set,
                                        binding,  offset,  size,
                                        kind,     0,       0};
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
@@ -197,12 +206,12 @@ spv_result_t parse_reflection(void* user_data,
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto offset = parse_data->constants[inst->words[7]];
                 auto size = parse_data->constants[inst->words[8]];
-                std::string arg_name;
+                kernel_argument_info arg_info;
                 if (inst->num_operands == 9) {
-                    arg_name = parse_data->strings[inst->words[9]];
+                    arg_info = parse_data->arg_infos[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
-                kernel_argument arg = {arg_name, ordinal, 0, 0, offset,
+                kernel_argument arg = {arg_info, ordinal, 0, 0, offset,
                                        size,     kind,    0, 0};
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
@@ -214,12 +223,12 @@ spv_result_t parse_reflection(void* user_data,
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto spec_id = parse_data->constants[inst->words[7]];
                 auto size = parse_data->constants[inst->words[8]];
-                std::string arg_name;
+                kernel_argument_info arg_info;
                 if (inst->num_operands == 9) {
-                    arg_name = parse_data->strings[inst->words[9]];
+                    arg_info = parse_data->arg_infos[inst->words[9]];
                 }
                 auto kind = inst_to_arg_kind(ext_inst);
-                kernel_argument arg = {arg_name, ordinal, 0,       0,   0,
+                kernel_argument arg = {arg_info, ordinal, 0,       0,   0,
                                        0,        kind,    spec_id, size};
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
@@ -630,8 +639,6 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += m_build_options;
     }
     std::vector<std::pair<std::string, std::string>> option_substitutions = {
-        // TODO Enable in clspv and figure out interface
-        {"-cl-kernel-arg-info", ""},
         // FIXME The 1.2 conformance tests shouldn't pass this option.
         //       It doesn't exist after OpenCL 1.0.
         {"-cl-strict-aliasing", ""},

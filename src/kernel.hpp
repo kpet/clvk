@@ -81,6 +81,32 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
                            [](bool b) { return b; });
     }
 
+    bool has_extended_arg_info(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.extended_valid;
+    }
+
+    const std::string arg_name(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.name;
+    }
+
+    const std::string arg_type_name(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.type_name;
+    }
+
+    cl_kernel_arg_address_qualifier
+    arg_address_qualifier(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.address_qualifier;
+    }
+
+    cl_kernel_arg_access_qualifier
+    arg_access_qualifier(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.access_qualifier;
+    }
+
+    cl_kernel_arg_type_qualifier arg_type_qualifier(cl_uint arg_index) const {
+        return m_args.at(arg_index).info.type_qualifier;
+    }
+
 private:
     friend cvk_kernel_argument_values;
 
