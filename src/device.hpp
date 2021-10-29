@@ -37,7 +37,8 @@ struct cvk_vulkan_extension_functions {
 #define MAKE_NAME_VERSION(major, minor, patch, name)                           \
     cl_name_version { CL_MAKE_VERSION(major, minor, patch), name }
 
-static cl_version gOpenCLVersion = CL_MAKE_VERSION(1, 2, 0);
+static cl_version gOpenCLVersion = CL_MAKE_VERSION(3, 0, 0);
+static cl_version gOpenCLCVersion = CL_MAKE_VERSION(1, 2, 0);
 
 static constexpr bool devices_support_images() { return true; }
 
@@ -250,7 +251,7 @@ struct cvk_device : public _cl_device_id,
 
     cl_version version() const { return gOpenCLVersion; }
 
-    cl_version c_version() const { return gOpenCLVersion; }
+    cl_version c_version() const { return gOpenCLCVersion; }
 
     std::string version_string() const {
         return "OpenCL " + std::to_string(CL_VERSION_MAJOR(version())) + "." +

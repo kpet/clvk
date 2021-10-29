@@ -386,6 +386,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_arm_non_uniform_work_group_size"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_suggested_local_work_size"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -449,6 +450,8 @@ void cvk_device::build_extension_ils_list() {
     // Build list of supported OpenCL C features
     m_opencl_c_features = {
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_images"),
+        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_order_acq_rel"),
+        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_scope_device"),
     };
     if (m_features.features.shaderInt64) {
         m_opencl_c_features.push_back(
