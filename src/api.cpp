@@ -2729,18 +2729,83 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
     return ret;
 }
 
-cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kernel, cl_uint arg_indx,
+cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kern, cl_uint arg_index,
                                         cl_kernel_arg_info param_name,
                                         size_t param_value_size,
                                         void* param_value,
                                         size_t* param_value_size_ret) {
-    LOG_API_CALL("kernel = %p, arg_indx = %u, param_name = %x, "
+    LOG_API_CALL("kernel = %p, arg_index = %u, param_name = %x, "
                  "param_value_size = %zu, param_value = %p, "
                  "param_value_size_ret = %p",
-                 kernel, arg_indx, param_name, param_value_size, param_value,
+                 kern, arg_index, param_name, param_value_size, param_value,
                  param_value_size_ret);
 
-    return CL_KERNEL_ARG_INFO_NOT_AVAILABLE;
+    cl_int ret = CL_SUCCESS;
+    const void* copy_ptr = nullptr;
+    size_t ret_size = 0;
+    api_query_string val_string;
+    cl_kernel_arg_address_qualifier val_address_qualifier;
+    cl_kernel_arg_access_qualifier val_access_qualifier;
+    cl_kernel_arg_type_qualifier val_type_qualifier;
+
+    auto kernel = icd_downcast(kern);
+
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    if (arg_index >= kernel->num_args()) {
+        return CL_INVALID_ARG_INDEX;
+    }
+
+    if ((param_name != CL_KERNEL_ARG_NAME) &&
+        !kernel->has_extended_arg_info(arg_index)) {
+        return CL_KERNEL_ARG_INFO_NOT_AVAILABLE;
+    }
+
+    switch (param_name) {
+    case CL_KERNEL_ARG_NAME:
+        val_string = kernel->arg_name(arg_index);
+        copy_ptr = val_string.data();
+        ret_size = val_string.size_with_null();
+        break;
+    case CL_KERNEL_ARG_ADDRESS_QUALIFIER:
+        val_address_qualifier = kernel->arg_address_qualifier(arg_index);
+        copy_ptr = &val_address_qualifier;
+        ret_size = sizeof(val_address_qualifier);
+        break;
+    case CL_KERNEL_ARG_TYPE_NAME:
+        val_string = kernel->arg_type_name(arg_index);
+        copy_ptr = val_string.data();
+        ret_size = val_string.size_with_null();
+        break;
+    case CL_KERNEL_ARG_ACCESS_QUALIFIER:
+        val_access_qualifier = kernel->arg_access_qualifier(arg_index);
+        copy_ptr = &val_access_qualifier;
+        ret_size = sizeof(val_access_qualifier);
+        break;
+    case CL_KERNEL_ARG_TYPE_QUALIFIER:
+        val_type_qualifier = kernel->arg_type_qualifier(arg_index);
+        copy_ptr = &val_type_qualifier;
+        ret_size = sizeof(val_type_qualifier);
+        break;
+    default:
+        ret = CL_INVALID_VALUE;
+        break;
+    }
+
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+        if (param_value_size < ret_size) {
+            ret = CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = ret_size;
+    }
+
+    return ret;
 }
 
 cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
