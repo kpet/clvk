@@ -177,6 +177,7 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
 
 cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
+    CVK_ASSERT(cmd->queue() == this);
     cl_int err;
 
     // Enqueue data movement/consistency commands if needed
@@ -374,6 +375,10 @@ cl_int cvk_command_group::execute_cmds() {
         // able to understand it easily.
         TRACE_BEGIN("delete_cmd");
         delete cmd;
+        // TODO explain lifetime
+        // if (!cmd->is_part_of_api_command_buffer()) {
+        //    delete cmd;
+        // }
         TRACE_END();
     }
     return global_status;
