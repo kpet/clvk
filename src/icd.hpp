@@ -34,3 +34,4 @@ struct _cl_mem : clvk::icd_object {};
 struct _cl_sampler : clvk::icd_object {};
 struct _cl_event : clvk::icd_object {};
 struct _cl_semaphore_khr : clvk::icd_object {};
+struct _cl_command_buffer_khr : clvk::icd_object {};
