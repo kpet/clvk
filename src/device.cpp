@@ -602,6 +602,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
         // MAKE_NAME_VERSION(0, 9, 0, "cl_khr_semaphore"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_linkonce_odr"),
+        MAKE_NAME_VERSION(0, 9, 0, "cl_khr_command_buffer"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
