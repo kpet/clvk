@@ -289,6 +289,8 @@ static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
     return static_cast<cvk_command_queue*>(queue);
 }
 
+using cvk_queue_holder = refcounted_holder<cvk_command_queue>;
+
 struct cvk_command_pool_lock_holder {
     cvk_command_pool_lock_holder(cvk_command_queue* queue) : m_queue(queue) {
         m_queue->command_pool_lock();
