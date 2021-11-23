@@ -792,6 +792,7 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilitySampled1D:
     case spv::CapabilityImage1D:
     case spv::CapabilityImageQuery:
+    case spv::CapabilityImageBuffer:
         return true;
     // Optional capabilities:
     case spv::CapabilityFloat16:

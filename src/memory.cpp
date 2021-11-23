@@ -14,6 +14,7 @@
 
 #include <cmath>
 
+#include "CL/cl.h"
 #include "memory.hpp"
 
 bool cvk_mem::map() {
@@ -260,6 +261,7 @@ bool cvk_image::init() {
     extent.depth = m_desc.image_depth;
 
     switch (m_desc.image_type) {
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
     case CL_MEM_OBJECT_IMAGE1D:
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D;
@@ -286,7 +288,6 @@ bool cvk_image::init() {
         image_type = VK_IMAGE_TYPE_3D;
         view_type = VK_IMAGE_VIEW_TYPE_3D;
         break;
-    case CL_MEM_OBJECT_IMAGE1D_BUFFER: // TODO support that
     default:
         CVK_ASSERT(false);
         image_type = VK_IMAGE_TYPE_MAX_ENUM;
@@ -339,23 +340,29 @@ bool cvk_image::init() {
         return false;
     }
 
-    // Selec memory type
-    cvk_device::allocation_parameters params =
-        device->select_memory_for(m_image);
-    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
-        cvk_error_fn("Could not get memory type!");
-        return false;
-    }
+    if (m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+        auto buffer = static_cast<cvk_mem*>(m_desc.buffer);
+        m_memory = std::unique_ptr<cvk_memory_allocation>(buffer->memory());
+        buffer->retain();
+    } else {
+        // Select memory type
+        cvk_device::allocation_parameters params =
+            device->select_memory_for(m_image);
+        if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
+            cvk_error_fn("Could not get memory type!");
+            return false;
+        }
 
-    // Allocate memory
-    m_memory = std::make_unique<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        // Allocate memory
+        m_memory = std::make_unique<cvk_memory_allocation>(
+            vkdev, params.size, params.memory_type_index);
 
-    res = m_memory->allocate();
+        res = m_memory->allocate();
 
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("Could not allocate memory!");
-        return false;
+        if (res != VK_SUCCESS) {
+            cvk_error_fn("Could not allocate memory!");
+            return false;
+        }
     }
 
     // Bind the buffer to memory

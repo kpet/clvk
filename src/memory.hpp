@@ -128,6 +128,14 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
         return m_properties;
     }
 
+    cvk_memory_allocation* memory() const {
+        if (m_parent == nullptr) {
+            return m_memory.get();
+        } else {
+            return m_parent->memory();
+        }
+    }
+
     static bool is_image_type(cl_mem_object_type type) {
         return ((type == CL_MEM_OBJECT_IMAGE1D) ||
                 (type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
@@ -415,6 +423,9 @@ struct cvk_image : public cvk_mem {
         }
         if (m_image_view != VK_NULL_HANDLE) {
             vkDestroyImageView(vkdev, m_image_view, nullptr);
+        }
+        if (buffer() != nullptr) {
+            buffer()->release();
         }
     }
 
