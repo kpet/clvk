@@ -2850,7 +2850,7 @@ cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
         auto const& val_wgs_uint = kernel->required_work_group_size();
         val_wgs[0] = val_wgs_uint[0];
         val_wgs[1] = val_wgs_uint[1];
-        val_wgs[2] = val_wgs_uint[3];
+        val_wgs[2] = val_wgs_uint[2];
         copy_ptr = val_wgs.data();
         ret_size = sizeof(val_wgs);
         break;
@@ -3642,7 +3642,7 @@ cl_int CLVK_API_CALL clEnqueueTask(cl_command_queue command_queue,
         command_queue, kernel, num_events_in_wait_list, event_wait_list, event);
 
     cvk_ndrange ndrange;
-    ndrange.gws = {1};
+    ndrange.gws = {1, 1, 1};
 
     return cvk_enqueue_ndrange_kernel(
         icd_downcast(command_queue), icd_downcast(kernel), 1, ndrange,
