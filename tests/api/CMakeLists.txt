@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-set(BINARY_NAME api_tests)
-
-add_executable(
-    ${BINARY_NAME}
+add_gtest_executable(api_tests
     compiler.cpp
     dependencies.cpp
     enqueue.cpp
@@ -41,14 +37,4 @@ endif()
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   add_definitions(-DUSING_SWIFTSHADER)
 endif()
-
-# Use the gtest copy that comes with clspv's version of LLVM
-include_directories(${LLVM_BINARY_DIR}/include)
-include_directories(${LLVM_SOURCE_DIR}/include)
-include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
-
-target_link_libraries(${BINARY_NAME} OpenCL gtest gtest_main)
-
-set_target_properties(${BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
 

@@ -12,6 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+macro(add_gtest_executable name)
+  add_executable(${name} ${ARGN})
+  # Use the gtest copy that comes with clspv's version of LLVM
+  include_directories(${LLVM_BINARY_DIR}/include)
+  include_directories(${LLVM_SOURCE_DIR}/include)
+  include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
+
+  target_link_libraries(${name} OpenCL gtest gtest_main LLVMSupport)
+
+  set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
+endmacro()
 
 if (CLVK_COMPILER_AVAILABLE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)

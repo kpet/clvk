@@ -12,23 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set(BINARY_NAME sha1_tests)
 
-add_executable(
-    ${BINARY_NAME}
+add_gtest_executable(sha1_tests
     main.cpp
     ${PROJECT_SOURCE_DIR}/src/sha1.cpp
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/src)
-
-# Use the gtest copy that comes with clspv's version of LLVM
-include_directories(${LLVM_BINARY_DIR}/include)
-include_directories(${LLVM_SOURCE_DIR}/include)
-include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
-
-target_link_libraries(${BINARY_NAME} gtest gtest_main)
-
-set_target_properties(${BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
 
