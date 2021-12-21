@@ -48,6 +48,19 @@ if(CLVK_CCACHE_BUILD AND UNIX)
   endif()
 endif()
 
+include(CheckCXXCompilerFlag)
+
+macro(AddCXXFlagIfSupported flag test)
+   CHECK_CXX_COMPILER_FLAG(${flag} ${test})
+   if( ${${test}} )
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+   endif()
+endmacro()
+
+if("Ninja" STREQUAL ${CMAKE_GENERATOR})
+    AddCXXFlagIfSupported(-fdiagnostics-color COMPILER_SUPPORTS_COLOR_DIAGNOSTICS)
+endif()
+
 # OpenCL Headers
 include_directories(BEFORE ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
 
