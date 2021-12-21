@@ -64,7 +64,7 @@ std::pair<std::string, std::string> tests[] = {
 #include "tests.inc"
 };
 
-INSTANTIATE_TEST_CASE_P(SHA1Tests, SHA1Test, testing::ValuesIn(tests));
+INSTANTIATE_TEST_SUITE_P(SHA1Tests, SHA1Test, testing::ValuesIn(tests));
 
 int main(int argc, char* argv[]) {
     ::testing::InitGoogleTest(&argc, argv);
