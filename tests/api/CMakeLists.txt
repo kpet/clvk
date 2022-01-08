@@ -21,6 +21,7 @@ add_executable(
     dependencies.cpp
     enqueue.cpp
     images.cpp
+    local_buffer.cpp
     main.cpp
     profiling.cpp
     simple.cpp

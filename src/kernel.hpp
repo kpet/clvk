@@ -138,8 +138,9 @@ struct cvk_kernel_argument_values {
         : m_entry_point(other.m_entry_point), m_is_enqueued(false),
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
           m_kernel_resources(other.m_kernel_resources),
-          m_local_args_size(other.m_local_args_size), m_descriptor_sets{
-                                                          VK_NULL_HANDLE} {}
+          m_local_args_size(other.m_local_args_size),
+          m_specialization_constants(other.m_specialization_constants),
+          m_descriptor_sets{VK_NULL_HANDLE} {}
 
     ~cvk_kernel_argument_values() {
         for (auto ds : m_descriptor_sets) {
