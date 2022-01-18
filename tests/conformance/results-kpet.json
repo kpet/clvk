@@ -244,7 +244,7 @@
       "vload_local": "pass",
       "vload_private": "pass",
       "vstore_global": "pass",
-      "vstore_local": "fail",
+      "vstore_local": "pass",
       "vstore_private": "pass",
       "wg_barrier": "skip",
       "work_item_functions": "pass",
