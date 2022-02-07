@@ -16,6 +16,8 @@ parameters:
   - name: compilerAvailable
     type: boolean
     default: true
+  - name: onlineCompiler
+    type: boolean
 
 jobs:
 - job: ${{ parameters.namePrefix }}_${{ parameters.buildType }}
@@ -49,4 +51,5 @@ jobs:
     parameters:
       os: ${{ parameters.os }}
       compilerAvailable: ${{ parameters.compilerAvailable }}
+      onlineCompiler: ${{ parameters.onlineCompiler }}
 

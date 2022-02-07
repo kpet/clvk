@@ -10,6 +10,8 @@ parameters:
     type: string
   - name: compilerAvailable
     type: boolean
+  - name: onlineCompiler
+    type: boolean
 
 steps:
   - download: swiftshader
@@ -43,7 +45,8 @@ steps:
         export CLVK_LOG=3
         ./build/simple_test_from_il_binary
         ./build/simple_test_from_il_binary_static
-      displayName: Offline IR compilation simple tests
+      displayName: Offline IL compilation simple tests
+      condition: and(${{ parameters.compilerAvailable }}, not(${{ parameters.onlineCompiler }}))
   - ${{ if eq(parameters.os, 'windows') }}:
     - script: |
         cp build/src/Release/OpenCL.dll build/Release
