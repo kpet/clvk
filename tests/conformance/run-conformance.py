@@ -39,7 +39,6 @@ TESTS_QUICK = (
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
     ('Geometric Functions', 'geometrics/test_geometrics'),
-    ('Half Ops', 'half/test_half'),
     ('Mem (Host Flags)', 'mem_host_flags/test_mem_host_flags'),
     ('Multiple Device/Context', 'multiple_device_context/test_multiples'),
     ('Printf', 'printf/test_printf'),
@@ -49,6 +48,7 @@ TESTS_QUICK = (
 TESTS_MODE_WIMPY = (
     ('Conversions', 'conversions/test_conversions', '-w'),
     ('Integer Ops', 'integer_ops/test_integer_ops', 'quick*', 'integer*', 'popcount', 'unary_ops*'),
+    ('Half Ops', 'half/test_half', '-w'),
     ('Math', 'math_brute_force/test_bruteforce', '-1', '-w'),
     ('Relationals', 'relationals/test_relationals', 'relational_*'),
     ('Select', 'select/test_select', '-w'),
@@ -58,6 +58,7 @@ TESTS_MODE_WIMPY = (
 TESTS_MODE_NOT_WIMPY = (
     ('Conversions', 'conversions/test_conversions'),
     ('Integer Ops', 'integer_ops/test_integer_ops'),
+    ('Half Ops', 'half/test_half'),
     ('Math', 'math_brute_force/test_bruteforce'),
     ('Relationals', 'relationals/test_relationals'),
     ('Select', 'select/test_select'),
