@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <string.h>
 #include <vector>
 
 #define CL_TARGET_OPENCL_VERSION 120
@@ -57,6 +58,28 @@ int main(int argc, char* argv[]) {
     CHECK_CL_ERRCODE(err);
 
     printf("Device: %s\n", device_name);
+
+    size_t extensions_length;
+    err = clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, 0, nullptr,
+                          &extensions_length);
+    CHECK_CL_ERRCODE(err);
+
+    char* extensions = (char*)calloc(extensions_length + 1, sizeof(char));
+    err =
+        clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS,
+                        sizeof(char) * extensions_length, extensions, nullptr);
+    CHECK_CL_ERRCODE(err);
+
+    if (extensions[extensions_length] != '\0') {
+        fprintf(stderr, "CL_DEVICE_EXTENSIONS is not null-terminated\n");
+        return EXIT_FAILURE;
+    }
+
+    if (strstr(extensions, "cl_khr_il_program") == nullptr) {
+        fprintf(stderr,
+                "cl_khr_il_program extension is not supported by device\n");
+        return EXIT_FAILURE;
+    }
 
     auto context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &err);
     CHECK_CL_ERRCODE(err);
