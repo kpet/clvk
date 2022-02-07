@@ -37,7 +37,7 @@ steps:
       displayName: Offline compilation simple tests
     - script: |
         set -ex
-        clang -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+        clang  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
         ./build/llvm-spirv simple-cl.bc -o simple-cl.spv
         export VK_ICD_FILENAMES=${{ parameters.icd_json_unix }}
         export CLVK_LOG=3
