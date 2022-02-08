@@ -14,7 +14,6 @@
 
 #include <cmath>
 
-#include "CL/cl.h"
 #include "memory.hpp"
 
 bool cvk_mem::map() {

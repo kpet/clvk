@@ -1837,7 +1837,7 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         break;
     case CL_MEM_ASSOCIATED_MEMOBJECT:
         if (memobj->is_image_type()) {
-            auto img = static_cast<cvk_image*>(mem);
+            auto img = static_cast<cvk_image*>(memobj);
             val_memobj = img->buffer();
         } else {
             val_memobj = memobj->parent();
