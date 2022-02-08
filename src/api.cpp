@@ -4243,6 +4243,20 @@ std::unordered_map<cl_image_format, VkFormat, ClFormatMapHash, ClFormatMapEqual>
         {{CL_LUMINANCE, CL_SIGNED_INT32}, VK_FORMAT_R32_SINT},
         {{CL_LUMINANCE, CL_FLOAT}, VK_FORMAT_R32_SFLOAT},
 
+        // INTENSITY formats
+        {{CL_INTENSITY, CL_UNORM_INT8}, VK_FORMAT_R8_UNORM},
+        {{CL_INTENSITY, CL_SNORM_INT8}, VK_FORMAT_R8_SNORM},
+        {{CL_INTENSITY, CL_UNSIGNED_INT8}, VK_FORMAT_R8_UINT},
+        {{CL_INTENSITY, CL_SIGNED_INT8}, VK_FORMAT_R8_SINT},
+        {{CL_INTENSITY, CL_UNORM_INT16}, VK_FORMAT_R16_UNORM},
+        {{CL_INTENSITY, CL_SNORM_INT16}, VK_FORMAT_R16_SNORM},
+        {{CL_INTENSITY, CL_UNSIGNED_INT16}, VK_FORMAT_R16_UINT},
+        {{CL_INTENSITY, CL_SIGNED_INT16}, VK_FORMAT_R16_SINT},
+        {{CL_INTENSITY, CL_HALF_FLOAT}, VK_FORMAT_R16_SFLOAT},
+        {{CL_INTENSITY, CL_UNSIGNED_INT32}, VK_FORMAT_R32_UINT},
+        {{CL_INTENSITY, CL_SIGNED_INT32}, VK_FORMAT_R32_SINT},
+        {{CL_INTENSITY, CL_FLOAT}, VK_FORMAT_R32_SFLOAT},
+
         // RG formats
         {{CL_RG, CL_UNORM_INT8}, VK_FORMAT_R8G8_UNORM},
         {{CL_RG, CL_SNORM_INT8}, VK_FORMAT_R8G8_SNORM},
@@ -4307,6 +4321,9 @@ bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
     if (clformat.image_channel_order == CL_LUMINANCE) {
         *components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
                        VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A};
+    } else if (clformat.image_channel_order == CL_INTENSITY) {
+        *components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+                       VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R};
     } else {
         *components = {
             VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
