@@ -64,18 +64,13 @@ int main(int argc, char* argv[]) {
                           &extensions_length);
     CHECK_CL_ERRCODE(err);
 
-    char* extensions = (char*)calloc(extensions_length + 1, sizeof(char));
-    err =
-        clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS,
-                        sizeof(char) * extensions_length, extensions, nullptr);
+    std::vector<char> extensions(extensions_length);
+    err = clGetDeviceInfo(device, CL_DEVICE_EXTENSIONS, extensions_length,
+                          extensions.data(), nullptr);
     CHECK_CL_ERRCODE(err);
 
-    if (extensions[extensions_length] != '\0') {
-        fprintf(stderr, "CL_DEVICE_EXTENSIONS is not null-terminated\n");
-        return EXIT_FAILURE;
-    }
-
-    if (strstr(extensions, "cl_khr_il_program") == nullptr) {
+    if (std::string(extensions.data()).find("cl_khr_il_program") ==
+        std::string::npos) {
         fprintf(stderr,
                 "cl_khr_il_program extension is not supported by device\n");
         return EXIT_FAILURE;
@@ -111,15 +106,15 @@ int main(int argc, char* argv[]) {
 
     // Create program
     size_t program_size = size;
-    const unsigned char* program_code =
-        reinterpret_cast<const unsigned char*>(code.data());
+    auto program_code = reinterpret_cast<const unsigned char*>(code.data());
 
     clCreateProgramWithILKHR_fn clCreateProgramWithILKHR = NULL;
     clCreateProgramWithILKHR =
         (clCreateProgramWithILKHR_fn)clGetExtensionFunctionAddressForPlatform(
             platform, "clCreateProgramWithILKHR");
     if (clCreateProgramWithILKHR == NULL) {
-        fprintf(stderr, "Failed to find extension clCreateProgramWithILKHR\n");
+        fprintf(stderr,
+                "Failed to find extension function clCreateProgramWithILKHR\n");
         return EXIT_FAILURE;
     }
     auto program =

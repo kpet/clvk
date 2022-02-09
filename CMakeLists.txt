@@ -71,6 +71,11 @@ endif()
 # empty list again
 set(LLVM_TARGETS_TO_BUILD AArch64 CACHE STRING
     "Semicolon-separated list of targets to build, or \"all\".")
+if (CLVK_COMPILER_AVAILABLE AND NOT CLVK_CLSPV_ONLINE_COMPILER)
+  # clang used to test simple_test_from_il_binary in CI
+  set(LLVM_ENABLE_PROJECTS clang CACHE STRING
+      "Control which projects are enabled.")
+endif()
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
     CACHE STRING "Clspv source directory")
 add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv

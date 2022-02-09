@@ -47,6 +47,8 @@ jobs:
       buildType: ${{ parameters.buildType }}
       artifactName: ${{ parameters.artifactName }}
       vulkanImplementation: swiftshader
+      compilerAvailable: ${{ parameters.compilerAvailable }}
+      onlineCompiler: ${{ parameters.onlineCompiler }}
   - template: steps-run-tests.yml
     parameters:
       os: ${{ parameters.os }}
