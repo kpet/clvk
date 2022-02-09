@@ -807,8 +807,16 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 
 #ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", build_options.c_str());
+
+    // clspv is based on LLVM. LLVM options parsing is done using global
+    // variable that are not thread safe. Thus, we need to lock call to clspv in
+    // order to ensure a thread safe execution.
+    static std::mutex clspv_compile_lock;
+    clspv_compile_lock.lock();
     auto result = clspv::CompileFromSourceString(
         m_source, "", build_options, m_binary.raw_binary(), &m_build_log);
+    clspv_compile_lock.unlock();
+
     cvk_info("Return code was: %d", result);
     if (result != 0) {
         cvk_error_fn("failed to compile the program");
