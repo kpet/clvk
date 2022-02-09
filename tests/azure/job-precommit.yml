@@ -16,6 +16,8 @@ parameters:
   - name: compilerAvailable
     type: boolean
     default: true
+  - name: onlineCompiler
+    type: boolean
 
 jobs:
 - job: ${{ parameters.namePrefix }}_${{ parameters.buildType }}
@@ -45,8 +47,11 @@ jobs:
       buildType: ${{ parameters.buildType }}
       artifactName: ${{ parameters.artifactName }}
       vulkanImplementation: swiftshader
+      compilerAvailable: ${{ parameters.compilerAvailable }}
+      onlineCompiler: ${{ parameters.onlineCompiler }}
   - template: steps-run-tests.yml
     parameters:
       os: ${{ parameters.os }}
       compilerAvailable: ${{ parameters.compilerAvailable }}
+      onlineCompiler: ${{ parameters.onlineCompiler }}
 

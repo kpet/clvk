@@ -27,6 +27,10 @@ parameters:
       default: true
     - name: artifactName
       type: string
+    - name: compilerAvailable
+      type: boolean
+    - name: onlineCompiler
+      type: boolean
 
 steps:
   - script: mkdir build
@@ -66,6 +70,11 @@ steps:
         which ccache && ccache --show-stats || echo "ccache not available"
         make -C build -j3 clspv
       displayName: make
+    - script: |
+        which ccache && ccache --show-stats || echo "ccache not available"
+        make -C build -j3 clang
+      displayName: make clang
+      condition: and(${{ parameters.compilerAvailable }}, not(${{ parameters.onlineCompiler }}))
   - script: cmake --install ./build
     displayName: install
   - publish: ./build/install

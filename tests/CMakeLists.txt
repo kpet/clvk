@@ -17,6 +17,11 @@ if (CLVK_COMPILER_AVAILABLE)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/api)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sha1)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
+
+if (NOT CLVK_CLSPV_ONLINE_COMPILER)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-il-binary)
+endif()
+
 endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-binary)
 

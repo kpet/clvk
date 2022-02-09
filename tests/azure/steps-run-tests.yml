@@ -10,6 +10,8 @@ parameters:
     type: string
   - name: compilerAvailable
     type: boolean
+  - name: onlineCompiler
+    type: boolean
 
 steps:
   - download: swiftshader
@@ -35,6 +37,16 @@ steps:
         ./build/simple_test_from_binary
         ./build/simple_test_from_binary_static
       displayName: Offline compilation simple tests
+    - script: |
+        set -ex
+        ./build/external/clspv/third_party/llvm/bin/clang  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+        ./build/llvm-spirv simple-cl.bc -o simple-cl.spv
+        export VK_ICD_FILENAMES=${{ parameters.icd_json_unix }}
+        export CLVK_LOG=3
+        ./build/simple_test_from_il_binary
+        ./build/simple_test_from_il_binary_static
+      displayName: Offline IL compilation simple tests
+      condition: and(${{ parameters.compilerAvailable }}, not(${{ parameters.onlineCompiler }}))
   - ${{ if eq(parameters.os, 'windows') }}:
     - script: |
         cp build/src/Release/OpenCL.dll build/Release

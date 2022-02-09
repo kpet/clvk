@@ -36,6 +36,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
       artifactName: Windows_Builtin_Compiler
+      onlineCompiler: true
   - template: job-precommit.yml
     parameters:
       namePrefix: Windows_2019_MSVC_2019_offline_clspv
@@ -44,6 +45,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Release
       artifactName: Windows_Separate_Compiler
+      onlineCompiler: false
   - template: job-precommit.yml
     parameters:
       namePrefix: Ubuntu_18_04_online_clspv
@@ -52,6 +54,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
       artifactName: Linux_Builtin_Compiler
+      onlineCompiler: true
   - template: job-precommit.yml
     parameters:
       namePrefix: Ubuntu_18_04_offline_clspv
@@ -60,6 +63,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Release
       artifactName: Linux_Separate_Compiler
+      onlineCompiler: false
   - template: job-precommit.yml
     parameters:
       namePrefix: macOS_X_Catalina_10_15_online_clspv
@@ -68,6 +72,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1'
       buildType: Release
       artifactName: macOS_Builtin_Compiler
+      onlineCompiler: true
   - template: job-precommit.yml
     parameters:
       namePrefix: macOS_X_Catalina_10_15_offline_clspv
@@ -76,6 +81,7 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=0'
       buildType: Debug
       artifactName: macOS_Separate_Compiler_Debug
+      onlineCompiler: false
   - template: job-precommit.yml
     parameters:
       namePrefix: Ubuntu_18_04_nocompiler
@@ -85,6 +91,7 @@ stages:
       buildType: Release
       artifactName: Linux_NoCompiler
       compilerAvailable: false
+      onlineCompiler: false
   - template: job-precommit.yml
     parameters:
       namePrefix: Android_AArch64_online_clspv
@@ -93,3 +100,4 @@ stages:
       cmakeFlags: '-DCLVK_CLSPV_ONLINE_COMPILER=1 -DCMAKE_TOOLCHAIN_FILE=$(Build.SourcesDirectory)/ndk/android-ndk-r22/build/cmake/android.toolchain.cmake -DANDROID_ABI=arm64-v8a'
       buildType: Release
       artifactName: Android_Builtin_Compiler
+      onlineCompiler: true
