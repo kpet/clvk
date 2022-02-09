@@ -86,7 +86,10 @@ endif()
 target_include_directories(OpenCL-objects PRIVATE
   "${CLSPV_SOURCE_DIR}/include")
 if (CLVK_CLSPV_ONLINE_COMPILER)
-  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
+  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core LLVMSPIRVLib)
+  add_dependencies(OpenCL-objects intrinsics_gen)
+  target_include_directories(OpenCL-objects PRIVATE
+    "${LLVM_SPIRV_SOURCE}/include")
 else()
   if (CLVK_COMPILER_AVAILABLE)
     add_dependencies(OpenCL-objects clspv)

@@ -46,7 +46,7 @@ steps:
         ./build/simple_test_from_il_binary
         ./build/simple_test_from_il_binary_static
       displayName: Offline IL compilation simple tests
-      condition: and(${{ parameters.compilerAvailable }}, not(${{ parameters.onlineCompiler }}))
+      condition: ${{ parameters.compilerAvailable }}
   - ${{ if eq(parameters.os, 'windows') }}:
     - script: |
         cp build/src/Release/OpenCL.dll build/Release

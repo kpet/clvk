@@ -97,12 +97,20 @@ set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                       ${CMAKE_BINARY_DIR})
 
 # SPIRV-LLVM-Translator
-if (CLVK_COMPILER_AVAILABLE AND NOT CLVK_CLSPV_ONLINE_COMPILER)
+if (CLVK_COMPILER_AVAILABLE)
   set(LLVM_DIR
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
   set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator)
   set(LLVM_SPIRV_BUILD_EXTERNAL YES)
   add_subdirectory(${LLVM_SPIRV_SOURCE} EXCLUDE_FROM_ALL)
+
+  if (CLVK_CLSPV_ONLINE_COMPILER)
+    # Include LLVM dependencies for SPIRV-LLVM
+    find_package(LLVM ${BASE_LLVM_VERSION} REQUIRED)
+    message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+    message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+    include_directories(${LLVM_INCLUDE_DIRS})
+  endif()
 endif()
 
 # Vulkan
