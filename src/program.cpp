@@ -835,7 +835,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         static std::mutex llvmspirv_compile_lock;
         llvmspirv_compile_lock.lock();
         if (!llvm::readSpirv(Context, m_il_stream, M, Err)) {
-            cvk_error_fn("Fails to load SPIR-V as LLVM Module: %s", Err);
+            cvk_error_fn("Fails to load SPIR-V as LLVM Module: %s",
+                         Err.c_str());
             return CL_BUILD_ERROR;
         }
         llvmspirv_compile_lock.unlock();
