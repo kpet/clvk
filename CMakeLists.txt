@@ -84,7 +84,7 @@ endif()
 # empty list again
 set(LLVM_TARGETS_TO_BUILD AArch64 CACHE STRING
     "Semicolon-separated list of targets to build, or \"all\".")
-if (CLVK_COMPILER_AVAILABLE AND NOT CLVK_CLSPV_ONLINE_COMPILER)
+if (CLVK_COMPILER_AVAILABLE)
   # clang used to test simple_test_from_il_binary in CI
   set(LLVM_ENABLE_PROJECTS clang CACHE STRING
       "Control which projects are enabled.")
