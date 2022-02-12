@@ -354,13 +354,22 @@ def main():
         help="Compare tests' execution time with reference values",
     )
 
+    parser.add_argument(
+        '--compare-only', action='store_true',
+        help="Only compare results to reference",
+    )
+
     args = parser.parse_args()
 
-    # Run tests
-    results = run_tests(TEST_SETS[args.test_set])
-    if args.save_results:
-        with open(args.save_results, 'w') as f:
-            json.dump(results, f, indent=2, sort_keys=True, separators=(',', ': '))
+    # Run tests or load results
+    if not args.compare_only:
+        results = run_tests(TEST_SETS[args.test_set])
+        if args.save_results:
+            with open(args.save_results, 'w') as f:
+                json.dump(results, f, indent=2, sort_keys=True, separators=(',', ': '))
+    else:
+        with open(args.save_results, 'r') as f:
+            results = json.load(f)
 
     # Process results
     report(results, args)
