@@ -86,18 +86,25 @@ endif()
 target_include_directories(OpenCL-objects PRIVATE
   "${CLSPV_SOURCE_DIR}/include")
 if (CLVK_CLSPV_ONLINE_COMPILER)
-  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
+  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core LLVMSPIRVLib)
+  target_include_directories(OpenCL-objects PRIVATE
+    "${LLVM_SPIRV_SOURCE}/include")
 else()
   if (CLVK_COMPILER_AVAILABLE)
     add_dependencies(OpenCL-objects clspv)
-    add_dependencies(OpenCL-objects llvm-spirv)
-    set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-      ${CMAKE_BINARY_DIR})
     target_compile_definitions(OpenCL-objects PRIVATE
-      DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
-    target_compile_definitions(OpenCL-objects PRIVATE
-      DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+    DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
   endif()
+endif()
+
+# llvm-spirv needed to test simple_test_from_il_binary in CI even when
+# not used in online compilation mode
+if (CLVK_COMPILER_AVAILABLE)
+  add_dependencies(OpenCL-objects llvm-spirv)
+  set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
+  target_compile_definitions(OpenCL-objects PRIVATE
+    DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
 if(WIN32)
