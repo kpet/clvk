@@ -1836,7 +1836,12 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         ret_size = sizeof(val_uint);
         break;
     case CL_MEM_ASSOCIATED_MEMOBJECT:
-        val_memobj = memobj->parent();
+        if (memobj->is_image_type()) {
+            auto img = static_cast<cvk_image*>(memobj);
+            val_memobj = img->buffer();
+        } else {
+            val_memobj = memobj->parent();
+        }
         copy_ptr = &val_memobj;
         ret_size = sizeof(val_memobj);
         break;
