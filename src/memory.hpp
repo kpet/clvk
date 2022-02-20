@@ -440,8 +440,27 @@ struct cvk_image : public cvk_mem {
     size_t element_size() const {
         return num_channels() * element_size_per_channel();
     }
-    size_t row_pitch() const { return m_desc.image_row_pitch; }
-    size_t slice_pitch() const { return m_desc.image_slice_pitch; }
+    size_t row_pitch() const {
+        if (m_desc.image_row_pitch == 0) {
+            return element_size() * width();
+        } else {
+            return m_desc.image_row_pitch;
+        }
+    }
+    size_t slice_pitch() const {
+        if (m_desc.image_slice_pitch == 0) {
+            switch (type()) {
+            case CL_MEM_OBJECT_IMAGE1D:
+            case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+            case CL_MEM_OBJECT_IMAGE2D:
+                return 0;
+            default:
+                return row_pitch() * height();
+            }
+        } else {
+            return m_desc.image_slice_pitch;
+        }
+    }
     size_t width() const { return m_desc.image_width; }
     size_t height() const { return m_desc.image_height; }
     size_t depth() const { return m_desc.image_depth; }
