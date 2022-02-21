@@ -54,4 +54,10 @@ jobs:
       os: ${{ parameters.os }}
       compilerAvailable: ${{ parameters.compilerAvailable }}
       onlineCompiler: ${{ parameters.onlineCompiler }}
+  - template: steps-run-tests-standalone.yml
+    parameters:
+      os: ${{ parameters.os }}
+      compilerAvailable: ${{ parameters.compilerAvailable }}
+      onlineCompiler: ${{ parameters.onlineCompiler }}
+      vulkanImplementation: swiftshader
 
