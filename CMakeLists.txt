@@ -100,9 +100,12 @@ set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
 if (CLVK_COMPILER_AVAILABLE)
   set(LLVM_DIR
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
-  set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator)
+  set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator CACHE STRING
+      "Path to SPIRV-LLVM-Translator directory")
   set(LLVM_SPIRV_BUILD_EXTERNAL YES)
-  add_subdirectory(${LLVM_SPIRV_SOURCE} EXCLUDE_FROM_ALL)
+  add_subdirectory(${LLVM_SPIRV_SOURCE}
+                   ${CMAKE_CURRENT_BINARY_DIR}/external/SPIRV-LLVM-Translator
+                   EXCLUDE_FROM_ALL)
 
   if (CLVK_CLSPV_ONLINE_COMPILER)
     # Include LLVM dependencies for SPIRV-LLVM

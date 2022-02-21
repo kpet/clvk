@@ -12,6 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+cmake_minimum_required(VERSION 3.9)
+project(clvk_test)
+
+set(CLVK_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/..)
+
+set(CLVK_BUILD_STATIC_TESTS ON CACHE BOOL
+    "Set to OFF to disable the build of tests with static OpenCL library")
+
 macro(add_gtest_executable name)
   add_executable(${name} ${ARGN})
   # Use the gtest copy that comes with clspv's version of LLVM
@@ -19,10 +27,27 @@ macro(add_gtest_executable name)
   include_directories(${LLVM_SOURCE_DIR}/include)
   include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
 
-  target_link_libraries(${name} OpenCL gtest gtest_main LLVMSupport)
+  target_link_libraries(${name} OpenCL gtest gtest_main)
+  if (BUILD_SHARED_LIBS)
+    target_link_libraries(${name} LLVMSupport)
+  endif()
 
   set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
+endmacro()
+
+macro(add_simple_executable name source libraries)
+  add_executable(${name} ${source})
+  target_link_libraries(${name} ${libraries})
+  set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
+    ${CMAKE_BINARY_DIR})
+endmacro()
+
+macro(add_simple_static_and_dyn_executable name source)
+  add_simple_executable(${name} ${source} OpenCL)
+  if (CLVK_BUILD_STATIC_TESTS)
+    add_simple_executable("${name}_static" ${source} OpenCL-static)
+  endif()
 endmacro()
 
 if (CLVK_COMPILER_AVAILABLE)

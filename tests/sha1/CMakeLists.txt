@@ -15,8 +15,8 @@
 
 add_gtest_executable(sha1_tests
     main.cpp
-    ${PROJECT_SOURCE_DIR}/src/sha1.cpp
+    ${CLVK_PROJECT_SOURCE_DIR}/src/sha1.cpp
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/src)
+include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
 
