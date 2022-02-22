@@ -12,17 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set(BINARY_NAME simple_test_from_binary)
-set(BINARY_NAME_STATIC simple_test_from_binary_static)
-
-add_executable(${BINARY_NAME} simple.cpp)
-add_executable(${BINARY_NAME_STATIC} simple.cpp)
-
-target_link_libraries(${BINARY_NAME} OpenCL)
-target_link_libraries(${BINARY_NAME_STATIC} OpenCL-static)
-
-set_target_properties(${BINARY_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
-set_target_properties(${BINARY_NAME_STATIC} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
-    ${CMAKE_BINARY_DIR})
-
+add_simple_static_and_dyn_executable(simple_test_from_binary simple.cpp)

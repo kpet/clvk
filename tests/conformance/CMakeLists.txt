@@ -15,9 +15,9 @@
 set(CLConf_OUT_DIR dummy)
 set(CLConform_LIBRARIES -lOpenCL)
 set(CL_LIBCLCXX_DIR dummy)
-set(CL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
-set(CL_LIB_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-ICD-Loader/build)
+set(CL_INCLUDE_DIR ${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
+set(CL_LIB_DIR ${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-ICD-Loader/build)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/conformance)
-add_subdirectory(${PROJECT_SOURCE_DIR}/external/OpenCL-CTS
+add_subdirectory(${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-CTS
                  ${CMAKE_BINARY_DIR}/conformance)

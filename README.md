@@ -89,6 +89,9 @@ supported:
 It is possible to disable the build of the tests by passing
 `-DCLVK_BUILD_TESTS=OFF`.
 
+It is also possible to disable only the build of the tests linking with the
+static OpenCL library by passing `-DCLVK_BUILD_STATIC_TESTS=OFF`.
+
 ### OpenCL conformance tests
 
 Passing `-DCLVK_BUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
@@ -106,6 +109,31 @@ in the same process via the Clspv C++ API.
 
 You can build clvk using an external Clspv source tree by setting
 `-DCLSPV_SOURCE_DIR=/path/to/clspv/source/`.
+
+### SPIRV components
+
+All needed SPIRV components are added to `clvk` using git submodules.
+It is possible to disable the build of those component or to reuse already
+existing sources:
+
+#### SPIRV-Headers
+
+`SPIRV_HEADERS_SOURCE_DIR` can be overriden to use another `SPIRV-Headers`
+repository.
+
+#### SPIRV-Tools
+
+`SPIRV_TOOLS_SOURCE_DIR` can be overriden to use another `SPIRV-Tools`
+repository.
+You can also disable the build of `SPIRV-Tools` by setting
+`-DCLVK_BUILD_SPIRV_TOOLS=OFF`.
+
+#### SPIRV-LLVM-Translator
+
+`LLVM_SPIRV_SOURCE` can be overriden to use another `SPIRV-LLVM-Translator`
+repository.
+Note that it is not used if the compiler support is disabled (enabled by
+default).
 
 ## Building for Android
 
