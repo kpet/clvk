@@ -60,9 +60,14 @@ static inline void* pointer_offset(const void* ptr, size_t offset) {
     return reinterpret_cast<void*>(ptrint + offset);
 }
 
+static inline uint32_t ceil_div(uint32_t num, uint32_t divisor) {
+    CVK_ASSERT(divisor != 0);
+    return (num + divisor - 1) / divisor;
+}
+
 static inline uint32_t round_up(uint32_t num, uint32_t multiple) {
     CVK_ASSERT(multiple != 0);
-    return ((num + multiple - 1) / multiple) * multiple;
+    return ceil_div(num, multiple) * multiple;
 }
 
 // Return the hex string representation of `bytes`.

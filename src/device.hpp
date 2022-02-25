@@ -50,6 +50,10 @@ struct cvk_device : public _cl_device_id,
         : m_platform(platform), m_pdev(pd) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
+        for (int each_dim = 0; each_dim < 3; ++each_dim) {
+            maxComputeWorkGroupCount[each_dim] =
+                m_properties.limits.maxComputeWorkGroupCount[each_dim];
+        }
     }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
@@ -61,6 +65,20 @@ struct cvk_device : public _cl_device_id,
             vkDestroyPipelineCache(m_dev, entry.second, nullptr);
         }
         vkDestroyDevice(m_dev, nullptr);
+    }
+
+    void set_maxComputeWorkGroupCount(uint32_t x, uint32_t y, uint32_t z) {
+        cvk_debug_fn("x: %u, y: %u, z: %u\n", x, y, z);
+        maxComputeWorkGroupCount[0] =
+            x == 0 ? m_properties.limits.maxComputeWorkGroupCount[0] : x;
+        maxComputeWorkGroupCount[1] =
+            y == 0 ? m_properties.limits.maxComputeWorkGroupCount[1] : y;
+        maxComputeWorkGroupCount[2] =
+            z == 0 ? m_properties.limits.maxComputeWorkGroupCount[2] : z;
+    }
+
+    const uint32_t* vulkan_limits_maxComputeWorkGroupCount() const {
+        return maxComputeWorkGroupCount;
     }
 
     const VkPhysicalDeviceLimits& vulkan_limits() const {
@@ -463,6 +481,7 @@ private:
     VkPhysicalDevice m_pdev;
     // Properties
     VkPhysicalDeviceProperties m_properties;
+    uint32_t maxComputeWorkGroupCount[3];
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;

@@ -709,6 +709,8 @@ private:
     CHECK_RETURN cl_int
     build_and_dispatch_regions(cvk_command_buffer& command_buffer);
     void update_global_push_constants(cvk_command_buffer& command_buffer);
+    CHECK_RETURN cl_int dispatch_uniform_region_within_vklimits(
+        const cvk_ndrange& region, cvk_command_buffer& command_buffer);
     CHECK_RETURN cl_int dispatch_uniform_region(
         const cvk_ndrange& region, cvk_command_buffer& command_buffer);
 

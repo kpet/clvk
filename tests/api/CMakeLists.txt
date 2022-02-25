@@ -23,6 +23,7 @@ add_gtest_executable(api_tests
     simple.cpp
     simple_image.cpp
     simple_ubo.cpp
+    split_region.cpp
     workgroup.cpp
 )
 

@@ -429,8 +429,15 @@ void cvk_command_kernel::update_global_push_constants(
     }
 }
 
-cl_int cvk_command_kernel::dispatch_uniform_region(
+cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
     const cvk_ndrange& region, cvk_command_buffer& command_buffer) {
+
+    cvk_debug("region within vklimits: gws = {%u,%u,%u}, lws = {%u,%u,%u}, "
+              "offset = "
+              "{%u,%u,%u}",
+              region.gws[0], region.gws[1], region.gws[2], region.lws[0],
+              region.lws[1], region.lws[2], region.offset[0], region.offset[1],
+              region.offset[2]);
 
     // Calculate number of workgroups for region
     std::array<uint32_t, 3> num_workgroups;
@@ -438,34 +445,6 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
         CVK_ASSERT(region.gws[i] % region.lws[i] == 0);
         num_workgroups[i] = region.gws[i] / region.lws[i];
     };
-
-    // Checks region satisfies the vulkan limits
-    auto& vklimits = m_queue->device()->vulkan_limits();
-    for (cl_uint i = 0; i < 3; ++i) {
-        if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
-            cvk_error_fn("global work size (%d, %d, %d) exceeds device limits"
-                         " of (%d, %d, %d)",
-                         num_workgroups[0], num_workgroups[1],
-                         num_workgroups[2],
-                         vklimits.maxComputeWorkGroupCount[0],
-                         vklimits.maxComputeWorkGroupCount[1],
-                         vklimits.maxComputeWorkGroupCount[2]);
-
-            // TODO split further
-            return CL_INVALID_WORK_ITEM_SIZE;
-        }
-    }
-
-    if (region.lws[0] * region.lws[1] * region.lws[2] >
-        vklimits.maxComputeWorkGroupInvocations) {
-        return CL_INVALID_WORK_GROUP_SIZE;
-    }
-
-    for (int i = 0; i < 3; i++) {
-        if (region.lws[i] > vklimits.maxComputeWorkGroupSize[i]) {
-            return CL_INVALID_WORK_ITEM_SIZE;
-        }
-    }
 
     auto program = m_kernel->program();
     auto constants = program->spec_constants();
@@ -558,6 +537,87 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
     vkCmdDispatch(command_buffer, num_workgroups[0], num_workgroups[1],
                   num_workgroups[2]);
 
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_kernel::dispatch_uniform_region(
+    const cvk_ndrange& region, cvk_command_buffer& command_buffer) {
+
+    // Calculate number of workgroups for region
+    std::array<uint32_t, 3> num_workgroups;
+    for (cl_uint i = 0; i < 3; i++) {
+        CVK_ASSERT(region.gws[i] % region.lws[i] == 0);
+        num_workgroups[i] = region.gws[i] / region.lws[i];
+    };
+
+    auto program = m_kernel->program();
+    auto& vklimits = m_queue->device()->vulkan_limits();
+    if (!program->push_constant(pushconstant::region_offset) ||
+        !program->push_constant(pushconstant::region_group_offset)) {
+        for (cl_uint i = 0; i < 3; ++i) {
+            if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
+                cvk_error_fn(
+                    "global work size (%d, %d, %d) exceeds device limits"
+                    " of (%d, %d, %d)",
+                    num_workgroups[0], num_workgroups[1], num_workgroups[2],
+                    vklimits.maxComputeWorkGroupCount[0],
+                    vklimits.maxComputeWorkGroupCount[1],
+                    vklimits.maxComputeWorkGroupCount[2]);
+                cvk_error_fn(
+                    "Compiling the kernel with either '-cl-std=2.0', "
+                    "'-cl-std=3.0' or 'cl-arm-non-uniform-work-group-size' "
+                    "might allow to exceed the device limits");
+
+                return CL_INVALID_WORK_ITEM_SIZE;
+            }
+        }
+    }
+
+    if (region.lws[0] * region.lws[1] * region.lws[2] >
+        vklimits.maxComputeWorkGroupInvocations) {
+        return CL_INVALID_WORK_GROUP_SIZE;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        if (region.lws[i] > vklimits.maxComputeWorkGroupSize[i]) {
+            return CL_INVALID_WORK_ITEM_SIZE;
+        }
+    }
+
+#define FOR_REGION_WITHIN_LIMITS(dim, nb_wg, vklim, reg, reg_off, reg_gws)     \
+    for (size_t _it##dim = 0,                                                  \
+                _nb_regions_##dim = ceil_div(nb_wg[dim], vklim[dim]),          \
+                _region_gws_##dim = ceil_div(reg.gws[dim], _nb_regions_##dim), \
+                _offset_##dim = _it##dim * _region_gws_##dim;                  \
+         reg_off[dim] = reg.offset[dim] + _offset_##dim,                       \
+                reg_gws[dim] =                                                 \
+                    std::min(_region_gws_##dim, reg.gws[dim] - _offset_##dim), \
+                _it##dim < _nb_regions_##dim;                                  \
+         ++_it##dim, _offset_##dim = _it##dim * _region_gws_##dim)
+
+    auto maxComputeWorkGroupCount =
+        m_queue->device()->vulkan_limits_maxComputeWorkGroupCount();
+    size_t region_gws[3];
+    size_t region_offset[3];
+    const size_t region_lws[3] = {region.lws[0], region.lws[1], region.lws[2]};
+    FOR_REGION_WITHIN_LIMITS(2, num_workgroups, maxComputeWorkGroupCount,
+                             region, region_offset, region_gws) {
+        FOR_REGION_WITHIN_LIMITS(1, num_workgroups, maxComputeWorkGroupCount,
+                                 region, region_offset, region_gws) {
+            FOR_REGION_WITHIN_LIMITS(0, num_workgroups,
+                                     maxComputeWorkGroupCount, region,
+                                     region_offset, region_gws) {
+
+                const cvk_ndrange region_within_vklimits(
+                    3, (const size_t*)region_offset, (const size_t*)region_gws,
+                    (const size_t*)region_lws);
+                auto err = dispatch_uniform_region_within_vklimits(
+                    region_within_vklimits, command_buffer);
+                if (err != CL_SUCCESS)
+                    return err;
+            }
+        }
+    }
     return CL_SUCCESS;
 }
 

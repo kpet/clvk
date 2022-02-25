@@ -66,6 +66,7 @@ global:
     clSetKernelArg;
     clUnloadCompiler;
     clWaitForEvents;
+    clvk_override_vklimits; /* for test purpose */
 local:
     *;
 };
