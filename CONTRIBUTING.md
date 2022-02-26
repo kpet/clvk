@@ -39,7 +39,7 @@ creating a PR, make sure the code changes you've made are correctly formatted.
 You can do this using:
 
 ```
-./tests/travis/check-format.sh && echo "All code correctly formatted."
+./tests/azure/check-format.sh && echo "All code correctly formatted."
 ```
 
 If the script reports that formatting errors were found, you can reformat the

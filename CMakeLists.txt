@@ -125,7 +125,6 @@ set(
 set(CLVK_VULKAN_IMPLEMENTATION_OPTIONS
     custom # User-provided libraries and includes
     system # Use the system's Vulkan
-    talvos # Use talvos to provide Vulkan
     loader # Build against a user-provided copy of the loader sources
     swiftshader # Build for a user-provided copy of the switftshader sources
 )
@@ -134,21 +133,7 @@ set_property(CACHE CLVK_VULKAN_IMPLEMENTATION PROPERTY STRINGS
 
 message(STATUS "CLVK_VULKAN_IMPLEMENTATION = ${CLVK_VULKAN_IMPLEMENTATION}")
 
-if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
-  set(SPIRV_INCLUDE_DIR ${SPIRV_HEADERS_SOURCE_DIR}/include CACHE STRING
-      "SPIRV Headers for Talvos")
-  set(SPIRV_TOOLS_INCLUDE_DIR ${SPIRV_TOOLS_SOURCE_DIR}/include CACHE STRING
-      "SPIRV-Tools headers for Talvos")
-  set(SPIRV_TOOLS_LIB "$<TARGET_FILE:SPIRV-Tools>")
-  if (NOT CLVK_TALVOS_DIR)
-    message(FATAL_ERROR "CLVK_TALVOS_DIR_DIR must be provided with
-                         CLVK_VULKAN_IMPLEMENTATION=talvos")
-  endif ()
-  add_subdirectory(${CLVK_TALVOS_DIR})
-  add_dependencies(talvos SPIRV-Tools)
-  set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
-  set(Vulkan_LIBRARIES talvos talvos-vulkan)
-elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
+if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
         ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
