@@ -26,10 +26,6 @@ add_gtest_executable(api_tests
     workgroup.cpp
 )
 
-if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL talvos)
-  add_definitions(-DUSING_TALVOS)
-endif()
-
 if (${CLVK_COMPILER_AVAILABLE})
   add_definitions(-DCOMPILER_AVAILABLE)
 endif()

@@ -23,7 +23,7 @@ stages:
     pool:
       vmImage: ubuntu-18.04
     steps:
-    - script: GIT_CLANG_FORMAT=git-clang-format-9 ./tests/travis/check-format.sh
+    - script: GIT_CLANG_FORMAT=git-clang-format-9 ./tests/azure/check-format.sh
       displayName: Check formatting
 
 - stage: Build_and_test

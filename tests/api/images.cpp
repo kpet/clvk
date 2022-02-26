@@ -82,7 +82,7 @@ TEST_F(WithContext, Issue303LuminanceImageFormats) {
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &image_desc, NULL);
 }
 
-TEST_F(WithCommandQueue, DISABLED_TALVOS(BasicImageMapUnmap)) {
+TEST_F(WithCommandQueue, BasicImageMapUnmap) {
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
 
@@ -247,8 +247,7 @@ TEST_F(WithCommandQueue, ImageReadMappingCantChangeImage) {
     Finish();
 }
 
-TEST_F(WithCommandQueue,
-       DISABLED_TALVOS(ImageWriteInvalidateMappingDoesntCopyImageContent)) {
+TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent) {
     // Create an image
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
