@@ -27,11 +27,8 @@
 #ifdef CLSPV_ONLINE_COMPILER
 #include "LLVMSPIRVLib.h"
 #include "clspv/Compiler.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/raw_ostream.h"
 #endif
 
 #include "spirv-tools/linker.hpp"
@@ -753,11 +750,9 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     bool save_headers = true;
     temp_file_deletion_stack temps;
 #ifdef CLSPV_ONLINE_COMPILER
-    if (!build_from_il) {
-        use_tmp_folder =
-            m_operation == build_operation::compile && m_num_input_programs > 0;
-        save_headers = m_operation == build_operation::compile;
-    }
+    use_tmp_folder =
+        m_operation == build_operation::compile && m_num_input_programs > 0;
+    save_headers = m_operation == build_operation::compile;
 #endif
 
     std::string tmp_folder;
@@ -843,12 +838,9 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
             }
         }
 
-        clspv_input_file += ".bc";
-        temps.push(clspv_input_file);
-        std::error_code EC;
-        llvm::ToolOutputFile Out(clspv_input_file, EC, llvm::sys::fs::OF_None);
-        llvm::WriteBitcodeToFile(*llvm_module, Out.os());
-        Out.keep();
+        m_source.clear();
+        llvm::raw_string_ostream spirv_stream(m_source);
+        llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
     }
 #else
     if (build_from_il) {
@@ -872,46 +864,25 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 #endif // CLSPV_ONLINE_COMPILER
 
-    bool binary_loaded = false;
-    int status = -1;
-    std::string spirv_file{tmp_folder + "/compiled.spv"};
 #ifdef CLSPV_ONLINE_COMPILER
-    if (build_from_il) {
-        build_options += " -o ";
-        build_options += spirv_file;
-        build_options += " ";
-        build_options += clspv_input_file;
-        temps.push(spirv_file);
-    }
-
     cvk_info("About to compile \"%s\"", build_options.c_str());
+    int status;
     // clspv is based on LLVM. LLVM options parsing is done using global
     // variable that are not thread safe. Thus, we need to lock call to clspv in
     // order to ensure a thread safe execution.
     {
         static std::mutex clspv_compile_mutex;
         std::lock_guard<std::mutex> clspv_compile_lock(clspv_compile_mutex);
-        if (build_from_il) {
-            llvm::BumpPtrAllocator allocator;
-            llvm::StringSaver saver(allocator);
-            llvm::SmallVector<const char*, 20> argv;
-            argv.push_back(saver.save("clspv").data());
-            llvm::cl::TokenizeGNUCommandLine(build_options, saver, argv);
-            int argc = static_cast<int>(argv.size());
-
-            // Currently clspv does not allow passing llvm ir as a string, but
-            // if the clspv api is updated this is preferred over
-            // reading/writing clspv_input_file and spirv_file
-            status = clspv::Compile(argc, &argv[0]);
-        } else {
-            status = clspv::CompileFromSourceString(m_source, "", build_options,
-                                                    m_binary.raw_binary(),
-                                                    &m_build_log);
-            binary_loaded = true;
-        }
+        status = clspv::CompileFromSourceString(
+            m_source, "", build_options, m_binary.raw_binary(), &m_build_log);
+    }
+    if (status != 0) {
+        cvk_error_fn("failed to compile the program");
+        return CL_BUILD_ERROR;
     }
 #else
     // Compose clspv command-line
+    std::string spirv_file{tmp_folder + "/compiled.spv"};
     std::string cmd{gCLSPVPath};
     cmd += " ";
     cmd += clspv_input_file;
@@ -922,25 +893,22 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     temps.push(spirv_file);
 
     // Call clspv
-    status = cvk_exec(cmd, &m_build_log);
-#endif
-
+    int status = cvk_exec(cmd, &m_build_log);
     if (status != 0) {
         cvk_error_fn("failed to compile the program");
         return CL_BUILD_ERROR;
     }
 
-    if (!binary_loaded) {
-        // Load SPIR-V program
-        const char* filename = spirv_file.c_str();
-        if (!m_binary.load(filename)) {
-            cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
-            return CL_BUILD_ERROR;
-        } else {
-            cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words",
-                     filename, m_binary.code().size());
-        }
+    // Load SPIR-V program
+    const char* filename = spirv_file.c_str();
+    if (!m_binary.load(filename)) {
+        cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
+        return CL_BUILD_ERROR;
+    } else {
+        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename,
+                 m_binary.code().size());
     }
+#endif
 #endif // !COMPILER_AVAILABLE
 
     // Load descriptor map
