@@ -1,9 +1,9 @@
 trigger:
-  - master
+  - main
   - azure-pipelines
 
 pr:
-  - master
+  - main
 
 variables:
   CLCACHE_DIR: "$(Agent.BuildDirectory)/clcache"
@@ -14,7 +14,7 @@ resources:
   pipelines:
   - pipeline: swiftshader
     source: clvk.swiftshader
-    branch: master
+    branch: main
 
 stages:
 - stage: Code_Formatting
