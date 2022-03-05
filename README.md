@@ -1,4 +1,4 @@
-[![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=master)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=master)
+[![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=main)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=main)
 
 # What is this?
 

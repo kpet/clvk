@@ -46,7 +46,7 @@ If the script reports that formatting errors were found, you can reformat the
 code with:
 
 ```
-git-clang-format origin/master --extensions cpp,hpp
+git-clang-format origin/main --extensions cpp,hpp
 ```
 
 Code formatting will be checked automatically on PRs.
