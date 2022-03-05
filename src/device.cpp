@@ -242,7 +242,7 @@ bool cvk_device::init_extensions() {
             VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME);
     }
 
-    const std::vector<const char*> desired_extensions = {
+    std::vector<const char*> desired_extensions = {
         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
         VK_KHR_DRIVER_PROPERTIES_EXTENSION_NAME,
@@ -252,8 +252,11 @@ bool cvk_device::init_extensions() {
         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
-        VK_KHR_SPIRV_1_4_EXTENSION_NAME,
     };
+
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
+        desired_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+    }
 
     for (size_t i = 0; i < numext; i++) {
         cvk_info("  %s, spec version %u", extensions[i].extensionName,
