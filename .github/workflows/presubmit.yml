@@ -1,0 +1,69 @@
+name: Presubmit
+on: [push, pull_request]
+
+jobs:
+  format:
+    name: Code formatting check
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install packages
+        run: sudo apt-get install -y clang-format
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check format
+        run: |
+          ./tests/azure/check-format.sh
+  build:
+    name: Build ${{ matrix.os }} online ${{ matrix.online-compiler }}
+    needs: format
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, macos-latest, windows-2019]
+        online-compiler: [ON, OFF]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Setup Windows SDK
+        uses: fbactions/setup-winsdk@v1
+        if: matrix.os == 'windows-2019'
+      - name: Select build directory
+        shell: bash
+        run: |
+            df -h
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              echo "builddir=C:/build" >> $GITHUB_ENV
+            else
+              echo "builddir=${{ github.workspace }}/build" >> $GITHUB_ENV
+            fi
+      - name: Fetch LLVM
+        run: python ./external/clspv/utils/fetch_sources.py --shallow --deps llvm
+      - name: Fetch Vulkan Loader
+        run: git clone --depth 1 -b v1.3.204 https://github.com/KhronosGroup/Vulkan-Loader.git
+      - name: Configure
+        shell: bash
+        run: |
+            set +x
+            ls -l '${{ github.workspace }}'
+            mkdir '${{ env.builddir }}'
+            cd '${{ env.builddir }}'
+            mkdir install
+            cmake '${{ github.workspace }}' -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCLVK_VULKAN_IMPLEMENTATION=loader \
+              -DCLVK_VULKAN_LOADER_DIR='${{ github.workspace }}'/Vulkan-Loader \
+              -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
+              -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
+      - name: Build
+        run: cmake --build '${{ env.builddir }}' -j2
+      - name: Install
+        run: cmake --install '${{ env.builddir }}'
+      - name: Show stats
+        shell: bash
+        run: df -h
