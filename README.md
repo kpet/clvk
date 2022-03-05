@@ -1,8 +1,6 @@
-[![Azure Pipelines Status](https://dev.azure.com/kpet/clvk/_apis/build/status/kpet.clvk?branchName=main)](https://dev.azure.com/kpet/clvk/_build/latest?definitionId=1&branchName=main)
+# clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++)
 
-# What is this?
-
-This project is a prototype implementation of OpenCL 1.2 on top of Vulkan using
+clvk is a prototype implementation of OpenCL 1.2 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
 
 # Limitations
