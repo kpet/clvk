@@ -697,9 +697,11 @@ void cvk_device::init_spirv_environment() {
         } else {
             m_vulkan_spirv_env = SPV_ENV_VULKAN_1_1;
         }
-    } else {
-        // Assume 1.2
+    } else if (m_properties.apiVersion < VK_MAKE_VERSION(1, 3, 0)) {
         m_vulkan_spirv_env = SPV_ENV_VULKAN_1_2;
+    } else {
+        // Assume 1.3
+        m_vulkan_spirv_env = SPV_ENV_VULKAN_1_3;
     }
     cvk_info("Vulkan SPIR-V environment: %s",
              spvTargetEnvDescription(m_vulkan_spirv_env));

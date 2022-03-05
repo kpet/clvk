@@ -754,6 +754,9 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     case SPV_ENV_VULKAN_1_2:
         options += "1.5 ";
         break;
+    case SPV_ENV_VULKAN_1_3:
+        options += "1.6 ";
+        break;
     }
 
     // Limits
