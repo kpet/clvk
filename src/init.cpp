@@ -145,11 +145,21 @@ void clvk_global_state::init_vulkan() {
     }
 
     // Create the instance
+    VkApplicationInfo appInfo = {
+        VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        nullptr,
+        "clvk",
+        0, // TODO applicationVersion
+        "clvk",
+        0, // TODO engineVersion
+        VK_MAKE_VERSION(1, 3, 0)
+    };
+
     VkInstanceCreateInfo info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,      // sType
         nullptr,                                     // pNext
         0,                                           // flags
-        nullptr,                                     // pApplicationInfo
+        &appInfo,                                    // pApplicationInfo
         static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
         enabledLayers.data(),                        // ppEnabledLayerNames
         static_cast<uint32_t>(
