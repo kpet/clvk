@@ -99,4 +99,5 @@ TEST_F(WithCommandQueue, SplitRegion) {
             ASSERT_TRUE(status);
         }
     }
+    clvk_override_vklimits(gDevice, 0, 0, 0);
 }
