@@ -23,8 +23,9 @@
 #include <sys/system_properties.h>
 #endif
 
-extern "C" void CL_API_CALL clvk_override_vklimits(
-    cl_device_id device, uint32_t x, uint32_t y, uint32_t z) {
+extern "C" void CL_API_CALL clvk_override_vklimits(cl_device_id device,
+                                                   uint32_t x, uint32_t y,
+                                                   uint32_t z) {
     assert(is_valid_device(device));
     icd_downcast(device)->set_maxComputeWorkGroupCount(x, y, z);
 }

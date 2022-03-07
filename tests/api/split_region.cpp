@@ -25,7 +25,6 @@ static bool check(cl_int* src, cl_int* dst, size_t size) {
     return !error;
 }
 
-
 extern "C" void clvk_override_vklimits(cl_device_id, uint32_t, uint32_t,
                                        uint32_t);
 
