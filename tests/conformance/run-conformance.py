@@ -47,10 +47,10 @@ TESTS_QUICK = (
 
 TESTS_MODE_WIMPY = (
     ('Conversions', 'conversions/test_conversions', '-w'),
-    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick*', 'integer*', 'popcount', 'unary_ops*'),
+    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick*', 'integer*', 'vector_scalar', 'popcount', 'unary_ops*'),
     ('Half Ops', 'half/test_half', '-w'),
     ('Math', 'math_brute_force/test_bruteforce', '-1', '-w'),
-    ('Relationals', 'relationals/test_relationals', 'relational_*'),
+    ('Relationals', 'relationals/test_relationals'),
     ('Select', 'select/test_select', '-w'),
     ('Thread Dimensions', 'thread_dimensions/test_thread_dimensions', 'quick*'),
 )

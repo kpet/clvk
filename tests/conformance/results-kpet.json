@@ -893,7 +893,8 @@
       "quick_ushort_shift": "pass",
       "unary_ops_decrement": "pass",
       "unary_ops_full": "pass",
-      "unary_ops_increment": "pass"
+      "unary_ops_increment": "pass",
+      "vector_scalar": "pass"
     },
     "retcode": 0
   },
@@ -1055,6 +1056,7 @@
       "address_space_2": "fail",
       "address_space_3": "fail",
       "address_space_4": "fail",
+      "buffer_size": "pass",
       "char_0": "fail",
       "char_1": "fail",
       "char_2": "fail",
@@ -1163,9 +1165,14 @@
       "relational_islessgreater": "pass",
       "relational_isnotequal": "pass",
       "relational_select_signed": "pass",
-      "relational_select_unsigned": "pass"
+      "relational_select_unsigned": "pass",
+      "shuffle_array_cast": "fail",
+      "shuffle_built_in": "pass",
+      "shuffle_built_in_dual_input": "pass",
+      "shuffle_copy": "pass",
+      "shuffle_function_call": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "SPIR": {
     "duration": "00:00:00.324724",
