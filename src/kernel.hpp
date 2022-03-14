@@ -212,11 +212,16 @@ struct cvk_kernel_argument_values {
     cl_int set_arg(const kernel_argument& arg, size_t size, const void* value) {
 
         if (arg.is_pod()) {
-            if (size != arg.size) {
+            // If the argument is a vec3, OpenCL requires to call clSetKernelArg
+            // with a size of 4 times the element size. But clspv arg size is
+            // only 3 times the element size. When size and arg.size do not
+            // match, make sure that we are not in this unusual case.
+            if (size != arg.size &&
+                !(arg.is_vec3() && (size == arg.size * 4 / 3))) {
                 return CL_INVALID_ARG_SIZE;
             }
 
-            memcpy(&pod_data()[arg.offset], value, size);
+            memcpy(&pod_data()[arg.offset], value, arg.size);
         } else if (arg.kind == kernel_argument_kind::local) {
             CVK_ASSERT(value == nullptr);
             m_local_args_size[arg.pos] = size;

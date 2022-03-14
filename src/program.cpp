@@ -661,10 +661,16 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     }
 
     // Prepare options
-    std::string single_precision_option = "-cl-single-precision-constant";
-    if (options.find(single_precision_option) == std::string::npos) {
-        options += " " + single_precision_option + " ";
+    std::string necessary_options[] = {
+        "-cl-single-precision-constant",
+        "-cl-kernel-arg-info",
+    };
+    for (std::string option : necessary_options) {
+        if (options.find(option) == std::string::npos) {
+            options += " " + option + " ";
+        }
     }
+
     if (!devices_support_images()) {
         options += " -images=0 ";
     }
