@@ -540,11 +540,47 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
     return CL_SUCCESS;
 }
 
+cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
+    unsigned int dim, const cvk_ndrange& region, const size_t* region_lws,
+    size_t* region_gws, size_t* region_offset,
+    cvk_command_buffer& command_buffer, uint32_t* num_workgroups) {
+
+    auto& vklimits = m_queue->device()->vulkan_limits();
+
+    size_t num_splitted_regions =
+        ceil_div(num_workgroups[dim], vklimits.maxComputeWorkGroupCount[dim]);
+    size_t splitted_region_gws =
+        ceil_div(region.gws[dim], num_splitted_regions);
+
+    for (size_t i = 0; i < num_splitted_regions; ++i) {
+        size_t splitted_offset = i * splitted_region_gws;
+        region_offset[dim] = splitted_offset + region.offset[dim];
+        region_gws[dim] =
+            std::min(splitted_region_gws, region.gws[dim] - splitted_offset);
+
+        cl_int err;
+        if (dim == 0) {
+            const cvk_ndrange region_within_vklimits(3, region_offset,
+                                                     region_gws, region_lws);
+            err = dispatch_uniform_region_within_vklimits(
+                region_within_vklimits, command_buffer);
+        } else {
+            err = dispatch_uniform_region_iterate(
+                dim - 1, region, region_lws, region_gws, region_offset,
+                command_buffer, num_workgroups);
+        }
+        if (err != CL_SUCCESS)
+            return err;
+    }
+
+    return CL_SUCCESS;
+}
+
 cl_int cvk_command_kernel::dispatch_uniform_region(
     const cvk_ndrange& region, cvk_command_buffer& command_buffer) {
 
     // Calculate number of workgroups for region
-    std::array<uint32_t, 3> num_workgroups;
+    uint32_t num_workgroups[3];
     for (cl_uint i = 0; i < 3; i++) {
         CVK_ASSERT(region.gws[i] % region.lws[i] == 0);
         num_workgroups[i] = region.gws[i] / region.lws[i];
@@ -585,39 +621,12 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
             return CL_INVALID_WORK_ITEM_SIZE;
         }
     }
-
-#define FOR_REGION_WITHIN_LIMITS(dim, nb_wg, vklim, reg, reg_off, reg_gws)     \
-    for (size_t _it##dim = 0,                                                  \
-                _nb_regions_##dim =                                            \
-                    ceil_div(nb_wg[dim], vklim.maxComputeWorkGroupCount[dim]), \
-                _region_gws_##dim = ceil_div(reg.gws[dim], _nb_regions_##dim), \
-                _offset_##dim = _it##dim * _region_gws_##dim;                  \
-         reg_off[dim] = reg.offset[dim] + _offset_##dim,                       \
-                reg_gws[dim] =                                                 \
-                    std::min(_region_gws_##dim, reg.gws[dim] - _offset_##dim), \
-                _it##dim < _nb_regions_##dim;                                  \
-         ++_it##dim, _offset_##dim = _it##dim * _region_gws_##dim)
-
     size_t region_gws[3];
     size_t region_offset[3];
     const size_t region_lws[3] = {region.lws[0], region.lws[1], region.lws[2]};
-    FOR_REGION_WITHIN_LIMITS(2, num_workgroups, vklimits, region, region_offset,
-                             region_gws) {
-        FOR_REGION_WITHIN_LIMITS(1, num_workgroups, vklimits, region,
-                                 region_offset, region_gws) {
-            FOR_REGION_WITHIN_LIMITS(0, num_workgroups, vklimits, region,
-                                     region_offset, region_gws) {
-
-                const cvk_ndrange region_within_vklimits(
-                    3, region_offset, region_gws, region_lws);
-                auto err = dispatch_uniform_region_within_vklimits(
-                    region_within_vklimits, command_buffer);
-                if (err != CL_SUCCESS)
-                    return err;
-            }
-        }
-    }
-    return CL_SUCCESS;
+    return dispatch_uniform_region_iterate(2, region, region_lws, region_gws,
+                                           region_offset, command_buffer,
+                                           num_workgroups);
 }
 
 cl_int cvk_command_kernel::build_and_dispatch_regions(

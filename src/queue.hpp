@@ -711,6 +711,10 @@ private:
     void update_global_push_constants(cvk_command_buffer& command_buffer);
     CHECK_RETURN cl_int dispatch_uniform_region_within_vklimits(
         const cvk_ndrange& region, cvk_command_buffer& command_buffer);
+    CHECK_RETURN cl_int dispatch_uniform_region_iterate(
+        unsigned int dim, const cvk_ndrange& region, const size_t* region_lws,
+        size_t* region_gws, size_t* region_offset,
+        cvk_command_buffer& command_buffer, uint32_t* num_workgroups);
     CHECK_RETURN cl_int dispatch_uniform_region(
         const cvk_ndrange& region, cvk_command_buffer& command_buffer);
 
