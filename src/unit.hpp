@@ -24,7 +24,6 @@ void CL_API_CALL clvk_override_device_max_compute_work_group_count(
     cl_device_id device, uint32_t x, uint32_t y, uint32_t z);
 
 void CL_API_CALL clvk_restore_device_properties(cl_device_id device);
-
 }
 
 #endif
