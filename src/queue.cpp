@@ -552,21 +552,23 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
 
     auto program = m_kernel->program();
     auto& vklimits = m_queue->device()->vulkan_limits();
-    if (!program->push_constant(pushconstant::region_offset) ||
-        !program->push_constant(pushconstant::region_group_offset)) {
+    if (!program->has_region_offset()) {
         for (cl_uint i = 0; i < 3; ++i) {
             if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
+                cvk_error_fn("Number of workgroups (%d, %d, %d) required to "
+                             "dispatch the uniform region exceeds device limits"
+                             " of (%d, %d, %d)",
+                             num_workgroups[0], num_workgroups[1],
+                             num_workgroups[2],
+                             vklimits.maxComputeWorkGroupCount[0],
+                             vklimits.maxComputeWorkGroupCount[1],
+                             vklimits.maxComputeWorkGroupCount[2]);
                 cvk_error_fn(
-                    "global work size (%d, %d, %d) exceeds device limits"
-                    " of (%d, %d, %d)",
-                    num_workgroups[0], num_workgroups[1], num_workgroups[2],
-                    vklimits.maxComputeWorkGroupCount[0],
-                    vklimits.maxComputeWorkGroupCount[1],
-                    vklimits.maxComputeWorkGroupCount[2]);
-                cvk_error_fn(
-                    "Compiling the kernel with either '-cl-std=2.0', "
+                    "Splitting this region is required, but it is not possible "
+                    "because the support is not enabled. Compiling the kernel "
+                    "with either '-cl-std=2.0', "
                     "'-cl-std=3.0' or 'cl-arm-non-uniform-work-group-size' "
-                    "might allow to exceed the device limits");
+                    "should allow to exceed the device limits");
 
                 return CL_INVALID_WORK_ITEM_SIZE;
             }
@@ -586,7 +588,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
 
 #define FOR_REGION_WITHIN_LIMITS(dim, nb_wg, vklim, reg, reg_off, reg_gws)     \
     for (size_t _it##dim = 0,                                                  \
-                _nb_regions_##dim = ceil_div(nb_wg[dim], vklim[dim]),          \
+                _nb_regions_##dim =                                            \
+                    ceil_div(nb_wg[dim], vklim.maxComputeWorkGroupCount[dim]), \
                 _region_gws_##dim = ceil_div(reg.gws[dim], _nb_regions_##dim), \
                 _offset_##dim = _it##dim * _region_gws_##dim;                  \
          reg_off[dim] = reg.offset[dim] + _offset_##dim,                       \
@@ -595,22 +598,18 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
                 _it##dim < _nb_regions_##dim;                                  \
          ++_it##dim, _offset_##dim = _it##dim * _region_gws_##dim)
 
-    auto maxComputeWorkGroupCount =
-        m_queue->device()->vulkan_limits_maxComputeWorkGroupCount();
     size_t region_gws[3];
     size_t region_offset[3];
     const size_t region_lws[3] = {region.lws[0], region.lws[1], region.lws[2]};
-    FOR_REGION_WITHIN_LIMITS(2, num_workgroups, maxComputeWorkGroupCount,
-                             region, region_offset, region_gws) {
-        FOR_REGION_WITHIN_LIMITS(1, num_workgroups, maxComputeWorkGroupCount,
-                                 region, region_offset, region_gws) {
-            FOR_REGION_WITHIN_LIMITS(0, num_workgroups,
-                                     maxComputeWorkGroupCount, region,
+    FOR_REGION_WITHIN_LIMITS(2, num_workgroups, vklimits, region, region_offset,
+                             region_gws) {
+        FOR_REGION_WITHIN_LIMITS(1, num_workgroups, vklimits, region,
+                                 region_offset, region_gws) {
+            FOR_REGION_WITHIN_LIMITS(0, num_workgroups, vklimits, region,
                                      region_offset, region_gws) {
 
                 const cvk_ndrange region_within_vklimits(
-                    3, (const size_t*)region_offset, (const size_t*)region_gws,
-                    (const size_t*)region_lws);
+                    3, region_offset, region_gws, region_lws);
                 auto err = dispatch_uniform_region_within_vklimits(
                     region_within_vklimits, command_buffer);
                 if (err != CL_SUCCESS)

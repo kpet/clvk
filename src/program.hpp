@@ -550,6 +550,11 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_binary.constant_data_buffer();
     }
 
+    bool has_region_offset() const {
+        return push_constant(pushconstant::region_offset) &&
+               push_constant(pushconstant::region_group_offset);
+    }
+
 private:
     void do_build();
     std::string prepare_build_options(const cvk_device* device) const;

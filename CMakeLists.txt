@@ -186,6 +186,7 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 
 # Tests
 option(CLVK_BUILD_TESTS "Build tests" ON)
+option(CLVK_UNIT_TESTING "Build unit tests that require vulkan properties to be overriden" OFF)
 if (CLVK_BUILD_TESTS)
 add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
 endif()

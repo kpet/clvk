@@ -1,5 +1,12 @@
-OPENCL_1.0 {
+CLVK_UNIT_TESTING_FCT {
 global:
+    clvk_override_device_max_compute_work_group_count;
+    clvk_restore_device_properties;
+local:
+    *;
+};
+
+OPENCL_1.0 {
     clGetPlatformIDs;
     clGetPlatformInfo;
     clGetDeviceIDs;
@@ -66,10 +73,7 @@ global:
     clSetKernelArg;
     clUnloadCompiler;
     clWaitForEvents;
-    clvk_override_vklimits; /* for test purpose */
-local:
-    *;
-};
+} CLVK_UNIT_TESTING_FCT;
 
 OPENCL_1.1 {
     clCreateUserEvent;
