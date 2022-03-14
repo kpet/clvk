@@ -217,8 +217,7 @@ struct cvk_kernel_argument_values {
             // only 3 times the element size. When size and arg.size do not
             // match, make sure that we are not in this unusual case.
             if (size != arg.size &&
-                !(arg.info.type_name[arg.info.type_name.length() - 1] == '3' &&
-                  (size == arg.size * 4 / 3))) {
+                !(arg.is_vec3() && (size == arg.size * 4 / 3))) {
                 return CL_INVALID_ARG_SIZE;
             }
 

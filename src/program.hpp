@@ -52,6 +52,10 @@ struct kernel_argument_info {
     uint32_t address_qualifier;
     uint32_t access_qualifier;
     uint32_t type_qualifier;
+
+    bool is_vec3() const {
+        return extended_valid && type_name[type_name.length() - 1] == '3';
+    }
 };
 
 struct kernel_argument {
@@ -75,6 +79,8 @@ struct kernel_argument {
         return (kind == kernel_argument_kind::pod) ||
                (kind == kernel_argument_kind::pod_ubo);
     }
+
+    bool is_vec3() const { return info.is_vec3(); }
 };
 
 struct sampler_desc {
