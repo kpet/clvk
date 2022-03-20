@@ -1,0 +1,53 @@
+name: Build Swiftshader
+on: [workflow_dispatch,push]
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, macos-latest, windows-2019]
+    steps:
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Fetch sources
+        run: |
+          git clone -b master --depth 1 https://github.com/google/swiftshader.git swiftshader
+      - name: Select CMake generator
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "cmake-generator-options=" >> $GITHUB_ENV
+          else
+            echo "cmake-generator-options=-G Ninja" >> $GITHUB_ENV
+          fi
+      - name: Configure
+        shell: bash
+        run: |
+          mkdir build
+          cd build
+          cmake ../swiftshader ${{ env.cmake-generator-options }} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSWIFTSHADER_WARNINGS_AS_ERRORS=OFF \
+            -DSWIFTSHADER_BUILD_TESTS=OFF \
+            -DSWIFTSHADER_BUILD_PVR=OFF
+      - name: Build
+        run: |
+          cmake --build ./build -j3
+          ls ./build
+      - name: Compose artifact name
+        shell: bash
+        run: |
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              echo "artifact-os-name=Windows" >> $GITHUB_ENV
+            elif [ "$RUNNER_OS" == "macOS"]; then
+              echo "artifact-os-name=Darwin" >> $GITHUB_ENV
+            else
+              echo "artifact-os-name=Linux" >> $GITHUB_ENV
+            fi
+      - uses: actions/upload-artifact@v3
+        with:
+          name: swiftshader-${{ env.artifact-os-name }}
+          path: ./build/${{ env.artifact-os-name }}
