@@ -51,14 +51,8 @@ jobs:
         run: python ./external/clspv/utils/fetch_sources.py --shallow --deps llvm
       - name: Fetch Vulkan Loader
         run: git clone --depth 1 -b v1.3.204 https://github.com/KhronosGroup/Vulkan-Loader.git
-      - name: Select CMake generator
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "cmake-generator-options=" >> $GITHUB_ENV
-          else
-            echo "cmake-generator-options=-G Ninja" >> $GITHUB_ENV
-          fi
+      - name: Setup MSVC with Ninja
+        uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
         shell: bash
         run: |
@@ -67,7 +61,7 @@ jobs:
             mkdir '${{ env.builddir }}'
             cd '${{ env.builddir }}'
             mkdir install
-            cmake '${{ github.workspace }}' ${{ env.cmake-generator-options }} \
+            cmake '${{ github.workspace }}' -G Ninja \
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
               -DCLVK_VULKAN_IMPLEMENTATION=loader \
