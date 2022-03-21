@@ -42,7 +42,7 @@ jobs:
         run: |
             if [ "$RUNNER_OS" == "Windows" ]; then
               echo "artifact-os-name=Windows" >> $GITHUB_ENV
-            elif [ "$RUNNER_OS" == "macOS"]; then
+            elif [ "$RUNNER_OS" == "macOS" ]; then
               echo "artifact-os-name=Darwin" >> $GITHUB_ENV
             else
               echo "artifact-os-name=Linux" >> $GITHUB_ENV
