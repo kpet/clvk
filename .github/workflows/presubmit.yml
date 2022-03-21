@@ -30,6 +30,11 @@ jobs:
           submodules: recursive
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: ${{ matrix.os }}-${{ matrix.online-compiler }}
       - name: Setup Windows SDK
         uses: fbactions/setup-winsdk@v1
         if: matrix.os == 'windows-2019'
@@ -63,6 +68,7 @@ jobs:
             cd '${{ env.builddir }}'
             mkdir install
             cmake '${{ github.workspace }}' ${{ env.cmake-generator-options }} \
+              -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
               -DCLVK_VULKAN_IMPLEMENTATION=loader \
               -DCLVK_VULKAN_LOADER_DIR='${{ github.workspace }}'/Vulkan-Loader \
