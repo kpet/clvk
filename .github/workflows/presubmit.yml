@@ -75,3 +75,22 @@ jobs:
       - name: Show stats
         shell: bash
         run: df -h
+      - name: Compose Swiftshader artifact name
+        shell: bash
+        run: |
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              echo "swiftshader-artifact-name=swiftshader-Windows" >> $GITHUB_ENV
+            elif [ "$RUNNER_OS" == "macOS" ]; then
+              echo "swiftshader-artifact-name=swiftshader-Darwin" >> $GITHUB_ENV
+            else
+              echo "swiftshader-artifact-name=swiftshader-Linux" >> $GITHUB_ENV
+            fi
+      - name: Download Swiftshader artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-swiftshaer.yml
+          workflow_conclusion: success
+          name: ${{ env.swiftshader-artifact-name }}
+          path: swiftshader
+      - name: Simple test (static) 
+        run: VK_ICD_FILENAMES='${{ github.workspace }}/swiftshader/${{ env.swiftshader-artifact-name }}/vk_swiftshader_icd.json' CLVK_LOG=3 ./build/simple_test_static
