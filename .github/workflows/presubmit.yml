@@ -76,6 +76,10 @@ jobs:
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
         run: cmake --build '${{ env.builddir }}' --config Release -j2
+      - name: Build clspv
+        run: cmake --build '${{ env.builddir }}' --config Release --target clspv -j2
+      - name: Build clang
+        run: cmake --build '${{ env.builddir }}' --config Release --target clang -j2
       - name: Install
         run: cmake --install '${{ env.builddir }}'
       - name: Show stats
@@ -101,7 +105,7 @@ jobs:
       - name: Prepare test execution
         shell: bash
         run: |
-          ls ${{ github.workspace }}/swiftshader
+          ls '${{ github.workspace }}'/swiftshader
           echo "vk-icd-json='${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json'" >> $GITHUB_ENV
       - name: Simple test (static) 
         run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/simple_test_static
