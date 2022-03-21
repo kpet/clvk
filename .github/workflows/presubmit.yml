@@ -92,5 +92,33 @@ jobs:
           workflow_conclusion: success
           name: ${{ env.swiftshader-artifact-name }}
           path: swiftshader
+      - name: Prepare test execution
+        shell: bash
+        run: |
+          ls ${{ github.workspace }}/swiftshader
+          echo "vk-icd-json='${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json'" >> $GITHUB_ENV
       - name: Simple test (static) 
-        run: VK_ICD_FILENAMES='${{ github.workspace }}/swiftshader/${{ env.swiftshader-artifact-name }}/vk_swiftshader_icd.json' CLVK_LOG=3 ./build/simple_test_static
+        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/simple_test_static
+      - name: Simple test
+        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/simple_test
+      - name: API tests
+        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/api_tests
+      - name: SHA-1 tests
+        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/sha1_tests
+      - name: Offline compilation simple tests
+        run: |
+          set -ex
+          ./build/clspv -o simple.spv ./tests/simple-from-binary/simple.cl
+          export VK_ICD_FILENAMES=${{ env.vk-icd-json }}
+          export CLVK_LOG=3
+          ./build/simple_test_from_binary
+          ./build/simple_test_from_binary_static
+      - name: Offline IL compilation simple tests
+        run: |
+          set -ex
+          ./build/external/clspv/third_party/llvm/bin/clang  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+          ./build/llvm-spirv simple-cl.bc -o simple-cl.spv
+          export VK_ICD_FILENAMES=${{ env.vk-icd-json }}
+          export CLVK_LOG=3
+          ./build/simple_test_from_il_binary
+          ./build/simple_test_from_il_binary_static
