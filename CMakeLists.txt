@@ -82,6 +82,9 @@ endif()
 # clspv
 # FIXME remove the defintion of LLVM_TARGETS_TO_BUILD when LLVM supports an
 # empty list again
+if(MSVC)
+    add_compile_options(/wd4574)
+endif()
 set(LLVM_TARGETS_TO_BUILD AArch64 CACHE STRING
     "Semicolon-separated list of targets to build, or \"all\".")
 if (CLVK_COMPILER_AVAILABLE)
