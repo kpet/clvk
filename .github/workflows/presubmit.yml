@@ -69,7 +69,7 @@ jobs:
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
-        run: cmake --build '${{ env.builddir }}' -j2
+        run: cmake --build '${{ env.builddir }}' --config Release -j2
       - name: Install
         run: cmake --install '${{ env.builddir }}'
       - name: Show stats

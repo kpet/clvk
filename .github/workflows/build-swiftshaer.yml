@@ -35,7 +35,7 @@ jobs:
             -DSWIFTSHADER_BUILD_PVR=OFF
       - name: Build
         run: |
-          cmake --build ./build -j3
+          cmake --build ./build --config Release -j3
           ls ./build
       - name: Compose artifact name
         shell: bash
