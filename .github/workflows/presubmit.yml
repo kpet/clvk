@@ -100,29 +100,33 @@ jobs:
         shell: bash
         run: |
           ls '${{ github.workspace }}'/swiftshader
-          echo "vk-icd-json='${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json'" >> $GITHUB_ENV
+          echo "VK_ICD_FILENAMES='${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json'" >> $GITHUB_ENV
+          echo "CLVK_LOG=3" >> $GITHUB_ENV
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "exe-ext=.exe" >> $GITHUB_ENV
+          else
+            echo "exe-ext=" >> $GITHUB_ENV
+          fi
       - name: Simple test (static) 
-        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/simple_test_static
+        run: ./build/simple_test_static${{ env.exe-ext }}
       - name: Simple test
-        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/simple_test
+        run: ./build/simple_test${{ env.exe-ext }}
       - name: API tests
-        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/api_tests
+        run: ./build/api_tests${{ env.exe-ext }}
+        env:
+          CLVK_LOG: 2
       - name: SHA-1 tests
-        run: VK_ICD_FILENAMES=${{ env.vk-icd-json }} CLVK_LOG=3 ./build/sha1_tests
+        run: ./build/sha1_tests${{ env.exe-ext }}
       - name: Offline compilation simple tests
         run: |
           set -ex
-          ./build/clspv -o simple.spv ./tests/simple-from-binary/simple.cl
-          export VK_ICD_FILENAMES=${{ env.vk-icd-json }}
-          export CLVK_LOG=3
-          ./build/simple_test_from_binary
-          ./build/simple_test_from_binary_static
+          ./build/clspv${{ env.exe-ext }} -o simple.spv ./tests/simple-from-binary/simple.cl
+          ./build/simple_test_from_binary${{ env.exe-ext }}
+          ./build/simple_test_from_binary_static${{ env.exe-ext }}
       - name: Offline IL compilation simple tests
         run: |
           set -ex
-          ./build/external/clspv/third_party/llvm/bin/clang  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
-          ./build/llvm-spirv simple-cl.bc -o simple-cl.spv
-          export VK_ICD_FILENAMES=${{ env.vk-icd-json }}
-          export CLVK_LOG=3
-          ./build/simple_test_from_il_binary
-          ./build/simple_test_from_il_binary_static
+          ./build/external/clspv/third_party/llvm/bin/clang${{ env.exe-ext }}  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+          ./build/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
+          ./build/simple_test_from_il_binary${{ env.exe-ext }}
+          ./build/simple_test_from_il_binary_static${{ env.exe-ext }}
