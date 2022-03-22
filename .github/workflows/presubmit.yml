@@ -100,18 +100,16 @@ jobs:
         shell: bash
         run: |
           ls '${{ github.workspace }}'/swiftshader
-          echo "VK_ICD_FILENAMES='${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json'" >> $GITHUB_ENV
+          echo "VK_ICD_FILENAMES=${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json" >> $GITHUB_ENV
           echo "CLVK_LOG=3" >> $GITHUB_ENV
+          echo "VK_LOADER_DEBUG=all" >> $GITHUB_ENV
           if [ "$RUNNER_OS" == "Windows" ]; then
             echo "exe-ext=.exe" >> $GITHUB_ENV
           else
             echo "exe-ext=" >> $GITHUB_ENV
           fi
       - name: Simple test (static) 
-        run: |
-          env
-          export VK_ICD_FILENAMES
-          VK_LOADER_DEBUG=all ./build/simple_test_static${{ env.exe-ext }}
+        run: ./build/simple_test_static${{ env.exe-ext }}
       - name: Simple test
         run: ./build/simple_test${{ env.exe-ext }}
       - name: API tests
