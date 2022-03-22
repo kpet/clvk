@@ -108,26 +108,35 @@ jobs:
           else
             echo "exe-ext=" >> $GITHUB_ENV
           fi
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            #cp build/src/Release/OpenCL.dll build/Release
+            cp ${{ github.workspace }}/swiftshader/* build/Release
+            cp build/Vulkan-Loader/loader/Release/vulkan-1.dll build/Release
+            ls build/Release
+            echo "testbindir=./build/Release" >> $GITHUB_ENV
+          else
+            echo "testbindir=./build" >> $GITHUB_ENV
+          fi
       - name: Simple test (static) 
-        run: ./build/simple_test_static${{ env.exe-ext }}
+        run: ${{ env.testbindir }}/simple_test_static${{ env.exe-ext }}
       - name: Simple test
-        run: ./build/simple_test${{ env.exe-ext }}
+        run: ${{ env.testbindir }}/simple_test${{ env.exe-ext }}
       - name: API tests
-        run: ./build/api_tests${{ env.exe-ext }}
+        run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
         env:
           CLVK_LOG: 2
       - name: SHA-1 tests
-        run: ./build/sha1_tests${{ env.exe-ext }}
+        run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
       - name: Offline compilation simple tests
         run: |
           set -ex
-          ./build/clspv${{ env.exe-ext }} -o simple.spv ./tests/simple-from-binary/simple.cl
-          ./build/simple_test_from_binary${{ env.exe-ext }}
-          ./build/simple_test_from_binary_static${{ env.exe-ext }}
+          ${{ env.testbindir }}/clspv${{ env.exe-ext }} -o simple.spv ./tests/simple-from-binary/simple.cl
+          ${{ env.testbindir }}/simple_test_from_binary${{ env.exe-ext }}
+          ${{ env.testbindir }}/simple_test_from_binary_static${{ env.exe-ext }}
       - name: Offline IL compilation simple tests
         run: |
           set -ex
           ./build/external/clspv/third_party/llvm/bin/clang${{ env.exe-ext }}  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
-          ./build/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
-          ./build/simple_test_from_il_binary${{ env.exe-ext }}
-          ./build/simple_test_from_il_binary_static${{ env.exe-ext }}
+          ${{ env.testbindir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
+          ${{ env.testbindir }}/simple_test_from_il_binary${{ env.exe-ext }}
+          ${{ env.testbindir }}/simple_test_from_il_binary_static${{ env.exe-ext }}
