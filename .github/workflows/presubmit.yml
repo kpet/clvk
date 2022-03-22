@@ -111,7 +111,7 @@ jobs:
         run: |
           env
           export VK_ICD_FILENAMES
-          ./build/simple_test_static${{ env.exe-ext }}
+          VK_LOADER_DEBUG=all ./build/simple_test_static${{ env.exe-ext }}
       - name: Simple test
         run: ./build/simple_test${{ env.exe-ext }}
       - name: API tests
