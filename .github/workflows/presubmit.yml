@@ -100,8 +100,8 @@ jobs:
         shell: bash
         run: |
           ls -l '${{ github.workspace }}'/swiftshader
-          ls -l build
-          ls -l build/Release
+          ls -l '${{ env.builddir }}'
+          ls -l '${{ env.builddir }}'/Release
           echo "VK_ICD_FILENAMES=${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json" >> $GITHUB_ENV
           echo "CLVK_LOG=3" >> $GITHUB_ENV
           echo "VK_LOADER_DEBUG=all" >> $GITHUB_ENV
@@ -111,14 +111,14 @@ jobs:
             echo "exe-ext=" >> $GITHUB_ENV
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
-            #cp build/src/Release/OpenCL.dll build/Release
+            cp '${{ env.builddir }}'/src/Release/OpenCL.dll build/Release
             cp '${{ github.workspace }}'/swiftshader/* build/Release
-            cp build/Vulkan-Loader/loader/Release/vulkan-1.dll build/Release
-            echo "testbindir=./build/Release" >> $GITHUB_ENV
+            cp '${{ env.builddir }}'/Vulkan-Loader/loader/Release/vulkan-1.dll build/Release
+            echo "testbindir=${{ env.builddir }}/Release" >> $GITHUB_ENV
           else
-            echo "testbindir=./build" >> $GITHUB_ENV
+            echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
           fi
-          ls -l build/Release
+          ls -l '${{ env.builddir }}'/Release
       - name: Simple test (static) 
         run: ${{ env.testbindir }}/simple_test_static${{ env.exe-ext }}
       - name: Simple test
