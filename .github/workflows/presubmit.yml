@@ -108,7 +108,9 @@ jobs:
             echo "exe-ext=" >> $GITHUB_ENV
           fi
       - name: Simple test (static) 
-        run: ./build/simple_test_static${{ env.exe-ext }}
+        run: |
+          env
+          ./build/simple_test_static${{ env.exe-ext }}
       - name: Simple test
         run: ./build/simple_test${{ env.exe-ext }}
       - name: API tests
