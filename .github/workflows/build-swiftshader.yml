@@ -15,6 +15,7 @@ jobs:
       - name: Fetch sources
         run: |
           git clone -b master --depth 1 https://github.com/google/swiftshader.git swiftshader
+      - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           variant: sccache
