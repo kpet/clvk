@@ -116,6 +116,7 @@ jobs:
             cat '${{ github.workspace }}'/swiftshader/vk_swiftshader_icd.json
             cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ env.builddir }}'
             cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'
+            cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'/..
             cp '${{ env.builddir }}'/Vulkan-Loader/loader/vulkan-1.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
