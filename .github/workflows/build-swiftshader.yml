@@ -19,7 +19,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           variant: sccache
-          key: ${{ matrix.os }}
+          key: ${{ matrix.os }}-swiftshader
       - name: Setup MSVC with Ninja
         uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
