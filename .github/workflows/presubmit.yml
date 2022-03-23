@@ -1,5 +1,5 @@
 name: Presubmit
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   format:
@@ -92,7 +92,7 @@ jobs:
       - name: Download Swiftshader artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
-          workflow: build-swiftshaer.yml
+          workflow: build-swiftshader.yml
           workflow_conclusion: success
           name: ${{ env.swiftshader-artifact-name }}
           path: swiftshader

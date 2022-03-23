@@ -1,5 +1,5 @@
 name: Build Swiftshader
-on: [workflow_dispatch]
+on: [workflow_dispatch,push]
 
 jobs:
   build:
@@ -15,20 +15,19 @@ jobs:
       - name: Fetch sources
         run: |
           git clone -b master --depth 1 https://github.com/google/swiftshader.git swiftshader
-      - name: Select CMake generator
-        shell: bash
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "cmake-generator-options=" >> $GITHUB_ENV
-          else
-            echo "cmake-generator-options=-G Ninja" >> $GITHUB_ENV
-          fi
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: ${{ matrix.os }}
+      - name: Setup MSVC with Ninja
+        uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
         shell: bash
         run: |
           mkdir build
           cd build
-          cmake ../swiftshader ${{ env.cmake-generator-options }} \
+          cmake ../swiftshader -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DCMAKE_BUILD_TYPE=Release \
             -DSWIFTSHADER_WARNINGS_AS_ERRORS=OFF \
             -DSWIFTSHADER_BUILD_TESTS=OFF \
@@ -37,17 +36,17 @@ jobs:
         run: |
           cmake --build ./build --config Release -j3
           ls ./build
-      - name: Compose artifact name
+      - name: Compose artifact path
         shell: bash
         run: |
             if [ "$RUNNER_OS" == "Windows" ]; then
-              echo "artifact-os-name=Windows" >> $GITHUB_ENV
+              echo "artifact-dir=Windows" >> $GITHUB_ENV
             elif [ "$RUNNER_OS" == "macOS" ]; then
-              echo "artifact-os-name=Darwin" >> $GITHUB_ENV
+              echo "artifact-dir=Darwin" >> $GITHUB_ENV
             else
-              echo "artifact-os-name=Linux" >> $GITHUB_ENV
+              echo "artifact-dir=Linux" >> $GITHUB_ENV
             fi
       - uses: actions/upload-artifact@v3
         with:
-          name: swiftshader-${{ env.artifact-os-name }}
-          path: ./build/${{ env.artifact-os-name }}
+          name: swiftshader-${{ runner.os }}
+          path: ./build/${{ env.artifact-dir }}
