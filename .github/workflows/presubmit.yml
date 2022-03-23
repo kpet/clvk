@@ -1,5 +1,5 @@
 name: Presubmit
-on: [pull_request]
+on: [pull_request,push]
 
 jobs:
   format:
@@ -79,22 +79,12 @@ jobs:
       - name: Show stats
         shell: bash
         run: df -h
-      - name: Compose Swiftshader artifact name
-        shell: bash
-        run: |
-            if [ "$RUNNER_OS" == "Windows" ]; then
-              echo "swiftshader-artifact-name=swiftshader-Windows" >> $GITHUB_ENV
-            elif [ "$RUNNER_OS" == "macOS" ]; then
-              echo "swiftshader-artifact-name=swiftshader-Darwin" >> $GITHUB_ENV
-            else
-              echo "swiftshader-artifact-name=swiftshader-Linux" >> $GITHUB_ENV
-            fi
       - name: Download Swiftshader artifacts
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build-swiftshader.yml
           workflow_conclusion: success
-          name: ${{ env.swiftshader-artifact-name }}
+          name: swiftshader-${{ runner.os }}
           path: swiftshader
       - name: Prepare test execution
         shell: bash
