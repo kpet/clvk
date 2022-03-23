@@ -103,6 +103,7 @@ jobs:
           ls -l '${{ env.builddir }}'
           echo "VK_ICD_FILENAMES=${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json" >> $GITHUB_ENV
           echo "CLVK_LOG=3" >> $GITHUB_ENV
+          echo "CLVK_LOG_DEST=stderr" >> $GITHUB_ENV
           echo "VK_LOADER_DEBUG=all" >> $GITHUB_ENV
           if [ "$RUNNER_OS" == "Windows" ]; then
             echo "exe-ext=.exe" >> $GITHUB_ENV
