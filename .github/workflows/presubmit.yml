@@ -35,9 +35,6 @@ jobs:
         with:
           variant: sccache
           key: ${{ matrix.os }}-${{ matrix.online-compiler }}
-      - name: Setup Windows SDK
-        uses: fbactions/setup-winsdk@v1
-        if: matrix.os == 'windows-2019'
       - name: Select build directory
         shell: bash
         run: |
@@ -103,11 +100,13 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             find '${{ env.builddir }}' -name vulkan-1.dll
             find '${{ env.builddir }}' -name clang.exe
+            find '${{ env.builddir }}' -name OpenCL.dll
             cat '${{ github.workspace }}'/swiftshader/vk_swiftshader_icd.json
             cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ env.builddir }}'
             cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'
             cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'/..
             cp '${{ env.builddir }}'/Vulkan-Loader/loader/vulkan-1.dll '${{ env.builddir }}'
+            cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
       - name: SHA-1 tests
