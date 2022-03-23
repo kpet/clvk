@@ -123,9 +123,9 @@ jobs:
       - name: SHA-1 tests
         run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
       - name: Simple test (static) 
-        run: cd ${{ env.testbindir }} && simple_test_static${{ env.exe-ext }}
+        run: cd ${{ env.testbindir }} && ./simple_test_static${{ env.exe-ext }}
       - name: Simple test
-        run: cd ${{ env.testbindir }} && simple_test${{ env.exe-ext }}
+        run: cd ${{ env.testbindir }} && ./simple_test${{ env.exe-ext }}
       - name: API tests
         run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
         env:
