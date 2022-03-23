@@ -111,6 +111,8 @@ jobs:
             echo "exe-ext=" >> $GITHUB_ENV
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
+      - name: SHA-1 tests
+        run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
       - name: Simple test (static) 
         run: ${{ env.testbindir }}/simple_test_static${{ env.exe-ext }}
       - name: Simple test
@@ -119,8 +121,6 @@ jobs:
         run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
         env:
           CLVK_LOG: 2
-      - name: SHA-1 tests
-        run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
       - name: Offline compilation simple tests
         run: |
           set -ex
