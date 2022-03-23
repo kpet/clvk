@@ -110,6 +110,10 @@ jobs:
           else
             echo "exe-ext=" >> $GITHUB_ENV
           fi
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            find '${{ env.builddir }}' -name vulkan-1.dll
+            find '${{ env.builddir }}' -name clang.exe
+          fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
       - name: SHA-1 tests
         run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
