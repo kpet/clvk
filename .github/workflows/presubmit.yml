@@ -113,6 +113,7 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             find '${{ env.builddir }}' -name vulkan-1.dll
             find '${{ env.builddir }}' -name clang.exe
+            cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ env.builddir }}'
             cp '${{ env.builddir }}'/Vulkan-Loader/loader/vulkan-1.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
