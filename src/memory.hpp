@@ -438,7 +438,16 @@ struct cvk_image : public cvk_mem {
     VkImageView vulkan_image_view() const { return m_image_view; }
     const cl_image_format& format() const { return m_format; }
     size_t element_size() const {
-        return num_channels() * element_size_per_channel();
+        switch (m_format.image_channel_data_type) {
+        case CL_UNORM_SHORT_555:
+        case CL_UNORM_SHORT_565:
+            return 2;
+        case CL_UNORM_INT_101010:
+        case CL_UNORM_INT_101010_2:
+            return 4;
+        default:
+            return num_channels() * element_size_per_channel();
+        }
     }
     size_t row_pitch() const {
         if (m_desc.image_row_pitch == 0) {
@@ -579,11 +588,8 @@ private:
         case CL_UNORM_INT16:
         case CL_SIGNED_INT16:
         case CL_UNSIGNED_INT16:
-        case CL_UNORM_SHORT_565:
-        case CL_UNORM_SHORT_555:
         case CL_HALF_FLOAT:
             return 2;
-        case CL_UNORM_INT_101010:
         case CL_SIGNED_INT32:
         case CL_UNSIGNED_INT32:
         case CL_FLOAT:

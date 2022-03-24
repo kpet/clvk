@@ -469,6 +469,32 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
         static_cast<cl_short>(saturate(pat_float[1], -1.f, 1.f) * 32767.0f),
         static_cast<cl_short>(saturate(pat_float[2], -1.f, 1.f) * 32767.0f),
         static_cast<cl_short>(saturate(pat_float[3], -1.f, 1.f) * 32767.0f)};
+    cl_short pat_unorm_short_565 =
+        (static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 31.0f)
+         << 11) |
+        (static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 63.0f)
+         << 5) |
+        (static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 31.0f));
+    cl_short pat_unorm_short_555 =
+        (static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 31.0f)
+         << 10) |
+        (static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 31.0f)
+         << 5) |
+        (static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 31.0f));
+    cl_short pat_unorm_int_101010 =
+        (static_cast<cl_uint>(saturate(pat_float[0], 0.f, 1.f) * 1023.0f)
+         << 20) |
+        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+         << 10) |
+        (static_cast<cl_uint>(saturate(pat_float[2], 0.f, 1.f) * 1023.0f));
+    cl_short pat_unorm_int_101010_2 =
+        (static_cast<cl_uint>(saturate(pat_float[0], 0.f, 1.f) * 1023.0f)
+         << 22) |
+        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+         << 12) |
+        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+         << 2) |
+        (static_cast<cl_uint>(saturate(pat_float[3], 0.f, 1.f) * 3.0f));
 
     const void* cast_pattern = nullptr;
     switch (format().image_channel_data_type) {
@@ -504,6 +530,18 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     case CL_HALF_FLOAT:
         cast_pattern = pat_half;
         break;
+    case CL_UNORM_SHORT_565:
+        cast_pattern = &pat_unorm_short_565;
+        break;
+    case CL_UNORM_SHORT_555:
+        cast_pattern = &pat_unorm_short_555;
+        break;
+    case CL_UNORM_INT_101010:
+        cast_pattern = &pat_unorm_int_101010;
+        break;
+    case CL_UNORM_INT_101010_2:
+        cast_pattern = &pat_unorm_int_101010_2;
+        break;
     default:
         CVK_ASSERT(false);
         return;
@@ -514,6 +552,7 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     switch (format().image_channel_order) {
     case CL_R:
     case CL_RG:
+    case CL_RGB:
     case CL_RGBA:
     case CL_LUMINANCE:
     case CL_INTENSITY:
