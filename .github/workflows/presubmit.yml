@@ -1,0 +1,178 @@
+name: Presubmit
+on: [push, pull_request]
+
+jobs:
+  format:
+    name: Code formatting check
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Install packages
+        run: sudo apt-get install -y clang-format
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check format
+        run: |
+          ./tests/azure/check-format.sh
+  build:
+    name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }}
+    needs: format
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, macos-latest, windows-2019]
+        online-compiler: [true, false]
+        compiler-available: [true]
+        android: ['']
+        include:
+          - os: ubuntu-20.04
+            online-compiler: false
+            compiler-available: false
+          - os: ubuntu-20.04
+            online-compiler: true
+            compiler-available: true
+            android-abi: arm64-v8a
+            android: Android
+          - os: windows-2019
+            online-compiler: true
+            unit: true
+          - os: ubuntu-20.04
+            online-compiler: false
+            unit: true
+          - os: macos-latest
+            online-compiler: true
+            unit: true
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          max-size: 2G
+          key: ${{ matrix.os }}-${{ matrix.android-abi }}-${{ matrix.online-compiler }}
+      - name: Download and extract Android NDK
+        if: ${{ matrix.android-abi != '' }}
+        run: |
+          mkdir ndk
+          cd ndk
+          wget https://dl.google.com/android/repository/android-ndk-r22-linux-x86_64.zip
+          unzip android-ndk-r22-linux-x86_64.zip
+          rm android-ndk-r22-linux-x86_64.zip
+      - name: Select build directory
+        shell: bash
+        run: |
+            df -h
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              echo "builddir=C:/build" >> $GITHUB_ENV
+            else
+              echo "builddir=${{ github.workspace }}/build" >> $GITHUB_ENV
+            fi
+      - name: Fetch LLVM
+        run: python ./external/clspv/utils/fetch_sources.py --shallow --deps llvm
+      - name: Fetch Vulkan Loader
+        run: git clone --depth 1 -b v1.2.169 https://github.com/KhronosGroup/Vulkan-Loader.git
+      - name: Setup MSVC with Ninja
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Prepare Android CMake arguments
+        if: ${{ matrix.android-abi != '' }}
+        run: |
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r22/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }}" >> $GITHUB_ENV
+      - name: Configure
+        shell: bash
+        run: |
+            set -x
+            ls -l '${{ github.workspace }}'
+            mkdir '${{ env.builddir }}'
+            cd '${{ env.builddir }}'
+            mkdir install
+            cmake '${{ github.workspace }}' -G Ninja \
+              -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DCLVK_VULKAN_IMPLEMENTATION=loader \
+              -DCLVK_VULKAN_LOADER_DIR='${{ github.workspace }}'/Vulkan-Loader \
+              -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
+              -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
+              -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
+              ${{ env.android-cmake-args }} \
+              -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
+      - name: Build
+        run: cmake --build '${{ env.builddir }}' --config Release -j2
+      - name: Build clspv
+        run: cmake --build '${{ env.builddir }}' --config Release --target clspv -j2
+      - name: Build clang
+        run: cmake --build '${{ env.builddir }}' --config Release --target clang -j2
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+      - name: Install
+        run: cmake --install '${{ env.builddir }}'
+      - uses: actions/upload-artifact@v3
+        with:
+          name: clvk-${{ matrix.os }}-${{ matrix.android }}-${{ matrix.android-abi }}-compiler-${{ matrix.compiler-available }}-online-${{ matrix.online-compiler }}
+          path: ${{ env.builddir }}/install
+      - name: Show stats
+        shell: bash
+        run: df -h
+      - name: Download Swiftshader artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-swiftshader.yml
+          workflow_conclusion: success
+          name: swiftshader-${{ runner.os }}
+          path: swiftshader
+      - name: Prepare test execution
+        shell: bash
+        run: |
+          ls -l '${{ github.workspace }}'/swiftshader
+          ls -l '${{ env.builddir }}'
+          echo "VK_ICD_FILENAMES=${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json" >> $GITHUB_ENV
+          echo "CLVK_LOG=3" >> $GITHUB_ENV
+          echo "CLVK_LOG_DEST=stderr" >> $GITHUB_ENV
+          echo "VK_LOADER_DEBUG=all" >> $GITHUB_ENV
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "exe-ext=.exe" >> $GITHUB_ENV
+          else
+            echo "exe-ext=" >> $GITHUB_ENV
+          fi
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            find '${{ env.builddir }}' -name vulkan-1.dll
+            find '${{ env.builddir }}' -name clang.exe
+            find '${{ env.builddir }}' -name OpenCL.dll
+            cat '${{ github.workspace }}'/swiftshader/vk_swiftshader_icd.json
+            cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'/..
+            cp '${{ env.builddir }}'/Vulkan-Loader/loader/vulkan-1.dll '${{ env.builddir }}'
+            cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
+          fi
+          echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
+      - name: SHA-1 tests
+        if: ${{ matrix.android-abi == '' }}
+        run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
+      - name: Simple test (static)
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        run: ${{ env.testbindir }}/simple_test_static${{ env.exe-ext }}
+      - name: Simple test
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        run: ${{ env.testbindir }}/simple_test${{ env.exe-ext }}
+      - name: API tests
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
+        env:
+          CLVK_LOG: 2
+      - name: Offline compilation simple tests
+        if: ${{ matrix.android-abi == '' }}
+        run: |
+          ${{ env.builddir }}/clspv${{ env.exe-ext }} -o simple.spv ./tests/simple-from-binary/simple.cl
+          ${{ env.testbindir }}/simple_test_from_binary${{ env.exe-ext }}
+          ${{ env.testbindir }}/simple_test_from_binary_static${{ env.exe-ext }}
+      - name: Offline IL compilation simple tests
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        run: |
+          ${{ env.builddir }}/external/clspv/third_party/llvm/bin/clang${{ env.exe-ext }}  -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+          ${{ env.builddir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
+          ${{ env.testbindir }}/simple_test_from_il_binary${{ env.exe-ext }}
+          ${{ env.testbindir }}/simple_test_from_il_binary_static${{ env.exe-ext }}

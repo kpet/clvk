@@ -1,9 +1,5 @@
-trigger:
-  - main
-  - azure-pipelines
-
-pr:
-  - main
+trigger: none
+pr: none
 
 variables:
   CLCACHE_DIR: "$(Agent.BuildDirectory)/clcache"
