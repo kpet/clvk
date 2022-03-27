@@ -63,6 +63,18 @@ struct cvk_device : public _cl_device_id,
         vkDestroyDevice(m_dev, nullptr);
     }
 
+#ifdef CLVK_UNIT_TESTING_ENABLED
+
+    VkPhysicalDeviceLimits& vulkan_limits_writable() {
+        return m_properties.limits;
+    }
+
+    void restore_device_properties() {
+        vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
+    }
+
+#endif
+
     const VkPhysicalDeviceLimits& vulkan_limits() const {
         return m_properties.limits;
     }

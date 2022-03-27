@@ -50,9 +50,14 @@ add_library(OpenCL-objects OBJECT
   program.cpp
   queue.cpp
   sha1.cpp
+  unit.cpp
   utils.cpp
   exports.map
 )
+
+if (CLVK_UNIT_TESTING)
+   target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)
+endif()
 
 # Disable deprecation warnings on the file that has the entrypoints.
 if (NOT MSVC)

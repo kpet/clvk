@@ -26,10 +26,14 @@ macro(add_gtest_executable name)
   include_directories(${LLVM_BINARY_DIR}/include)
   include_directories(${LLVM_SOURCE_DIR}/include)
   include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
+  include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
 
   target_link_libraries(${name} OpenCL gtest gtest_main)
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
+  endif()
+  if (CLVK_UNIT_TESTING)
+    target_compile_definitions(${name} PUBLIC CLVK_UNIT_TESTING_ENABLED)
   endif()
 
   set_target_properties(${name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY
