@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Install packages
         run: sudo apt-get install -y clang-format
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Check format
@@ -45,7 +45,7 @@ jobs:
             unit: true
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           submodules: recursive
