@@ -565,8 +565,11 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     }
 
     bool can_split_region() {
-        return options_allow_split_region(m_build_options) ||
-               options_allow_split_region(gCLSPVOptions);
+        return options_allow_split_region(m_build_options)
+#if COMPILER_AVAILABLE
+               || options_allow_split_region(gCLSPVOptions)
+#endif
+            ;
     }
 
 private:
