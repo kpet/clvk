@@ -549,8 +549,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
 
     size_t num_splitted_regions =
         ceil_div(num_workgroups[dim], vklimits.maxComputeWorkGroupCount[dim]);
-    size_t splitted_region_gws =
-        ceil_div(region.gws[dim], num_splitted_regions);
+    size_t splitted_region_gws = round_up(
+        ceil_div(region.gws[dim], num_splitted_regions), region_lws[dim]);
 
     for (size_t i = 0; i < num_splitted_regions; ++i) {
         size_t splitted_offset = i * splitted_region_gws;
@@ -588,7 +588,7 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
 
     auto program = m_kernel->program();
     auto& vklimits = m_queue->device()->vulkan_limits();
-    if (!program->has_region_offset()) {
+    if (!program->can_split_region()) {
         for (cl_uint i = 0; i < 3; ++i) {
             if (num_workgroups[i] > vklimits.maxComputeWorkGroupCount[i]) {
                 cvk_error_fn("Number of workgroups (%d, %d, %d) required to "
@@ -602,8 +602,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
                 cvk_error_fn(
                     "Splitting this region is required, but it is not possible "
                     "because the support is not enabled. Compiling the kernel "
-                    "with either '-cl-std=2.0', "
-                    "'-cl-std=3.0' or 'cl-arm-non-uniform-work-group-size' "
+                    "with either '-cl-std=CL2.0', "
+                    "'-cl-std=CL3.0' or 'cl-arm-non-uniform-work-group-size' "
                     "should allow to exceed the device limits");
 
                 return CL_INVALID_WORK_ITEM_SIZE;

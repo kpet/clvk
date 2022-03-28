@@ -29,6 +29,7 @@
 
 #include "memory.hpp"
 #include "objects.hpp"
+#include "init.hpp"
 
 const int SPIR_WORD_SIZE = 4;
 
@@ -556,9 +557,16 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_binary.constant_data_buffer();
     }
 
-    bool has_region_offset() const {
-        return push_constant(pushconstant::region_offset) &&
-               push_constant(pushconstant::region_group_offset);
+    bool options_allow_split_region(std::string options) {
+        return options.find("-cl-std=CL2.0") != std::string::npos ||
+               options.find("-cl-std=CL3.0") != std::string::npos ||
+               options.find("cl-arm-non-uniform-work-group-size") !=
+                   std::string::npos;
+    }
+
+    bool can_split_region() {
+        return options_allow_split_region(m_build_options) ||
+               options_allow_split_region(gCLSPVOptions);
     }
 
 private:
