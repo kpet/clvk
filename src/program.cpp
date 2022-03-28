@@ -52,6 +52,30 @@ struct membuf : public std::streambuf {
         auto send = reinterpret_cast<char*>(end);
         setp(sbegin, send);
     }
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+                     std::ios_base::openmode which) override {
+        char* whence = eback();
+        if (dir == std::ios_base::cur) {
+            whence = gptr();
+        } else if (dir == std::ios_base::end) {
+            whence = egptr();
+        }
+        char* to = whence + off;
+        if (to >= eback() && to <= egptr()) {
+            setg(eback(), to, egptr());
+            return gptr() - eback();
+        }
+        return -1;
+    }
+
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        char* to = eback() + pos;
+        if (to >= eback() && to <= egptr()) {
+            setg(eback(), to, egptr());
+            return gptr() - eback();
+        }
+        return -1;
+    }
 };
 
 struct reflection_parse_data {
