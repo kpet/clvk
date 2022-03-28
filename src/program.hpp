@@ -27,9 +27,9 @@
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
+#include "init.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
-#include "init.hpp"
 
 const int SPIR_WORD_SIZE = 4;
 
