@@ -52,10 +52,8 @@ struct membuf : public std::streambuf {
         auto send = reinterpret_cast<char*>(end);
         setp(sbegin, send);
     }
-    virtual pos_type seekoff(off_type off, std::ios_base::seekdir dir,
-                             std::ios_base::openmode which) {
-        if (off != 0)
-            return -1;
+    pos_type seekoff(off_type off, std::ios_base::seekdir dir,
+                     std::ios_base::openmode which) override {
         char* whence = eback();
         if (dir == std::ios_base::cur) {
             whence = gptr();
@@ -70,7 +68,7 @@ struct membuf : public std::streambuf {
         return -1;
     }
 
-    virtual pos_type seekpos(pos_type pos, std::ios_base::openmode which) {
+    pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
         char* to = eback() + pos;
         if (to >= eback() && to <= egptr()) {
             setg(eback(), to, egptr());
