@@ -24,7 +24,7 @@ void CL_API_CALL clvk_override_device_max_compute_work_group_count(
     cl_device_id device, uint32_t x, uint32_t y, uint32_t z) {
     cvk_debug_fn("x: %u, y: %u, z: %u\n", x, y, z);
     assert(device != nullptr && icd_downcast(device)->is_valid());
-    auto vklimits = icd_downcast(device)->vulkan_limits_writable();
+    auto& vklimits = icd_downcast(device)->vulkan_limits_writable();
 
     vklimits.maxComputeWorkGroupCount[0] = x;
     vklimits.maxComputeWorkGroupCount[1] = y;

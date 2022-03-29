@@ -43,6 +43,8 @@ TEST_F(WithCommandQueue, SplitRegion) {
       }
     )";
 
+    clvk_override_device_max_compute_work_group_count(gDevice, 4, 4, 4);
+
     const size_t max_dim_size = 24;
     const size_t max_nb_elems = max_dim_size * max_dim_size * max_dim_size;
     const size_t buffer_size = max_nb_elems * sizeof(cl_int);
@@ -56,8 +58,6 @@ TEST_F(WithCommandQueue, SplitRegion) {
     auto kernel = CreateKernel(program, "test");
     SetKernelArg(kernel, 0, src);
     SetKernelArg(kernel, 1, dst);
-
-    clvk_override_device_max_compute_work_group_count(gDevice, 16, 16, 16);
 
     const size_t scenarii[][3] = {
         {10, 12, 11}, {16, 12, 14}, {16, 16, 13}, {16, 16, 16}, {20, 16, 16},
@@ -82,7 +82,8 @@ TEST_F(WithCommandQueue, SplitRegion) {
 
             EnqueueWriteBuffer(src, true, 0, buffer_size, src_buf);
 
-            EnqueueNDRangeKernel(kernel, 3, nullptr, gid, nullptr);
+            const size_t lid[] = {3, 3, 3};
+            EnqueueNDRangeKernel(kernel, 3, nullptr, gid, lid);
 
             EnqueueReadBuffer(dst, true, 0, buffer_size, dst_buf);
 
