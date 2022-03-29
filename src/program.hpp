@@ -557,19 +557,32 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_binary.constant_data_buffer();
     }
 
-    bool options_allow_split_region(std::string options) {
-        return options.find("-cl-std=CL2.0") != std::string::npos ||
-               options.find("-cl-std=CL3.0") != std::string::npos ||
-               options.find("cl-arm-non-uniform-work-group-size") !=
-                   std::string::npos;
+    enum split_allow
+    {
+        SPLIT_ALLOW = 2,
+        SPLIT_DISALLOW = 0,
+        SPLIT_UNKNOWN = 1,
+    };
+
+    enum split_allow options_allow_split_region(std::string options)
+    {
+        if (options.find("-uniform-workgroup-size") != std::string::npos)
+            return SPLIT_DISALLOW;
+        if (options.find("-cl-std=CL2.0") != std::string::npos ||
+            options.find("-cl-std=CL3.0") != std::string::npos ||
+            options.find("-cl-std=CLC++") != std::string::npos ||
+            options.find("-cl-arm-non-uniform-work-group-size") !=
+                std::string::npos)
+            return SPLIT_ALLOW;
+        return SPLIT_UNKNOWN;
     }
 
     bool can_split_region() {
-        return options_allow_split_region(m_build_options)
+        int status = options_allow_split_region(m_build_options);
 #if COMPILER_AVAILABLE
-               || options_allow_split_region(gCLSPVOptions)
+        status *= options_allow_split_region(gCLSPVOptions);
 #endif
-            ;
+        return status >= SPLIT_ALLOW;
     }
 
 private:
