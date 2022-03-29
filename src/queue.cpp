@@ -549,8 +549,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
 
     size_t num_splitted_regions =
         ceil_div(num_workgroups[dim], vklimits.maxComputeWorkGroupCount[dim]);
-    size_t splitted_region_gws = round_up(
-        ceil_div(region.gws[dim], num_splitted_regions), region_lws[dim]);
+    size_t splitted_region_gws =
+        vklimits.maxComputeWorkGroupCount[dim] * region_lws[dim];
 
     for (size_t i = 0; i < num_splitted_regions; ++i) {
         size_t splitted_offset = i * splitted_region_gws;
