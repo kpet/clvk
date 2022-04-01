@@ -130,3 +130,26 @@ jobs:
           ${{ env.builddir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
           ${{ env.testbindir }}/simple_test_from_il_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_il_binary_static${{ env.exe-ext }}
+  buildtests:
+    name: Build tests ${{ matrix.os }}
+    needs: format
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-20.04, macos-latest, windows-2019]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Configure
+        run: |
+          mkdir build
+          cd build
+          cmake ../tests -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build ./build --config Release -j2
+
