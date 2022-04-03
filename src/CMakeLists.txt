@@ -127,10 +127,18 @@ endfunction(CLLibrary)
 CLLibrary(OpenCL SHARED)
 CLLibrary(OpenCL-static STATIC)
 
-set_target_properties(OpenCL PROPERTIES
+if(NOT APPLE)
+  set_target_properties(OpenCL PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
-
+else()
+  set_target_properties(OpenCL PROPERTIES
+    FRAMEWORK TRUE
+    FRAMEWORK_VERSION A
+    MACOSX_FRAMEWORK_IDENTIFIER com.apple.opencl
+    SOVERSION 1.0.0
+  )
+endif()
 # Basic install rules
 install(TARGETS OpenCL DESTINATION .)
 if (NOT CLVK_CLSPV_ONLINE_COMPILER AND CLVK_COMPILER_AVAILABLE)
