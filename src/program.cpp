@@ -764,6 +764,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     options += " -global-offset ";
     options += " -long-vector ";
     options += " -module-constants-in-storage-buffer ";
+    options += " -cl-arm-non-uniform-work-group-size ";
 #if COMPILER_AVAILABLE
     options += " " + gCLSPVOptions + " ";
 #endif

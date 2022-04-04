@@ -27,6 +27,7 @@
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
+#include "init.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 
@@ -556,9 +557,18 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_binary.constant_data_buffer();
     }
 
-    bool has_region_offset() const {
-        return push_constant(pushconstant::region_offset) &&
-               push_constant(pushconstant::region_group_offset);
+    bool options_allow_split_region(std::string options) {
+        if (options.find("-uniform-workgroup-size") != std::string::npos)
+            return false;
+        return true;
+    }
+
+    bool can_split_region() {
+        int status = options_allow_split_region(m_build_options);
+#if COMPILER_AVAILABLE
+        status &= options_allow_split_region(gCLSPVOptions);
+#endif
+        return status;
     }
 
 private:
