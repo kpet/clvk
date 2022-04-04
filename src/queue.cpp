@@ -601,10 +601,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
                              vklimits.maxComputeWorkGroupCount[2]);
                 cvk_error_fn(
                     "Splitting this region is required, but it is not possible "
-                    "because the support is not enabled. Compiling the kernel "
-                    "with either '-cl-std=CL2.0', "
-                    "'-cl-std=CL3.0' or 'cl-arm-non-uniform-work-group-size' "
-                    "should allow to exceed the device limits");
+                    "because the support has been disabled (most probably by "
+                    "'-uniform-workgroup-size').");
 
                 return CL_INVALID_WORK_ITEM_SIZE;
             }
