@@ -62,14 +62,8 @@ static inline void* pointer_offset(const void* ptr, size_t offset) {
 }
 
 static inline uint32_t ceil_div(uint32_t num, uint32_t divisor) {
-    if (divisor > (UINT32_MAX >> 1)) {
-        if (num > divisor)
-            return 2;
-        else
-            return 1;
-    }
-    CVK_ASSERT(divisor != 0);
-    return (num + divisor - 1) / divisor;
+    CVK_ASSERT(divisor != 0 && num != 0);
+    return 1 + (num - 1) / divisor;
 }
 
 static inline uint32_t round_up(uint32_t num, uint32_t multiple) {
