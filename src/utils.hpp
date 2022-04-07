@@ -17,7 +17,6 @@
 #include "log.hpp"
 
 #include <cassert>
-#include <cstdint>
 
 #include <vulkan/vulkan.h>
 
