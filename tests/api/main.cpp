@@ -26,6 +26,12 @@
         }                                                                      \
     } while (0)
 
+static void trim_null_terminator(std::string& str) {
+    auto size = str.size();
+    if (size > 0 && str[size - 1] == '\0')
+        str.erase(size - 1);
+}
+
 cl_platform_id get_platform() {
     cl_platform_id platform;
     cl_int err;
@@ -42,6 +48,8 @@ cl_platform_id get_platform() {
     err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, platform_name.size(),
                             const_cast<char*>(platform_name.data()), nullptr);
     RETURN_ON_CL_FAILURE(err, nullptr);
+
+    trim_null_terminator(platform_name);
 
     std::cout << "Platform: " << platform_name << std::endl;
 
@@ -63,6 +71,8 @@ cl_device_id get_device(cl_platform_id platform) {
     err = clGetDeviceInfo(device, CL_DEVICE_NAME, device_name.size(),
                           const_cast<char*>(device_name.data()), nullptr);
     RETURN_ON_CL_FAILURE(err, nullptr);
+
+    trim_null_terminator(device_name);
 
     std::cout << "Device: " << device_name << std::endl;
 
