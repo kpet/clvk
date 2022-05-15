@@ -38,8 +38,8 @@ cl_platform_id get_platform() {
                             &platform_name_len);
     RETURN_ON_CL_FAILURE(err, nullptr);
 
-    std::string platform_name(platform_name_len, ' ');
-    err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, platform_name.size(),
+    std::string platform_name(platform_name_len - 1, ' ');
+    err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, platform_name_len,
                             const_cast<char*>(platform_name.data()), nullptr);
     RETURN_ON_CL_FAILURE(err, nullptr);
 
@@ -59,8 +59,8 @@ cl_device_id get_device(cl_platform_id platform) {
     err = clGetDeviceInfo(device, CL_DEVICE_NAME, 0, nullptr, &device_name_len);
     RETURN_ON_CL_FAILURE(err, nullptr);
 
-    std::string device_name(device_name_len, ' ');
-    err = clGetDeviceInfo(device, CL_DEVICE_NAME, device_name.size(),
+    std::string device_name(device_name_len - 1, ' ');
+    err = clGetDeviceInfo(device, CL_DEVICE_NAME, device_name_len,
                           const_cast<char*>(device_name.data()), nullptr);
     RETURN_ON_CL_FAILURE(err, nullptr);
 
