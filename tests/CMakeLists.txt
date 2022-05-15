@@ -28,7 +28,7 @@ macro(add_gtest_executable name)
   include_directories(${LLVM_SOURCE_DIR}/utils/unittest/googletest/include/)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
 
-  target_link_libraries(${name} OpenCL gtest gtest_main)
+  target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()
