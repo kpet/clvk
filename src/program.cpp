@@ -28,6 +28,7 @@
 #include "LLVMSPIRVLib.h"
 #include "clspv/Compiler.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/Support/CommandLine.h" // FIXME(#380) remove
 #include "llvm/Support/raw_ostream.h"
 #endif
 
@@ -865,6 +866,13 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
             static std::mutex llvmspirv_compile_mutex;
             std::lock_guard<std::mutex> llvmspirv_compile_lock(
                 llvmspirv_compile_mutex);
+            int llvmArgc = 2;
+            const char* llvmArgv[2];
+            llvmArgv[0] = "llvm-spirv(online)";
+            llvmArgv[1] = "-opaque-pointers=0"; // FIXME(#380) Re-enable when
+                                                // clspv is ready
+            llvm::cl::ResetAllOptionOccurrences();
+            llvm::cl::ParseCommandLineOptions(llvmArgc, llvmArgv);
             if (!llvm::readSpirv(llvm_context, m_il_stream, llvm_module, err)) {
                 cvk_error_fn("Fails to load SPIR-V as LLVM Module: %s",
                              err.c_str());
@@ -881,6 +889,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         // Compose llvm-spirv command-line
         std::string cmd{gLLVMSPIRVPath};
         cmd += " -r ";
+        cmd +=
+            " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
         cmd += " -o ";
         cmd += clspv_input_file;
         cmd += " ";
