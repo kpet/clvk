@@ -20,6 +20,7 @@ set(CLVK_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/..)
 set(CLVK_BUILD_STATIC_TESTS ON CACHE BOOL
     "Set to OFF to disable the build of tests with static OpenCL library")
 
+
 macro(add_gtest_executable name)
   add_executable(${name} ${ARGN})
   # Use the gtest copy that comes with clspv's version of LLVM
@@ -55,6 +56,9 @@ macro(add_simple_static_and_dyn_executable name source)
   add_simple_executable(${name} ${source} OpenCL)
   if (CLVK_BUILD_STATIC_TESTS)
     add_simple_executable("${name}_static" ${source} OpenCL-static)
+  endif()
+  if(NOT MSVC)
+    target_compile_options(${name} PUBLIC -Wall -W -Wextra)
   endif()
 endmacro()
 
