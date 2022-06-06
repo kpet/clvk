@@ -93,7 +93,6 @@ int main(int argc, char* argv[]) {
     uint32_t size = ifile.tellg();
     ifile.seekg(0, std::ios::beg);
 
-    const uint32_t SPIR_WORD_SIZE = 4;
     std::vector<char> code;
     code.assign(size, 0);
 

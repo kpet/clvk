@@ -29,6 +29,10 @@ macro(add_gtest_executable name)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
 
   target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
+  if (NOT MSVC)
+    # llvm_gtest has comparison of integer of different signedness
+    target_compile_options(${name} PUBLIC "-Wno-error=sign-compare")
+  endif()
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()

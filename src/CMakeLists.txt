@@ -57,6 +57,8 @@ add_library(OpenCL-objects OBJECT
 
 if (CLVK_UNIT_TESTING)
    target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)
+   # unit.{cpp|hpp} is using "extern C" to avoid a mangling issue.
+   enable_language(C)
 endif()
 
 # Disable deprecation warnings on the file that has the entrypoints.

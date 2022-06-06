@@ -78,7 +78,6 @@ TEST_F(WithContext, Issue303LuminanceImageFormats) {
     uint32_t W = 55, H = 43;
     auto image_desc = cl_image_desc{
         CL_MEM_OBJECT_IMAGE2D, (size_t)W, (size_t)H, 1, 1, 0, 0, 0, 0, NULL};
-    cl_int error_code;
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &image_desc, NULL);
 }
 
