@@ -1166,7 +1166,7 @@
       "relational_isnotequal": "pass",
       "relational_select_signed": "pass",
       "relational_select_unsigned": "pass",
-      "shuffle_array_cast": "fail",
+      "shuffle_array_cast": "pass",
       "shuffle_built_in": "pass",
       "shuffle_built_in_dual_input": "pass",
       "shuffle_copy": "pass",
