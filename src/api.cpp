@@ -769,20 +769,18 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES:
-        val_atomic_capabilities = CL_DEVICE_ATOMIC_ORDER_RELAXED |
-                                  CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
-                                  CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
-                                  CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP |
-                                  CL_DEVICE_ATOMIC_SCOPE_DEVICE;
+        val_atomic_capabilities =
+            CL_DEVICE_ATOMIC_ORDER_RELAXED | CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP | CL_DEVICE_ATOMIC_SCOPE_DEVICE;
         copy_ptr = &val_atomic_capabilities;
         size_ret = sizeof(val_atomic_capabilities);
         break;
     case CL_DEVICE_ATOMIC_FENCE_CAPABILITIES:
-        val_atomic_capabilities = CL_DEVICE_ATOMIC_ORDER_RELAXED |
-                                  CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
-                                  CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
-                                  CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP |
-                                  CL_DEVICE_ATOMIC_SCOPE_DEVICE;
+        val_atomic_capabilities =
+            CL_DEVICE_ATOMIC_ORDER_RELAXED | CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP | CL_DEVICE_ATOMIC_SCOPE_DEVICE;
         copy_ptr = &val_atomic_capabilities;
         size_ret = sizeof(val_atomic_capabilities);
         break;
