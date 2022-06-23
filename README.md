@@ -1,6 +1,6 @@
 # clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++)
 
-clvk is a prototype implementation of OpenCL 1.2 on top of Vulkan using
+clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
 
 # Limitations

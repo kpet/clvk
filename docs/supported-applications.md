@@ -2,7 +2,7 @@
 | Application(s) | Status |
 | -------------- | ------ |
 | [clinfo](https://github.com/Oblomov/clinfo) | Fully supported |
-| [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS) | Partial support, progress [here](https://github.com/kpet/clvk/projects/1) and [here](https://github.com/kpet/clvk/projects/2) |
+| [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS) | Partial support, progress [here](https://github.com/kpet/clvk/projects/2) |
 | [OCLToys](https://github.com/ignatenkobrain/ocltoys.git) | All supported except `smallptgpu` that relies on a structure layout invalid on Vulkan |
 | [SHOC](https://github.com/vetter/shoc) | Partial support, progress [here](https://github.com/kpet/clvk/projects/3) |
 | [Halide](https://github.com/halide/Halide) | Partial support with a patch to Halide |

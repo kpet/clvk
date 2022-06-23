@@ -374,6 +374,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_svm_capabilities val_svmcaps;
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
     cl_device_pci_bus_info_khr val_pci_bus_info;
+    cl_device_atomic_capabilities val_atomic_capabilities;
 
     auto device = icd_downcast(dev);
 
@@ -669,13 +670,9 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
+    case CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS:
     case CL_DEVICE_MAX_WRITE_IMAGE_ARGS:
         val_uint = device->vulkan_limits().maxPerStageDescriptorStorageImages;
-        copy_ptr = &val_uint;
-        size_ret = sizeof(val_uint);
-        break;
-    case CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS:
-        val_uint = 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
@@ -770,6 +767,22 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_sizet = device->preferred_work_group_size_multiple();
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
+        break;
+    case CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES:
+        val_atomic_capabilities =
+            CL_DEVICE_ATOMIC_ORDER_RELAXED | CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP | CL_DEVICE_ATOMIC_SCOPE_DEVICE;
+        copy_ptr = &val_atomic_capabilities;
+        size_ret = sizeof(val_atomic_capabilities);
+        break;
+    case CL_DEVICE_ATOMIC_FENCE_CAPABILITIES:
+        val_atomic_capabilities =
+            CL_DEVICE_ATOMIC_ORDER_RELAXED | CL_DEVICE_ATOMIC_ORDER_ACQ_REL |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_ITEM |
+            CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP | CL_DEVICE_ATOMIC_SCOPE_DEVICE;
+        copy_ptr = &val_atomic_capabilities;
+        size_ret = sizeof(val_atomic_capabilities);
         break;
     case CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED:
         val_string = "FIXME";
@@ -4367,18 +4380,6 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
     bool report_formats = true;
-
-    // No formats are support for read and write
-    if (flags & CL_MEM_KERNEL_READ_AND_WRITE) {
-        report_formats = false;
-    }
-
-    // 3D image writes are not supported
-    if ((image_type == CL_MEM_OBJECT_IMAGE3D) &&
-        (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE |
-                  CL_MEM_KERNEL_READ_AND_WRITE))) {
-        report_formats = false;
-    }
 
     if (report_formats) {
         // Iterate over all known CL/VK format associations and report the CL
