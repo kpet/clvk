@@ -128,9 +128,9 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
         return m_properties;
     }
 
-    cvk_memory_allocation* memory() const {
+    std::shared_ptr<cvk_memory_allocation> memory() const {
         if (m_parent == nullptr) {
-            return m_memory.get();
+            return m_memory;
         } else {
             return m_parent->memory();
         }
@@ -224,7 +224,7 @@ protected:
     void* m_host_ptr;
     cvk_mem_holder m_parent;
     size_t m_parent_offset;
-    std::unique_ptr<cvk_memory_allocation> m_memory;
+    std::shared_ptr<cvk_memory_allocation> m_memory;
 };
 
 static inline cvk_mem* icd_downcast(cl_mem mem) {
