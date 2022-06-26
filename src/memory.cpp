@@ -108,7 +108,7 @@ bool cvk_buffer::init() {
     }
 
     // Allocate memory
-    m_memory = std::make_unique<cvk_memory_allocation>(
+    m_memory = std::make_shared<cvk_memory_allocation>(
         vkdev, params.size, params.memory_type_index);
     res = m_memory->allocate();
 
@@ -341,7 +341,7 @@ bool cvk_image::init() {
 
     if (m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
         auto buffer = static_cast<cvk_mem*>(m_desc.buffer);
-        m_memory = std::unique_ptr<cvk_memory_allocation>(buffer->memory());
+        m_memory = buffer->memory();
         buffer->retain();
     } else {
         // Select memory type

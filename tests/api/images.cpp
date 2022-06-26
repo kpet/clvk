@@ -412,3 +412,27 @@ TEST_F(WithCommandQueue, ImageWriteOffset) {
 
     EXPECT_TRUE(success);
 }
+
+TEST_F(WithContext, Image1DBuffer) {
+    const size_t IMAGE_HEIGHT = 128;
+    const size_t IMAGE_WIDTH = 128;
+
+    auto buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        IMAGE_HEIGHT,                 // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        0,                            // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+}
