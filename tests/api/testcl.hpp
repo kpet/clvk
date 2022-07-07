@@ -376,6 +376,16 @@ protected:
         ASSERT_CL_SUCCESS(err);
     }
 
+    void GetSupportedImageFormats(cl_mem_object_type image_type,
+                                  cl_uint num_entries,
+                                  cl_image_format* image_formats,
+                                  cl_uint* num_image_formats) {
+        cl_int err =
+            clGetSupportedImageFormats(m_context, 0, image_type, num_entries,
+                                       image_formats, num_image_formats);
+        ASSERT_CL_SUCCESS(err);
+    }
+
     void SetKernelArg(cl_kernel kernel, cl_uint arg_index, size_t arg_size,
                       const void* arg_value) {
         cl_int err = clSetKernelArg(kernel, arg_index, arg_size, arg_value);

@@ -40,6 +40,10 @@ cl_int cvk_kernel::init() {
     // Store a copy of the arguments
     m_args = m_entry_point->args();
 
+    if (const auto* md = m_entry_point->image_metadata()) {
+        m_image_metadata = md;
+    }
+
     // Mark all arguments as unset
     m_args_set.resize(m_args.size(), false);
 
@@ -73,6 +77,32 @@ std::unique_ptr<cvk_kernel> cvk_kernel::clone(cl_int* errcode_ret) const {
     return kernel;
 }
 
+void cvk_kernel::set_image_metadata(cl_uint index, const void* image) {
+    if (!m_image_metadata) {
+        return;
+    }
+    auto md = m_image_metadata->find(index);
+    if (md != m_image_metadata->end()) {
+
+        auto mem = icd_downcast(*reinterpret_cast<const cl_mem*>(image));
+        assert(mem->is_image_type());
+        auto format = static_cast<cvk_image*>(mem)->format();
+
+        if (md->second.has_valid_order()) {
+            auto order_offset = md->second.order_offset;
+            auto order = format.image_channel_order;
+            m_argument_values->set_pod_data(order_offset, sizeof(order),
+                                            &order);
+        }
+        if (md->second.has_valid_data_type()) {
+            auto data_type_offset = md->second.data_type_offset;
+            auto data_type = format.image_channel_data_type;
+            m_argument_values->set_pod_data(data_type_offset, sizeof(data_type),
+                                            &data_type);
+        }
+    }
+}
+
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -92,6 +122,13 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     if (ret == CL_SUCCESS) {
         // Mark argument as set
         m_args_set[index] = true;
+    }
+
+    // if the argument is an image, we need to set its metadata
+    // (channel_order/channel_data_type).
+    if (arg.kind == kernel_argument_kind::ro_image ||
+        arg.kind == kernel_argument_kind::wo_image) {
+        set_image_metadata(index, value);
     }
 
     return ret;

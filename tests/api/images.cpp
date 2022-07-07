@@ -15,6 +15,7 @@
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
 #include "testcl.hpp"
+#include "utils.hpp"
 
 TEST_F(WithContext, CreateImageLegacy) {
     cl_image_format format = {CL_RGBA, CL_UNORM_INT8};
@@ -555,4 +556,51 @@ TEST_F(WithCommandQueue, ImageCopyHostPtrMultiQueue) {
     // Unblock the first queue.
     SetUserEventStatus(user_event, CL_COMPLETE);
     Finish();
+}
+
+TEST_F(WithCommandQueue, ImageChannelGetter) {
+    uint32_t num_format;
+    GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, 0, nullptr, &num_format);
+    num_format = std::min(4U, num_format);
+    cl_image_format formats[num_format];
+    GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, num_format, formats,
+                             nullptr);
+
+    const cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, 1, 1, 1, 1, 0, 0, 0, 0, nullptr};
+    cl_uint dst[3];
+    auto dst_buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(dst), nullptr);
+
+    const char* source = R"(
+kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint off)
+{
+    dst[0] = (uint)get_image_channel_order(image) + off;
+    dst[1] = (uint)get_image_channel_data_type(image) + off;
+    dst[2] = magic + off;
+}
+)";
+
+    for (unsigned i = 0; i < num_format; i++) {
+        const cl_channel_order order = formats[i].image_channel_order;
+        const cl_channel_type data_type = formats[i].image_channel_data_type;
+        const cl_image_format format = {order, data_type};
+        auto image = CreateImage(CL_MEM_READ_ONLY, &format, &desc);
+
+        auto kernel = CreateKernel(source, "test");
+        SetKernelArg(kernel, 0, dst_buffer);
+        cl_uint offset = 42;
+        cl_uint magic = offset + 13;
+        SetKernelArg(kernel, 1, sizeof(cl_uint), &magic);
+        SetKernelArg(kernel, 2, image);
+        SetKernelArg(kernel, 3, sizeof(cl_uint), &offset);
+
+        size_t gws = 1;
+        EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+
+        EnqueueReadBuffer(dst_buffer, true, 0, sizeof(dst), dst);
+
+        EXPECT_TRUE((dst[0] == (order + offset)) &&
+                    (dst[1] == (data_type + offset)) &&
+                    (dst[2] == (offset + magic)));
+    }
 }

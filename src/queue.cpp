@@ -450,6 +450,36 @@ void cvk_command_kernel::update_global_push_constants(
                            &num_workgroups);
     }
 
+    uint32_t image_metadata_pc_start = UINT32_MAX;
+    uint32_t image_metadata_pc_end = 0;
+    if (const auto* md = m_kernel->get_image_metadata()) {
+        for (const auto& md : *md) {
+            if (md.second.has_valid_order()) {
+                auto order_offset = md.second.order_offset;
+                image_metadata_pc_start =
+                    std::min(image_metadata_pc_start, order_offset);
+                image_metadata_pc_end =
+                    std::max(image_metadata_pc_end,
+                             order_offset + (uint32_t)sizeof(uint32_t));
+            }
+            if (md.second.has_valid_data_type()) {
+                auto data_type_offset = md.second.data_type_offset;
+                image_metadata_pc_start =
+                    std::min(image_metadata_pc_start, data_type_offset);
+                image_metadata_pc_end =
+                    std::max(image_metadata_pc_end,
+                             data_type_offset + (uint32_t)sizeof(uint32_t));
+            }
+        }
+    }
+    if (image_metadata_pc_start < image_metadata_pc_end) {
+        uint32_t offset = image_metadata_pc_start & ~0x3U;
+        uint32_t size = round_up(image_metadata_pc_end - offset, 4);
+        CVK_ASSERT(offset + size <= m_argument_values->pod_data().size());
+        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
+                           &m_argument_values->pod_data()[offset]);
+    }
     if (m_kernel->has_pod_arguments() &&
         !m_kernel->has_pod_buffer_arguments()) {
         for (auto& arg : m_kernel->arguments()) {
