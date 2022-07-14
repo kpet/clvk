@@ -16,7 +16,7 @@
 | [BabelStream](https://github.com/UoB-HPC/BabelStream) | Untested |
 | [Theano](https://github.com/Theano/Theano) | Untested |
 | [CLBlast](https://github.com/CNugteren/CLBlast) | Untested |
-| [BOINC](https://github.com/BOINC/boinc) | Untested |
+| [BOINC](https://github.com/BOINC/boinc) | Supported |
 | [clFFT](https://github.com/clMathLibraries/clFFT) | Untested |
 | [clBLAS](https://github.com/clMathLibraries/clBLAS) | Untested |
 | [clSPARSE](https://github.com/clMathLibraries/clSPARSE) | Untested |
