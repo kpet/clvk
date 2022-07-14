@@ -476,12 +476,17 @@ void spir_binary::set_target_env(spv_target_env env) {
     m_context = spvContextCreate(env);
 }
 
-bool spir_binary::validate() const {
+bool spir_binary::validate(const spirv_validation_options& val_options) const {
     spv_diagnostic diag;
+    spv_validator_options options = spvValidatorOptionsCreate();
+    spvValidatorOptionsSetUniformBufferStandardLayout(
+        options, val_options.uniform_buffer_std_layout);
+    spv_const_binary_t binary{m_code.data(), m_code.size()};
     spv_result_t res =
-        spvValidateBinary(m_context, m_code.data(), m_code.size(), &diag);
+        spvValidateWithOptions(m_context, options, &binary, &diag);
     spvDiagnosticPrint(diag);
     spvDiagnosticDestroy(diag);
+    spvValidatorOptionsDestroy(options);
     return res == SPV_SUCCESS;
 }
 
@@ -630,7 +635,8 @@ enum class spirv_validation_level
     error,
 };
 
-bool validate_binary(spir_binary const& binary) {
+bool validate_binary(spir_binary const& binary,
+                     spirv_validation_options const& val_options) {
     auto level = spirv_validation_level::error; // default.
     if (char* validate_env = getenv("CLVK_SPIRV_VALIDATION")) {
         if (std::strcmp(validate_env, "0") == 0) {
@@ -647,7 +653,7 @@ bool validate_binary(spir_binary const& binary) {
         return true;
     }
 
-    if (binary.validate()) {
+    if (binary.validate(val_options)) {
         cvk_info("SPIR-V binary is valid.");
         return true;
     }
@@ -1135,7 +1141,10 @@ void cvk_program::do_build() {
         // Validate
         // TODO validate with different rules depending on the binary type
         if (m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
-            if (!validate_binary(m_binary)) {
+            spirv_validation_options validation_options{};
+            validation_options.uniform_buffer_std_layout =
+                m_context->device()->supports_ubo_stdlayout();
+            if (!validate_binary(m_binary, validation_options)) {
                 complete_operation(device, CL_BUILD_ERROR);
                 return;
             }

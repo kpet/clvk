@@ -124,6 +124,10 @@ struct constant_data_buffer_info {
     std::vector<char> data;
 };
 
+struct spirv_validation_options {
+    bool uniform_buffer_std_layout = false;
+};
+
 class spir_binary {
 
     using kernels_arguments_map =
@@ -151,7 +155,7 @@ public:
     void use(std::vector<uint32_t>&& src);
     void set_target_env(spv_target_env env);
     const std::vector<uint32_t>& code() const { return m_code; };
-    CHECK_RETURN bool validate() const;
+    CHECK_RETURN bool validate(const spirv_validation_options&) const;
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
     std::vector<uint32_t>* raw_binary() { return &m_code; }
