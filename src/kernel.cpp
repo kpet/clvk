@@ -260,20 +260,21 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         case kernel_argument_kind::ro_image:
         case kernel_argument_kind::wo_image: {
             auto image = static_cast<cvk_image*>(get_arg_value(arg));
+            bool sampled = arg.kind == kernel_argument_kind::ro_image;
+            auto view = sampled ? image->vulkan_sampled_view()
+                                : image->vulkan_storage_view();
 
-            cvk_debug_fn("image view %p @ set = %u, binding = %u",
-                         image->vulkan_image_view(), arg.descriptorSet,
-                         arg.binding);
+            cvk_debug_fn("image view %p @ set = %u, binding = %u", view,
+                         arg.descriptorSet, arg.binding);
             VkDescriptorImageInfo imageInfo = {
                 VK_NULL_HANDLE,
-                image->vulkan_image_view(), // imageView
-                VK_IMAGE_LAYOUT_GENERAL     // imageLayout
+                view,                   // imageView
+                VK_IMAGE_LAYOUT_GENERAL // imageLayout
             };
             image_info.push_back(imageInfo);
 
-            VkDescriptorType dtype = arg.kind == kernel_argument_kind::ro_image
-                                         ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
-                                         : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            VkDescriptorType dtype = sampled ? VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE
+                                             : VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
