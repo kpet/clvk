@@ -190,7 +190,7 @@ class WithContext : public ::testing::Test {
 protected:
     cl_context m_context;
 
-    const cl_platform_id platform() const { return gPlatform; }
+    cl_platform_id platform() const { return gPlatform; }
 
     void SetUp() override {
         cl_int err;
@@ -398,7 +398,7 @@ class WithCommandQueue : public WithContext {
 protected:
     cl_command_queue m_queue;
 
-    const cl_device_id device() const { return gDevice; }
+    cl_device_id device() const { return gDevice; }
 
     void SetUpQueue(cl_command_queue_properties properties) {
 #ifndef COMPILER_AVAILABLE

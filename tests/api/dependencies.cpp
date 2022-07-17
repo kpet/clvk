@@ -30,21 +30,20 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies) {
     SetUserEventStatus(event2, CL_COMPLETE);
 
     cl_int err;
-    void* ptr;
 
     // Test fail then complete
     std::vector<cl_event> failedThenComplete = {event1, event2};
-    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0,
-                             BUFFER_SIZE, failedThenComplete.size(),
-                             failedThenComplete.data(), nullptr, &err);
+    clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
+                       0, BUFFER_SIZE, failedThenComplete.size(),
+                       failedThenComplete.data(), nullptr, &err);
 
     ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
 
     // Test complete then fail
     std::vector<cl_event> completeThenFailed = {event2, event1};
-    ptr = clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION, 0,
-                             BUFFER_SIZE, completeThenFailed.size(),
-                             completeThenFailed.data(), nullptr, &err);
+    clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
+                       0, BUFFER_SIZE, completeThenFailed.size(),
+                       completeThenFailed.data(), nullptr, &err);
 
     ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
 }
