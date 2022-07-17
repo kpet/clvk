@@ -47,14 +47,32 @@ struct cvk_platform;
 struct cvk_device : public _cl_device_id,
                     object_magic_header<object_magic::device> {
 
-    cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
+    cvk_device(cvk_platform* platform, VkPhysicalDevice pd, bool is_default)
         : m_platform(platform), m_pdev(pd) {
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
+        if (is_default) {
+            m_type = CL_DEVICE_TYPE_DEFAULT;
+        }
+
+        switch (m_properties.deviceType) {
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            m_type |= CL_DEVICE_TYPE_GPU;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            m_type |= CL_DEVICE_TYPE_CPU;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+        default:
+            m_type |= CL_DEVICE_TYPE_ACCELERATOR;
+            break;
+        }
     }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
-                              VkPhysicalDevice pdev);
+                              VkPhysicalDevice pdev, bool is_default);
 
     virtual ~cvk_device() {
         for (auto entry : m_pipeline_caches) {
@@ -284,26 +302,7 @@ struct cvk_device : public _cl_device_id,
         return m_opencl_c_features;
     }
 
-    cl_device_type type() const {
-        cl_device_type ret;
-
-        switch (m_properties.deviceType) {
-        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
-        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
-        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
-            ret = CL_DEVICE_TYPE_GPU;
-            break;
-        case VK_PHYSICAL_DEVICE_TYPE_CPU:
-            ret = CL_DEVICE_TYPE_CPU;
-            break;
-        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
-        default:
-            ret = CL_DEVICE_TYPE_CUSTOM;
-            break;
-        }
-
-        return ret;
-    }
+    cl_device_type type() const { return m_type; }
 
     cl_bool has_host_unified_memory() const {
         switch (m_properties.deviceType) {
@@ -471,6 +470,7 @@ private:
     CHECK_RETURN bool init(VkInstance instance);
 
     cvk_platform* m_platform;
+    cl_device_type m_type{};
 
     cvk_vulkan_extension_functions m_vkfns{};
     VkPhysicalDevice m_pdev;
@@ -560,7 +560,7 @@ struct cvk_platform : public _cl_platform_id,
 
     CHECK_RETURN bool create_device(VkInstance instance,
                                     VkPhysicalDevice pdev) {
-        auto dev = cvk_device::create(this, instance, pdev);
+        auto dev = cvk_device::create(this, instance, pdev, m_devices.empty());
         if (dev != nullptr) {
             m_devices.push_back(dev);
             return true;

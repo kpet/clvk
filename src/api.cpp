@@ -94,7 +94,8 @@ bool is_same_context(cl_command_queue queue, cl_uint num_events,
 }
 
 bool is_valid_device_type(cl_device_type type) {
-    return type <= CL_DEVICE_TYPE_CUSTOM || type == CL_DEVICE_TYPE_ALL;
+    return (type < (CL_DEVICE_TYPE_CUSTOM << 1)) ||
+           (type == CL_DEVICE_TYPE_ALL);
 }
 
 bool map_flags_are_valid(cl_map_flags flags) {
@@ -322,9 +323,7 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
     cl_uint num = 0;
 
     for (auto dev : icd_downcast(platform)->devices()) {
-        if ((device_type == CL_DEVICE_TYPE_DEFAULT) ||
-            (device_type == CL_DEVICE_TYPE_ALL) ||
-            (dev->type() == device_type)) {
+        if (dev->type() & device_type) {
             if ((devices != nullptr) && (num < num_entries)) {
                 devices[num] = dev;
             }
