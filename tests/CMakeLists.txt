@@ -20,7 +20,6 @@ set(CLVK_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/..)
 set(CLVK_BUILD_STATIC_TESTS ON CACHE BOOL
     "Set to OFF to disable the build of tests with static OpenCL library")
 
-
 macro(add_gtest_executable name)
   add_executable(${name} ${ARGN})
   # Use the gtest copy that comes with clspv's version of LLVM
@@ -30,10 +29,6 @@ macro(add_gtest_executable name)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
 
   target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
-  if (NOT MSVC)
-    # llvm_gtest has comparison of integer of different signedness
-    target_compile_options(${name} PUBLIC "-Wno-error=sign-compare")
-  endif()
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()
