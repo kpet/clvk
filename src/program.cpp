@@ -824,8 +824,15 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 #endif
 
+    // Prepare build options
+    auto build_options = prepare_build_options(device);
+    if (build_from_il) {
+        build_options += " -x ir ";
+    }
+
     // Save headers
     if (save_headers) {
+        build_options += "-I" + tmp_folder;
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             std::string fname{tmp_folder + "/" + m_header_include_names[i]};
             temps.push(fname);
@@ -834,12 +841,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
                 return CL_BUILD_ERROR;
             }
         }
-    }
-
-    // Prepare build options
-    auto build_options = prepare_build_options(device);
-    if (build_from_il) {
-        build_options += " -x ir ";
     }
 
     // Select operation
