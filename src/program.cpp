@@ -782,12 +782,10 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 #else // !COMPILER_AVAILABLE
     bool build_from_il = m_il.size() > 0;
     bool use_tmp_folder = true;
-    bool save_headers = true;
     temp_file_deletion_stack temps;
 #ifdef CLSPV_ONLINE_COMPILER
     use_tmp_folder =
         m_operation == build_operation::compile && m_num_input_programs > 0;
-    save_headers = m_operation == build_operation::compile;
 #endif
 
     std::string tmp_folder;
@@ -831,7 +829,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     }
 
     // Save headers
-    if (save_headers) {
+    if (use_tmp_folder) {
         build_options += "-I" + tmp_folder;
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             std::string fname{tmp_folder + "/" + m_header_include_names[i]};
