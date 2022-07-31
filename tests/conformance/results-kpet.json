@@ -393,7 +393,7 @@
       "svm_atomic_load": "pass",
       "svm_atomic_store": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Common Functions": {
     "duration": "00:00:03.905201",
@@ -503,7 +503,7 @@
       "extended_versioning": "pass",
       "pci_bus_info": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Contractions": {
     "duration": "00:00:00.769400",
@@ -522,11 +522,11 @@
       "contractions_float_2": "pass",
       "contractions_float_3": "pass",
       "contractions_float_4": "pass",
-      "contractions_float_5": "fail",
+      "contractions_float_5": "pass",
       "contractions_float_6": "pass",
-      "contractions_float_7": "fail"
+      "contractions_float_7": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Conversions": {
     "duration": "00:01:35.273005",
@@ -959,7 +959,7 @@
       "cos": "fail",
       "cosh": "fail",
       "cospi": "fail",
-      "divide": "fail",
+      "divide": "pass",
       "divide_cr": "pass",
       "exp": "fail",
       "exp10": "fail",
@@ -975,7 +975,7 @@
       "fract": "pass",
       "frexp": "pass",
       "half_cos": "fail",
-      "half_divide": "fail",
+      "half_divide": "pass",
       "half_exp": "pass",
       "half_exp10": "pass",
       "half_exp2": "pass",
@@ -1025,7 +1025,7 @@
       "remainder": "pass",
       "remquo": "pass",
       "rint": "pass",
-      "rootn": "fail",
+      "rootn": "pass",
       "round": "pass",
       "rsqrt": "pass",
       "signbit": "pass",
@@ -1223,7 +1223,7 @@
       "shuffle_copy": "pass",
       "shuffle_function_call": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "SPIR": {
     "duration": "00:00:00.324724",
@@ -1404,14 +1404,14 @@
       "op_selection_merge_swith_flatten": "pass",
       "op_selection_merge_swith_none": "pass",
       "op_spec_constant_double_simple": "skip",
-      "op_spec_constant_false_simple": "skip",
-      "op_spec_constant_float_simple": "skip",
+      "op_spec_constant_false_simple": "fail",
+      "op_spec_constant_float_simple": "fail",
       "op_spec_constant_half_simple": "skip",
-      "op_spec_constant_true_simple": "skip",
-      "op_spec_constant_uchar_simple": "skip",
-      "op_spec_constant_uint_simple": "skip",
-      "op_spec_constant_ulong_simple": "skip",
-      "op_spec_constant_ushort_simple": "skip",
+      "op_spec_constant_true_simple": "fail",
+      "op_spec_constant_uchar_simple": "fail",
+      "op_spec_constant_uint_simple": "fail",
+      "op_spec_constant_ulong_simple": "fail",
+      "op_spec_constant_ushort_simple": "fail",
       "op_type_opaque_simple": "fail",
       "op_undef_char_simple": "pass",
       "op_undef_double_simple": "pass",
