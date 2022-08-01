@@ -234,6 +234,22 @@ struct cvk_device : public _cl_device_id,
 
     cl_uint max_work_item_dimensions() const { return 3; }
 
+    size_t max_work_group_size() const {
+        return vulkan_limits().maxComputeWorkGroupInvocations;
+    }
+
+    cl_uint sub_group_size() const {
+        return m_subgroup_properties.subgroupSize;
+    }
+
+    cl_uint max_num_sub_groups() const {
+        if (!supports_subgroups()) {
+            return 0;
+        }
+        return ceil_div(max_work_group_size(),
+                        static_cast<size_t>(sub_group_size()));
+    }
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
@@ -243,6 +259,8 @@ struct cvk_device : public _cl_device_id,
     bool supports_fp64() const { return m_has_fp64_support; }
 
     bool supports_int8() const { return m_has_int8_support; }
+
+    bool supports_subgroups() const { return m_has_subgroups_support; }
 
     bool compiler_available() const {
 #ifdef COMPILER_AVAILABLE
@@ -479,6 +497,7 @@ private:
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
+    VkPhysicalDeviceSubgroupProperties m_subgroup_properties{};
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
@@ -531,6 +550,7 @@ private:
     bool m_has_fp16_support{};
     bool m_has_fp64_support{};
     bool m_has_int8_support{};
+    bool m_has_subgroups_support{};
 
     spv_target_env m_vulkan_spirv_env;
 };

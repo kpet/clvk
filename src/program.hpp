@@ -116,6 +116,7 @@ enum class spec_constant
     global_offset_x,
     global_offset_y,
     global_offset_z,
+    subgroup_max_size,
 };
 
 struct constant_data_buffer_info {

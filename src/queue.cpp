@@ -484,6 +484,12 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
         specConstants[dim_id] = m_dimensions;
     }
 
+    where = constants.find(spec_constant::subgroup_max_size);
+    if (where != constants.end()) {
+        uint32_t size_id = where->second;
+        specConstants[size_id] = m_queue->device()->sub_group_size();
+    }
+
     // Clspv can allocate spec constants for global offset.
     where = constants.find(spec_constant::global_offset_x);
     if (where != constants.end()) {

@@ -60,7 +60,7 @@ static inline void* pointer_offset(const void* ptr, size_t offset) {
     return reinterpret_cast<void*>(ptrint + offset);
 }
 
-static inline uint32_t ceil_div(uint32_t num, uint32_t divisor) {
+template <typename T> static inline T ceil_div(T num, T divisor) {
     CVK_ASSERT(divisor != 0);
     return num / divisor + (num % divisor != 0);
 }

@@ -297,6 +297,12 @@ spv_result_t parse_reflection(void* user_data,
                                                       dim_id);
                 break;
             }
+            case NonSemanticClspvReflectionSpecConstantSubgroupMaxSize: {
+                auto size_id = parse_data->constants[inst->words[5]];
+                parse_data->binary->add_spec_constant(
+                    spec_constant::subgroup_max_size, size_id);
+                break;
+            }
             case NonSemanticClspvReflectionPushConstantGlobalOffset:
             case NonSemanticClspvReflectionPushConstantEnqueuedLocalSize:
             case NonSemanticClspvReflectionPushConstantGlobalSize:
