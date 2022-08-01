@@ -414,15 +414,18 @@ struct cvk_image : public cvk_mem {
                   /* FIXME parent_offset */ 0, std::move(properties),
                   desc->image_type),
           m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
-          m_image_view(VK_NULL_HANDLE) {}
+          m_sampled_view(VK_NULL_HANDLE), m_storage_view(VK_NULL_HANDLE) {}
 
     ~cvk_image() {
         auto vkdev = m_context->device()->vulkan_device();
         if (m_image != VK_NULL_HANDLE) {
             vkDestroyImage(vkdev, m_image, nullptr);
         }
-        if (m_image_view != VK_NULL_HANDLE) {
-            vkDestroyImageView(vkdev, m_image_view, nullptr);
+        if (m_sampled_view != VK_NULL_HANDLE) {
+            vkDestroyImageView(vkdev, m_sampled_view, nullptr);
+        }
+        if (m_storage_view != VK_NULL_HANDLE) {
+            vkDestroyImageView(vkdev, m_storage_view, nullptr);
         }
         if (buffer() != nullptr) {
             buffer()->release();
@@ -435,7 +438,8 @@ struct cvk_image : public cvk_mem {
                              std::vector<cl_mem_properties>&& properties);
 
     VkImage vulkan_image() const { return m_image; }
-    VkImageView vulkan_image_view() const { return m_image_view; }
+    VkImageView vulkan_sampled_view() const { return m_sampled_view; }
+    VkImageView vulkan_storage_view() const { return m_storage_view; }
     const cl_image_format& format() const { return m_format; }
     size_t element_size() const {
         switch (m_format.image_channel_data_type) {
@@ -602,7 +606,8 @@ private:
     const cl_image_desc m_desc;
     const cl_image_format m_format;
     VkImage m_image;
-    VkImageView m_image_view;
+    VkImageView m_sampled_view;
+    VkImageView m_storage_view;
     std::unordered_map<void*, cvk_image_mapping> m_mappings;
 };
 

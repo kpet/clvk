@@ -245,9 +245,11 @@ cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
     return image.release();
 }
 
-extern bool cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
-                                             VkFormat* format,
-                                             VkComponentMapping* components);
+extern bool
+cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
+                                 cl_mem_flags flags, VkFormat* format,
+                                 VkComponentMapping* components_sampled,
+                                 VkComponentMapping* components_storage);
 
 bool cvk_image::init() {
     // Translate image type and size
@@ -302,10 +304,10 @@ bool cvk_image::init() {
 
     // Translate format
     VkFormat format;
-    VkComponentMapping components;
+    VkComponentMapping components_sampled, components_storage;
 
-    auto success =
-        cl_image_format_to_vulkan_format(m_format, &format, &components);
+    auto success = cl_image_format_to_vulkan_format(
+        m_format, flags(), &format, &components_sampled, &components_storage);
     if (!success) {
         return false; // TODO error code
     }
@@ -382,17 +384,26 @@ bool cvk_image::init() {
 
     VkImageViewCreateInfo imageViewCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        nullptr,     // pNext
-        0,           // flags
-        m_image,     // image
-        view_type,   // viewType;
-        format,      // format
-        components,  // components
-        subresource, // subresourceRange
+        nullptr,            // pNext
+        0,                  // flags
+        m_image,            // image
+        view_type,          // viewType;
+        format,             // format
+        components_sampled, // components
+        subresource,        // subresourceRange
     };
 
-    res =
-        vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr, &m_image_view);
+    res = vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr,
+                            &m_sampled_view);
+
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    imageViewCreateInfo.components = components_storage;
+
+    res = vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr,
+                            &m_storage_view);
 
     return res == VK_SUCCESS;
 }
