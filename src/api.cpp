@@ -4448,7 +4448,7 @@ std::unordered_map<cl_image_format, image_format_support, ClFormatMapHash,
 };
 
 bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
-                                      cl_mem_flags flags, VkFormat* format,
+                                      VkFormat* format,
                                       VkComponentMapping* components_sampled,
                                       VkComponentMapping* components_storage) {
     auto m = gFormatMaps.find(clformat);

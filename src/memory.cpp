@@ -247,7 +247,7 @@ cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
 
 extern bool
 cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
-                                 cl_mem_flags flags, VkFormat* format,
+                                 VkFormat* format,
                                  VkComponentMapping* components_sampled,
                                  VkComponentMapping* components_storage);
 
@@ -307,7 +307,7 @@ bool cvk_image::init() {
     VkComponentMapping components_sampled, components_storage;
 
     auto success = cl_image_format_to_vulkan_format(
-        m_format, flags(), &format, &components_sampled, &components_storage);
+        m_format, &format, &components_sampled, &components_storage);
     if (!success) {
         return false; // TODO error code
     }

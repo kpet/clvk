@@ -55,6 +55,7 @@ struct membuf : public std::streambuf {
     }
     pos_type seekoff(off_type off, std::ios_base::seekdir dir,
                      std::ios_base::openmode which) override {
+        UNUSED(which);
         char* whence = eback();
         if (dir == std::ios_base::cur) {
             whence = gptr();
@@ -70,6 +71,7 @@ struct membuf : public std::streambuf {
     }
 
     pos_type seekpos(pos_type pos, std::ios_base::openmode which) override {
+        UNUSED(which);
         char* to = eback() + pos;
         if (to >= eback() && to <= egptr()) {
             setg(eback(), to, egptr());

@@ -396,10 +396,10 @@ void cvk_device::build_extension_ils_list() {
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
-        auto required_subgroup_ops =
+        VkSubgroupFeatureFlags required_subgroup_ops =
             VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
-        if (m_subgroup_properties.supportedOperations &
-            required_subgroup_ops == required_subgroup_ops) {
+        if ((m_subgroup_properties.supportedOperations &
+            required_subgroup_ops) == required_subgroup_ops) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
             m_has_subgroups_support = true;
