@@ -82,6 +82,13 @@ struct kernel_argument {
     }
 
     bool is_vec3() const { return info.is_vec3(); }
+
+    bool is_mem_object_backed() const {
+        return (kind == kernel_argument_kind::buffer) ||
+               (kind == kernel_argument_kind::buffer_ubo) ||
+               (kind == kernel_argument_kind::ro_image) ||
+               (kind == kernel_argument_kind::wo_image);
+    }
 };
 
 struct sampler_desc {

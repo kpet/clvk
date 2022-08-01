@@ -17,6 +17,7 @@
 #include <array>
 
 #include "device.hpp"
+#include "event.hpp"
 #include "objects.hpp"
 #include "utils.hpp"
 
@@ -68,6 +69,35 @@ struct cvk_mem_callback {
 
 struct cvk_mem;
 using cvk_mem_holder = refcounted_holder<cvk_mem>;
+
+enum class cvk_mem_init_state
+{
+    required,
+    scheduled,
+    completed
+};
+
+struct cvk_mem_init_tracker {
+    cvk_mem_init_tracker()
+        : m_state(cvk_mem_init_state::required), m_event(nullptr) {}
+
+    cvk_mem_init_state state() const { return m_state; }
+    void set_state(cvk_mem_init_state state) { m_state = state; }
+    cvk_event* event() const { return m_event; }
+    void set_event(cvk_event* event) {
+        CVK_ASSERT(m_event == nullptr);
+        CVK_ASSERT(state() == cvk_mem_init_state::required);
+        set_state(cvk_mem_init_state::scheduled);
+        m_event.reset(event);
+    }
+
+    std::mutex& mutex() { return m_mutex; }
+
+private:
+    std::mutex m_mutex;
+    cvk_mem_init_state m_state;
+    cvk_event_holder m_event;
+};
 
 struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
 
@@ -209,6 +239,8 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
         return false;
     }
 
+    cvk_mem_init_tracker& init_tracker() { return m_init_tracker; }
+
 private:
     cl_mem_object_type m_type;
     std::mutex m_map_lock;
@@ -225,6 +257,7 @@ protected:
     cvk_mem_holder m_parent;
     size_t m_parent_offset;
     std::shared_ptr<cvk_memory_allocation> m_memory;
+    cvk_mem_init_tracker m_init_tracker{};
 };
 
 static inline cvk_mem* icd_downcast(cl_mem mem) {
@@ -255,7 +288,10 @@ struct cvk_buffer : public cvk_mem {
                std::vector<cl_mem_properties>&& properties)
         : cvk_mem(ctx, flags, size, host_ptr, parent, parent_offset,
                   std::move(properties), CL_MEM_OBJECT_BUFFER),
-          m_buffer(VK_NULL_HANDLE) {}
+          m_buffer(VK_NULL_HANDLE) {
+        // Buffers currently do not require any asynchronous initialisation
+        m_init_tracker.set_state(cvk_mem_init_state::completed);
+    }
 
     virtual ~cvk_buffer() {
         auto vkdev = m_context->device()->vulkan_device();
@@ -414,7 +450,11 @@ struct cvk_image : public cvk_mem {
                   /* FIXME parent_offset */ 0, std::move(properties),
                   desc->image_type),
           m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
-          m_sampled_view(VK_NULL_HANDLE), m_storage_view(VK_NULL_HANDLE) {}
+          m_sampled_view(VK_NULL_HANDLE), m_storage_view(VK_NULL_HANDLE) {
+        // All images require asynchronous initialiation for the initial
+        // layout transition (and copy/use host ptr init)
+        m_init_tracker.set_state(cvk_mem_init_state::required);
+    }
 
     ~cvk_image() {
         auto vkdev = m_context->device()->vulkan_device();
@@ -492,7 +532,7 @@ struct cvk_image : public cvk_mem {
     bool find_or_create_mapping(cvk_image_mapping& mapping,
                                 std::array<size_t, 3> origin,
                                 std::array<size_t, 3> region,
-                                cl_map_flags flags) {
+                                cl_map_flags flags, bool handle_host_ptr) {
         // TODO try to reuse existing mappings
         // TODO add overlap checks
 
@@ -514,12 +554,22 @@ struct cvk_image : public cvk_mem {
         mapping.buffer = buffer.release();
         mapping.origin = origin;
         mapping.region = region;
-        mapping.ptr = mapping.buffer->map_ptr(0);
         mapping.flags = flags;
+
+        if (handle_host_ptr && has_flags(CL_MEM_USE_HOST_PTR)) {
+            uintptr_t offset = slice_pitch() * origin[2] +
+                               row_pitch() * origin[1] +
+                               origin[0] * element_size();
+            mapping.ptr = pointer_offset(host_ptr(), offset);
+        } else {
+            mapping.ptr = mapping.buffer->map_ptr(0);
+        }
 
         auto num_mappings_with_same_pointer = m_mappings.count(mapping.ptr);
         // TODO support multiple mappings with the same pointer
         if (num_mappings_with_same_pointer != 0) {
+            cvk_error_fn("creating multiple image mappings with the same "
+                         "pointer is not supported");
             return false;
         }
 
@@ -544,6 +594,32 @@ struct cvk_image : public cvk_mem {
         auto mapping = m_mappings.at(ptr);
         return mapping;
     }
+
+    size_t map_buffer_row_pitch(const std::array<size_t, 3>& region) const {
+        return region[0] * element_size();
+    }
+
+    size_t map_buffer_row_pitch(const cvk_image_mapping& mapping) const {
+        return map_buffer_row_pitch(mapping.region);
+    }
+
+    size_t map_buffer_slice_pitch(const cvk_image_mapping& mapping) const {
+        return map_buffer_slice_pitch(mapping.region);
+    }
+
+    size_t map_buffer_slice_pitch(const std::array<size_t, 3>& region) const {
+        switch (type()) {
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            return map_buffer_row_pitch(region);
+            break;
+        default:
+            return map_buffer_row_pitch(region) * region[1];
+        }
+    }
+
+    const cvk_buffer* init_data() const { return m_init_data.get(); }
+
+    void discard_init_data() { m_init_data.reset(); }
 
     static constexpr int MAX_NUM_CHANNELS = 4;
     static constexpr int MAX_CHANNEL_SIZE = 4;
@@ -609,6 +685,7 @@ private:
     VkImageView m_sampled_view;
     VkImageView m_storage_view;
     std::unordered_map<void*, cvk_image_mapping> m_mappings;
+    std::unique_ptr<cvk_buffer> m_init_data;
 };
 
 using cvk_image_holder = refcounted_holder<cvk_image>;

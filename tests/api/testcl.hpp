@@ -309,6 +309,11 @@ protected:
         return queue;
     }
 
+    void Finish(cl_command_queue queue) {
+        cl_int err = clFinish(queue);
+        ASSERT_CL_SUCCESS(err);
+    }
+
     void ReleaseCommandQueue(cl_command_queue queue) {
         cl_int err = clReleaseCommandQueue(queue);
         ASSERT_CL_SUCCESS(err);
@@ -418,10 +423,8 @@ protected:
 #endif
     }
 
-    void Finish() {
-        cl_int err = clFinish(m_queue);
-        ASSERT_CL_SUCCESS(err);
-    }
+    using WithContext::Finish;
+    void Finish() { Finish(m_queue); }
 
     void Flush() {
         cl_int err = clFlush(m_queue);

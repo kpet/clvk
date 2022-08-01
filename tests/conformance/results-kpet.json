@@ -32,11 +32,11 @@
       "get_command_queue_info_compatibility": "pass",
       "get_context_info": "pass",
       "get_device_info": "pass",
-      "get_image1d_array_info": "fail",
-      "get_image1d_info": "fail",
-      "get_image2d_array_info": "fail",
-      "get_image2d_info": "fail",
-      "get_image3d_info": "fail",
+      "get_image1d_array_info": "pass",
+      "get_image1d_info": "pass",
+      "get_image2d_array_info": "pass",
+      "get_image2d_info": "pass",
+      "get_image3d_info": "pass",
       "get_kernel_arg_info": "pass",
       "get_kernel_info": "pass",
       "get_platform_ids": "pass",
@@ -44,7 +44,7 @@
       "get_program_info_kernel_names": "pass",
       "get_sampler_info": "pass",
       "get_sampler_info_compatibility": "pass",
-      "image_properties_queries": "fail",
+      "image_properties_queries": "pass",
       "kernel_arg_changes": "pass",
       "kernel_arg_multi_setup_random": "pass",
       "kernel_attributes": "fail",
@@ -78,7 +78,7 @@
       "min_max_mem_alloc_size": "pass",
       "min_max_parameter_size": "pass",
       "min_max_queue_properties": "pass",
-      "min_max_read_image_args": "fail",
+      "min_max_read_image_args": "pass",
       "min_max_samplers": "pass",
       "min_max_single_fp_config": "pass",
       "min_max_thread_dimensions": "pass",
@@ -160,7 +160,7 @@
       "constant_source": "pass",
       "createkernelsinprogram": "pass",
       "enqueue_map_buffer": "pass",
-      "enqueue_map_image": "fail",
+      "enqueue_map_image": "pass",
       "enqueued_local_size": "pass",
       "explicit_s2v_char": "pass",
       "explicit_s2v_double": "pass",
@@ -182,11 +182,11 @@
       "global_work_offsets": "pass",
       "hiloeo": "pass",
       "host_numeric_constants": "pass",
-      "hostptr": "fail",
+      "hostptr": "pass",
       "if": "pass",
       "image_multipass_float_coord": "pass",
       "image_multipass_integer_coord": "pass",
-      "image_param": "fail",
+      "image_param": "pass",
       "image_r8": "pass",
       "imagearraycopy": "pass",
       "imagearraycopy3d": "pass",
@@ -232,9 +232,9 @@
       "readimage3d_int16": "pass",
       "readimage_fp32": "pass",
       "readimage_int16": "pass",
-      "rw_image_access_qualifier": "fail",
-      "simple_read_image_pitch": "fail",
-      "simple_write_image_pitch": "fail",
+      "rw_image_access_qualifier": "pass",
+      "simple_read_image_pitch": "pass",
+      "simple_write_image_pitch": "pass",
       "sizeof": "pass",
       "vec_type_hint": "pass",
       "vector_creation": "pass",
@@ -647,21 +647,21 @@
     "duration": "00:00:02.604261",
     "has_results": true,
     "results": {
-      "1D": "fail",
-      "1Darray": "fail",
-      "2D": "fail",
-      "2Darray": "fail",
-      "3D": "fail"
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Images (Kernel Methods)": {
     "duration": "00:01:36.355387",
     "has_results": true,
     "results": {
-      "1D": "fail",
+      "1D": "pass",
       "1Darray": "fail",
-      "2D": "fail",
+      "2D": "pass",
       "2Darray": "fail",
       "3D": "fail"
     },
@@ -719,7 +719,7 @@
     "duration": "00:01:02.701511",
     "has_results": true,
     "results": {
-      "1D": "fail",
+      "1D": "pass",
       "1Darray": "fail",
       "2D": "fail",
       "2Darray": "fail",
@@ -1048,16 +1048,16 @@
     "has_results": true,
     "results": {
       "mem_host_no_access_buffer": "pass",
-      "mem_host_no_access_image": "fail",
+      "mem_host_no_access_image": "pass",
       "mem_host_no_access_subbuffer": "pass",
       "mem_host_read_only_buffer": "pass",
-      "mem_host_read_only_image": "fail",
+      "mem_host_read_only_image": "pass",
       "mem_host_read_only_subbuffer": "pass",
       "mem_host_write_only_buffer": "pass",
-      "mem_host_write_only_image": "fail",
+      "mem_host_write_only_image": "pass",
       "mem_host_write_only_subbuffer": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Multiple Device/Context": {
     "duration": "00:01:45.208176",
@@ -1171,7 +1171,7 @@
       "copy_array_to_image": "pass",
       "copy_image": "pass",
       "copy_partial_array": "pass",
-      "execute": "fail",
+      "execute": "pass",
       "read_array_char": "pass",
       "read_array_float": "pass",
       "read_array_int": "pass",
@@ -1199,7 +1199,7 @@
       "write_image_float": "pass",
       "write_image_uchar": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Relationals": {
     "duration": "00:00:06.345003",
