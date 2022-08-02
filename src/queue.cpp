@@ -14,6 +14,7 @@
 
 #include <unordered_set>
 
+#include "config.hpp"
 #include "init.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
@@ -36,12 +37,6 @@ cvk_command_queue::cvk_command_queue(
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
         cvk_warn_fn("out-of-order execution enabled, will be ignored");
-    }
-
-    char* max_batch_size_env = getenv("CLVK_MAX_BATCH_SIZE");
-    m_max_batch_size = 10000;
-    if (max_batch_size_env) {
-        m_max_batch_size = atoi(max_batch_size_env);
     }
 }
 
@@ -123,7 +118,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         // End command batch when size limit reached
-        if (m_command_batch->batch_size() >= m_max_batch_size) {
+        if (m_command_batch->batch_size() >= config.max_batch_size) {
             if ((err = end_current_command_batch()) != CL_SUCCESS) {
                 return err;
             }

@@ -42,6 +42,7 @@ endif()
 
 add_library(OpenCL-objects OBJECT
   api.cpp
+  config.cpp
   device.cpp
   event.cpp
   init.cpp

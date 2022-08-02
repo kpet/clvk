@@ -28,6 +28,7 @@
 #include "spirv-tools/libspirv.h"
 #include "spirv/1.0/spirv.hpp"
 
+#include "config.hpp"
 #include "init.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
@@ -625,7 +626,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     bool can_split_region() {
         int status = options_allow_split_region(m_build_options);
 #if COMPILER_AVAILABLE
-        status &= options_allow_split_region(gCLSPVOptions);
+        status &= options_allow_split_region(config.clspv_options);
 #endif
         return status;
     }

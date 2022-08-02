@@ -17,23 +17,13 @@
 
 #include <vulkan/vulkan.h>
 
+#include "config.hpp"
 #include "device.hpp"
 #include "init.hpp"
 #include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 #include "queue.hpp"
-
-bool gQueueProfilingUsesTimestampQueries = false;
-bool gKeepTemporaries = false;
-
-#if COMPILER_AVAILABLE
-#if !CLSPV_ONLINE_COMPILER
-std::string gCLSPVPath = DEFAULT_CLSPV_BINARY_PATH;
-std::string gLLVMSPIRVPath = DEFAULT_LLVMSPIRV_BINARY_PATH;
-#endif
-std::string gCLSPVOptions;
-#endif // COMPILER_AVAILABLE
 
 static VkBool32 VKAPI_PTR debugCallback(
     VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
@@ -70,14 +60,9 @@ void clvk_global_state::init_vulkan() {
         "VK_LAYER_KHRONOS_validation",
         "VK_LAYER_LUNARG_standard_validation",
     };
-    bool validation_enabled = false;
-    char* validation_layers_env = getenv("CLVK_VALIDATION_LAYERS");
-    if (validation_layers_env != nullptr) {
-        int value = atoi(validation_layers_env);
-        if (value == 1) {
-            validation_enabled = true;
-            cvk_info("Enabling validation layers.");
-        }
+
+    if (config.validation_layers) {
+        cvk_info("Enabling validation layers.");
     }
 
     // Discover, log and select layers
@@ -98,7 +83,7 @@ void clvk_global_state::init_vulkan() {
                  layerProperties[i].layerName,
                  vulkan_version_string(layerProperties[i].specVersion).c_str(),
                  layerProperties[i].implementationVersion);
-        if (validation_enabled) {
+        if (config.validation_layers) {
             for (auto dl : validation_layers) {
                 if (!strcmp(layerProperties[i].layerName, dl)) {
                     cvk_info("    ENABLING");
@@ -109,7 +94,7 @@ void clvk_global_state::init_vulkan() {
         }
     }
 
-    if (validation_enabled && !validation_layers_found) {
+    if (config.validation_layers && !validation_layers_found) {
         cvk_warn("Validation layers are enabled but none have been found");
     }
 
@@ -213,39 +198,6 @@ void clvk_global_state::term_vulkan() {
     vkDestroyInstance(m_vulkan_instance, nullptr);
 }
 
-static void init_options() {
-#if COMPILER_AVAILABLE
-#if !CLSPV_ONLINE_COMPILER
-    char* llvmspirv_binary = getenv("CLVK_LLVMSPIRV_BIN");
-    if (llvmspirv_binary != nullptr) {
-        gLLVMSPIRVPath = llvmspirv_binary;
-    }
-    char* clspv_binary = getenv("CLVK_CLSPV_BIN");
-    if (clspv_binary != nullptr) {
-        gCLSPVPath = clspv_binary;
-    }
-#endif
-    auto clspv_options = getenv("CLVK_CLSPV_OPTIONS");
-    if (clspv_options != nullptr) {
-        gCLSPVOptions = clspv_options;
-    }
-#endif // COMPILER_AVAILABLE
-    auto profiling = getenv("CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES");
-    if (profiling != nullptr) {
-        int val = atoi(profiling);
-        if (val != 0) {
-            gQueueProfilingUsesTimestampQueries = true;
-        }
-    }
-    auto keep_temps = getenv("CLVK_KEEP_TEMPORARIES");
-    if (keep_temps != nullptr) {
-        int val = atoi(keep_temps);
-        if (val != 0) {
-            gKeepTemporaries = true;
-        }
-    }
-}
-
 void clvk_global_state::init_platform() {
 
     m_platform = new cvk_platform();
@@ -284,9 +236,9 @@ void clvk_global_state::init_executors() {
 void clvk_global_state::term_executors() { delete m_thread_pool; }
 
 clvk_global_state::clvk_global_state() {
+    init_config();
     init_logging();
     cvk_info("Starting initialisation");
-    init_options();
     init_vulkan();
     init_platform();
     init_executors();

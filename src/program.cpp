@@ -37,6 +37,7 @@
 #include "spirv/unified1/NonSemanticClspvReflection.h"
 #include "spirv/unified1/spirv.hpp"
 
+#include "config.hpp"
 #include "init.hpp"
 #include "log.hpp"
 #include "program.hpp"
@@ -649,7 +650,7 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 struct temp_file_deletion_stack {
 
     ~temp_file_deletion_stack() {
-        if (!gKeepTemporaries) {
+        if (!config.keep_temporaries) {
             for (auto path = m_paths.rbegin(); path < m_paths.rend(); ++path) {
                 std::remove((*path).c_str());
             }
@@ -671,14 +672,12 @@ enum class spirv_validation_level
 
 bool validate_binary(spir_binary const& binary,
                      spirv_validation_options const& val_options) {
-    auto level = spirv_validation_level::error; // default.
-    if (char* validate_env = getenv("CLVK_SPIRV_VALIDATION")) {
-        if (std::strcmp(validate_env, "0") == 0) {
+    spirv_validation_level level = spirv_validation_level::error;
+    if (config.spirv_validation.set) {
+        if (config.spirv_validation == 0) {
             level = spirv_validation_level::skip;
-        } else if (std::strcmp(validate_env, "1") == 0) {
+        } else if (config.spirv_validation == 1) {
             level = spirv_validation_level::warn;
-        } else {
-            // "error" or invalid values, which we ignore.
         }
     }
 
@@ -810,7 +809,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     options += " -module-constants-in-storage-buffer ";
     options += " -cl-arm-non-uniform-work-group-size ";
 #if COMPILER_AVAILABLE
-    options += " " + gCLSPVOptions + " ";
+    options += " " + config.clspv_options() + " ";
 #endif
 
     return options;
@@ -926,7 +925,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 #else
     if (build_from_il) {
         // Compose llvm-spirv command-line
-        std::string cmd{gLLVMSPIRVPath};
+        std::string cmd{config.llvmspirv_bin};
         cmd += " -r ";
         cmd +=
             " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
@@ -966,7 +965,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 #else
     // Compose clspv command-line
     std::string spirv_file{tmp_folder + "/compiled.spv"};
-    std::string cmd{gCLSPVPath};
+    std::string cmd{config.clspv_path};
     cmd += " ";
     cmd += clspv_input_file;
     cmd += " ";
@@ -1185,14 +1184,8 @@ void cvk_program::do_build() {
     }
 
     // Check capabilities against the device.
-    char* skip_capability_check_env =
-        getenv("CLVK_SKIP_SPIRV_CAPABILITY_CHECK");
-    bool skip_capability_check = false;
-    if (skip_capability_check_env &&
-        strcmp(skip_capability_check_env, "1") == 0)
-        skip_capability_check = true;
     if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !skip_capability_check && !check_capabilities(device)) {
+        !config.skip_spirv_capability_check && !check_capabilities(device)) {
         cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
