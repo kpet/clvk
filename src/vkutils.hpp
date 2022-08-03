@@ -30,6 +30,11 @@ struct cvk_vulkan_queue_wrapper {
         m_queue_family = other.m_queue_family;
     }
 
+    ~cvk_vulkan_queue_wrapper() {
+        cvk_debug("Queue %p has made %llu submissions.", m_queue,
+                  (unsigned long long)m_num_submissions);
+    }
+
     CHECK_RETURN VkResult submit(VkCommandBuffer command_buffer) {
         std::lock_guard<std::mutex> lock(m_lock);
 
@@ -50,6 +55,8 @@ struct cvk_vulkan_queue_wrapper {
             cvk_error_fn("could not submit work to queue: %s",
                          vulkan_error_string(ret));
         }
+
+        m_num_submissions++;
 
         return ret;
     }
@@ -97,4 +104,5 @@ private:
     std::mutex m_lock;
     VkQueue m_queue;
     uint32_t m_queue_family;
+    uint64_t m_num_submissions{};
 };

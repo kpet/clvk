@@ -60,12 +60,52 @@ cvk_command_queue::~cvk_command_queue() {
     }
 }
 
-cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
+cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
+    for (auto mem : cmd->memory_objects()) {
+        // Perform memory object initialisation
+        auto& tracker = mem->init_tracker();
+        std::lock_guard<std::mutex> lock(tracker.mutex());
+        auto state = tracker.state();
+        if (state == cvk_mem_init_state::completed) {
+            continue;
+        }
+        if (state == cvk_mem_init_state::scheduled) {
+            if (tracker.event()->completed()) {
+                tracker.set_state(cvk_mem_init_state::completed);
+            } else {
+                cmd->add_dependency(tracker.event());
+            }
+            continue;
+        }
+        CVK_ASSERT(mem->is_image_type());
+        auto initcmd =
+            new cvk_command_image_init(this, static_cast<cvk_image*>(mem));
+        if (initcmd->build() != CL_SUCCESS) {
+            return CL_OUT_OF_RESOURCES;
+        }
+        _cl_event* initev;
+        cl_int err = enqueue_command(initcmd, &initev);
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+        tracker.set_event(icd_downcast(initev));
+    }
 
-    std::lock_guard<std::mutex> lock(m_lock);
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cl_int err;
 
+    // Enqueue data movement/consistency commands if needed
+    err = satisfy_data_dependencies(cmd);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    // Enqueue the command
+    std::lock_guard<std::mutex> lock(m_lock);
     if (cmd->can_be_batched()) {
         if (!m_command_batch) {
             // Create a new command batch
@@ -1190,7 +1230,14 @@ cl_int cvk_command_unmap_image::do_action() {
     m_image->remove_mapping(m_mapped_ptr);
 
     if (m_needs_copy) {
-        auto err = m_cmd_copy.do_action();
+        cl_int err;
+        if (m_update_host_ptr) {
+            err = m_cmd_host_ptr_update->do_action();
+            if (err != CL_COMPLETE) {
+                return err;
+            }
+        }
+        err = m_cmd_copy.do_action();
         if (err != CL_COMPLETE) {
             return err;
         }
@@ -1294,14 +1341,13 @@ VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
 
 cl_int cvk_command_map_image::build(void** map_ptr) {
     // Get a mapping
-    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region,
-                                         m_flags)) {
+    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region, m_flags,
+                                         m_update_host_ptr)) {
+        cvk_error("cannot find or create a mapping");
         return CL_OUT_OF_RESOURCES;
     }
 
     *map_ptr = m_mapping.ptr;
-
-    // TODO deal with CL_MEM_USE_HOST_PTR
 
     if (needs_copy()) {
         m_cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
@@ -1311,6 +1357,19 @@ cl_int cvk_command_map_image::build(void** map_ptr) {
         cl_int err = m_cmd_copy->build();
         if (err != CL_SUCCESS) {
             return err;
+        }
+
+        if (m_update_host_ptr && m_image->has_flags(CL_MEM_USE_HOST_PTR)) {
+            size_t zero_origin[3] = {0, 0, 0};
+            m_cmd_host_ptr_update =
+                std::make_unique<cvk_command_copy_host_buffer_rect>(
+                    m_queue, CL_COMMAND_READ_BUFFER_RECT, m_mapping.buffer,
+                    m_image->host_ptr(), m_origin.data(), zero_origin,
+                    m_region.data(), m_image->row_pitch(),
+                    m_image->slice_pitch(),
+                    m_image->map_buffer_row_pitch(m_region),
+                    m_image->map_buffer_slice_pitch(m_region),
+                    m_image->element_size());
         }
     }
 
@@ -1322,6 +1381,12 @@ cl_int cvk_command_map_image::do_action() {
         auto err = m_cmd_copy->do_action();
         if (err != CL_COMPLETE) {
             return CL_OUT_OF_RESOURCES;
+        }
+
+        if (m_update_host_ptr) {
+            if (m_cmd_host_ptr_update->do_action() != CL_COMPLETE) {
+                return CL_OUT_OF_RESOURCES;
+            }
         }
     }
 
@@ -1469,4 +1534,109 @@ cl_int cvk_command_fill_image::do_action() {
     }
 
     return CL_COMPLETE;
+}
+
+cl_int
+cvk_command_image_init::build_batchable_inner(cvk_command_buffer& cmdbuf) {
+
+    bool needs_copy = m_image->init_data() != nullptr;
+
+    // Transition image layout to GENERAL or TRANSFER_DST_OPTIMAL.
+    VkImageSubresourceRange subresourceRange = {
+        VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+        0,                         // baseMipLevel
+        VK_REMAINING_MIP_LEVELS,   // levelCount
+        0,                         // baseArrayLayer
+        VK_REMAINING_ARRAY_LAYERS, // layerCount
+    };
+
+    VkImageLayout layout = needs_copy ? VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+                                      : VK_IMAGE_LAYOUT_GENERAL;
+
+    VkImageMemoryBarrier imageBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        nullptr,
+        0,                                                      // srcAccessMask
+        VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT, // dstAccessMask
+        VK_IMAGE_LAYOUT_UNDEFINED,                              // oldLayout
+        layout,                                                 // newLayout
+        0,                       // srcQueueFamilyIndex
+        0,                       // dstQueueFamilyIndex
+        m_image->vulkan_image(), // image
+        subresourceRange,        // subresourceRange
+    };
+
+    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         0,              // dependencyFlags
+                         0,              // memoryBarrierCount
+                         nullptr,        // pMemoryBarriers
+                         0,              // bufferMemoryBarrierCount
+                         nullptr,        // pBufferMemoryBarriers
+                         1,              // imageMemoryBarrierCount
+                         &imageBarrier); // pImageMemoryBarriers
+
+    // Set up a buffer->image copy to initialize the image contents.
+    if (needs_copy) {
+        uint32_t row_length = m_image->row_pitch() ? m_image->row_pitch() /
+                                                         m_image->element_size()
+                                                   : m_image->width();
+        uint32_t image_height =
+            m_image->slice_pitch()
+                ? m_image->slice_pitch() / row_length / m_image->element_size()
+                : m_image->height();
+        uint32_t layer_count = 1;
+        if ((m_image->type() == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+            (m_image->type() == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+            layer_count = m_image->array_size();
+        }
+        VkImageSubresourceLayers subresource = {
+            VK_IMAGE_ASPECT_COLOR_BIT, // aspectMask
+            0,                         // mipLevel
+            0,                         // baseArrayLayer
+            layer_count,               // layerCount
+        };
+        VkExtent3D extent;
+
+        extent.width = m_image->width();
+        extent.height = m_image->height();
+        extent.depth = 1 /*m_image->depth()*/;
+
+        VkBufferImageCopy copy = {
+            0,            // bufferOffset
+            row_length,   // bufferRowLength
+            image_height, // bufferImageHeight
+            subresource,  // imageSubresource
+            {0, 0, 0},    // imageOffset
+            extent,       // imageExtent
+        };
+        vkCmdCopyBufferToImage(cmdbuf, m_image->init_data()->vulkan_buffer(),
+                               m_image->vulkan_image(),
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+        // Transition image layout to GENERAL.
+        VkImageMemoryBarrier imageBarrier = {
+            VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            nullptr,
+            VK_ACCESS_TRANSFER_WRITE_BIT,         // srcAccessMask
+            VK_ACCESS_MEMORY_READ_BIT,            // dstAccessMask
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, // oldLayout
+            VK_IMAGE_LAYOUT_GENERAL,              // newLayout
+            0,                                    // srcQueueFamilyIndex
+            0,                                    // dstQueueFamilyIndex
+            m_image->vulkan_image(),              // image
+            subresourceRange,                     // subresourceRange
+        };
+        vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             0,              // dependencyFlags
+                             0,              // memoryBarrierCount
+                             nullptr,        // pMemoryBarriers
+                             0,              // bufferMemoryBarrierCount
+                             nullptr,        // pBufferMemoryBarriers
+                             1,              // imageMemoryBarrierCount
+                             &imageBarrier); // pImageMemoryBarriers
+    }
+
+    return CL_SUCCESS;
 }

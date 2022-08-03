@@ -6,7 +6,6 @@ clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
 # Limitations
 
 * Only one device per CL context
-* No support for images with a `host_ptr`
 * No support for out-of-order queues
 * No support for device partitioning
 * No support for native kernels

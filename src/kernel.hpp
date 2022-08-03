@@ -313,6 +313,19 @@ struct cvk_kernel_argument_values {
         }
     }
 
+    const std::vector<cvk_mem*> memory_objects() const {
+        std::vector<cvk_mem*> mems;
+        mems.reserve(m_args.size());
+        for (auto& arg : m_args) {
+            if (arg.is_mem_object_backed()) {
+                auto mem =
+                    static_cast<cvk_mem*>(m_kernel_resources[arg.binding]);
+                mems.push_back(mem);
+            }
+        }
+        return mems;
+    }
+
 private:
     bool create_pod_buffer() {
         CVK_ASSERT(m_pod_data->size() >= m_entry_point->pod_buffer_size());

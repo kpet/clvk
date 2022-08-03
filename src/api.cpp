@@ -3593,7 +3593,7 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
     if (memobj->is_image_type()) {
         auto image = static_cast<cvk_image*>(memobj);
         auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(
-            command_queue, image, mapped_ptr);
+            command_queue, image, mapped_ptr, true);
 
         auto err = cmd_unmap->build();
         if (err != CL_SUCCESS) {
@@ -4047,13 +4047,6 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // TODO support creating 2D images from buffers
     if ((image_desc->image_type == CL_MEM_OBJECT_IMAGE2D) &&
         (image_desc->mem_object != nullptr)) {
-        *errcode_ret = CL_INVALID_OPERATION;
-        return nullptr;
-    }
-
-    if ((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) ||
-        (host_ptr != nullptr)) {
-        cvk_error("Creating an image with a host_ptr is not supported yet");
         *errcode_ret = CL_INVALID_OPERATION;
         return nullptr;
     }
@@ -4588,8 +4581,8 @@ cl_int cvk_enqueue_image_copy(
     const size_t zero_origin[3] = {0, 0, 0};
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
         queue, command_type, map_buffer, ptr, zero_origin, zero_origin, region,
-        rpitch, spitch, cmd_map->map_buffer_row_pitch(),
-        cmd_map->map_buffer_slice_pitch(), img->element_size());
+        rpitch, spitch, img->map_buffer_row_pitch(reg),
+        img->map_buffer_slice_pitch(reg), img->element_size());
 
     // Create unmap command
     auto cmd_unmap =
@@ -5138,8 +5131,8 @@ void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
 
     std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
-    auto cmd = std::make_unique<cvk_command_map_image>(command_queue, image,
-                                                       orig, reg, map_flags);
+    auto cmd = std::make_unique<cvk_command_map_image>(
+        command_queue, image, orig, reg, map_flags, true);
 
     void* map_ptr;
     cl_int err = cmd->build(&map_ptr);
@@ -5149,9 +5142,9 @@ void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
         return nullptr;
     }
 
-    *image_row_pitch = cmd->map_buffer_row_pitch();
+    *image_row_pitch = cmd->row_pitch();
     if (image_slice_pitch != nullptr) {
-        *image_slice_pitch = cmd->map_buffer_slice_pitch();
+        *image_slice_pitch = cmd->slice_pitch();
     }
 
     err = command_queue->enqueue_command_with_deps(cmd.release(), blocking_map,

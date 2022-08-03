@@ -15,6 +15,7 @@
 #include <cmath>
 
 #include "memory.hpp"
+#include "queue.hpp"
 
 bool cvk_mem::map() {
     std::lock_guard<std::mutex> lock(m_map_lock);
@@ -261,6 +262,23 @@ bool cvk_image::init() {
     extent.height = m_desc.image_height;
     extent.depth = m_desc.image_depth;
 
+    uint32_t array_layers = 1;
+    if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
+        (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+        array_layers = m_desc.image_array_size;
+    }
+
+    uint32_t row_pitch = m_desc.image_row_pitch;
+    if (row_pitch == 0) {
+        row_pitch = m_desc.image_width * element_size();
+    }
+    uint32_t slice_pitch = m_desc.image_slice_pitch;
+    if (slice_pitch == 0) {
+        slice_pitch = row_pitch * m_desc.image_height;
+    }
+
+    size_t host_ptr_size = 0;
+
     switch (m_desc.image_type) {
     case CL_MEM_OBJECT_IMAGE1D_BUFFER:
     case CL_MEM_OBJECT_IMAGE1D:
@@ -268,38 +286,37 @@ bool cvk_image::init() {
         view_type = VK_IMAGE_VIEW_TYPE_1D;
         extent.height = 1;
         extent.depth = 1;
+        host_ptr_size = row_pitch;
         break;
     case CL_MEM_OBJECT_IMAGE1D_ARRAY:
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D_ARRAY;
         extent.height = 1;
         extent.depth = 1;
+        host_ptr_size = row_pitch * array_layers;
         break;
     case CL_MEM_OBJECT_IMAGE2D:
         image_type = VK_IMAGE_TYPE_2D;
         view_type = VK_IMAGE_VIEW_TYPE_2D;
         extent.depth = 1;
+        host_ptr_size = slice_pitch;
         break;
     case CL_MEM_OBJECT_IMAGE2D_ARRAY:
         image_type = VK_IMAGE_TYPE_2D;
         view_type = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
         extent.depth = 1;
+        host_ptr_size = slice_pitch * array_layers;
         break;
     case CL_MEM_OBJECT_IMAGE3D:
         image_type = VK_IMAGE_TYPE_3D;
         view_type = VK_IMAGE_VIEW_TYPE_3D;
+        host_ptr_size = slice_pitch * m_desc.image_depth;
         break;
     default:
         CVK_ASSERT(false);
         image_type = VK_IMAGE_TYPE_MAX_ENUM;
         view_type = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
         break;
-    }
-
-    uint32_t array_layers = 1;
-    if ((m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY) ||
-        (m_desc.image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
-        array_layers = m_desc.image_array_size;
     }
 
     // Translate format
@@ -366,7 +383,7 @@ bool cvk_image::init() {
         }
     }
 
-    // Bind the buffer to memory
+    // Bind the image to memory
     res = vkBindImageMemory(vkdev, m_image, m_memory->vulkan_memory(), 0);
 
     if (res != VK_SUCCESS) {
@@ -405,7 +422,28 @@ bool cvk_image::init() {
     res = vkCreateImageView(vkdev, &imageViewCreateInfo, nullptr,
                             &m_storage_view);
 
-    return res == VK_SUCCESS;
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    if (has_any_flag(CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) {
+        // Create a staging buffer to copy to the device later.
+        cl_int ret;
+        m_init_data = cvk_buffer::create(m_context, CL_MEM_READ_ONLY,
+                                         host_ptr_size, nullptr, &ret);
+        if (ret != CL_SUCCESS) {
+            cvk_error("Could not create staging buffer for image host_ptr");
+            return false;
+        }
+
+        if (!m_init_data->copy_from(m_host_ptr, 0, host_ptr_size)) {
+            cvk_error(
+                "Could not copy image host_ptr data to the staging buffer");
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void cvk_image::prepare_fill_pattern(const void* input_pattern,
