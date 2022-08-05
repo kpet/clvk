@@ -14,6 +14,8 @@
 
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
+#include <algorithm>
+
 #include "testcl.hpp"
 #include "utils.hpp"
 
