@@ -561,8 +561,8 @@ TEST_F(WithCommandQueue, ImageCopyHostPtrMultiQueue) {
 TEST_F(WithCommandQueue, ImageChannelGetter) {
     uint32_t num_format;
     GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, 0, nullptr, &num_format);
-    num_format = std::min(4U, num_format);
-    cl_image_format formats[num_format];
+    num_format = std::min((uint32_t)4, num_format);
+    cl_image_format formats[4];
     GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, num_format, formats,
                              nullptr);
 
