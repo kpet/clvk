@@ -61,6 +61,9 @@ cvk_command_queue::~cvk_command_queue() {
 }
 
 cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
+    if (cmd->is_data_movement()) {
+        return CL_SUCCESS;
+    }
     for (auto mem : cmd->memory_objects()) {
         // Perform memory object initialisation
         auto& tracker = mem->init_tracker();
