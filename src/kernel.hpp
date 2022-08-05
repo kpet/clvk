@@ -29,7 +29,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program),
-          m_entry_point(nullptr), m_name(name) {}
+          m_entry_point(nullptr), m_name(name), m_image_metadata(nullptr) {}
 
     CHECK_RETURN cl_int init();
     std::unique_ptr<cvk_kernel> clone(cl_int* errcode_ret) const;
@@ -41,6 +41,12 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     std::shared_ptr<cvk_kernel_argument_values> argument_values() const {
         return m_argument_values;
     }
+
+    const kernel_image_metadata_map* get_image_metadata() const {
+        return m_image_metadata;
+    }
+
+    void set_image_metadata(cl_uint index, const void* image);
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
     CHECK_RETURN VkPipeline
@@ -149,6 +155,7 @@ private:
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
     std::vector<bool> m_args_set;
+    const kernel_image_metadata_map* m_image_metadata;
 };
 
 static inline cvk_kernel* icd_downcast(cl_kernel kernel) {
@@ -222,7 +229,10 @@ struct cvk_kernel_argument_values {
             if (m_pod_arg == nullptr) {
                 return CL_INVALID_PROGRAM;
             }
+        }
 
+        if (m_entry_point->has_pod_arguments() ||
+            m_entry_point->has_image_metadata()) {
             // TODO(#101): host out-of-memory errors are currently unhandled.
             auto buffer = std::make_unique<std::vector<uint8_t>>(
                 m_entry_point->pod_buffer_size());
@@ -241,6 +251,10 @@ struct cvk_kernel_argument_values {
         }
     }
 
+    void set_pod_data(uint32_t offset, size_t size, const void* value) {
+        memcpy(&pod_data()[offset], value, size);
+    }
+
     cl_int set_arg(const kernel_argument& arg, size_t size, const void* value) {
 
         if (arg.is_pod()) {
@@ -253,7 +267,7 @@ struct cvk_kernel_argument_values {
                 return CL_INVALID_ARG_SIZE;
             }
 
-            memcpy(&pod_data()[arg.offset], value, arg.size);
+            set_pod_data(arg.offset, arg.size, value);
         } else if (arg.kind == kernel_argument_kind::local) {
             CVK_ASSERT(value == nullptr);
             m_local_args_size[arg.pos] = size;

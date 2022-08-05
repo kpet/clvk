@@ -134,6 +134,10 @@ spv_result_t parse_reflection(void* user_data,
             return pushconstant::num_workgroups;
         case NonSemanticClspvReflectionPushConstantRegionGroupOffset:
             return pushconstant::region_group_offset;
+        case NonSemanticClspvReflectionImageArgumentInfoChannelOrderPushConstant:
+            return pushconstant::image_metadata;
+        case NonSemanticClspvReflectionImageArgumentInfoChannelDataTypePushConstant:
+            return pushconstant::image_metadata;
         default:
             cvk_error_fn("Unhandled reflection instruction for push constant");
             break;
@@ -183,6 +187,28 @@ spv_result_t parse_reflection(void* user_data,
                     info.extended_valid = true;
                 }
                 parse_data->arg_infos[inst->result_id] = info;
+                break;
+            }
+            case NonSemanticClspvReflectionImageArgumentInfoChannelOrderPushConstant: {
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto offset = parse_data->constants[inst->words[7]];
+                auto size = parse_data->constants[inst->words[8]];
+                parse_data->binary->add_image_channel_order_metadata(
+                    kernel, ordinal, offset);
+                auto pc = inst_to_push_constant(ext_inst);
+                parse_data->binary->add_push_constant(pc, {offset, size});
+                break;
+            }
+            case NonSemanticClspvReflectionImageArgumentInfoChannelDataTypePushConstant: {
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto offset = parse_data->constants[inst->words[7]];
+                auto size = parse_data->constants[inst->words[8]];
+                parse_data->binary->add_image_channel_data_type_metadata(
+                    kernel, ordinal, offset);
+                auto pc = inst_to_push_constant(ext_inst);
+                parse_data->binary->add_push_constant(pc, {offset, size});
                 break;
             }
             case NonSemanticClspvReflectionArgumentStorageBuffer:
@@ -1286,8 +1312,8 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_has_pod_buffer_arguments(false), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE) {}
+      m_has_pod_buffer_arguments(false), m_image_metadata(nullptr),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -1461,6 +1487,11 @@ bool cvk_entry_point::
 cl_int cvk_entry_point::init() {
     VkResult res;
 
+    // Get the image metadata for the this entry point
+    if (auto* md = m_program->image_metadata(m_name)) {
+        m_image_metadata = md;
+    }
+
     // Get a pointer to the arguments from the program
     auto args = m_program->args_for_kernel(m_name);
 
@@ -1535,6 +1566,46 @@ cl_int cvk_entry_point::init() {
 
         m_pod_buffer_size = max_offset + max_offset_arg_size;
         m_pod_buffer_size = round_up(m_pod_buffer_size, 4);
+    }
+
+    // Take the size of image metadata into account for the pod buffer size
+    if (m_image_metadata) {
+        // Find how big the POD buffer should be
+        uint32_t max_offset = 0;
+        for (const auto& md : *m_image_metadata) {
+            auto order_offset = md.second.order_offset;
+            auto data_type_offset = md.second.data_type_offset;
+            if (md.second.has_valid_order()) {
+                max_offset = std::max(order_offset, max_offset);
+                push_constant_range.offset =
+                    std::min(order_offset, push_constant_range.offset);
+                if (order_offset + sizeof(uint32_t) >
+                    push_constant_range.offset + push_constant_range.size) {
+                    push_constant_range.size = order_offset + sizeof(uint32_t) -
+                                               push_constant_range.offset;
+                }
+            }
+            if (md.second.has_valid_data_type()) {
+                max_offset = std::max(data_type_offset, max_offset);
+                push_constant_range.offset =
+                    std::min(data_type_offset, push_constant_range.offset);
+                if (data_type_offset + sizeof(uint32_t) >
+                    push_constant_range.offset + push_constant_range.size) {
+                    push_constant_range.size = data_type_offset +
+                                               sizeof(uint32_t) -
+                                               push_constant_range.offset;
+                }
+            }
+        }
+        if (max_offset + sizeof(uint32_t) > m_pod_buffer_size) {
+            m_pod_buffer_size = round_up(max_offset + sizeof(uint32_t), 4);
+        }
+    }
+
+    if (m_pod_buffer_size >
+        m_context->device()->vulkan_max_push_constants_size()) {
+        cvk_error("Not enough space for push constants");
+        return CL_INVALID_VALUE;
     }
 
     // Don't pass the range at pipeline layout creation time if no push

@@ -16,6 +16,7 @@
 
 #include <array>
 #include <atomic>
+#include <climits>
 #include <cstdint>
 #include <fstream>
 #include <map>
@@ -107,6 +108,7 @@ enum class pushconstant
     region_offset,
     num_workgroups,
     region_group_offset,
+    image_metadata,
 };
 
 struct pushconstant_desc {
@@ -135,6 +137,21 @@ struct constant_data_buffer_info {
 struct spirv_validation_options {
     bool uniform_buffer_std_layout = false;
 };
+
+struct image_metadata {
+    image_metadata() : order_offset(UINT_MAX), data_type_offset(UINT_MAX) {}
+    uint32_t order_offset;
+    uint32_t data_type_offset;
+    void set_order(uint32_t order) { order_offset = order; }
+    void set_data_type(uint32_t data_type) { data_type_offset = data_type; }
+    bool has_valid_order() const { return order_offset != UINT_MAX; }
+    bool has_valid_data_type() const { return data_type_offset != UINT_MAX; }
+};
+
+using kernel_image_metadata_map =
+    std::unordered_map<uint32_t, struct image_metadata>;
+using image_metadata_map =
+    std::unordered_map<std::string, kernel_image_metadata_map>;
 
 class spir_binary {
 
@@ -166,6 +183,9 @@ public:
     CHECK_RETURN bool validate(const spirv_validation_options&) const;
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
+    const image_metadata_map& image_metadata() const {
+        return m_image_metadata;
+    }
     std::vector<uint32_t>* raw_binary() { return &m_code; }
     const std::vector<sampler_desc>& literal_samplers() {
         return m_literal_samplers;
@@ -231,12 +251,23 @@ public:
         m_constant_data_buffer.reset(new constant_data_buffer_info(info));
     }
 
+    void add_image_channel_order_metadata(const std::string& name,
+                                          uint32_t ordinal, uint32_t offset) {
+        m_image_metadata[name][ordinal].set_order(offset);
+    }
+    void add_image_channel_data_type_metadata(const std::string& name,
+                                              uint32_t ordinal,
+                                              uint32_t offset) {
+        m_image_metadata[name][ordinal].set_data_type(offset);
+    }
+
 private:
     spv_context m_context;
     std::vector<uint32_t> m_code;
     std::vector<sampler_desc> m_literal_samplers;
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
+    image_metadata_map m_image_metadata;
     std::unique_ptr<constant_data_buffer_info> m_constant_data_buffer;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
@@ -298,9 +329,15 @@ public:
 
     const std::vector<kernel_argument>& args() const { return m_args; }
 
+    const kernel_image_metadata_map* image_metadata() const {
+        return m_image_metadata;
+    }
+
     bool has_pod_arguments() const { return m_has_pod_arguments; }
 
     bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
+
+    bool has_image_metadata() const { return m_image_metadata != nullptr; }
 
     uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
 
@@ -326,6 +363,7 @@ private:
     bool m_has_pod_arguments;
     bool m_has_pod_buffer_arguments;
     std::vector<kernel_argument> m_args;
+    const kernel_image_metadata_map* m_image_metadata;
     uint32_t m_num_resource_slots;
     VkDescriptorPool m_descriptor_pool;
     std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
@@ -486,6 +524,15 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         auto const& args = m_binary.kernels_arguments().find(name);
         if (args != m_binary.kernels_arguments().end()) {
             return &args->second;
+        } else {
+            return nullptr;
+        }
+    }
+
+    const kernel_image_metadata_map* image_metadata(std::string& name) {
+        auto const& md = m_binary.image_metadata().find(name);
+        if (md != m_binary.image_metadata().end()) {
+            return &md->second;
         } else {
             return nullptr;
         }
