@@ -14,8 +14,6 @@
 
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
-#include <algorithm>
-
 #include "testcl.hpp"
 #include "utils.hpp"
 
@@ -563,7 +561,8 @@ TEST_F(WithCommandQueue, ImageCopyHostPtrMultiQueue) {
 TEST_F(WithCommandQueue, ImageChannelGetter) {
     uint32_t num_format;
     GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, 0, nullptr, &num_format);
-    num_format = std::min((uint32_t)4, num_format);
+    if (num_format > 4)
+        num_format = 4;
     cl_image_format formats[4];
     GetSupportedImageFormats(CL_MEM_OBJECT_IMAGE2D, num_format, formats,
                              nullptr);
