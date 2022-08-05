@@ -337,12 +337,7 @@ public:
 
     bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
 
-    bool has_image_metadata() const {
-        if (m_image_metadata)
-            return m_image_metadata->size() > 0;
-        else
-            return false;
-    }
+    bool has_image_metadata() const { return m_image_metadata != nullptr; }
 
     uint32_t pod_buffer_size() const { return m_pod_buffer_size; }
 
