@@ -277,6 +277,9 @@ protected:
     VkCommandBuffer m_command_buffer;
 };
 
+#define CLVK_COMMAND_BATCH 0x5000
+#define CLVK_COMMAND_IMAGE_INIT 0x5001
+
 struct cvk_command {
 
     cvk_command(cl_command_type type, cvk_command_queue* queue)
@@ -305,6 +308,12 @@ struct cvk_command {
     virtual bool can_be_batched() const { return false; }
 
     virtual bool is_built_before_enqueue() const { return true; }
+
+    // Data movement commands are only created as part of the centralised
+    // memory object asynchronous data consistency management code when
+    // another non-data movement command has reported the memory object. They
+    // never have data movement requirements of their own.
+    virtual bool is_data_movement() const { return false; }
 
     void add_dependency(cvk_event* dep) {
         dep->retain();
@@ -653,9 +662,6 @@ private:
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
 };
 
-#define CLVK_COMMAND_BATCH 0x5000
-#define CLVK_COMMAND_IMAGE_INIT 0x5001
-
 struct cvk_command_batch : public cvk_command {
     cvk_command_batch(cvk_command_queue* queue)
         : cvk_command(CLVK_COMMAND_BATCH, queue) {}
@@ -954,6 +960,7 @@ struct cvk_command_image_init final : public cvk_command_batchable {
     cvk_command_image_init(cvk_command_queue* queue, cvk_image* image)
         : cvk_command_batchable(CLVK_COMMAND_IMAGE_INIT, queue),
           m_image(image) {}
+    bool is_data_movement() const override { return true; }
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
     ~cvk_command_image_init() { m_image->discard_init_data(); }
