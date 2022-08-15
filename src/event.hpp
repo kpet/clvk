@@ -15,6 +15,9 @@
 #pragma once
 
 #include "cl_headers.hpp"
+#include "icd.hpp"
+#include "objects.hpp"
+#include "utils.hpp"
 
 #include <mutex>
 #include <unordered_map>
