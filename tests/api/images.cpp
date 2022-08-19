@@ -15,7 +15,6 @@
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
 #include "testcl.hpp"
-#include "utils.hpp"
 
 TEST_F(WithContext, CreateImageLegacy) {
     cl_image_format format = {CL_RGBA, CL_UNORM_INT8};
