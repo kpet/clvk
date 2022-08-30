@@ -746,6 +746,8 @@ struct cvk_command_dep : public cvk_command {
         : cvk_command(type, q) {}
 
     CHECK_RETURN cl_int do_action() override final { return CL_COMPLETE; }
+
+    const std::vector<cvk_mem*> memory_objects() const override { return {}; }
 };
 
 struct cvk_command_buffer_image_copy final : public cvk_command_batchable {
