@@ -1602,12 +1602,6 @@ cl_int cvk_entry_point::init() {
         }
     }
 
-    if (m_pod_buffer_size >
-        m_context->device()->vulkan_max_push_constants_size()) {
-        cvk_error("Not enough space for push constants");
-        return CL_INVALID_VALUE;
-    }
-
     // Don't pass the range at pipeline layout creation time if no push
     // constants are used
     uint32_t num_push_constant_ranges = 1;
@@ -1620,6 +1614,12 @@ cl_int cvk_entry_point::init() {
 
     // Its offset must be a multiple of 4, round down to guarantee this
     push_constant_range.offset &= ~0x3U;
+
+    if (push_constant_range.size >
+        m_context->device()->vulkan_max_push_constants_size()) {
+        cvk_error("Not enough space for push constants");
+        return CL_INVALID_VALUE;
+    }
 
     // Create pipeline layout
     cvk_debug("about to create pipeline layout, number of descriptor set "
