@@ -1,16 +1,7 @@
-# clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++)
+# clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++) [![Discord Shield](https://discordapp.com/api/guilds/1002628585250631681/widget.png?style=shield)](https://discord.gg/xsVdjmhFM9)
 
 clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
-
-# Limitations
-
-* Only one device per CL context
-* No support for out-of-order queues
-* No support for device partitioning
-* No support for native kernels
-* All the limitations implied by the use of clspv
-* ... and problably others
 
 # Supported applications
 
@@ -241,3 +232,12 @@ variables. Here's a quick guide:
 * `CLVK_CACHE_DIR` specifies a directory used for caching compiled program data
   between applications runs. The user is responsible for ensuring that this
   directory is not used concurrently by more than one application.
+
+# Limitations
+
+* Only one device per CL context
+* No support for out-of-order queues
+* No support for device partitioning
+* No support for native kernels
+* All the limitations implied by the use of clspv
+* ... and problably others
