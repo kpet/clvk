@@ -54,15 +54,6 @@ struct cvk_executor_thread {
         return !m_running;
     }
 
-    void wait_idle() {
-        std::unique_lock<std::mutex> lock(m_lock);
-        while (m_running) {
-            TRACE_BEGIN("wait_idle");
-            m_running_cv.wait(lock);
-            TRACE_END();
-        }
-    }
-
     void shutdown() {
 
         // Tell the executor to shutdown
@@ -77,6 +68,10 @@ struct cvk_executor_thread {
         }
     }
 
+    std::deque<cvk_command*>
+    extract_cmds_dominated_by(bool only_non_batch_cmds, cl_uint num_events,
+                              _cl_event* const* event_list);
+
 private:
     void executor();
 
@@ -87,7 +82,6 @@ private:
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
 
     bool m_running;
-    std::condition_variable m_running_cv;
 };
 
 struct cvk_command_pool {
@@ -206,6 +200,11 @@ struct cvk_command_queue : public _cl_command_queue,
         TRACE_CNT(group_in_flight_counter, group - 1);
     }
 
+    cl_int execute_cmds_dominated_by(cl_uint num_events,
+                                     _cl_event* const* event_list);
+    cl_int execute_cmds_dominated_by_no_lock(cl_uint num_events,
+                                             _cl_event* const* event_list);
+
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
@@ -217,6 +216,7 @@ private:
     std::vector<cl_queue_properties> m_properties_array;
 
     cvk_executor_thread* m_executor;
+    cvk_event_holder m_finish_event;
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
