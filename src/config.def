@@ -14,6 +14,9 @@
 
 OPTION(std::string, cache_dir, "")
 OPTION(uint32_t, max_batch_size, 10000u)
+OPTION(uint32_t, max_first_batch_size, 10000u)
+OPTION(uint32_t, max_group_size, UINT32_MAX)
+OPTION(uint32_t, max_first_group_size, UINT32_MAX)
 OPTION(bool, skip_spirv_capability_check, false)
 OPTION(bool, validation_layers, false)
 OPTION(bool, queue_profiling_use_timestamp_queries, false)

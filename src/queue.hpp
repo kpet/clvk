@@ -35,12 +35,14 @@ struct cvk_command_group {
 struct cvk_executor_thread {
 
     cvk_executor_thread()
-        : m_thread(nullptr), m_shutdown(false), m_profiling(false) {
+        : m_thread(nullptr), m_shutdown(false), m_profiling(false),
+          m_queue(nullptr) {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
+    ~cvk_executor_thread();
 
-    void set_profiling(bool profiling) { m_profiling = profiling; }
+    void set_queue(cvk_command_queue* queue);
 
     void send_group(std::unique_ptr<cvk_command_group>&& group) {
         m_lock.lock();
@@ -72,6 +74,7 @@ private:
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
+    cvk_command_queue* m_queue;
 };
 
 struct cvk_command_pool {
@@ -122,7 +125,9 @@ struct cvk_command_queue : public _cl_command_queue,
 
     cvk_command_queue(cvk_context* ctx, cvk_device* dev,
                       cl_command_queue_properties props,
-                      std::vector<cl_queue_properties>&& properties_array);
+                      std::vector<cl_queue_properties>&& properties_array,
+                      cl_uint max_batch_size, cl_uint max_first_batch_size,
+                      cl_uint max_group_size, cl_uint max_first_group_size);
 
     cl_int init();
 
@@ -172,6 +177,12 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_properties_array;
     }
 
+    void batch_enqueued() { m_nb_batch_enqueued++; }
+    void batch_completed() { m_nb_batch_enqueued--; }
+
+    void group_sent() { m_nb_group_sent++; }
+    void group_completed() { m_nb_group_sent--; }
+
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
@@ -192,6 +203,14 @@ private:
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
+
+    cl_uint m_max_batch_size;
+    cl_uint m_max_first_batch_size;
+    cl_uint m_max_group_size;
+    cl_uint m_max_first_group_size;
+
+    uint64_t m_nb_batch_enqueued;
+    uint64_t m_nb_group_sent;
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
@@ -213,21 +232,19 @@ struct cvk_executor_thread_pool {
 
         std::unique_lock<std::mutex> lock(m_lock);
 
-        bool profiling = queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
         // Try to find a free executor
         for (auto& exec_state : m_executors) {
             if (exec_state.second == executor_state::free) {
                 exec_state.second = executor_state::bound;
                 auto exec = exec_state.first;
-                exec->set_profiling(profiling);
+                exec->set_queue(queue);
                 return exec;
             }
         }
 
         // No free executor found in the pool, create a new one
         cvk_executor_thread* exec = new cvk_executor_thread();
-        exec->set_profiling(profiling);
+        exec->set_queue(queue);
         m_executors[exec] = executor_state::bound;
         return exec;
     }
