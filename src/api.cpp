@@ -1162,8 +1162,8 @@ cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
         }
     }
 
-    auto event = new cvk_event(icd_downcast(context), CL_SUBMITTED,
-                               CL_COMMAND_USER, nullptr);
+    auto event = new cvk_event(icd_downcast(context), nullptr, nullptr);
+    event->set_status(CL_SUBMITTED);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;

@@ -161,8 +161,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
 
-    cmd->event()->set_profiling_info_from_monotonic_clock(
-        CL_PROFILING_COMMAND_QUEUED);
+    cmd->set_status(CL_QUEUED);
 
     if (event != nullptr) {
         // The event will be returned to the app, retain it for the user
@@ -258,10 +257,6 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     return ret;
 }
 
-void cvk_executor_thread::set_queue(cvk_command_queue* queue) {
-    m_profiling = queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-}
-
 void cvk_executor_thread::executor() {
 
     std::unique_lock<std::mutex> lock(m_lock);
@@ -293,20 +288,8 @@ void cvk_executor_thread::executor() {
             cvk_command* cmd = group->commands.front();
             cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
 
-            if (m_profiling && cmd->is_profiled_by_executor()) {
-                cmd->event()->set_profiling_info_from_monotonic_clock(
-                    CL_PROFILING_COMMAND_START);
-            }
-
             cl_int status = cmd->execute();
             cvk_debug_fn("command returned %d", status);
-
-            if (m_profiling && cmd->is_profiled_by_executor()) {
-                cmd->event()->set_profiling_info_from_monotonic_clock(
-                    CL_PROFILING_COMMAND_END);
-            }
-
-            cmd->event()->set_status(status);
 
             group->commands.pop_front();
 
@@ -348,16 +331,12 @@ cl_int cvk_command_queue::flush_no_lock() {
 
     // Set event state and profiling info
     for (auto cmd : group->commands) {
-        cmd->event()->set_status(CL_SUBMITTED);
-        if (has_property(CL_QUEUE_PROFILING_ENABLE)) {
-            cmd->event()->set_profiling_info_from_monotonic_clock(
-                CL_PROFILING_COMMAND_SUBMIT);
-        }
+        cmd->set_status(CL_SUBMITTED);
     }
 
     // Create execution thread if it doesn't exist
     if (m_executor == nullptr) {
-        m_executor = get_thread_pool()->get_executor(this);
+        m_executor = get_thread_pool()->get_executor();
     }
 
     auto ev = group->commands.back()->event();
@@ -904,7 +883,7 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 
-    if (profiling && !is_profiled_by_executor()) {
+    if (profiling && m_queue->profiling_on_device()) {
         auto vkdev = m_queue->device()->vulkan_device();
         auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
                                      &m_query_pool);
@@ -914,7 +893,7 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     }
 
     // Sample timestamp if profiling
-    if (profiling && !is_profiled_by_executor()) {
+    if (profiling && m_queue->profiling_on_device()) {
         vkCmdResetQueryPool(command_buffer, m_query_pool, 0,
                             NUM_POOL_QUERIES_PER_COMMAND);
         vkCmdWriteTimestamp(command_buffer,
@@ -928,7 +907,7 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     }
 
     // Sample timestamp if profiling
-    if (profiling && !is_profiled_by_executor()) {
+    if (profiling && m_queue->profiling_on_device()) {
         vkCmdWriteTimestamp(command_buffer,
                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
                             POOL_QUERY_CMD_END);
@@ -946,6 +925,8 @@ cl_int cvk_command_batchable::get_timestamp_query_results(cl_ulong* start,
         sizeof(timestamps), timestamps, sizeof(uint64_t),
         VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
     if (res != VK_SUCCESS) {
+        cvk_error_fn("vkGetQueryPoolResults failed %d %s", res,
+                     vulkan_error_string(res));
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -961,51 +942,8 @@ cl_int cvk_command_batchable::get_timestamp_query_results(cl_ulong* start,
 cl_int cvk_command_batchable::do_action() {
     CVK_ASSERT(m_command_buffer);
 
-    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-    auto dev = m_queue->device();
-
-    cl_ulong sync_host, sync_dev;
-    if (profiling && dev->has_timer_support()) {
-        if (dev->get_device_host_timer(&sync_dev, &sync_host) != CL_SUCCESS) {
-            return CL_OUT_OF_RESOURCES;
-        }
-    }
-
     if (!m_command_buffer->submit_and_wait()) {
         return CL_OUT_OF_RESOURCES;
-    }
-
-    cl_int err = CL_COMPLETE;
-
-    if (profiling && m_queue->profiling_on_device()) {
-        cl_ulong start, end;
-        err = get_timestamp_query_results(&start, &end);
-        if (dev->has_timer_support()) {
-            start = dev->device_timer_to_host(start, sync_dev, sync_host);
-            end = dev->device_timer_to_host(end, sync_dev, sync_host);
-        }
-        m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start);
-        m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end);
-    }
-
-    return err;
-}
-
-cl_int cvk_command_batch::submit_and_wait() {
-    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
-    if (profiling && !m_queue->profiling_on_device()) {
-        m_event->set_profiling_info_from_monotonic_clock(
-            CL_PROFILING_COMMAND_START);
-    }
-
-    if (!m_command_buffer->submit_and_wait()) {
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    if (profiling && !m_queue->profiling_on_device()) {
-        m_event->set_profiling_info_from_monotonic_clock(
-            CL_PROFILING_COMMAND_END);
     }
 
     return CL_COMPLETE;
@@ -1015,50 +953,13 @@ cl_int cvk_command_batch::do_action() {
 
     cvk_info("executing batch of %lu commands", m_commands.size());
 
-    cl_ulong sync_host, sync_dev;
-    auto dev = m_queue->device();
-    if (dev->has_timer_support()) {
-        if (dev->get_device_host_timer(&sync_dev, &sync_host) != CL_SUCCESS) {
-            return CL_OUT_OF_RESOURCES;
-        }
+    if (!m_command_buffer->submit_and_wait()) {
+        return CL_OUT_OF_RESOURCES;
     }
-    cl_int status = submit_and_wait();
 
     m_queue->batch_completed();
 
-    bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
-    for (auto& cmd : m_commands) {
-
-        auto ev = cmd->event();
-
-        if (profiling) {
-            ev->copy_profiling_info(CL_PROFILING_COMMAND_SUBMIT, m_event);
-            if (m_queue->profiling_on_device()) {
-                cl_ulong start, end;
-                auto perr = cmd->get_timestamp_query_results(&start, &end);
-                // Report the first error if no errors were present
-                // Keep going through the events
-                if (status == CL_COMPLETE) {
-                    status = perr;
-                }
-                if (dev->has_timer_support()) {
-                    start =
-                        dev->device_timer_to_host(start, sync_dev, sync_host);
-                    end = dev->device_timer_to_host(end, sync_dev, sync_host);
-                }
-                ev->set_profiling_info(CL_PROFILING_COMMAND_START, start);
-                ev->set_profiling_info(CL_PROFILING_COMMAND_END, end);
-            } else {
-                ev->copy_profiling_info(CL_PROFILING_COMMAND_START, m_event);
-                ev->copy_profiling_info(CL_PROFILING_COMMAND_END, m_event);
-            }
-        }
-
-        ev->set_status(status);
-    }
-
-    return status;
+    return CL_COMPLETE;
 }
 
 cl_int cvk_command_buffer_host_copy::do_action() {
