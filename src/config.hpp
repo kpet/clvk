@@ -33,8 +33,9 @@ struct config_option {
 };
 
 template <typename T> struct config_value {
-    config_value(const char* val) : value(val) {}
-    config_value(uint32_t val) : value(val) {}
+    explicit config_value(const char* val) : value(val) {}
+    explicit config_value(uint32_t val) : value(val) {}
+    explicit config_value(bool val) : value(val) {}
     bool set;
     T value;
     operator T() const { return value; }
@@ -43,7 +44,7 @@ template <typename T> struct config_value {
 };
 
 struct config_struct {
-#define OPTION(type, name, valdef) const config_value<type> name = valdef;
+#define OPTION(type, name, valdef) const config_value<type> name{valdef};
 #include "config.def"
 #undef OPTION
 };
