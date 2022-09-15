@@ -17,6 +17,7 @@
 #include <array>
 #include <memory>
 
+#include "config.hpp"
 #include "event.hpp"
 #include "init.hpp"
 #include "kernel.hpp"
@@ -148,7 +149,7 @@ struct cvk_command_queue : public _cl_command_queue,
     CHECK_RETURN cl_int finish();
     bool profiling_on_device() const {
         return m_device->has_timer_support() ||
-               gQueueProfilingUsesTimestampQueries;
+               config.queue_profiling_use_timestamp_queries;
     }
 
     CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer* cmdbuf) {
@@ -187,7 +188,6 @@ private:
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
 
-    cl_uint m_max_batch_size;
     cvk_command_batch* m_command_batch;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
@@ -563,7 +563,7 @@ struct cvk_command_batchable : public cvk_command {
 
     bool is_profiled_by_executor() const override final {
         return !m_queue->device()->has_timer_support() &&
-               !gQueueProfilingUsesTimestampQueries;
+               !config.queue_profiling_use_timestamp_queries;
     }
 
     CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,

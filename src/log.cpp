@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "log.hpp"
+#include "config.hpp"
 
 #include <cerrno>
 #include <cstdarg>
@@ -33,23 +34,20 @@ static bool gLoggingColour;
 static FILE* gLoggingFile;
 
 void init_logging() {
-    char* logging = getenv("CLVK_LOG");
-    if (logging) {
-        loglevel setting = static_cast<loglevel>(atoi(logging));
-        if ((setting < loglevel::fatal) || (setting > loglevel::debug)) {
+    loglevel setting = static_cast<loglevel>(config.log());
+    if (config.log.set) {
+        if ((config.log < loglevel::fatal) || (config.log > loglevel::debug)) {
             // FIXME handle all errors
-            fprintf(stderr, "FATAL: Unknown log level '%s'.\n", logging);
+            fprintf(stderr, "FATAL: Unknown log level '%u'.\n", config.log());
             exit(EXIT_FAILURE);
         }
-        gLoggingLevel = setting;
-    } else {
-        gLoggingLevel = loglevel::fatal;
+        setting = static_cast<loglevel>(config.log());
     }
+    gLoggingLevel = setting;
 
-    char* logging_dest = getenv("CLVK_LOG_DEST");
-    if (logging_dest) {
+    if (config.log_dest.set) {
 
-        std::string val(logging_dest);
+        std::string val(config.log_dest);
 
         if (val == "stdout") {
             gLoggingFile = stdout;
@@ -82,15 +80,8 @@ void init_logging() {
         gLoggingColour = false;
     }
 
-    char* logging_colour = getenv("CLVK_LOG_COLOUR");
-    if (logging_colour) {
-        int val = atoi(logging_colour);
-        // FIXME handle errors
-        if (val == 0) {
-            gLoggingColour = false;
-        } else {
-            gLoggingColour = true;
-        }
+    if (config.log_colour.set) {
+        gLoggingColour = config.log_colour;
     }
 }
 

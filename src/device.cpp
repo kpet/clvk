@@ -14,6 +14,7 @@
 
 #include <fstream>
 
+#include "config.hpp"
 #include "device.hpp"
 #include "init.hpp"
 #include "log.hpp"
@@ -582,14 +583,13 @@ bool cvk_device::init_time_management(VkInstance instance) {
 // If pipeline cache serialization is not enabled, an empty string is returned.
 std::string
 cvk_device::get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const {
-    const char* cache_dir = getenv("CLVK_CACHE_DIR");
-    if (cache_dir == nullptr) {
+    if (config.cache_dir().empty()) {
         return "";
     }
 
     // The pipeline cache file path is:
     // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.<SHA1>.bin
-    std::string cache_path = cache_dir;
+    std::string cache_path = config.cache_dir;
     cache_path += "/";
     cache_path += "clvk-pipeline-cache.";
     cache_path += to_hex_string(m_properties.pipelineCacheUUID, VK_UUID_SIZE);

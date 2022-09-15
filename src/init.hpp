@@ -19,14 +19,6 @@
 
 #include <vulkan/vulkan.h>
 
-#if COMPILER_AVAILABLE
-extern std::string gCLSPVPath;
-extern std::string gLLVMSPIRVPath;
-extern std::string gCLSPVOptions;
-#endif
-extern bool gQueueProfilingUsesTimestampQueries;
-extern bool gKeepTemporaries;
-
 struct cvk_platform;
 struct cvk_executor_thread_pool;
 
