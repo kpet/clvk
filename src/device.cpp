@@ -585,6 +585,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
         // MAKE_NAME_VERSION(0, 9, 0, "cl_khr_semaphore"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_linkonce_odr"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_ext_image_requirements_info"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -1333,4 +1334,163 @@ cl_int cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong& host) {
         host = dev - (m_sync_dev - m_sync_host);
     }
     return CL_SUCCESS;
+}
+
+std::optional<VkImageFormatProperties>
+cvk_device::get_vulkan_image_format_properties(
+    cl_mem_flags flags, const cl_image_desc* desc,
+    const cl_image_format* format) const {
+
+    if ((format == nullptr) || (desc == nullptr) ||
+        (desc != nullptr && desc->image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)) {
+        return get_vulkan_image_format_properties(desc);
+    }
+
+    CVK_ASSERT(desc);
+    CVK_ASSERT(desc->image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
+    CVK_ASSERT(format);
+
+    // Get Vulkan format
+    image_format_support fmt;
+    if (!cl_image_format_to_vulkan_format(*format, desc->image_type, this,
+                                          &fmt)) {
+        return std::nullopt;
+    }
+
+    // Get Vulkan image type
+    VkImageType image_type;
+    switch (desc->image_type) {
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        image_type = VK_IMAGE_TYPE_1D;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D:
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        image_type = VK_IMAGE_TYPE_1D;
+        break;
+    case CL_MEM_OBJECT_IMAGE3D:
+        image_type = VK_IMAGE_TYPE_1D;
+        break;
+    default:
+        CVK_ASSERT(false && "Unsupported image type");
+        break;
+    }
+
+    // Get Vulkan image tiling
+    VkImageTiling tiling = cvk_image::prepare_tiling();
+
+    // Get Vulkan usage flags
+    VkImageUsageFlags usage_flags = cvk_image::prepare_usage_flags(flags);
+
+    // Get Vulkan image create flags;
+    VkImageCreateFlags create_flags = cvk_image::prepare_create_flags();
+
+    // Query limits from Vulkan
+    VkImageFormatProperties properties;
+    auto res = vkGetPhysicalDeviceImageFormatProperties(
+        m_pdev, fmt.vkfmt, image_type, tiling, usage_flags, create_flags,
+        &properties);
+    if (res != VK_SUCCESS) {
+        return std::nullopt;
+    }
+    return properties;
+}
+
+VkImageFormatProperties cvk_device::get_vulkan_image_format_properties(
+    const cl_image_desc* desc) const {
+
+    VkImageFormatProperties properties{};
+    properties.maxExtent = {1, 1, 1};
+    properties.maxMipLevels = 1;
+    properties.maxArrayLayers = vulkan_limits().maxImageArrayLayers;
+    properties.sampleCounts = VK_SAMPLE_COUNT_1_BIT;
+    properties.maxResourceSize = 1 << 31;
+
+    if ((desc == nullptr) || (desc->image_type == 0)) {
+        auto max1d = vulkan_limits().maxImageDimension1D;
+        auto max2d = vulkan_limits().maxImageDimension2D;
+        auto max3d = vulkan_limits().maxImageDimension3D;
+        auto maxbuffer = image_max_buffer_size();
+        cl_uint max_size = std::min(max1d, max2d);
+        max_size = std::min(max_size, max3d);
+        max_size = std::min(max_size, static_cast<cl_uint>(maxbuffer));
+        properties.maxExtent.width = max_size;
+        properties.maxExtent.height = max_size;
+        properties.maxExtent.depth = max_size;
+        return properties;
+    }
+
+    switch (desc->image_type) {
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        properties.maxExtent.width = image_max_buffer_size();
+        break;
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        properties.maxExtent.width = vulkan_limits().maxImageDimension1D;
+        break;
+    case CL_MEM_OBJECT_IMAGE2D:
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        properties.maxExtent.width = vulkan_limits().maxImageDimension2D;
+        properties.maxExtent.height = vulkan_limits().maxImageDimension2D;
+        break;
+    case CL_MEM_OBJECT_IMAGE3D:
+        properties.maxExtent.width = vulkan_limits().maxImageDimension3D;
+        properties.maxExtent.height = vulkan_limits().maxImageDimension3D;
+        properties.maxExtent.depth = vulkan_limits().maxImageDimension3D;
+        break;
+    default:
+        CVK_ASSERT(false && "Unsupported image type");
+        break;
+    }
+    return properties;
+}
+
+cl_uint cvk_device::image_max_width(cl_mem_flags flags,
+                                    const cl_image_desc* image_desc,
+                                    const cl_image_format* image_format) const {
+    auto properties =
+        get_vulkan_image_format_properties(flags, image_desc, image_format);
+    if (!properties) {
+        return 0;
+    }
+
+    return properties->maxExtent.width;
+}
+
+cl_uint
+cvk_device::image_max_height(cl_mem_flags flags,
+                             const cl_image_desc* image_desc,
+                             const cl_image_format* image_format) const {
+    auto properties =
+        get_vulkan_image_format_properties(flags, image_desc, image_format);
+    if (!properties) {
+        return 0;
+    }
+
+    return properties->maxExtent.height;
+}
+
+cl_uint cvk_device::image_max_depth(cl_mem_flags flags,
+                                    const cl_image_desc* image_desc,
+                                    const cl_image_format* image_format) const {
+    auto properties =
+        get_vulkan_image_format_properties(flags, image_desc, image_format);
+    if (!properties) {
+        return 0;
+    }
+
+    return properties->maxExtent.depth;
+}
+
+cl_uint
+cvk_device::image_max_array_size(cl_mem_flags flags,
+                                 const cl_image_desc* image_desc,
+                                 const cl_image_format* image_format) const {
+    auto properties =
+        get_vulkan_image_format_properties(flags, image_desc, image_format);
+    if (!properties) {
+        return 0;
+    }
+
+    return properties->maxArrayLayers;
 }

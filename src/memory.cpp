@@ -403,12 +403,12 @@ cl_int cvk_image::init_vulkan_image() {
     }
 
     // Create Image
-    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-    VkImageUsageFlags usage = prepare_usage_flags();
+    const VkImageTiling tiling = prepare_tiling();
+    const VkImageUsageFlags usage = prepare_usage_flags();
     VkImageCreateInfo imageCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         nullptr,                   // pNext
-        0,                         // flags
+        prepare_create_flags(),    // flags
         image_type,                // imageType
         fmt.vkfmt,                 // format
         extent,                    // extent

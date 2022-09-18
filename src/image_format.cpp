@@ -176,7 +176,7 @@ static void get_component_mappings_for_channel_order(
 
 bool cl_image_format_to_vulkan_format(cl_image_format clformat,
                                       cl_mem_object_type image_type,
-                                      cvk_device* device,
+                                      const cvk_device* device,
                                       image_format_support* fmt_support,
                                       VkComponentMapping* components_sampled,
                                       VkComponentMapping* components_storage) {
@@ -190,14 +190,17 @@ bool cl_image_format_to_vulkan_format(cl_image_format clformat,
     }
     *fmt_support = (*m).second;
 
-    get_component_mappings_for_channel_order(
-        clformat.image_channel_order, components_sampled, components_storage);
+    if (components_sampled && components_storage) {
+        get_component_mappings_for_channel_order(clformat.image_channel_order,
+                                                 components_sampled,
+                                                 components_storage);
 
-    if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER &&
-        clformat.image_channel_order == CL_BGRA &&
-        device->is_bgra_format_not_supported_for_image1d_buffer()) {
-        get_equivalent_bgra_format_for_image1d_buffer(
-            fmt_support->vkfmt, components_sampled, components_storage);
+        if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER &&
+            clformat.image_channel_order == CL_BGRA &&
+            device->is_bgra_format_not_supported_for_image1d_buffer()) {
+            get_equivalent_bgra_format_for_image1d_buffer(
+                fmt_support->vkfmt, components_sampled, components_storage);
+        }
     }
 
     return true;

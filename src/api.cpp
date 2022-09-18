@@ -135,6 +135,35 @@ bool is_valid_device_type(cl_device_type type) {
            (type == CL_DEVICE_TYPE_ALL);
 }
 
+bool is_valid_mem_flags(cl_mem_flags flags) {
+    // Reject unknown flags
+    return (flags & ~(CL_MEM_READ_WRITE | CL_MEM_WRITE_ONLY | CL_MEM_READ_ONLY |
+                      CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR |
+                      CL_MEM_COPY_HOST_PTR | CL_MEM_HOST_WRITE_ONLY |
+                      CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS)) == 0;
+}
+
+bool is_valid_image_format(const cl_image_format* format) {
+    switch (format->image_channel_data_type) {
+    case CL_UNORM_SHORT_565:
+    case CL_UNORM_SHORT_555:
+    case CL_UNORM_INT_101010:
+        return format->image_channel_order == CL_RGB ||
+               format->image_channel_order == CL_RGBx;
+    case CL_UNORM_INT_101010_2:
+        return format->image_channel_order == CL_RGBA;
+    }
+    return true;
+}
+
+bool is_valid_image_descriptor(const cl_image_desc* desc) {
+    if (!cvk_mem::is_image_type(desc->image_type)) {
+        return false;
+    }
+    // TODO any other checks?
+    return true;
+}
+
 bool map_flags_are_valid(cl_map_flags flags) {
     if ((flags & CL_MAP_WRITE_INVALIDATE_REGION) &&
         (flags & (CL_MAP_READ | CL_MAP_WRITE))) {
@@ -309,6 +338,7 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clGetSemaphoreInfoKHR),
     EXTENSION_ENTRYPOINT(clRetainSemaphoreKHR),
     EXTENSION_ENTRYPOINT(clReleaseSemaphoreKHR),
+    EXTENSION_ENTRYPOINT(clGetImageRequirementsInfoEXT),
 #undef EXTENSION_ENTRYPOINT
 #undef FUNC_PTR
 };
@@ -734,7 +764,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_IMAGE_MAX_ARRAY_SIZE:
-        val_sizet = device->vulkan_limits().maxImageArrayLayers;
+        val_sizet = device->image_max_array_size();
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
@@ -6649,4 +6679,103 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
     }
 
     return CL_SUCCESS;
+}
+
+cl_int clGetImageRequirementsInfoEXT(
+    cl_context context, const cl_mem_properties* properties, cl_mem_flags flags,
+    const cl_image_format* image_format, const cl_image_desc* image_desc,
+    cl_image_requirements_info_ext param_name, size_t param_value_size,
+    void* param_value, size_t* param_value_size_ret) {
+    LOG_API_CALL("context = %p, properties = %p, flags = %lx, image_format = "
+                 "%p, image_desc = %p, "
+                 "param_name = %x, param_value_size = %zu, param_value = %p, "
+                 "param_value_size_ret = %p",
+                 context, properties, flags, image_format, image_desc,
+                 param_name, param_value_size, param_value,
+                 param_value_size_ret);
+
+    if (!is_valid_context(context)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!is_valid_mem_flags(flags)) {
+        return CL_INVALID_VALUE;
+    }
+
+    if ((image_format != nullptr) && !is_valid_image_format(image_format)) {
+        return CL_INVALID_IMAGE_FORMAT_DESCRIPTOR;
+    }
+
+    if ((image_desc != nullptr) && !is_valid_image_descriptor(image_desc)) {
+        return CL_INVALID_IMAGE_DESCRIPTOR;
+    }
+
+    auto device = icd_downcast(context)->device();
+
+    cl_int ret = CL_SUCCESS;
+    size_t size_ret = 0;
+    const void* copy_ptr = nullptr;
+    cl_uint val_uint;
+
+    switch (param_name) {
+    case CL_IMAGE_REQUIREMENTS_MAX_WIDTH_EXT:
+        val_uint = device->image_max_width(flags, image_desc, image_format);
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_IMAGE_REQUIREMENTS_MAX_HEIGHT_EXT:
+        if ((image_desc != nullptr) &&
+            !(image_desc->image_type == 0 ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE2D ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)) {
+            ret = CL_INVALID_IMAGE_DESCRIPTOR;
+            break;
+        }
+        val_uint = device->image_max_height(flags, image_desc, image_format);
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_IMAGE_REQUIREMENTS_MAX_DEPTH_EXT:
+        if ((image_desc != nullptr) &&
+            !(image_desc->image_type == 0 ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE3D)) {
+            ret = CL_INVALID_IMAGE_DESCRIPTOR;
+            break;
+        }
+        val_uint = device->image_max_depth(flags, image_desc, image_format);
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_IMAGE_REQUIREMENTS_MAX_ARRAY_SIZE_EXT:
+        if ((image_desc != nullptr) &&
+            !(image_desc->image_type == 0 ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE1D_ARRAY ||
+              image_desc->image_type == CL_MEM_OBJECT_IMAGE2D_ARRAY)) {
+            ret = CL_INVALID_IMAGE_DESCRIPTOR;
+            break;
+        }
+        val_uint =
+            device->image_max_array_size(flags, image_desc, image_format);
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    default:
+        ret = CL_INVALID_VALUE;
+        break;
+    }
+
+    if ((param_value != nullptr) && (param_value_size < size_ret)) {
+        ret = CL_INVALID_VALUE;
+    }
+
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+        memcpy(param_value, copy_ptr, param_value_size);
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = size_ret;
+    }
+
+    return ret;
 }

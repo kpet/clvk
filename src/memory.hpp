@@ -619,13 +619,13 @@ struct cvk_image : public cvk_mem {
     static VkFormatFeatureFlags
     required_format_feature_flags_for(cl_mem_object_type type,
                                       cl_mem_flags flags);
-    VkImageUsageFlags prepare_usage_flags() {
+    static VkImageUsageFlags prepare_usage_flags(cl_mem_flags flags) {
         VkImageUsageFlags usage_flags =
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        if (flags() & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
+        if (flags & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
             usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
-        } else if (flags() & CL_MEM_READ_ONLY) {
+        } else if (flags & CL_MEM_READ_ONLY) {
             usage_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
         } else {
             usage_flags |=
@@ -633,6 +633,14 @@ struct cvk_image : public cvk_mem {
         }
         return usage_flags;
     }
+
+    VkImageUsageFlags prepare_usage_flags() {
+        return prepare_usage_flags(flags());
+    }
+
+    static VkImageTiling prepare_tiling() { return VK_IMAGE_TILING_OPTIMAL; }
+
+    static VkImageCreateFlags prepare_create_flags() { return 0; }
 
     static cvk_image* create(cvk_context* ctx, cl_mem_flags flags,
                              const cl_image_desc* desc,
