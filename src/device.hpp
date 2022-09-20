@@ -465,10 +465,10 @@ struct cvk_device : public _cl_device_id,
         };
     }
 
-    cl_uint get_max_batch_size() const { return m_max_batch_size; }
-    cl_uint get_max_first_batch_size() const { return m_max_first_batch_size; }
-    cl_uint get_max_group_size() const { return m_max_group_size; }
-    cl_uint get_max_first_group_size() const { return m_max_first_group_size; }
+    cl_uint get_max_cmd_batch_size() const { return m_max_cmd_batch_size; }
+    cl_uint get_max_first_cmd_batch_size() const { return m_max_first_cmd_batch_size; }
+    cl_uint get_max_cmd_group_size() const { return m_max_cmd_group_size; }
+    cl_uint get_max_first_cmd_group_size() const { return m_max_first_cmd_group_size; }
 
 private:
     std::string version_desc() const {
@@ -558,10 +558,10 @@ private:
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
 
-    cl_uint m_max_batch_size;
-    cl_uint m_max_first_batch_size;
-    cl_uint m_max_group_size;
-    cl_uint m_max_first_group_size;
+    cl_uint m_max_cmd_batch_size;
+    cl_uint m_max_first_cmd_batch_size;
+    cl_uint m_max_cmd_group_size;
+    cl_uint m_max_first_cmd_group_size;
 
     spv_target_env m_vulkan_spirv_env;
 };

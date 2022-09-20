@@ -40,7 +40,6 @@ struct cvk_executor_thread {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
-    ~cvk_executor_thread();
 
     void set_queue(cvk_command_queue* queue);
 
@@ -74,7 +73,7 @@ private:
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
-    cvk_command_queue* m_queue;
+    cvk_command_queue_holder m_queue;
 };
 
 struct cvk_command_pool {
@@ -125,9 +124,7 @@ struct cvk_command_queue : public _cl_command_queue,
 
     cvk_command_queue(cvk_context* ctx, cvk_device* dev,
                       cl_command_queue_properties props,
-                      std::vector<cl_queue_properties>&& properties_array,
-                      cl_uint max_batch_size, cl_uint max_first_batch_size,
-                      cl_uint max_group_size, cl_uint max_first_group_size);
+                      std::vector<cl_queue_properties>&& properties_array);
 
     cl_int init();
 
@@ -177,11 +174,11 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_properties_array;
     }
 
-    void batch_enqueued() { m_nb_batch_enqueued++; }
-    void batch_completed() { m_nb_batch_enqueued--; }
+    void batch_enqueued() { m_nb_batch_in_flight++; }
+    void batch_completed() { m_nb_batch_in_flight--; }
 
-    void group_sent() { m_nb_group_sent++; }
-    void group_completed() { m_nb_group_sent--; }
+    void group_sent() { m_nb_group_in_flight++; }
+    void group_completed() { m_nb_group_in_flight--; }
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
@@ -204,13 +201,13 @@ private:
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
 
-    cl_uint m_max_batch_size;
-    cl_uint m_max_first_batch_size;
-    cl_uint m_max_group_size;
-    cl_uint m_max_first_group_size;
+    cl_uint m_max_cmd_batch_size;
+    cl_uint m_max_first_cmd_batch_size;
+    cl_uint m_max_cmd_group_size;
+    cl_uint m_max_first_cmd_group_size;
 
-    uint64_t m_nb_batch_enqueued;
-    uint64_t m_nb_group_sent;
+    std::atomic<uint64_t> m_nb_batch_in_flight;
+    std::atomic<uint64_t> m_nb_group_in_flight;
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {

@@ -1361,10 +1361,7 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     auto cvk_device = icd_downcast(device);
     auto queue = std::make_unique<cvk_command_queue>(
         icd_downcast(context), cvk_device, properties,
-        std::move(properties_array), cvk_device->get_max_batch_size(),
-        cvk_device->get_max_first_batch_size(),
-        cvk_device->get_max_group_size(),
-        cvk_device->get_max_first_group_size());
+        std::move(properties_array));
 
     cl_int err = queue->init();
 

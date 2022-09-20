@@ -95,10 +95,10 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
-    m_max_batch_size = config.max_batch_size;
-    m_max_first_batch_size = config.max_first_batch_size;
-    m_max_group_size = config.max_group_size;
-    m_max_first_group_size = config.max_first_group_size;
+    m_max_cmd_batch_size = config.max_cmd_batch_size;
+    m_max_first_cmd_batch_size = config.max_first_cmd_batch_size;
+    m_max_cmd_group_size = config.max_cmd_group_size;
+    m_max_first_cmd_group_size = config.max_first_cmd_group_size;
 
 #define DEFAULT_DEVICE_CONFIG(option, val)                                     \
     do {                                                                       \
@@ -108,14 +108,14 @@ void cvk_device::init_clvk_runtime_behaviors() {
     } while (0)
 
     if (strstr(m_properties.deviceName, "Intel")) {
-        DEFAULT_DEVICE_CONFIG(max_first_batch_size, 10);
-        DEFAULT_DEVICE_CONFIG(max_group_size, 1);
+        DEFAULT_DEVICE_CONFIG(max_first_cmd_batch_size, 10);
+        DEFAULT_DEVICE_CONFIG(max_cmd_group_size, 1);
     }
 #undef DEFAULT_DEVICE_CONFIG
-    cvk_info_fn("max_batch_size: %u", m_max_batch_size);
-    cvk_info_fn("max_first_batch_size: %u", m_max_first_batch_size);
-    cvk_info_fn("max_group_size: %u", m_max_group_size);
-    cvk_info_fn("max_first_group_size: %u", m_max_first_group_size);
+    cvk_info_fn("max_cmd_batch_size: %u", m_max_cmd_batch_size);
+    cvk_info_fn("max_first_cmd_batch_size: %u", m_max_first_cmd_batch_size);
+    cvk_info_fn("max_cmd_group_size: %u", m_max_cmd_group_size);
+    cvk_info_fn("max_first_cmd_group_size: %u", m_max_first_cmd_group_size);
 }
 
 void cvk_device::init_opencl_properties() {
