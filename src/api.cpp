@@ -1358,9 +1358,8 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
-    auto cvk_device = icd_downcast(device);
     auto queue = std::make_unique<cvk_command_queue>(
-        icd_downcast(context), cvk_device, properties,
+        icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));
 
     cl_int err = queue->init();
