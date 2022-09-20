@@ -466,9 +466,13 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_uint get_max_cmd_batch_size() const { return m_max_cmd_batch_size; }
-    cl_uint get_max_first_cmd_batch_size() const { return m_max_first_cmd_batch_size; }
+    cl_uint get_max_first_cmd_batch_size() const {
+        return m_max_first_cmd_batch_size;
+    }
     cl_uint get_max_cmd_group_size() const { return m_max_cmd_group_size; }
-    cl_uint get_max_first_cmd_group_size() const { return m_max_first_cmd_group_size; }
+    cl_uint get_max_first_cmd_group_size() const {
+        return m_max_first_cmd_group_size;
+    }
 
 private:
     std::string version_desc() const {
