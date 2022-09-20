@@ -465,6 +465,15 @@ struct cvk_device : public _cl_device_id,
         };
     }
 
+    cl_uint get_max_cmd_batch_size() const { return m_max_cmd_batch_size; }
+    cl_uint get_max_first_cmd_batch_size() const {
+        return m_max_first_cmd_batch_size;
+    }
+    cl_uint get_max_cmd_group_size() const { return m_max_cmd_group_size; }
+    cl_uint get_max_first_cmd_group_size() const {
+        return m_max_first_cmd_group_size;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -475,6 +484,7 @@ private:
 
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
+    void init_clvk_runtime_behaviors();
     void init_opencl_properties();
     void init_vulkan_properties(VkInstance instance);
     void init_driver_behaviors();
@@ -551,6 +561,11 @@ private:
     bool m_has_fp64_support{};
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
+
+    cl_uint m_max_cmd_batch_size;
+    cl_uint m_max_first_cmd_batch_size;
+    cl_uint m_max_cmd_group_size;
+    cl_uint m_max_first_cmd_group_size;
 
     spv_target_env m_vulkan_spirv_env;
 };

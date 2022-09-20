@@ -31,7 +31,12 @@ cvk_command_queue::cvk_command_queue(
     : api_object(ctx), m_device(device), m_properties(properties),
       m_properties_array(std::move(properties_array)), m_executor(nullptr),
       m_command_batch(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
-      m_command_pool(device, m_vulkan_queue.queue_family()) {
+      m_command_pool(device, m_vulkan_queue.queue_family()),
+      m_max_cmd_batch_size(device->get_max_cmd_batch_size()),
+      m_max_first_cmd_batch_size(device->get_max_first_cmd_batch_size()),
+      m_max_cmd_group_size(device->get_max_cmd_group_size()),
+      m_max_first_cmd_group_size(device->get_max_first_cmd_group_size()),
+      m_nb_batch_in_flight(0), m_nb_group_in_flight(0) {
 
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
@@ -118,7 +123,9 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         // End command batch when size limit reached
-        if (m_command_batch->batch_size() >= config.max_batch_size) {
+        if (m_command_batch->batch_size() >= m_max_cmd_batch_size ||
+            (m_nb_batch_in_flight == 0 &&
+             m_command_batch->batch_size() >= m_max_first_cmd_batch_size)) {
             if ((err = end_current_command_batch()) != CL_SUCCESS) {
                 return err;
             }
@@ -151,6 +158,13 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         cmd->event()->retain();
         *event = cmd->event();
         cvk_debug_fn("returning event %p", *event);
+    }
+
+    auto group_size = m_groups.back()->commands.size();
+    if (group_size >= m_max_cmd_group_size ||
+        (m_nb_group_in_flight == 0 &&
+         group_size >= m_max_first_cmd_group_size)) {
+        return flush_no_lock();
     }
 
     return CL_SUCCESS;
@@ -194,6 +208,8 @@ cl_int cvk_command_queue::end_current_command_batch() {
         }
         m_groups.back()->commands.push_back(m_command_batch);
         m_command_batch = nullptr;
+
+        batch_enqueued();
     }
     return CL_SUCCESS;
 }
@@ -229,6 +245,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     }
 
     return ret;
+}
+
+void cvk_executor_thread::set_queue(cvk_command_queue* queue) {
+    m_queue.reset(queue);
+    m_profiling = queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 }
 
 void cvk_executor_thread::executor() {
@@ -276,6 +297,10 @@ void cvk_executor_thread::executor() {
 
             delete cmd;
         }
+
+        CVK_ASSERT(m_queue);
+        m_queue->group_completed();
+
         lock.lock();
     }
 }
@@ -327,6 +352,7 @@ cl_int cvk_command_queue::flush_no_lock() {
 
     // Submit command group to executor
     m_executor->send_group(std::move(group));
+    group_sent();
 
     return CL_SUCCESS;
 }
@@ -983,6 +1009,8 @@ cl_int cvk_command_batch::do_action() {
         }
     }
     cl_int status = submit_and_wait();
+
+    m_queue->batch_completed();
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 

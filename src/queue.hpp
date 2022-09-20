@@ -35,12 +35,13 @@ struct cvk_command_group {
 struct cvk_executor_thread {
 
     cvk_executor_thread()
-        : m_thread(nullptr), m_shutdown(false), m_profiling(false) {
+        : m_thread(nullptr), m_shutdown(false), m_profiling(false),
+          m_queue(nullptr) {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
 
-    void set_profiling(bool profiling) { m_profiling = profiling; }
+    void set_queue(cvk_command_queue* queue);
 
     void send_group(std::unique_ptr<cvk_command_group>&& group) {
         m_lock.lock();
@@ -72,6 +73,7 @@ private:
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
+    cvk_command_queue_holder m_queue;
 };
 
 struct cvk_command_pool {
@@ -172,6 +174,12 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_properties_array;
     }
 
+    void batch_enqueued() { m_nb_batch_in_flight++; }
+    void batch_completed() { m_nb_batch_in_flight--; }
+
+    void group_sent() { m_nb_group_in_flight++; }
+    void group_completed() { m_nb_group_in_flight--; }
+
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
@@ -192,6 +200,14 @@ private:
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
+
+    cl_uint m_max_cmd_batch_size;
+    cl_uint m_max_first_cmd_batch_size;
+    cl_uint m_max_cmd_group_size;
+    cl_uint m_max_first_cmd_group_size;
+
+    std::atomic<uint64_t> m_nb_batch_in_flight;
+    std::atomic<uint64_t> m_nb_group_in_flight;
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
@@ -213,21 +229,19 @@ struct cvk_executor_thread_pool {
 
         std::unique_lock<std::mutex> lock(m_lock);
 
-        bool profiling = queue->has_property(CL_QUEUE_PROFILING_ENABLE);
-
         // Try to find a free executor
         for (auto& exec_state : m_executors) {
             if (exec_state.second == executor_state::free) {
                 exec_state.second = executor_state::bound;
                 auto exec = exec_state.first;
-                exec->set_profiling(profiling);
+                exec->set_queue(queue);
                 return exec;
             }
         }
 
         // No free executor found in the pool, create a new one
         cvk_executor_thread* exec = new cvk_executor_thread();
-        exec->set_profiling(profiling);
+        exec->set_queue(queue);
         m_executors[exec] = executor_state::bound;
         return exec;
     }
