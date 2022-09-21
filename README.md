@@ -73,6 +73,11 @@ It is possible to disable the build of the tests by passing
 It is also possible to disable only the build of the tests linking with the
 static OpenCL library by passing `-DCLVK_BUILD_STATIC_TESTS=OFF`.
 
+### Assertions
+
+Assertions can be controlled with the `CLVK_ENABLE_ASSERTIONS` build option.
+They are enabled by default in Debug builds and disabled in other build types.
+
 ### OpenCL conformance tests
 
 Passing `-DCLVK_BUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the

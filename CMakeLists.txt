@@ -23,6 +23,19 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  option(CLVK_ENABLE_ASSERTIONS "Enable assertions" ON)
+else()
+  option(CLVK_ENABLE_ASSERTIONS "Enable assertions" OFF)
+endif()
+message(STATUS "Assertions: ${CLVK_ENABLE_ASSERTIONS}")
+
+if (CLVK_ENABLE_ASSERTIONS)
+  if (NOT ${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-UNDEBUG>)
+  endif()
+endif()
+
 # Options
 option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
 if (CLVK_CLSPV_ONLINE_COMPILER)
