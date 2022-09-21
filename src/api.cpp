@@ -21,8 +21,12 @@
 #include "objects.hpp"
 #include "program.hpp"
 #include "queue.hpp"
+#include "traces.hpp"
 
-#define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
+#define LOG_API_CALL_NO_TRACE(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
+#define LOG_API_CALL(fmt, ...)                                                 \
+    LOG_API_CALL_NO_TRACE(fmt, __VA_ARGS__);                                   \
+    TRACE_FUNCTION()
 
 #define CLVK_API_CALL CL_API_CALL
 
@@ -1697,8 +1701,9 @@ cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
     }
 
     auto region = static_cast<const cl_buffer_region*>(buffer_create_info);
-    LOG_API_CALL("CL_BUFFER_CREATE_TYPE_REGION, origin = %zu, size = %zu",
-                 region->origin, region->size);
+    LOG_API_CALL_NO_TRACE(
+        "CL_BUFFER_CREATE_TYPE_REGION, origin = %zu, size = %zu",
+        region->origin, region->size);
 
     cl_int err = CL_SUCCESS;
     auto sub = buffer->create_subbuffer(flags, region->origin, region->size);
@@ -3196,17 +3201,18 @@ cl_int CLVK_API_CALL clEnqueueReadBufferRect(
     cl_event* event) {
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
                  blocking_read);
-    LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
-                 "region = {%zu,%zu,%zu}",
-                 buffer_origin[0], buffer_origin[1], buffer_origin[2],
-                 host_origin[0], host_origin[1], host_origin[2], region[0],
-                 region[1], region[2]);
-    LOG_API_CALL("buffer_row_pitch = %zu, buffer_slice_pitch = %zu,"
-                 "host_row_pitch = %zu, host_slice_pitch = %zu",
-                 buffer_row_pitch, buffer_slice_pitch, host_row_pitch,
-                 host_slice_pitch);
-    LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
-                 ptr, num_events_in_wait_list, event_wait_list, event);
+    LOG_API_CALL_NO_TRACE(
+        "buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
+        "region = {%zu,%zu,%zu}",
+        buffer_origin[0], buffer_origin[1], buffer_origin[2], host_origin[0],
+        host_origin[1], host_origin[2], region[0], region[1], region[2]);
+    LOG_API_CALL_NO_TRACE("buffer_row_pitch = %zu, buffer_slice_pitch = %zu,"
+                          "host_row_pitch = %zu, host_slice_pitch = %zu",
+                          buffer_row_pitch, buffer_slice_pitch, host_row_pitch,
+                          host_slice_pitch);
+    LOG_API_CALL_NO_TRACE(
+        "ptr = %p, num_events = %u, event_wait_list = %p, event = %p", ptr,
+        num_events_in_wait_list, event_wait_list, event);
 
     auto command_queue = icd_downcast(cq);
     auto buffer = static_cast<cvk_buffer*>(buf);
@@ -3247,17 +3253,18 @@ cl_int CLVK_API_CALL clEnqueueWriteBufferRect(
     cl_event* event) {
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
                  blocking_write);
-    LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
-                 "region = {%zu,%zu,%zu}",
-                 buffer_origin[0], buffer_origin[1], buffer_origin[2],
-                 host_origin[0], host_origin[1], host_origin[2], region[0],
-                 region[1], region[2]);
-    LOG_API_CALL("buffer_row_pitch = %zu, buffer_slice_pitch = %zu, "
-                 "host_row_pitch = %zu, host_slice_pitch = %zu",
-                 buffer_row_pitch, buffer_slice_pitch, host_row_pitch,
-                 host_slice_pitch);
-    LOG_API_CALL("ptr = %p, num_events = %u, event_wait_list = %p, event = %p",
-                 ptr, num_events_in_wait_list, event_wait_list, event);
+    LOG_API_CALL_NO_TRACE(
+        "buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
+        "region = {%zu,%zu,%zu}",
+        buffer_origin[0], buffer_origin[1], buffer_origin[2], host_origin[0],
+        host_origin[1], host_origin[2], region[0], region[1], region[2]);
+    LOG_API_CALL_NO_TRACE("buffer_row_pitch = %zu, buffer_slice_pitch = %zu, "
+                          "host_row_pitch = %zu, host_slice_pitch = %zu",
+                          buffer_row_pitch, buffer_slice_pitch, host_row_pitch,
+                          host_slice_pitch);
+    LOG_API_CALL_NO_TRACE(
+        "ptr = %p, num_events = %u, event_wait_list = %p, event = %p", ptr,
+        num_events_in_wait_list, event_wait_list, event);
 
     auto command_queue = icd_downcast(cq);
     auto buffer = static_cast<cvk_buffer*>(buf);
@@ -3784,12 +3791,12 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
                     ndrange.lws[1], ndrange.lws[2]);
     }
 
-    LOG_API_CALL("goff = {%u,%u,%u}", ndrange.offset[0], ndrange.offset[1],
-                 ndrange.offset[2]);
-    LOG_API_CALL("gws = {%u,%u,%u}", ndrange.gws[0], ndrange.gws[1],
-                 ndrange.gws[2]);
-    LOG_API_CALL("lws = {%u,%u,%u}", ndrange.lws[0], ndrange.lws[1],
-                 ndrange.lws[2]);
+    LOG_API_CALL_NO_TRACE("goff = {%u,%u,%u}", ndrange.offset[0],
+                          ndrange.offset[1], ndrange.offset[2]);
+    LOG_API_CALL_NO_TRACE("gws = {%u,%u,%u}", ndrange.gws[0], ndrange.gws[1],
+                          ndrange.gws[2]);
+    LOG_API_CALL_NO_TRACE("lws = {%u,%u,%u}", ndrange.lws[0], ndrange.lws[1],
+                          ndrange.lws[2]);
 
     return cvk_enqueue_ndrange_kernel(
         icd_downcast(command_queue), icd_downcast(kernel), work_dim, ndrange,

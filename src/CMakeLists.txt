@@ -52,6 +52,7 @@ add_library(OpenCL-objects OBJECT
   program.cpp
   queue.cpp
   sha1.cpp
+  traces.cpp
   unit.cpp
   utils.cpp
   exports.map
@@ -83,6 +84,40 @@ set(OpenCL-dependencies
   SPIRV-Tools
   ${Vulkan_LIBRARIES}
 )
+
+option(CLVK_PERFETTO_ENABLE "Enable perfetto tracing" OFF)
+if (CLVK_PERFETTO_ENABLE)
+  if (NOT CLVK_PERFETTO_SDK_SOURCE_DIR)
+    message(FATAL_ERROR "CLVK_PERFETTO_SDK_SOURCE_DIR mush be provided with
+      CLVK_PERFETTO_ENABLE=ON")
+  endif()
+
+  set(CLVK_PERFETTO_BACKEND "InProcess"
+    CACHE STRING "Select perfetto backend")
+  set(CLVK_PERFETTO_BACKEND_OPTIONS
+    System
+    InProcess
+  )
+  set_property(CACHE CLVK_PERFETTO_BACKEND PROPERTY STRINGS ${CLVK_PERFETTO_BACKEND_OPTIONS})
+  if (${CLVK_PERFETTO_BACKEND} STREQUAL InProcess)
+    target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_BACKEND_INPROCESS)
+  endif()
+
+  target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_ENABLE)
+  target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
+    ${CLVK_PERFETTO_SDK_SOURCE_DIR})
+
+  if (NOT CLVK_PERFETTO_LIBRARY)
+    add_library(perfetto STATIC ${CLVK_PERFETTO_SDK_SOURCE_DIR}/perfetto.cc)
+    set_target_properties(perfetto PROPERTIES POSITION_INDEPENDENT_CODE ON)
+    set(CLVK_PERFETTO_LIBRARY perfetto)
+  endif()
+  set(OpenCL-dependencies ${OpenCL-dependencies} ${CLVK_PERFETTO_LIBRARY})
+
+  message(STATUS "CLVK_PERFETTO_SDK_SOURCE_DIR = '${CLVK_PERFETTO_SDK_SOURCE_DIR}'")
+  message(STATUS "CLVK_PERFETTO_LIBRARY = '${CLVK_PERFETTO_LIBRARY}'")
+  message(STATUS "CLVK_PERFETTO_BACKEND = '${CLVK_PERFETTO_BACKEND}'")
+endif()
 
 if (CLVK_COMPILER_AVAILABLE OR ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-opt)

@@ -19,6 +19,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include "traces.hpp"
 #include "utils.hpp"
 
 struct cvk_vulkan_queue_wrapper {
@@ -50,7 +51,9 @@ struct cvk_vulkan_queue_wrapper {
             nullptr, // pSignalSemaphores
         };
 
+        TRACE_BEGIN("vkQueueSubmit");
         auto ret = vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        TRACE_END();
         if (ret != VK_SUCCESS) {
             cvk_error_fn("could not submit work to queue: %s",
                          vulkan_error_string(ret));
@@ -76,7 +79,9 @@ struct cvk_vulkan_queue_wrapper {
             nullptr, // pSignalSemaphores
         };
 
+        TRACE_BEGIN("vkQueueSubmit");
         auto ret = vkQueueSubmit(m_queue, 1, &submitInfo, VK_NULL_HANDLE);
+        TRACE_END();
         if (ret != VK_SUCCESS) {
             cvk_error_fn("could not submit work to queue: %s",
                          vulkan_error_string(ret));
@@ -88,7 +93,9 @@ struct cvk_vulkan_queue_wrapper {
     CHECK_RETURN VkResult wait_idle() {
         std::lock_guard<std::mutex> lock(m_lock);
 
+        TRACE_BEGIN("vkQueueWaitIdle");
         auto ret = vkQueueWaitIdle(m_queue);
+        TRACE_END();
 
         if (ret != VK_SUCCESS) {
             cvk_error_fn("could not wait for queue to become idle: %s",

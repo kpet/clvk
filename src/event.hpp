@@ -17,6 +17,7 @@
 #include "cl_headers.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
+#include "traces.hpp"
 #include "utils.hpp"
 
 #include <mutex>
@@ -91,7 +92,9 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug("cvk_event::wait: event = %p, status = %d", this, m_status);
         if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
+            TRACE_BEGIN_EVENT(m_command_type, "queue", (uintptr_t)m_queue);
             m_cv.wait(lock);
+            TRACE_END();
         }
 
         return m_status;

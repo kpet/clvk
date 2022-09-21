@@ -14,6 +14,7 @@
 
 #include "log.hpp"
 #include "config.hpp"
+#include "queue.hpp"
 
 #include <cerrno>
 #include <cstdarg>
@@ -330,4 +331,34 @@ std::string cl_channel_type_to_string(cl_channel_type type) {
     }
 #undef TYPE
     return "Unknown channel type";
+}
+
+const char* cl_command_type_to_string(cl_command_type type) {
+#define CASE(command)                                                          \
+    case command:                                                              \
+        return #command;
+    switch (type) {
+        CASE(CL_COMMAND_NDRANGE_KERNEL);
+        CASE(CL_COMMAND_TASK);
+        CASE(CL_COMMAND_NATIVE_KERNEL);
+        CASE(CL_COMMAND_READ_BUFFER);
+        CASE(CL_COMMAND_WRITE_BUFFER);
+        CASE(CL_COMMAND_COPY_BUFFER);
+        CASE(CL_COMMAND_READ_IMAGE);
+        CASE(CL_COMMAND_WRITE_IMAGE);
+        CASE(CL_COMMAND_COPY_IMAGE);
+        CASE(CL_COMMAND_COPY_BUFFER_TO_IMAGE);
+        CASE(CL_COMMAND_COPY_IMAGE_TO_BUFFER);
+        CASE(CL_COMMAND_MAP_BUFFER);
+        CASE(CL_COMMAND_MAP_IMAGE);
+        CASE(CL_COMMAND_UNMAP_MEM_OBJECT);
+        CASE(CL_COMMAND_MARKER);
+        CASE(CL_COMMAND_ACQUIRE_GL_OBJECTS);
+        CASE(CL_COMMAND_RELEASE_GL_OBJECTS);
+        CASE(CLVK_COMMAND_BATCH);
+        CASE(CLVK_COMMAND_IMAGE_INIT);
+    default:
+        return "CL_COMMAND_UNKNOWN";
+    }
+#undef CASE
 }

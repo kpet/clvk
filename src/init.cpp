@@ -24,6 +24,7 @@
 #include "memory.hpp"
 #include "objects.hpp"
 #include "queue.hpp"
+#include "traces.hpp"
 
 static VkBool32 VKAPI_PTR debugCallback(
     VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
@@ -239,6 +240,7 @@ clvk_global_state::clvk_global_state() {
     init_config();
     init_logging();
     cvk_info("Starting initialisation");
+    init_tracing();
     init_vulkan();
     init_platform();
     init_executors();
@@ -249,6 +251,7 @@ clvk_global_state::~clvk_global_state() {
     term_executors();
     term_platform();
     term_vulkan();
+    term_tracing();
     term_logging();
 }
 
