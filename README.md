@@ -164,6 +164,41 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 Copy `OpenCL.dll` into a system location or alongside the application executable
 you want to run with clvk.
 
+## Tuning clvk performances
+
+clvk can be tuned to improve performances. While we try to have the default
+parameters set at their best values for each platform, they can sometimes be
+changed for specific applications. One of the best way to know whether something
+can be improved is to use traces to understand what should be changed.
+
+### Group size
+
+clvk implementation is grouping commands waiting for a call to clFlush or any
+blocking calls (clFinish, clWaitForEvents, etc.) to flush group.
+
+clvk has 2 variables to allow to flush group earlier depending on the number of
+commands in the group:
+   - `CLVK_MAX_CMD_GROUP_SIZE`
+   - `CLVK_MAX_FIRST_CMD_GROUP_SIZE`
+
+`CLVK_MAX_FIRST_CMD_GROUP_SIZE` is used if there is no group to be process or
+being processed in the queue.
+Otherwise `CLVK_MAX_CMD_GROUP_SIZE` is used.
+
+### Batch size
+
+clvk relies on vulkan to offload workoad to the GPU. As such, it is better to
+batch OpenCL commands (translated into vulkan commands) into a vulkan command
+buffer. But doing that may increases the latency to start running commands.
+
+clvk has 2 variables to manage the maximum size of those batches:
+   - `CLVK_MAX_CMD_BATCH_SIZE`
+   - `CLVK_MAX_FIRST_CMD_BATCH_SIZE`
+
+`CLVK_MAX_FIRST_CMD_BATCH_SIZE` is used if there is no batch to be process or
+being processed in the queue.
+Otherwise `CLVK_MAX_CMD_BATCH_SIZE` is used.
+
 # Environment variables
 
 The behaviour of a few things in clvk can be controlled by environment
@@ -232,6 +267,19 @@ variables. Here's a quick guide:
 * `CLVK_CACHE_DIR` specifies a directory used for caching compiled program data
   between applications runs. The user is responsible for ensuring that this
   directory is not used concurrently by more than one application.
+
+* `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of command in a group.
+  When a group reaches this number, it is automatically flushed.
+
+* `CLVK_MAX_FIRST_CMD_GROUP_SIZE` specifies the maximum number of command in a
+  group when there is no group to be process or being processed in the queue.
+
+* `CLVK_MAX_CMD_BATCH_SIZE` specifies the maximum number of command per batch.
+  When this number is reached, the batch will be added to the current group of
+  command, and a new batch will be created.
+
+* `CLVK_MAX_FIRST_CMD_BATCH_SIZE` specifies the maximum number of command per
+  batch when there is no batch to be process or being processed in the queue.
 
 # Limitations
 
