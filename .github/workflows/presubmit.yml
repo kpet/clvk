@@ -95,6 +95,7 @@ jobs:
             cmake '${{ github.workspace }}' -G Ninja \
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
+              -DCLVK_ENABLE_ASSERTIONS=ON \
               -DCLVK_VULKAN_IMPLEMENTATION=loader \
               -DCLVK_VULKAN_LOADER_DIR='${{ github.workspace }}'/Vulkan-Loader \
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
