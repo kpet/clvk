@@ -180,9 +180,6 @@ clvk's default group flushing behaviour can be controlled using the following tw
    - `CLVK_MAX_CMD_GROUP_SIZE`
    - `CLVK_MAX_FIRST_CMD_GROUP_SIZE`
 
-`CLVK_MAX_FIRST_CMD_GROUP_SIZE` is used if there is no group to be process or
-being processed in the queue.
-Otherwise `CLVK_MAX_CMD_GROUP_SIZE` is used.
 
 ### Batch size
 
