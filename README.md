@@ -268,7 +268,7 @@ variables. Here's a quick guide:
   between applications runs. The user is responsible for ensuring that this
   directory is not used concurrently by more than one application.
 
-* `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of command in a group.
+* `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of commands in a group.
   When a group reaches this number, it is automatically flushed.
 
 * `CLVK_MAX_FIRST_CMD_GROUP_SIZE` specifies the maximum number of command in a
