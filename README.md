@@ -194,9 +194,6 @@ The size of those batches can be controlled using the following two variables:
    - `CLVK_MAX_CMD_BATCH_SIZE`
    - `CLVK_MAX_FIRST_CMD_BATCH_SIZE`
 
-`CLVK_MAX_FIRST_CMD_BATCH_SIZE` is used if there is no batch to be process or
-being processed in the queue.
-Otherwise `CLVK_MAX_CMD_BATCH_SIZE` is used.
 
 # Environment variables
 
