@@ -191,7 +191,7 @@ clvk relies on vulkan to offload workoad to the GPU. As such, it is better to
 batch OpenCL commands (translated into vulkan commands) into a vulkan command
 buffer. But doing that may increases the latency to start running commands.
 
-clvk has 2 variables to manage the maximum size of those batches:
+The size of those batches can be controlled using the following two variables:
    - `CLVK_MAX_CMD_BATCH_SIZE`
    - `CLVK_MAX_FIRST_CMD_BATCH_SIZE`
 
