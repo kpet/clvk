@@ -176,8 +176,7 @@ can be improved is to use traces to understand what should be changed.
 clvk is grouping commands and waiting for a call to `clFlush` or any
 blocking calls (`clFinish`, `clWaitForEvents`, etc.) to submit those groups for execution.
 
-clvk has 2 variables to allow to flush group earlier depending on the number of
-commands in the group:
+clvk's default group flushing behaviour can be controlled using the following two variables to flush groups as soon as a given number of commands have been grouped:
    - `CLVK_MAX_CMD_GROUP_SIZE`
    - `CLVK_MAX_FIRST_CMD_GROUP_SIZE`
 
