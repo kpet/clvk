@@ -167,7 +167,7 @@ you want to run with clvk.
 ## Tuning clvk
 
 clvk can be tuned to improve the performance of specific workloads or on specific platforms. While we try to have the default
-parameters set at their best values for each platform, they can sometimes be
+parameters set at their best values for each platform, they can be
 changed for specific applications. One of the best way to know whether something
 can be improved is to use traces to understand what should be changed.
 
