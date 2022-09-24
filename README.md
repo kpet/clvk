@@ -278,7 +278,7 @@ variables. Here's a quick guide:
   When this number is reached, the batch will be added to the current group of
   commands, and a new batch will be created.
 
-* `CLVK_MAX_FIRST_CMD_BATCH_SIZE` specifies the maximum number of command per
+* `CLVK_MAX_FIRST_CMD_BATCH_SIZE` specifies the maximum number of commands per
   batch when there is no batch to be process or being processed in the queue.
 
 # Limitations
