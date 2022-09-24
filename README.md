@@ -164,7 +164,7 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 Copy `OpenCL.dll` into a system location or alongside the application executable
 you want to run with clvk.
 
-## Tuning clvk performances
+## Tuning clvk
 
 clvk can be tuned to improve performances. While we try to have the default
 parameters set at their best values for each platform, they can sometimes be
