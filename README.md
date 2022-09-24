@@ -272,7 +272,7 @@ variables. Here's a quick guide:
   When a group reaches this number, it is automatically flushed.
 
 * `CLVK_MAX_FIRST_CMD_GROUP_SIZE` specifies the maximum number of commands in a
-  group when there is no group to be process or being processed in the queue.
+  group when there is no group to be processed or being processed in the queue.
 
 * `CLVK_MAX_CMD_BATCH_SIZE` specifies the maximum number of command per batch.
   When this number is reached, the batch will be added to the current group of
