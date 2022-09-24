@@ -777,6 +777,9 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     if (device->supports_ubo_stdlayout()) {
         options += " -std430-ubo-layout ";
     }
+    if (strstr(device->name(), "Intel") != nullptr) {
+        options += " -hack-mul-extended ";
+    }
 
     // Select target SPIR-V version
     options += " -spv-version=";
