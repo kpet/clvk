@@ -630,13 +630,40 @@ struct cvk_ndrange {
     std::array<uint32_t, 3> lws;
 };
 
+struct cvk_cmd_push_constants {
+    cvk_cmd_push_constants(cvk_kernel* kernel)
+        : m_kernel(kernel),
+          m_offset(kernel->program()->push_constant_range()->offset),
+          m_size(kernel->program()->push_constant_range()->size) {
+        m_data.resize(m_size);
+    }
+
+    void cmd_push_constants(uint32_t offset, uint32_t size,
+                            const void* pValues) {
+        CVK_ASSERT(offset + size <= m_offset + m_size);
+        memcpy(m_data.data() + (offset - m_offset), pValues, size);
+    }
+
+    void flush(VkCommandBuffer commandBuffer) {
+        vkCmdPushConstants(commandBuffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, m_offset, m_size,
+                           m_data.data());
+    }
+
+private:
+    cvk_kernel* m_kernel;
+    uint32_t m_offset;
+    uint32_t m_size;
+    std::vector<uint8_t> m_data;
+};
+
 struct cvk_command_kernel final : public cvk_command_batchable {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
                        const cvk_ndrange& ndrange)
         : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
           m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
-          m_argument_values(nullptr) {}
+          m_argument_values(nullptr), m_cmd_pc(kernel) {}
 
     ~cvk_command_kernel() {
         if (m_argument_values) {
@@ -674,6 +701,7 @@ private:
     cvk_ndrange m_ndrange;
     VkPipeline m_pipeline;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
+    cvk_cmd_push_constants m_cmd_pc;
 };
 
 struct cvk_command_batch : public cvk_command {

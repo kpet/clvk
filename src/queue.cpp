@@ -439,23 +439,17 @@ void cvk_command_kernel::update_global_push_constants(
 
     if (auto pc = program->push_constant(pushconstant::global_offset)) {
         CVK_ASSERT(pc->size == 12);
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_ndrange.offset);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size, &m_ndrange.offset);
     }
 
     if (auto pc = program->push_constant(pushconstant::enqueued_local_size)) {
         CVK_ASSERT(pc->size == 12);
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_ndrange.lws);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size, &m_ndrange.lws);
     }
 
     if (auto pc = program->push_constant(pushconstant::global_size)) {
         CVK_ASSERT(pc->size == 12);
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &m_ndrange.gws);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size, &m_ndrange.gws);
     }
 
     if (auto pc = program->push_constant(pushconstant::num_workgroups)) {
@@ -469,9 +463,7 @@ void cvk_command_kernel::update_global_push_constants(
                 num_workgroups[i]++;
             }
         }
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &num_workgroups);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size, &num_workgroups);
     }
 
     uint32_t image_metadata_pc_start = UINT32_MAX;
@@ -500,9 +492,8 @@ void cvk_command_kernel::update_global_push_constants(
         uint32_t offset = image_metadata_pc_start & ~0x3U;
         uint32_t size = round_up(image_metadata_pc_end - offset, 4);
         CVK_ASSERT(offset + size <= m_argument_values->pod_data().size());
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
-                           &m_argument_values->pod_data()[offset]);
+        m_cmd_pc.cmd_push_constants(offset, size,
+                                    &m_argument_values->pod_data()[offset]);
     }
     if (m_kernel->has_pod_arguments() &&
         !m_kernel->has_pod_buffer_arguments()) {
@@ -515,9 +506,8 @@ void cvk_command_kernel::update_global_push_constants(
                 // in chunks whose offset and size are a multiple of 4.
                 uint32_t size = round_up(arg.size, 4);
                 uint32_t offset = arg.offset & ~0x3U;
-                vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                                   VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
-                                   &m_argument_values->pod_data()[offset]);
+                m_cmd_pc.cmd_push_constants(
+                    offset, size, &m_argument_values->pod_data()[offset]);
             }
         }
     }
@@ -617,9 +607,7 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
             m_ndrange.offset[1] + region.offset[1],
             m_ndrange.offset[2] + region.offset[2],
         };
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &region_offsets);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size, &region_offsets);
     }
 
     if (auto pc = program->push_constant(pushconstant::region_group_offset)) {
@@ -629,10 +617,11 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
             region.offset[1] / m_ndrange.lws[1],
             region.offset[2] / m_ndrange.lws[2],
         };
-        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
-                           &region_group_offsets);
+        m_cmd_pc.cmd_push_constants(pc->offset, pc->size,
+                                    &region_group_offsets);
     }
+
+    m_cmd_pc.flush(command_buffer);
 
     vkCmdDispatch(command_buffer, num_workgroups[0], num_workgroups[1],
                   num_workgroups[2]);

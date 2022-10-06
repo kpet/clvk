@@ -1528,7 +1528,7 @@ cl_int cvk_entry_point::init() {
     }
 
     // Calculate POD buffer size and update the push constant range.
-    VkPushConstantRange push_constant_range = m_program->push_constant_range();
+    VkPushConstantRange* push_constant_range = m_program->push_constant_range();
     if (m_has_pod_arguments) {
         // Check we know the POD buffer's descriptor type
         if (m_has_pod_buffer_arguments &&
@@ -1547,14 +1547,14 @@ cl_int cvk_entry_point::init() {
                     max_offset_arg_size = arg.size;
                 }
                 if (!arg.is_pod_buffer()) {
-                    if (arg.offset < push_constant_range.offset) {
-                        push_constant_range.offset = arg.offset;
+                    if (arg.offset < push_constant_range->offset) {
+                        push_constant_range->offset = arg.offset;
                     }
 
-                    if (arg.offset + arg.size >
-                        push_constant_range.offset + push_constant_range.size) {
-                        push_constant_range.size =
-                            arg.offset + arg.size - push_constant_range.offset;
+                    if (arg.offset + arg.size > push_constant_range->offset +
+                                                    push_constant_range->size) {
+                        push_constant_range->size =
+                            arg.offset + arg.size - push_constant_range->offset;
                     }
                 }
             }
@@ -1573,23 +1573,24 @@ cl_int cvk_entry_point::init() {
             auto data_type_offset = md.second.data_type_offset;
             if (md.second.has_valid_order()) {
                 max_offset = std::max(order_offset, max_offset);
-                push_constant_range.offset =
-                    std::min(order_offset, push_constant_range.offset);
+                push_constant_range->offset =
+                    std::min(order_offset, push_constant_range->offset);
                 if (order_offset + sizeof(uint32_t) >
-                    push_constant_range.offset + push_constant_range.size) {
-                    push_constant_range.size = order_offset + sizeof(uint32_t) -
-                                               push_constant_range.offset;
+                    push_constant_range->offset + push_constant_range->size) {
+                    push_constant_range->size = order_offset +
+                                                sizeof(uint32_t) -
+                                                push_constant_range->offset;
                 }
             }
             if (md.second.has_valid_data_type()) {
                 max_offset = std::max(data_type_offset, max_offset);
-                push_constant_range.offset =
-                    std::min(data_type_offset, push_constant_range.offset);
+                push_constant_range->offset =
+                    std::min(data_type_offset, push_constant_range->offset);
                 if (data_type_offset + sizeof(uint32_t) >
-                    push_constant_range.offset + push_constant_range.size) {
-                    push_constant_range.size = data_type_offset +
-                                               sizeof(uint32_t) -
-                                               push_constant_range.offset;
+                    push_constant_range->offset + push_constant_range->size) {
+                    push_constant_range->size = data_type_offset +
+                                                sizeof(uint32_t) -
+                                                push_constant_range->offset;
                 }
             }
         }
@@ -1601,17 +1602,17 @@ cl_int cvk_entry_point::init() {
     // Don't pass the range at pipeline layout creation time if no push
     // constants are used
     uint32_t num_push_constant_ranges = 1;
-    if (push_constant_range.offset == UINT32_MAX) {
+    if (push_constant_range->offset == UINT32_MAX) {
         num_push_constant_ranges = 0;
     }
 
     // The size of the range must be a multiple of 4, round up to guarantee this
-    push_constant_range.size = round_up(push_constant_range.size, 4);
+    push_constant_range->size = round_up(push_constant_range->size, 4);
 
     // Its offset must be a multiple of 4, round down to guarantee this
-    push_constant_range.offset &= ~0x3U;
+    push_constant_range->offset &= ~0x3U;
 
-    if (push_constant_range.size >
+    if (push_constant_range->size >
         m_context->device()->vulkan_max_push_constants_size()) {
         cvk_error("Not enough space for push constants");
         return CL_INVALID_VALUE;
@@ -1629,7 +1630,7 @@ cl_int cvk_entry_point::init() {
         static_cast<uint32_t>(m_descriptor_set_layouts.size()),
         m_descriptor_set_layouts.data(),
         num_push_constant_ranges,
-        &push_constant_range};
+        push_constant_range};
 
     res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);

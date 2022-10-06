@@ -570,8 +570,8 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return m_literal_samplers;
     }
 
-    const VkPushConstantRange& push_constant_range() const {
-        return m_push_constant_range;
+    VkPushConstantRange* push_constant_range() {
+        return &m_push_constant_range;
     }
 
     CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
