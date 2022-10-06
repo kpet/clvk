@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
       - name: Check format
         run: |
-          ./tests/azure/check-format.sh
+          ./tests/check-format.sh
   build:
     name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }}
     needs: format
