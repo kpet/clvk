@@ -211,3 +211,48 @@ TEST_F(WithCommandQueue, ModuleScopeConstantData) {
     EXPECT_EQ(result[4], 0);
     EXPECT_EQ(result[5], 0);
 }
+
+TEST_F(WithCommandQueue, LinkPrograms) {
+    static const char* sourceA = R"(
+      extern void bar(global uint *dst, global uint *src);
+      kernel void foo(global uint *dst, global uint *src) {
+        bar(dst, src);
+      }
+    )";
+    static const char* sourceB = R"(
+      void bar(global uint *dst, global uint *src);
+      void bar(global uint *dst, global uint *src) {
+        int gid = get_global_id(0);
+        dst[gid] = src[gid];
+      }
+    )";
+
+    auto programA = CreateProgram(sourceA);
+    CompileProgram(programA);
+
+    auto programB = CreateProgram(sourceB);
+    CompileProgram(programB);
+
+    cl_program program_list[2] = {programA, programB};
+    auto program = LinkProgram(2, program_list);
+
+    const size_t gws = 4;
+    const size_t buffer_size = gws * sizeof(cl_uint);
+    cl_uint source[gws] = {1, 2, 3, 4};
+    cl_uint result[gws] = {0};
+    auto buffer_src = CreateBuffer(CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                   buffer_size, source);
+    auto buffer_dst = CreateBuffer(CL_MEM_WRITE_ONLY, buffer_size);
+    ASSERT_EQ(buffer_size, sizeof(result));
+    auto kernel = CreateKernel(program, "foo");
+    SetKernelArg(kernel, 0, buffer_dst);
+    SetKernelArg(kernel, 1, buffer_src);
+
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer_dst, CL_BLOCKING, 0, buffer_size, result);
+
+    ASSERT_EQ(result[0], source[0]);
+    ASSERT_EQ(result[1], source[1]);
+    ASSERT_EQ(result[2], source[2]);
+    ASSERT_EQ(result[3], source[3]);
+}

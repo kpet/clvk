@@ -720,6 +720,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         {"-cl-strict-aliasing", ""},
         // clspv require entrypoint inlining for OpenCL 2.0
         {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
+        {"-create-library", ""},
     };
 
     for (auto& subst : option_substitutions) {
@@ -828,77 +829,124 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return options;
 }
 
-cl_build_status cvk_program::compile_source(const cvk_device* device) {
-#if !COMPILER_AVAILABLE
-    UNUSED(device);
-#else // !COMPILER_AVAILABLE
-    bool build_from_il = m_il.size() > 0;
-    bool use_tmp_folder = true;
-#ifdef CLSPV_ONLINE_COMPILER
-    use_tmp_folder =
-        m_operation == build_operation::compile && m_num_input_programs > 0;
-#endif
+#if COMPILER_AVAILABLE
+#ifndef CLSPV_ONLINE_COMPILER
 
-    std::string tmp_folder;
-    if (use_tmp_folder) {
-        // Create temporary folder
-        std::string tmp_template{"clvk-XXXXXX"};
-        const char* tmp = cvk_mkdtemp(tmp_template);
-        if (tmp == nullptr) {
-            return CL_BUILD_ERROR;
-        }
-        tmp_folder = tmp;
-        cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
-    }
-    temp_folder_deletion temp(tmp_folder);
+cl_build_status cvk_program::build_source_offline(bool build_to_ir,
+                                                  bool build_from_il,
+                                                  std::string& build_options,
+                                                  std::string& tmp_folder) {
+    // Compose clspv command-line
+    std::string cmd{config.clspv_path};
+    cmd += " ";
 
     std::string clspv_input_file{tmp_folder + "/source"};
-#ifndef CLSPV_ONLINE_COMPILER
-    std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
     // Save input program to a file
     if (build_from_il) {
+        std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
         clspv_input_file += ".bc";
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
             cvk_error_fn("Couldn't save IL to file!");
             return CL_BUILD_ERROR;
         }
-    } else {
-        clspv_input_file += ".cl";
-        if (!save_string_to_file(clspv_input_file, m_source)) {
-            cvk_error_fn("Couldn't save source to file!");
+        // Compose llvm-spirv command-line
+        std::string cmd_spv{config.llvmspirv_bin};
+        cmd_spv += " -r ";
+        cmd_spv +=
+            " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
+        cmd_spv += " -o ";
+        cmd_spv += clspv_input_file;
+        cmd_spv += " ";
+        cmd_spv += llvmspirv_input_file;
+
+        // Call the translator
+        int status = cvk_exec(cmd_spv);
+
+        if (status != 0) {
+            cvk_error_fn("failed to translate SPIR-V to LLVM IR");
             return CL_BUILD_ERROR;
         }
-    }
-#endif
 
-    // Prepare build options
-    auto build_options = prepare_build_options(device);
-    if (build_from_il) {
-        build_options += " -x ir ";
-    }
+        cmd += clspv_input_file;
+        cmd += " ";
 
-    // Save headers
-    if (use_tmp_folder) {
-        build_options += "-I" + tmp_folder;
-        for (cl_uint i = 0; i < m_num_input_programs; i++) {
-            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
-            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
-                cvk_error_fn("Couldn't save header to file!");
+    } else if (m_operation == build_operation::link) {
+        for (auto input_program : m_input_programs) {
+            if (input_program->m_binary_type !=
+                    CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT &&
+                input_program->m_binary_type !=
+                    CL_PROGRAM_BINARY_TYPE_LIBRARY) {
                 return CL_BUILD_ERROR;
             }
+            std::string input_file = clspv_input_file + "_" +
+                                     std::to_string((uintptr_t)input_program) +
+                                     ".bc";
+            if (!save_il_to_file(input_file, input_program->m_ir)) {
+                cvk_error_fn("Couldn't save source to file!");
+                return CL_BUILD_ERROR;
+            }
+            cmd += input_file;
+            cmd += " ";
+        }
+    } else {
+        if (m_source.empty() && !m_ir.empty()) {
+            clspv_input_file += ".bc";
+            if (!save_il_to_file(clspv_input_file, m_ir)) {
+                cvk_error_fn("Couldn't save source to file!");
+                return CL_BUILD_ERROR;
+            }
+            cmd += clspv_input_file;
+            cmd += " ";
+        } else {
+            clspv_input_file += ".cl";
+            if (!save_string_to_file(clspv_input_file, m_source)) {
+                cvk_error_fn("Couldn't save source to file!");
+                return CL_BUILD_ERROR;
+            }
+            cmd += clspv_input_file;
+            cmd += " ";
         }
     }
 
-    // Select operation
-    // TODO support building a library with clBuildProgram
-    if (m_operation == build_operation::compile) {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
-    } else {
-        m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+    std::string spirv_file{tmp_folder + "/compiled.spv"};
+    cmd += build_options;
+    cmd += " -o ";
+    cmd += spirv_file;
+
+    // Call clspv
+    int status = cvk_exec(cmd, &m_build_log);
+    if (status != 0) {
+        cvk_error_fn("failed to compile the program");
+        return CL_BUILD_ERROR;
     }
 
-    // Translate spirv to llvm ir using llvm-spirv
-#ifdef CLSPV_ONLINE_COMPILER
+    if (build_to_ir) {
+        std::ifstream stream(spirv_file, std::ios::in | std::ios::binary);
+        m_ir.assign((std::istreambuf_iterator<char>(stream)),
+                    std::istreambuf_iterator<char>());
+        cvk_info("Loaded IR binary from \"%s\", size = %zu", spirv_file.c_str(),
+                 spirv_file.size());
+    } else {
+        // Load SPIR-V program
+        const char* filename = spirv_file.c_str();
+        if (!m_binary.load(filename)) {
+            cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
+            return CL_BUILD_ERROR;
+        } else {
+            cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words",
+                     filename, m_binary.code().size());
+        }
+    }
+    return CL_BUILD_SUCCESS;
+}
+
+#else
+
+cl_build_status cvk_program::build_source_online(bool build_to_ir,
+                                                 bool build_from_il,
+                                                 std::string& build_options) {
+    cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
+                build_to_ir);
     if (build_from_il) {
         llvm::LLVMContext llvm_context;
         llvm::Module* llvm_module;
@@ -931,29 +979,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         llvm::raw_string_ostream spirv_stream(m_source);
         llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
     }
-#else
-    if (build_from_il) {
-        // Compose llvm-spirv command-line
-        std::string cmd{config.llvmspirv_bin};
-        cmd += " -r ";
-        cmd +=
-            " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
-        cmd += " -o ";
-        cmd += clspv_input_file;
-        cmd += " ";
-        cmd += llvmspirv_input_file;
-
-        // Call the translator
-        int status = cvk_exec(cmd);
-
-        if (status != 0) {
-            cvk_error_fn("failed to translate SPIR-V to LLVM IR");
-            return CL_BUILD_ERROR;
-        }
-    }
-#endif // CLSPV_ONLINE_COMPILER
-
-#ifdef CLSPV_ONLINE_COMPILER
     cvk_info("About to compile \"%s\"", build_options.c_str());
     int status;
     // clspv is based on LLVM. LLVM options parsing is done using global
@@ -962,142 +987,126 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     {
         static std::mutex clspv_compile_mutex;
         std::lock_guard<std::mutex> clspv_compile_lock(clspv_compile_mutex);
-        status = clspv::CompileFromSourceString(
-            m_source, "", build_options, m_binary.raw_binary(), &m_build_log);
+        std::vector<std::string> programs;
+        if (m_operation == build_operation::link) {
+            for (auto input_program : m_input_programs) {
+                if (input_program->m_binary_type !=
+                        CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT &&
+                    input_program->m_binary_type !=
+                        CL_PROGRAM_BINARY_TYPE_LIBRARY) {
+                    return CL_BUILD_ERROR;
+                }
+                programs.push_back(input_program->m_ir);
+            }
+        } else {
+            if (m_source.empty() && !m_ir.empty()) {
+                programs.push_back(m_ir);
+            } else {
+                programs.push_back(m_source);
+            }
+        }
+        m_build_log.clear();
+        if (build_to_ir) {
+            std::vector<uint32_t> ir;
+            status = clspv::CompileFromSourcesString(programs, build_options,
+                                                     &ir, &m_build_log);
+            m_ir.clear();
+            auto size = ir.size() * sizeof(uint32_t);
+            m_ir.resize(size);
+            memcpy(m_ir.data(), ir.data(), size);
+        } else {
+            status = clspv::CompileFromSourcesString(
+                programs, build_options, m_binary.raw_binary(), &m_build_log);
+        }
     }
     if (status != 0) {
         cvk_error_fn("failed to compile the program");
         return CL_BUILD_ERROR;
     }
-#else
-    // Compose clspv command-line
-    std::string spirv_file{tmp_folder + "/compiled.spv"};
-    std::string cmd{config.clspv_path};
-    cmd += " ";
-    cmd += clspv_input_file;
-    cmd += " ";
-    cmd += build_options;
-    cmd += " -o ";
-    cmd += spirv_file;
-
-    // Call clspv
-    int status = cvk_exec(cmd, &m_build_log);
-    if (status != 0) {
-        cvk_error_fn("failed to compile the program");
-        return CL_BUILD_ERROR;
-    }
-
-    // Load SPIR-V program
-    const char* filename = spirv_file.c_str();
-    if (!m_binary.load(filename)) {
-        cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
-        return CL_BUILD_ERROR;
-    } else {
-        cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words", filename,
-                 m_binary.code().size());
-    }
-#endif
-#endif // !COMPILER_AVAILABLE
-
-    // Load descriptor map
-    if (!m_binary.load_descriptor_map()) {
-        cvk_error("Could not load descriptor map for SPIR-V binary.");
-        return CL_BUILD_ERROR;
-    }
-
-    if (!create_module_constant_data_buffer()) {
-        return CL_BUILD_ERROR;
-    }
-
     return CL_BUILD_SUCCESS;
 }
 
-cl_build_status cvk_program::link() {
-#if COMPILER_AVAILABLE
-    spvtools::Context context(m_context->device()->vulkan_spirv_env());
-    std::vector<uint32_t> linked;
-    std::vector<std::vector<uint32_t>> binaries(m_num_input_programs);
+#endif
+#endif
 
-    const spvtools::MessageConsumer consumer =
-        [](spv_message_level_t level, const char*,
-           const spv_position_t& position, const char* message) {
+cl_build_status cvk_program::build_source(const cvk_device* device) {
+#if !COMPILER_AVAILABLE
+    UNUSED(device);
+#else
 
-#define msgtpl "spvtools says '%s' at position %zu"
-            switch (level) {
-            case SPV_MSG_FATAL:
-            case SPV_MSG_INTERNAL_ERROR:
-            case SPV_MSG_ERROR:
-                cvk_error(msgtpl, message, position.index);
-                break;
-            case SPV_MSG_WARNING:
-                cvk_warn(msgtpl, message, position.index);
-                break;
-            case SPV_MSG_INFO:
-                cvk_info(msgtpl, message, position.index);
-                break;
-            case SPV_MSG_DEBUG:
-                cvk_debug(msgtpl, message, position.index);
-                break;
+    bool build_from_il =
+        m_il.size() > 0 && m_operation != build_operation::link;
+    bool use_tmp_folder = true;
+#ifdef CLSPV_ONLINE_COMPILER
+    use_tmp_folder =
+        m_operation == build_operation::compile && m_num_input_programs > 0;
+#endif
+
+    std::string tmp_folder;
+    if (use_tmp_folder) {
+        // Create temporary folder
+        std::string tmp_template{"clvk-XXXXXX"};
+        const char* tmp = cvk_mkdtemp(tmp_template);
+        if (tmp == nullptr) {
+            return CL_BUILD_ERROR;
+        }
+        tmp_folder = tmp;
+        cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
+    }
+    temp_folder_deletion temp(tmp_folder);
+
+    // Prepare build options
+    bool create_library =
+        m_build_options.find("create-library") != std::string::npos;
+    auto build_options = prepare_build_options(device);
+
+    // Add options to specify input/output types
+    if (build_from_il ||
+        m_binary_type == CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT ||
+        m_binary_type == CL_PROGRAM_BINARY_TYPE_LIBRARY ||
+        m_operation == build_operation::link) {
+        build_options += " -x ir ";
+    }
+    bool build_to_ir =
+        m_operation == build_operation::compile || create_library;
+    if (build_to_ir) {
+        build_options += " --output-format=bc ";
+    }
+
+    // Save headers
+    if (use_tmp_folder && m_operation == build_operation::compile) {
+        build_options += "-I" + tmp_folder;
+        for (cl_uint i = 0; i < m_num_input_programs; i++) {
+            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
+            if (!save_string_to_file(fname, m_input_programs[i]->source())) {
+                cvk_error_fn("Couldn't save header to file!");
+                return CL_BUILD_ERROR;
             }
-#undef msgtpl
-        };
+        }
+    }
 
-    context.SetMessageConsumer(consumer);
+    cl_build_status build_status;
+#ifdef CLSPV_ONLINE_COMPILER
+    build_status =
+        build_source_online(build_to_ir, build_from_il, build_options);
+#else
+    build_status = build_source_offline(build_to_ir, build_from_il,
+                                        build_options, tmp_folder);
+#endif // CLSPV_ONLINE_COMPILER
+    if (build_status != CL_BUILD_SUCCESS) {
+        return build_status;
+    }
 
-    // Library creation
-    bool create_library = false;
-    if (m_build_options.find("-create-library") != std::string::npos) {
-        cvk_info_fn("creating a library");
-        create_library = true;
+    // Select operation
+    if (m_operation == build_operation::compile) {
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+    } else if (m_operation == build_operation::link && create_library) {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_LIBRARY;
     } else {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
     }
 
-    // Link binaries
-    cvk_debug_fn("copying input programs...");
-    for (cl_uint i = 0; i < m_num_input_programs; i++) {
-        cvk_debug_fn("program %u, %zu kernels...", i,
-                     m_input_programs[i]->m_binary.num_kernels());
-        cvk_debug_fn("about to copy code, size = %zu",
-                     m_input_programs[i]->m_binary.code().size());
-        binaries[i] = m_input_programs[i]->m_binary.code();
-    }
-
-    cvk_debug_fn("linking...");
-    spvtools::LinkerOptions linker_options;
-    linker_options.SetCreateLibrary(create_library);
-    spv_result_t res =
-        spvtools::Link(context, binaries, &linked, linker_options);
-
-    if (res != SPV_SUCCESS) {
-        return CL_BUILD_ERROR;
-    }
-
-    // Optimise linked binary
-    spvtools::Optimizer opt(m_context->device()->vulkan_spirv_env());
-    opt.SetMessageConsumer(consumer);
-    opt.RegisterPass(spvtools::CreateInlineExhaustivePass());
-
-    std::vector<uint32_t> linked_opt;
-
-    if (!opt.Run(linked.data(), linked.size(), &linked_opt)) {
-        cvk_error_fn("couldn't optimise linked SPIR-V module");
-        return CL_BUILD_ERROR;
-    }
-
-    m_binary.use(std::move(linked_opt));
-
-    // Load descriptor map
-    if (!m_binary.load_descriptor_map()) {
-        cvk_error("Could not load descriptor map for SPIR-V binary.");
-        return CL_BUILD_ERROR;
-    }
-
-    cvk_debug_fn("linked binary has %zu kernels",
-                 m_binary.kernels_arguments().size());
 #endif
-
     return CL_BUILD_SUCCESS;
 }
 
@@ -1141,32 +1150,34 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 }
 
 void cvk_program::do_build() {
-    cl_build_status status = CL_BUILD_SUCCESS;
-
     // Destroy entry points from previous build
     m_entry_points.clear();
 
     auto device = m_context->device();
 
-    switch (m_operation) {
-    case build_operation::compile:
-    case build_operation::build:
-        status = compile_source(device);
-        break;
-    case build_operation::build_binary:
-        break;
-    case build_operation::link:
-        status = link();
-        break;
+    if (m_operation != build_operation::build_binary) {
+        cl_build_status status = build_source(device);
+
+        if ((m_binary_type != CL_PROGRAM_BINARY_TYPE_EXECUTABLE) ||
+            (status != CL_BUILD_SUCCESS)) {
+            complete_operation(device, status);
+            return;
+        }
+    }
+
+    // Load descriptor map
+    if (!m_binary.load_descriptor_map()) {
+        cvk_error("Could not load descriptor map for SPIR-V binary.");
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
+    }
+
+    if (!create_module_constant_data_buffer()) {
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
     }
 
     prepare_push_constant_range();
-
-    if ((m_operation == build_operation::compile) ||
-        (status != CL_BUILD_SUCCESS)) {
-        complete_operation(device, status);
-        return;
-    }
 
     bool cache_hit =
         device->get_pipeline_cache(m_binary.code(), m_pipeline_cache);
