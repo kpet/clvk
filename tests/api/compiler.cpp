@@ -157,6 +157,25 @@ TEST_F(WithCommandQueue,
     EXPECT_EQ(result, value_start);
 }
 
+TEST_F(WithContext, CompileWithHeaderInDirectory) {
+    static const char* header = R"(
+      int foo() { return 0;}
+    )";
+    static const char* source = R"(
+      #include "dir/header.h"
+      kernel void test(global uint *output) {
+        output[0] = foo();
+      }
+    )";
+
+    auto program = CreateProgram(source);
+    auto program_header = CreateProgram(header);
+
+    const char* header_name = "dir/header.h";
+    cl_program program_list[1] = {program_header};
+    CompileProgram(program, nullptr, 1, program_list, &header_name);
+}
+
 // Test that module scope constant setup is working
 TEST_F(WithCommandQueue, ModuleScopeConstantData) {
     static const char* source = R"(
