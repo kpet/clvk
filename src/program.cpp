@@ -705,7 +705,130 @@ bool validate_binary(spir_binary const& binary,
     return false;
 }
 
+const uint32_t clvk_binary_magic =
+    0x6B766C63; // "clvk" in ASCII in little-endian
+const uint32_t clvk_binary_version = 1;
+struct clvk_binary_header {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t binary_type;
+};
+#define COPY_WORD(dst, src)                                                    \
+    do {                                                                       \
+        ((unsigned char*)dst)[0] = ((unsigned char*)(src))[0];                 \
+        ((unsigned char*)dst)[1] = ((unsigned char*)(src))[1];                 \
+        ((unsigned char*)dst)[2] = ((unsigned char*)(src))[2];                 \
+        ((unsigned char*)dst)[3] = ((unsigned char*)(src))[3];                 \
+    } while (0)
+
 } // namespace
+
+bool cvk_program::read_llvm_bitcode(const unsigned char* src, size_t size) {
+    if (size >= 4 &&
+        (src[0] == 'B' && src[1] == 'C' && src[2] == 0xc0 && src[3] == 0xde)) {
+        m_ir.resize(size);
+        memcpy(m_ir.data(), src, size);
+        m_dev_status[m_context->device()] = CL_BUILD_SUCCESS;
+        return true;
+    }
+    return false;
+}
+
+void cvk_program::write_binary_header(unsigned char* dst) const {
+    struct clvk_binary_header* header = (struct clvk_binary_header*)dst;
+    COPY_WORD(&header->magic, &clvk_binary_magic);
+    COPY_WORD(&header->version, &clvk_binary_version);
+    COPY_WORD(&header->binary_type, &m_binary_type);
+}
+
+cl_program_binary_type cvk_program::read_binary_header(const unsigned char* src,
+                                                       size_t size) {
+    struct clvk_binary_header* header = (struct clvk_binary_header*)src;
+    if (size < sizeof(header)) {
+        return CL_PROGRAM_BINARY_TYPE_NONE;
+    }
+    uint32_t magic, version, binary_type;
+    COPY_WORD(&magic, &header->magic);
+    COPY_WORD(&version, &header->version);
+    COPY_WORD(&binary_type, &header->binary_type);
+    if (magic != clvk_binary_magic) {
+        cvk_info_fn("magic not found");
+        return CL_PROGRAM_BINARY_TYPE_NONE;
+    }
+    if (version != clvk_binary_version) {
+        cvk_warn_fn("wrong version");
+        return CL_PROGRAM_BINARY_TYPE_NONE;
+    }
+    return binary_type;
+}
+
+bool cvk_program::read(const unsigned char* src, size_t size) {
+    bool success = false;
+    auto binary_type = read_binary_header(src, size);
+    // if the binary does not have a clvk binary header, let's try to read
+    // it first as a llvm ir buffer, then as a vulkan spirv buffer.
+    if (binary_type == CL_PROGRAM_BINARY_TYPE_NONE) {
+        cvk_info_fn("no clvk binary header found, looking for llvm bitcode");
+        if (read_llvm_bitcode(src, size)) {
+            m_binary_type = CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT;
+            cvk_info_fn("llvm bitcode compiled object found");
+            return true;
+        }
+        cvk_info_fn("llvm bitcode not found, looking for Vulkan SPIR-V binary");
+        if (m_binary.read(src, size)) {
+            m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
+            cvk_info_fn("Vulkan SPIR-V binary executable found");
+            return true;
+        }
+        cvk_error_fn("unable to read binary");
+        return success;
+    }
+
+    auto header_size = sizeof(struct clvk_binary_header);
+    src += header_size;
+    size -= header_size;
+
+    switch (binary_type) {
+    case CL_PROGRAM_BINARY_TYPE_LIBRARY:
+    case CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT:
+        success = read_llvm_bitcode(src, size);
+        break;
+    case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
+        success = m_binary.read(src, size);
+        break;
+    }
+    if (success) {
+        m_binary_type = binary_type;
+    }
+    return success;
+}
+
+bool cvk_program::write(unsigned char* dst) const {
+    write_binary_header(dst);
+    dst += sizeof(struct clvk_binary_header);
+
+    switch (m_binary_type) {
+    case CL_PROGRAM_BINARY_TYPE_LIBRARY:
+    case CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT:
+        memcpy(dst, m_ir.data(), m_ir.size());
+        return true;
+    case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
+        return m_binary.write(dst);
+    }
+    return false;
+}
+
+size_t cvk_program::binary_size() const {
+    auto header_size = sizeof(struct clvk_binary_header);
+    switch (m_binary_type) {
+    case CL_PROGRAM_BINARY_TYPE_LIBRARY:
+    case CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT:
+        return header_size + m_ir.size();
+    case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
+        return header_size + m_binary.size();
+    }
+    return 0;
+}
 
 std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     // Strip off a few options we can't handle

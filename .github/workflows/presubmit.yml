@@ -193,3 +193,9 @@ jobs:
           ${{ env.builddir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
           ${{ env.testbindir }}/simple_test_from_il_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_il_binary_static${{ env.exe-ext }}
+      - name: Offline LLVM-IR compilation simple tests
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        run: |
+          ${{ env.builddir }}/clspv${{ env.exe-ext }} --output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
+          ${{ env.testbindir }}/simple_test_from_llvm_ir_binary${{ env.exe-ext }}
+          ${{ env.testbindir }}/simple_test_from_llvm_ir_binary_static${{ env.exe-ext }}

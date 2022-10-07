@@ -539,20 +539,20 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         }
     }
 
-    CHECK_RETURN bool read(const unsigned char* src, size_t size) {
-        bool success = m_binary.read(src, size);
-        if (success) {
-            // TODO support loading other program types
-            m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
-        }
-        return success;
-    }
+private:
+    bool read_llvm_bitcode(const unsigned char* src, size_t size);
 
-    CHECK_RETURN bool write(unsigned char* dst) const {
-        return m_binary.write(dst);
-    }
+    void write_binary_header(unsigned char* dst) const;
+    CHECK_RETURN cl_program_binary_type
 
-    size_t binary_size() const { return m_binary.size(); }
+    read_binary_header(const unsigned char* src, size_t size);
+
+public:
+    CHECK_RETURN bool read(const unsigned char* src, size_t size);
+
+    CHECK_RETURN bool write(unsigned char* dst) const;
+
+    size_t binary_size() const;
 
     std::vector<const char*> kernel_names() const {
         std::vector<const char*> ret;
