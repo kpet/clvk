@@ -14,9 +14,11 @@
 
 #include <algorithm>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -618,31 +620,39 @@ bool spir_binary::get_capabilities(
 namespace {
 
 #if COMPILER_AVAILABLE
-bool save_string_to_file(const std::string& fname, const std::string& text) {
-    std::ofstream ofile{fname};
+bool save_cstring_to_file(
+    const std::string& fname, const char* data, size_t size,
+    std::ios_base::openmode open_mode = std::ios_base::out) {
+    std::filesystem::path ofname(fname);
+    if (ofname.has_parent_path()) {
+        std::error_code error;
+        std::filesystem::create_directories(ofname.parent_path(), error);
+        if (error) {
+            cvk_error_fn("create_directories failed: '%s' (%u)",
+                         error.message().c_str(), error.value());
+            return false;
+        }
+    }
+    std::ofstream ofile{fname, open_mode};
 
     if (!ofile.is_open()) {
         return false;
     }
 
-    ofile.write(text.c_str(), text.size());
+    ofile.write(data, size);
     ofile.close();
 
     return ofile.good();
 }
 
+bool save_string_to_file(const std::string& fname, const std::string& text) {
+    return save_cstring_to_file(fname, text.c_str(), text.size());
+}
+
 #ifndef CLSPV_ONLINE_COMPILER
 bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
-    std::ofstream ofile{fname, std::ios::binary};
-
-    if (!ofile.is_open()) {
-        return false;
-    }
-
-    ofile.write(reinterpret_cast<const char*>(il.data()), il.size());
-    ofile.close();
-
-    return ofile.good();
+    return save_cstring_to_file(fname, reinterpret_cast<const char*>(il.data()),
+                                il.size(), std::ios::binary);
 }
 #endif // CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE

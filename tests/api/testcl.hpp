@@ -241,6 +241,21 @@ protected:
         }
     }
 
+    void CompileProgram(cl_program program, const char* options,
+                        cl_uint num_input_headers,
+                        const cl_program* input_headers,
+                        const char** header_include_names) {
+        cl_int err = clCompileProgram(program, 1, &gDevice, options,
+                                      num_input_headers, input_headers,
+                                      header_include_names, nullptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+
+        if (err != CL_SUCCESS) {
+            std::string build_log = GetProgramBuildLog(program);
+            printf("Build log:\n%s\n", build_log.c_str());
+        }
+    }
+
     holder<cl_program> LinkProgram(cl_uint num_input_programs,
                                    cl_program* input_programs,
                                    const char* options = nullptr) {
