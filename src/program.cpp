@@ -657,20 +657,11 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 #endif // CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
-struct temp_file_deletion_stack {
-
-    ~temp_file_deletion_stack() {
-        if (!config.keep_temporaries) {
-            for (auto path = m_paths.rbegin(); path < m_paths.rend(); ++path) {
-                std::remove((*path).c_str());
-            }
-        }
+struct temp_folder_string : public std::string {
+    ~temp_folder_string() {
+        if (!config.keep_temporaries && !empty())
+            std::filesystem::remove_all(c_str());
     }
-
-    void push(const std::string& path) { m_paths.push_back(path); }
-
-private:
-    std::vector<std::string> m_paths;
 };
 
 enum class spirv_validation_level
@@ -834,13 +825,12 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
 #else // !COMPILER_AVAILABLE
     bool build_from_il = m_il.size() > 0;
     bool use_tmp_folder = true;
-    temp_file_deletion_stack temps;
 #ifdef CLSPV_ONLINE_COMPILER
     use_tmp_folder =
         m_operation == build_operation::compile && m_num_input_programs > 0;
 #endif
 
-    std::string tmp_folder;
+    temp_folder_string tmp_folder;
     if (use_tmp_folder) {
         // Create temporary folder
         std::string tmp_template{"clvk-XXXXXX"};
@@ -848,9 +838,8 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         if (tmp == nullptr) {
             return CL_BUILD_ERROR;
         }
-        tmp_folder = tmp;
+        tmp_folder.assign(tmp);
         cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
-        temps.push(tmp_folder);
     }
 
     std::string clspv_input_file{tmp_folder + "/source"};
@@ -859,14 +848,12 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     // Save input program to a file
     if (build_from_il) {
         clspv_input_file += ".bc";
-        temps.push(llvmspirv_input_file);
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
             cvk_error_fn("Couldn't save IL to file!");
             return CL_BUILD_ERROR;
         }
     } else {
         clspv_input_file += ".cl";
-        temps.push(clspv_input_file);
         if (!save_string_to_file(clspv_input_file, m_source)) {
             cvk_error_fn("Couldn't save source to file!");
             return CL_BUILD_ERROR;
@@ -885,7 +872,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         build_options += "-I" + tmp_folder;
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             std::string fname{tmp_folder + "/" + m_header_include_names[i]};
-            temps.push(fname);
             if (!save_string_to_file(fname, m_input_programs[i]->source())) {
                 cvk_error_fn("Couldn't save header to file!");
                 return CL_BUILD_ERROR;
@@ -947,8 +933,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         cmd += " ";
         cmd += llvmspirv_input_file;
 
-        temps.push(clspv_input_file);
-
         // Call the translator
         int status = cvk_exec(cmd);
 
@@ -985,7 +969,6 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
     cmd += build_options;
     cmd += " -o ";
     cmd += spirv_file;
-    temps.push(spirv_file);
 
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
