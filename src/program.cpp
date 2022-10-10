@@ -657,11 +657,15 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 #endif // CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
-struct temp_folder_string : public std::string {
-    ~temp_folder_string() {
-        if (!config.keep_temporaries && !empty())
-            std::filesystem::remove_all(c_str());
+struct temp_folder_deletion {
+    temp_folder_deletion(const std::string& path) : m_path(path) {}
+    ~temp_folder_deletion() {
+        if (!config.keep_temporaries && !m_path.empty())
+            std::filesystem::remove_all(m_path.c_str());
     }
+
+private:
+    std::string m_path;
 };
 
 enum class spirv_validation_level
@@ -830,7 +834,7 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         m_operation == build_operation::compile && m_num_input_programs > 0;
 #endif
 
-    temp_folder_string tmp_folder;
+    std::string tmp_folder;
     if (use_tmp_folder) {
         // Create temporary folder
         std::string tmp_template{"clvk-XXXXXX"};
@@ -838,9 +842,10 @@ cl_build_status cvk_program::compile_source(const cvk_device* device) {
         if (tmp == nullptr) {
             return CL_BUILD_ERROR;
         }
-        tmp_folder.assign(tmp);
+        tmp_folder = tmp;
         cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
     }
+    temp_folder_deletion temp(tmp_folder);
 
     std::string clspv_input_file{tmp_folder + "/source"};
 #ifndef CLSPV_ONLINE_COMPILER
