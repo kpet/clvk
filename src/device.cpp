@@ -277,6 +277,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+        VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -322,6 +323,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     m_features_16bit_storage.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
+    m_features_shader_subgroup_extended_types.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
 
     std::vector<std::pair<const char*, VkBaseOutStructure*>>
         extension_features = {
@@ -336,6 +339,8 @@ void cvk_device::init_features(VkInstance instance) {
                     &m_features_8bit_storage),
             EXTFEAT(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
                     &m_features_16bit_storage),
+            EXTFEAT(VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
+                    &m_features_shader_subgroup_extended_types),
 #undef EXTFEAT
         };
 
@@ -375,6 +380,9 @@ void cvk_device::init_features(VkInstance instance) {
              m_features_16bit_storage.storageBuffer16BitAccess,
              m_features_16bit_storage.uniformAndStorageBuffer16BitAccess,
              m_features_16bit_storage.storagePushConstant16);
+    cvk_info(
+        "subgroup extended types: %d",
+        m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
