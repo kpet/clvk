@@ -517,6 +517,8 @@ private:
         m_features_ubo_stdlayout{};
     VkPhysicalDevice8BitStorageFeaturesKHR m_features_8bit_storage{};
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
+    VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
+        m_features_shader_subgroup_extended_types{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

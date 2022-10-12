@@ -281,6 +281,8 @@ bool cvk_device::init_extensions() {
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
         desired_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+        desired_extensions.push_back(
+            VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME);
     }
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
@@ -322,6 +324,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     m_features_16bit_storage.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
+    m_features_shader_subgroup_extended_types.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
 
     std::vector<std::pair<const char*, VkBaseOutStructure*>>
         extension_features = {
@@ -336,6 +340,8 @@ void cvk_device::init_features(VkInstance instance) {
                     &m_features_8bit_storage),
             EXTFEAT(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
                     &m_features_16bit_storage),
+            EXTFEAT(VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
+                    &m_features_shader_subgroup_extended_types),
 #undef EXTFEAT
         };
 
@@ -375,6 +381,9 @@ void cvk_device::init_features(VkInstance instance) {
              m_features_16bit_storage.storageBuffer16BitAccess,
              m_features_16bit_storage.uniformAndStorageBuffer16BitAccess,
              m_features_16bit_storage.storagePushConstant16);
+    cvk_info(
+        "subgroup extended types: %d",
+        m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
@@ -424,7 +433,9 @@ void cvk_device::build_extension_ils_list() {
         VkSubgroupFeatureFlags required_subgroup_ops =
             VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
         if ((m_subgroup_properties.supportedOperations &
-            required_subgroup_ops) == required_subgroup_ops) {
+             required_subgroup_ops) == required_subgroup_ops &&
+            (m_features_shader_subgroup_extended_types
+                 .shaderSubgroupExtendedTypes == VK_TRUE)) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
             m_has_subgroups_support = true;
