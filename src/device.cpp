@@ -277,11 +277,12 @@ bool cvk_device::init_extensions() {
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
-        VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
         desired_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+        desired_extensions.push_back(
+            VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME);
     }
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
@@ -432,7 +433,9 @@ void cvk_device::build_extension_ils_list() {
         VkSubgroupFeatureFlags required_subgroup_ops =
             VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
         if ((m_subgroup_properties.supportedOperations &
-            required_subgroup_ops) == required_subgroup_ops) {
+             required_subgroup_ops) == required_subgroup_ops &&
+            (m_features_shader_subgroup_extended_types
+                 .shaderSubgroupExtendedTypes == VK_TRUE)) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
             m_has_subgroups_support = true;
