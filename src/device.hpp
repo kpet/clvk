@@ -376,6 +376,10 @@ struct cvk_device : public _cl_device_id,
     device_16bit_storage_features() const {
         return m_features_16bit_storage;
     }
+    const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR&
+    vulkan_memory_model_features() const {
+        return m_features_vulkan_memory_model;
+    }
 
     uint32_t vulkan_max_push_constants_size() const {
         return m_properties.limits.maxPushConstantsSize;
@@ -519,6 +523,8 @@ private:
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
     VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
         m_features_shader_subgroup_extended_types{};
+    VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
+        m_features_vulkan_memory_model{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

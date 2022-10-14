@@ -277,6 +277,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+        VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -326,6 +327,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     m_features_shader_subgroup_extended_types.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
+    m_features_vulkan_memory_model.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES;
 
     std::vector<std::pair<const char*, VkBaseOutStructure*>>
         extension_features = {
@@ -342,6 +345,8 @@ void cvk_device::init_features(VkInstance instance) {
                     &m_features_16bit_storage),
             EXTFEAT(VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
                     &m_features_shader_subgroup_extended_types),
+            EXTFEAT(VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
+                    &m_features_vulkan_memory_model),
 #undef EXTFEAT
         };
 
