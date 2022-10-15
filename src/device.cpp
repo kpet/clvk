@@ -330,31 +330,43 @@ void cvk_device::init_features(VkInstance instance) {
     m_features_vulkan_memory_model.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES;
 
-    std::vector<std::pair<const char*, VkBaseOutStructure*>>
-        extension_features = {
-#define EXTFEAT(EXT, FEAT) {EXT, reinterpret_cast<VkBaseOutStructure*>(FEAT)}
-            EXTFEAT(VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
-                    &m_features_ubo_stdlayout),
-            EXTFEAT(VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
-                    &m_features_float16_int8),
-            EXTFEAT(VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
-                    &m_features_variable_pointer),
-            EXTFEAT(VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
-                    &m_features_8bit_storage),
-            EXTFEAT(VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
-                    &m_features_16bit_storage),
-            EXTFEAT(VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
-                    &m_features_shader_subgroup_extended_types),
-            EXTFEAT(VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
-                    &m_features_vulkan_memory_model),
-#undef EXTFEAT
+    std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
+        coreversion_extension_features = {
+#define VER_EXT_FEAT(ver, ext, feat)                                           \
+    {ver, ext, reinterpret_cast<VkBaseOutStructure*>(&feat)}
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
+                         m_features_ubo_stdlayout),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+                         m_features_float16_int8),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 1, 0),
+                         VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
+                         m_features_variable_pointer),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+                         m_features_8bit_storage),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 1, 0),
+                         VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+                         m_features_16bit_storage),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
+                         m_features_shader_subgroup_extended_types),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
+                         m_features_vulkan_memory_model),
+#undef VER_EXT_FEAT
         };
 
     VkBaseOutStructure* pNext = nullptr;
-    for (auto& ext_feat : extension_features) {
-        auto ext = ext_feat.first;
-        if (is_vulkan_extension_enabled(ext)) {
-            auto feat = ext_feat.second;
+    for (auto& ver_ext_feat : coreversion_extension_features) {
+        auto corever = std::get<0>(ver_ext_feat);
+        auto ext = std::get<1>(ver_ext_feat);
+        auto feat = std::get<2>(ver_ext_feat);
+        if ((corever != 0) && (m_properties.apiVersion >= corever)) {
+            feat->pNext = pNext;
+            pNext = feat;
+        } else if ((ext != nullptr) && is_vulkan_extension_enabled(ext)) {
             feat->pNext = pNext;
             pNext = feat;
         }
