@@ -403,6 +403,7 @@ void cvk_device::init_compiler_options() {
     }
     if (supports_int8()) {
         m_device_compiler_options += " -int8 ";
+        m_device_compiler_options += " -rewrite-packed-structs ";
     }
     if (supports_ubo_stdlayout()) {
         m_device_compiler_options += " -std430-ubo-layout ";
