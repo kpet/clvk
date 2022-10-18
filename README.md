@@ -172,7 +172,7 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 
 Perfetto can be enabled by passing the following options to CMake:
    - `-DCLVK_PERFETTO_ENABLE=ON`
-   - `-DCLVK_PERFETTO_SDK_SOURCE_DIR=/path/to/perfetto/sdk/source/dir`
+   - `-DCLVK_PERFETTO_SDK_DIR=/path/to/perfetto/sdk`
 
 `perfetto` sdk source directory can be found in
 [perfetto github repository](https://github.com/google/perfetto/tree/v29.0)
