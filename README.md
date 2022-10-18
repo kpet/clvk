@@ -181,7 +181,7 @@ to the SDK directory so the build system can find `perfetto.h`.
 But you should also provide the following option to CMake:
    - `-DCLVK_PERFETTO_LIBRARY=<your_perfetto_library_name>`
 
-By default, `clvk` will use the `InProcess` backend of `perfetto`, which means
+By default, clvk will use Perfetto's `InProcess` backend, which means
 that you just have to run your application to generate traces.
 Environment variables can be use to control the traces size and output filename.
 
