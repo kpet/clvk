@@ -961,7 +961,9 @@ cl_context CLVK_API_CALL clCreateContextFromType(
         return clCreateContext(properties, 1, &device, pfn_notify, user_data,
                                errcode_ret);
     } else {
-        *errcode_ret = err;
+        if (errcode_ret != nullptr) {
+            *errcode_ret = err;
+        }
         return nullptr;
     }
 }
