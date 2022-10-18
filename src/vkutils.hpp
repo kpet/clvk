@@ -19,7 +19,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "traces.hpp"
+#include "tracing.hpp"
 #include "utils.hpp"
 
 struct cvk_vulkan_queue_wrapper {

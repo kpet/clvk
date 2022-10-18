@@ -17,7 +17,7 @@
 #include "cl_headers.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
-#include "traces.hpp"
+#include "tracing.hpp"
 #include "utils.hpp"
 
 #include <mutex>

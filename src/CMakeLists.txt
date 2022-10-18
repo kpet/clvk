@@ -52,7 +52,7 @@ add_library(OpenCL-objects OBJECT
   program.cpp
   queue.cpp
   sha1.cpp
-  traces.cpp
+  tracing.cpp
   unit.cpp
   utils.cpp
   exports.map

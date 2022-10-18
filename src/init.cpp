@@ -24,7 +24,7 @@
 #include "memory.hpp"
 #include "objects.hpp"
 #include "queue.hpp"
-#include "traces.hpp"
+#include "tracing.hpp"
 
 static VkBool32 VKAPI_PTR debugCallback(
     VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,

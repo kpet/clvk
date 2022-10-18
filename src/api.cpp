@@ -21,7 +21,7 @@
 #include "objects.hpp"
 #include "program.hpp"
 #include "queue.hpp"
-#include "traces.hpp"
+#include "tracing.hpp"
 
 #define LOG_API_CALL_NO_TRACE(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
 #define LOG_API_CALL(fmt, ...)                                                 \

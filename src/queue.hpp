@@ -22,7 +22,7 @@
 #include "init.hpp"
 #include "kernel.hpp"
 #include "objects.hpp"
-#include "traces.hpp"
+#include "tracing.hpp"
 
 struct cvk_command;
 struct cvk_command_queue;

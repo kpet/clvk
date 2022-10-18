@@ -18,7 +18,7 @@
 #include "init.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
-#include "traces.hpp"
+#include "tracing.hpp"
 
 static cvk_executor_thread_pool* get_thread_pool() {
     auto state = get_or_init_global_state();

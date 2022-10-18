@@ -20,28 +20,30 @@
 #include "log.hpp"
 #include "perfetto.h"
 
-PERFETTO_DEFINE_CATEGORIES(
-    perfetto::Category("clvk").SetDescription("CLVK Events"));
+#define CLVK_PERFETTO_CATEGORY "clvk"
 
-void init_tracing();
-void term_tracing();
+PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category(CLVK_PERFETTO_CATEGORY).SetDescription("CLVK Events"));
 
 #define TRACE_FUNCTION(...)                                                    \
     perfetto::StaticString __perfetto_fct_name = __func__;                     \
-    TRACE_EVENT("clvk", __perfetto_fct_name, ##__VA_ARGS__)
+    TRACE_EVENT(CLVK_PERFETTO_CATEGORY, __perfetto_fct_name, ##__VA_ARGS__)
 #define TRACE_BEGIN_CMD(cmd_type, ...)                                         \
     TRACE_EVENT_BEGIN(                                                         \
-        "clvk", perfetto::StaticString(cl_command_type_to_string(cmd_type)),   \
+        CLVK_PERFETTO_CATEGORY,                                                \
+        perfetto::StaticString(cl_command_type_to_string(cmd_type)),           \
         ##__VA_ARGS__)
 #define TRACE_BEGIN_EVENT(cmd_type, ...)                                       \
     TRACE_EVENT_BEGIN(                                                         \
-        "clvk", "event_wait", "cl_command_type",                               \
+        CLVK_PERFETTO_CATEGORY, "event_wait", "cl_command_type",               \
         perfetto::StaticString(cl_command_type_to_string(cmd_type)),           \
         ##__VA_ARGS__)
-#define TRACE_BEGIN(name, ...) TRACE_EVENT_BEGIN("clvk", name, ##__VA_ARGS__)
-#define TRACE_END() TRACE_EVENT_END("clvk")
+#define TRACE_BEGIN(name, ...)                                                 \
+    TRACE_EVENT_BEGIN(CLVK_PERFETTO_CATEGORY, name, ##__VA_ARGS__)
+#define TRACE_END() TRACE_EVENT_END(CLVK_PERFETTO_CATEGORY)
 
-#define TRACE_CNT(counter, value) TRACE_COUNTER("clvk", *counter, value)
+#define TRACE_CNT(counter, value)                                              \
+    TRACE_COUNTER(CLVK_PERFETTO_CATEGORY, *counter, value)
 #define TRACE_CNT_VAR(name)                                                    \
     std::string string_##name;                                                 \
     std::unique_ptr<perfetto::CounterTrack> name
@@ -50,9 +52,6 @@ void term_tracing();
     name = std::make_unique<perfetto::CounterTrack>(string_##name.c_str())
 
 #else // CLVK_PERFETTO_ENABLE
-
-#define init_tracing()
-#define term_tracing()
 
 #define TRACE_FUNCTION(...)
 #define TRACE_BEGIN_CMD(cmd_type, ...)
@@ -65,3 +64,6 @@ void term_tracing();
 #define TRACE_CNT_VAR_INIT(name, value)
 
 #endif // CLVK_PERFETTO_ENABLE
+
+void init_tracing();
+void term_tracing();

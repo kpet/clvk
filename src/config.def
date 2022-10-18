@@ -35,6 +35,6 @@ OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif // COMPILER_AVAILABLE
 
 #if CLVK_PERFETTO_BACKEND_INPROCESS
-OPTION(uint32_t, perfetto_max_trace_size, 1024u)
-OPTION(std::string, perfetto_dest_trace, "clvk.perfetto-trace")
+OPTION(uint32_t, perfetto_trace_max_size, 1024u)
+OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS

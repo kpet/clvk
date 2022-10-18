@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "traces.hpp"
+#include "tracing.hpp"
 #include "config.hpp"
 #include "queue.hpp"
 
@@ -21,10 +21,13 @@
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
 
 #ifdef CLVK_PERFETTO_BACKEND_INPROCESS
-std::unique_ptr<perfetto::TracingSession> tracing_session;
+static std::unique_ptr<perfetto::TracingSession> gTracingSession;
 #endif
 
+#endif // CLVK_PERFETTO_ENABLE
+
 void init_tracing() {
+#ifdef CLVK_PERFETTO_ENABLE
     perfetto::TracingInitArgs args;
 #ifdef CLVK_PERFETTO_BACKEND_INPROCESS
     args.backends |= perfetto::kInProcessBackend;
@@ -37,27 +40,29 @@ void init_tracing() {
 #ifdef CLVK_PERFETTO_BACKEND_INPROCESS
     perfetto::protos::gen::TrackEventConfig track_event_cfg;
     perfetto::TraceConfig cfg;
-    cfg.add_buffers()->set_size_kb(config.perfetto_max_trace_size);
+    cfg.add_buffers()->set_size_kb(config.perfetto_trace_max_size);
     auto* ds_cfg = cfg.add_data_sources()->mutable_config();
     ds_cfg->set_name("track_event");
     ds_cfg->set_track_event_config_raw(track_event_cfg.SerializeAsString());
 
-    tracing_session = perfetto::Tracing::NewTrace();
-    tracing_session->Setup(cfg);
-    tracing_session->StartBlocking();
+    gTracingSession = perfetto::Tracing::NewTrace();
+    gTracingSession->Setup(cfg);
+    gTracingSession->StartBlocking();
 #endif
+#endif // CLVK_PERFETTO_ENABLE
 }
 
 void term_tracing() {
+#ifdef CLVK_PERFETTO_ENABLE
 #ifdef CLVK_PERFETTO_BACKEND_INPROCESS
-    tracing_session->StopBlocking();
-    std::vector<char> trace_data(tracing_session->ReadTraceBlocking());
+    gTracingSession->StopBlocking();
+    std::vector<char> trace_data(gTracingSession->ReadTraceBlocking());
 
     std::ofstream output;
-    output.open(config.perfetto_dest_trace, std::ios::out | std::ios::binary);
+    output.open(config.perfetto_trace_dest, std::ios::out | std::ios::binary);
     output.write(&trace_data[0], trace_data.size());
     output.close();
 #endif
+#endif // CLVK_PERFETTO_ENABLE
 }
 
-#endif // CLVK_PERFETTO_ENABLE
