@@ -176,8 +176,8 @@ Perfetto can be enabled by passing the following options to CMake:
 
 The perfetto SDK can be found in the [Perfetto Github repository](https://github.com/google/perfetto/tree/v29.0)
 
-If you already have a perfetto library in your system, you still need to define
-the source directory to let `clvk` find `perfetto.h`.
+If you already have a perfetto library in your system, you still need to provide the path
+to the SDK directory so the build system can find `perfetto.h`.
 But you should also add the following option to CMake:
    - `-DCLVK_PERFETTO_LIBRARY=<your_perfetto_library_name>`
 
