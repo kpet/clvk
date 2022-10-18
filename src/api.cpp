@@ -2551,6 +2551,11 @@ cl_int CLVK_API_CALL clSetProgramReleaseCallback(
 // Kernel Object APIs
 cl_kernel cvk_create_kernel(cl_program program, const char* kernel_name,
                             cl_int* errcode_ret) {
+    if (kernel_name == nullptr) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
     auto kernel =
         std::make_unique<cvk_kernel>(icd_downcast(program), kernel_name);
 
