@@ -25,6 +25,8 @@
 PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(CLVK_PERFETTO_CATEGORY).SetDescription("CLVK Events"));
 
+#define TRACE_STRING(str) perfetto::StaticString(str)
+
 #define TRACE_FUNCTION(...)                                                    \
     perfetto::StaticString __perfetto_fct_name = __func__;                     \
     TRACE_EVENT(CLVK_PERFETTO_CATEGORY, __perfetto_fct_name, ##__VA_ARGS__)
@@ -53,6 +55,7 @@ PERFETTO_DEFINE_CATEGORIES(
 
 #else // CLVK_PERFETTO_ENABLE
 
+#define TRACE_STRING()
 #define TRACE_FUNCTION(...)
 #define TRACE_BEGIN_CMD(cmd_type, ...)
 #define TRACE_BEGIN_EVENT(cmd_type, ...)

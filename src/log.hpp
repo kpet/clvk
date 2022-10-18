@@ -69,3 +69,5 @@ std::string cl_channel_order_to_string(cl_channel_order order);
 std::string cl_channel_type_to_string(cl_channel_type type);
 
 const char* cl_command_type_to_string(cl_command_type type);
+const char* cl_device_type_to_string(cl_device_type type);
+const char* cl_command_execution_status_to_string(cl_int status);

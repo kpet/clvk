@@ -65,4 +65,3 @@ void term_tracing() {
 #endif
 #endif // CLVK_PERFETTO_ENABLE
 }
-
