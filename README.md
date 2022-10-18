@@ -170,7 +170,7 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 >
 > -- https://github.com/google/perfetto/tree/v29.0#perfetto---system-profiling-app-tracing-and-trace-analysis
 
-`Perfetto` can be enable in `clvk` by adding the following option to CMake:
+Perfetto can be enabled by passing the following options to CMake:
    - `-DCLVK_PERFETTO_ENABLE=ON`
    - `-DCLVK_PERFETTO_SDK_SOURCE_DIR=/path/to/perfetto/sdk/source/dir`
 
