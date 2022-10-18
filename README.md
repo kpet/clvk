@@ -189,7 +189,7 @@ If you'd rather use Perfetto's `System` backend, pass the following option
 to CMake:
    - `-DCLVK_PERFETTO_BACKEND=System`
 
-Once traces have been generated, you can open them in
+Once traces have been generated, you can view them using the
 [perfetto trace viewer](https://ui.perfetto.dev/).
 
 ### Windows
