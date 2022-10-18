@@ -87,8 +87,8 @@ set(OpenCL-dependencies
 
 option(CLVK_PERFETTO_ENABLE "Enable perfetto tracing" OFF)
 if (CLVK_PERFETTO_ENABLE)
-  if (NOT CLVK_PERFETTO_SDK_SOURCE_DIR)
-    message(FATAL_ERROR "CLVK_PERFETTO_SDK_SOURCE_DIR mush be provided with
+  if (NOT CLVK_PERFETTO_SDK_DIR)
+    message(FATAL_ERROR "CLVK_PERFETTO_SDK_DIR mush be provided with
       CLVK_PERFETTO_ENABLE=ON")
   endif()
 
@@ -105,16 +105,16 @@ if (CLVK_PERFETTO_ENABLE)
 
   target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_ENABLE)
   target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
-    ${CLVK_PERFETTO_SDK_SOURCE_DIR})
+    ${CLVK_PERFETTO_SDK_DIR})
 
   if (NOT CLVK_PERFETTO_LIBRARY)
-    add_library(perfetto STATIC ${CLVK_PERFETTO_SDK_SOURCE_DIR}/perfetto.cc)
+    add_library(perfetto STATIC ${CLVK_PERFETTO_SDK_DIR}/perfetto.cc)
     set_target_properties(perfetto PROPERTIES POSITION_INDEPENDENT_CODE ON)
     set(CLVK_PERFETTO_LIBRARY perfetto)
   endif()
   set(OpenCL-dependencies ${OpenCL-dependencies} ${CLVK_PERFETTO_LIBRARY})
 
-  message(STATUS "CLVK_PERFETTO_SDK_SOURCE_DIR = '${CLVK_PERFETTO_SDK_SOURCE_DIR}'")
+  message(STATUS "CLVK_PERFETTO_SDK_DIR = '${CLVK_PERFETTO_SDK_DIR}'")
   message(STATUS "CLVK_PERFETTO_LIBRARY = '${CLVK_PERFETTO_LIBRARY}'")
   message(STATUS "CLVK_PERFETTO_BACKEND = '${CLVK_PERFETTO_BACKEND}'")
 endif()
