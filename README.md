@@ -183,7 +183,7 @@ But you should also provide the following option to CMake:
 
 By default, clvk will use Perfetto's `InProcess` backend, which means
 that you just have to run your application to generate traces.
-Environment variables can be use to control the traces size and output filename.
+Environment variables can be used to control the maximum size of traces and what file they are saved to.
 
 If you want to use the `System` backend of `perfetto`, add the following option
 to CMake:
