@@ -1931,10 +1931,22 @@ cl_program CLVK_API_CALL clCreateProgramWithSource(cl_context context,
         }
         return nullptr;
     }
+    if (count == 0 || strings == nullptr) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
 
     cvk_program* prog = new cvk_program(icd_downcast(context));
 
     for (cl_uint i = 0; i < count; i++) {
+        if (strings[i] == nullptr) {
+            if (errcode_ret != nullptr) {
+                *errcode_ret = CL_INVALID_VALUE;
+            }
+            return nullptr;
+        }
         size_t len = (lengths != nullptr) ? lengths[i] : 0;
         prog->append_source(strings[i], len);
     }
