@@ -1603,6 +1603,13 @@ cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                  "errcode_ret = %p",
                  context, flags, size, host_ptr, errcode_ret);
 
+    if (!is_valid_context(context)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_CONTEXT;
+        }
+        return nullptr;
+    }
+
     cl_int err;
     auto buffer =
         cvk_buffer::create(icd_downcast(context), flags, size, host_ptr, &err);
