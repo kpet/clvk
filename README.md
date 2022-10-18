@@ -178,7 +178,7 @@ The perfetto SDK can be found in the [Perfetto Github repository](https://github
 
 If you already have a perfetto library in your system, you still need to provide the path
 to the SDK directory so the build system can find `perfetto.h`.
-But you should also add the following option to CMake:
+But you should also provide the following option to CMake:
    - `-DCLVK_PERFETTO_LIBRARY=<your_perfetto_library_name>`
 
 By default, `clvk` will use the `InProcess` backend of `perfetto`, which means
