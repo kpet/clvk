@@ -18,6 +18,7 @@
 #include "init.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
+#include "tracing.hpp"
 
 static cvk_executor_thread_pool* get_thread_pool() {
     auto state = get_or_init_global_state();
@@ -43,6 +44,16 @@ cvk_command_queue::cvk_command_queue(
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
         cvk_warn_fn("out-of-order execution enabled, will be ignored");
     }
+
+    TRACE_CNT_VAR_INIT(batch_in_flight_counter,
+                       "clvk-queue_" + std::to_string((uintptr_t)this) +
+                           "-batches");
+    TRACE_CNT_VAR_INIT(group_in_flight_counter,
+                       "clvk-queue_" + std::to_string((uintptr_t)this) +
+                           "-groups");
+
+    TRACE_CNT(batch_in_flight_counter, 0);
+    TRACE_CNT(group_in_flight_counter, 0);
 }
 
 cl_int cvk_command_queue::init() {
@@ -259,7 +270,9 @@ void cvk_executor_thread::executor() {
     while (!m_shutdown) {
 
         if (m_groups.size() == 0) {
+            TRACE_BEGIN("executor_wait");
             m_cv.wait(lock);
+            TRACE_END();
         }
 
         if (m_shutdown) {
@@ -306,7 +319,7 @@ void cvk_executor_thread::executor() {
 }
 
 cl_int cvk_command_queue::flush_no_lock() {
-
+    TRACE_FUNCTION("queue", (uintptr_t)this);
     cvk_debug_fn("queue = %p", this);
 
     std::unique_ptr<cvk_command_group> group;

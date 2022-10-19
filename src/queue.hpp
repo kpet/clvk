@@ -22,6 +22,7 @@
 #include "init.hpp"
 #include "kernel.hpp"
 #include "objects.hpp"
+#include "tracing.hpp"
 
 struct cvk_command;
 struct cvk_command_queue;
@@ -174,11 +175,23 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_properties_array;
     }
 
-    void batch_enqueued() { m_nb_batch_in_flight++; }
-    void batch_completed() { m_nb_batch_in_flight--; }
+    void batch_enqueued() {
+        uint64_t batches = m_nb_batch_in_flight.fetch_add(1);
+        TRACE_CNT(batch_in_flight_counter, batches + 1);
+    }
+    void batch_completed() {
+        uint64_t batches = m_nb_batch_in_flight.fetch_sub(1);
+        TRACE_CNT(batch_in_flight_counter, batches - 1);
+    }
 
-    void group_sent() { m_nb_group_in_flight++; }
-    void group_completed() { m_nb_group_in_flight--; }
+    void group_sent() {
+        uint64_t group = m_nb_group_in_flight.fetch_add(1);
+        TRACE_CNT(group_in_flight_counter, group + 1);
+    }
+    void group_completed() {
+        uint64_t group = m_nb_group_in_flight.fetch_sub(1);
+        TRACE_CNT(group_in_flight_counter, group - 1);
+    }
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
@@ -208,6 +221,9 @@ private:
 
     std::atomic<uint64_t> m_nb_batch_in_flight;
     std::atomic<uint64_t> m_nb_group_in_flight;
+
+    TRACE_CNT_VAR(batch_in_flight_counter);
+    TRACE_CNT_VAR(group_in_flight_counter);
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
@@ -347,7 +363,9 @@ struct cvk_command {
 
         // Then execute the action if no dependencies failed
         if (status == CL_COMPLETE) {
+            TRACE_BEGIN_CMD(m_type, "queue", (uintptr_t) & (*m_queue));
             status = do_action();
+            TRACE_END();
         }
 
         return status;

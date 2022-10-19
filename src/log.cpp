@@ -14,6 +14,7 @@
 
 #include "log.hpp"
 #include "config.hpp"
+#include "queue.hpp"
 
 #include <cerrno>
 #include <cstdarg>
@@ -28,6 +29,10 @@
 #ifdef WIN32
 #include <io.h>
 #endif
+
+#define CASE(X)                                                                \
+    case X:                                                                    \
+        return #X;
 
 static int gLoggingLevel;
 static bool gLoggingColour;
@@ -159,9 +164,6 @@ std::string pretty_size(uint64_t size) {
 
 const char* vulkan_error_string(VkResult result) {
     switch (result) {
-#define CASE(X)                                                                \
-    case X:                                                                    \
-        return #X;
         CASE(VK_SUCCESS)
         CASE(VK_NOT_READY)
         CASE(VK_TIMEOUT)
@@ -193,7 +195,6 @@ const char* vulkan_error_string(VkResult result) {
         CASE(VK_ERROR_OUT_OF_POOL_MEMORY_KHR)
     default:
         return "Unknown vulkan error";
-#undef CASE
     }
 }
 
@@ -278,56 +279,98 @@ std::string vulkan_calibrateable_time_domain_string(VkTimeDomainEXT td) {
 }
 
 std::string cl_channel_order_to_string(cl_channel_order order) {
-#define ORDER(o)                                                               \
-    case o:                                                                    \
-        return #o;
     switch (order) {
-        ORDER(CL_R)
-        ORDER(CL_A)
-        ORDER(CL_DEPTH)
-        ORDER(CL_LUMINANCE)
-        ORDER(CL_INTENSITY)
-        ORDER(CL_RG)
-        ORDER(CL_RA)
-        ORDER(CL_Rx)
-        ORDER(CL_RGB)
-        ORDER(CL_RGx)
-        ORDER(CL_RGBA)
-        ORDER(CL_ARGB)
-        ORDER(CL_BGRA)
-        ORDER(CL_ABGR)
-        ORDER(CL_RGBx)
-        ORDER(CL_sRGB)
-        ORDER(CL_sRGBA)
-        ORDER(CL_sBGRA)
-        ORDER(CL_sRGBx)
+        CASE(CL_R)
+        CASE(CL_A)
+        CASE(CL_DEPTH)
+        CASE(CL_LUMINANCE)
+        CASE(CL_INTENSITY)
+        CASE(CL_RG)
+        CASE(CL_RA)
+        CASE(CL_Rx)
+        CASE(CL_RGB)
+        CASE(CL_RGx)
+        CASE(CL_RGBA)
+        CASE(CL_ARGB)
+        CASE(CL_BGRA)
+        CASE(CL_ABGR)
+        CASE(CL_RGBx)
+        CASE(CL_sRGB)
+        CASE(CL_sRGBA)
+        CASE(CL_sBGRA)
+        CASE(CL_sRGBx)
     }
-#undef ORDER
     return "Unknown channel order";
 }
 
 std::string cl_channel_type_to_string(cl_channel_type type) {
-#define TYPE(t)                                                                \
-    case t:                                                                    \
-        return #t;
     switch (type) {
-        TYPE(CL_SNORM_INT8)
-        TYPE(CL_SNORM_INT16)
-        TYPE(CL_UNORM_INT8)
-        TYPE(CL_UNORM_INT16)
-        TYPE(CL_UNORM_SHORT_565)
-        TYPE(CL_UNORM_SHORT_555)
-        TYPE(CL_UNORM_INT_101010)
-        TYPE(CL_UNORM_INT_101010_2)
-        TYPE(CL_SIGNED_INT8)
-        TYPE(CL_SIGNED_INT16)
-        TYPE(CL_SIGNED_INT32)
-        TYPE(CL_UNSIGNED_INT8)
-        TYPE(CL_UNSIGNED_INT16)
-        TYPE(CL_UNSIGNED_INT32)
-        TYPE(CL_HALF_FLOAT)
-        TYPE(CL_FLOAT)
+        CASE(CL_SNORM_INT8)
+        CASE(CL_SNORM_INT16)
+        CASE(CL_UNORM_INT8)
+        CASE(CL_UNORM_INT16)
+        CASE(CL_UNORM_SHORT_565)
+        CASE(CL_UNORM_SHORT_555)
+        CASE(CL_UNORM_INT_101010)
+        CASE(CL_UNORM_INT_101010_2)
+        CASE(CL_SIGNED_INT8)
+        CASE(CL_SIGNED_INT16)
+        CASE(CL_SIGNED_INT32)
+        CASE(CL_UNSIGNED_INT8)
+        CASE(CL_UNSIGNED_INT16)
+        CASE(CL_UNSIGNED_INT32)
+        CASE(CL_HALF_FLOAT)
+        CASE(CL_FLOAT)
     }
-#undef TYPE
     return "Unknown channel type";
+}
+
+const char* cl_command_type_to_string(cl_command_type type) {
+    switch (type) {
+        CASE(CL_COMMAND_NDRANGE_KERNEL);
+        CASE(CL_COMMAND_TASK);
+        CASE(CL_COMMAND_NATIVE_KERNEL);
+        CASE(CL_COMMAND_READ_BUFFER);
+        CASE(CL_COMMAND_WRITE_BUFFER);
+        CASE(CL_COMMAND_COPY_BUFFER);
+        CASE(CL_COMMAND_READ_IMAGE);
+        CASE(CL_COMMAND_WRITE_IMAGE);
+        CASE(CL_COMMAND_COPY_IMAGE);
+        CASE(CL_COMMAND_COPY_BUFFER_TO_IMAGE);
+        CASE(CL_COMMAND_COPY_IMAGE_TO_BUFFER);
+        CASE(CL_COMMAND_MAP_BUFFER);
+        CASE(CL_COMMAND_MAP_IMAGE);
+        CASE(CL_COMMAND_UNMAP_MEM_OBJECT);
+        CASE(CL_COMMAND_MARKER);
+        CASE(CL_COMMAND_ACQUIRE_GL_OBJECTS);
+        CASE(CL_COMMAND_RELEASE_GL_OBJECTS);
+        CASE(CLVK_COMMAND_BATCH);
+        CASE(CLVK_COMMAND_IMAGE_INIT);
+    default:
+        return "CL_COMMAND_UNKNOWN";
+    }
+}
+
+const char* cl_device_type_to_string(cl_device_type type) {
+    switch (type) {
+        CASE(CL_DEVICE_TYPE_CPU);
+        CASE(CL_DEVICE_TYPE_GPU);
+        CASE(CL_DEVICE_TYPE_ACCELERATOR);
+        CASE(CL_DEVICE_TYPE_CUSTOM);
+        CASE(CL_DEVICE_TYPE_DEFAULT);
+        CASE(CL_DEVICE_TYPE_ALL);
+    default:
+        return "CL_DEVICE_TYPE_UNKNOWN";
+    }
+}
+
+const char* cl_command_execution_status_to_string(cl_int status) {
+    switch (status) {
+        CASE(CL_COMPLETE);
+        CASE(CL_RUNNING);
+        CASE(CL_SUBMITTED);
+        CASE(CL_QUEUED);
+    default:
+        return "CL_COMMAND_EXECUTION_STATUS_UNKNOWN";
+    }
 }

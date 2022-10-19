@@ -21,6 +21,7 @@
 #include "objects.hpp"
 #include "program.hpp"
 #include "queue.hpp"
+#include "tracing.hpp"
 
 #define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
 
@@ -156,6 +157,7 @@ cl_int CLVK_API_CALL clGetPlatformIDs(cl_uint num_entries,
                                       cl_uint* num_platforms) {
     auto state = get_or_init_global_state();
 
+    TRACE_FUNCTION("num_entries", num_entries);
     LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
                  num_entries, platforms, num_platforms);
 
@@ -169,6 +171,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
                                        size_t* param_value_size_ret) {
     auto state = get_or_init_global_state();
 
+    TRACE_FUNCTION("platform", (uintptr_t)platform, "param_name", param_name);
     LOG_API_CALL("platform = %p, param_name = %u, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  platform, param_name, param_value_size, param_value,
@@ -278,6 +281,7 @@ void* cvk_get_extension_function_pointer(const char* funcname) {
 
 void* CLVK_API_CALL clGetExtensionFunctionAddressForPlatform(
     cl_platform_id platform, const char* funcname) {
+    TRACE_FUNCTION("platform", (uintptr_t)platform);
     LOG_API_CALL("platform = %p, funcname = '%s'", platform, funcname);
 
     if (platform == nullptr) {
@@ -288,6 +292,7 @@ void* CLVK_API_CALL clGetExtensionFunctionAddressForPlatform(
 }
 
 void* CLVK_API_CALL clGetExtensionFunctionAddress(const char* funcname) {
+    TRACE_FUNCTION();
     LOG_API_CALL("funcname = '%s'", funcname);
 
     return cvk_get_extension_function_pointer(funcname);
@@ -301,9 +306,14 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
 
     auto state = get_or_init_global_state();
 
-    LOG_API_CALL("platform = %p, device_type = %lu, num_entries = %u, devices "
-                 "= %p, num_devices = %p",
-                 platform, device_type, num_entries, devices, num_devices);
+    TRACE_FUNCTION("platform", (uintptr_t)platform, "device_type",
+                   TRACE_STRING(cl_device_type_to_string(device_type)),
+                   "num_entries", num_entries);
+    LOG_API_CALL(
+        "platform = %p, device_type = %lu (%s), num_entries = %u, devices "
+        "= %p, num_devices = %p",
+        platform, device_type, cl_device_type_to_string(device_type),
+        num_entries, devices, num_devices);
 
     if (platform == nullptr) {
         platform = state->platform();
@@ -349,6 +359,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
                                      cl_device_info param_name,
                                      size_t param_value_size, void* param_value,
                                      size_t* param_value_size_ret) {
+    TRACE_FUNCTION("device", (uintptr_t)dev, "param_name", param_name);
     LOG_API_CALL(
         "device = %p, param_name = %d, size = %zu, value = %p, size_ret = %p",
         dev, param_name, param_value_size, param_value, param_value_size_ret);
@@ -863,6 +874,8 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
 cl_int CLVK_API_CALL clCreateSubDevices(
     cl_device_id in_device, const cl_device_partition_property* properties,
     cl_uint num_devices, cl_device_id* out_devices, cl_uint* num_devices_ret) {
+    TRACE_FUNCTION("in_device", (uintptr_t)in_device, "num_devices",
+                   num_devices);
     LOG_API_CALL("in_device = %p, properties = %p, num_devices = %u, "
                  "out_devices = %p, num_devices_ret = %p",
                  in_device, properties, num_devices, out_devices,
@@ -892,6 +905,7 @@ cl_int CLVK_API_CALL clCreateSubDevices(
 }
 
 cl_int CLVK_API_CALL clRetainDevice(cl_device_id device) {
+    TRACE_FUNCTION("device", (uintptr_t)device);
     LOG_API_CALL("device = %p", device);
 
     if (!is_valid_device(device)) {
@@ -902,6 +916,7 @@ cl_int CLVK_API_CALL clRetainDevice(cl_device_id device) {
 }
 
 cl_int CLVK_API_CALL clReleaseDevice(cl_device_id device) {
+    TRACE_FUNCTION("device", (uintptr_t)device);
     LOG_API_CALL("device = %p", device);
 
     if (!is_valid_device(device)) {
@@ -917,6 +932,7 @@ cl_context CLVK_API_CALL clCreateContext(
     const cl_device_id* devices,
     void(CL_CALLBACK* pfn_notify)(const char*, const void*, size_t, void*),
     void* user_data, cl_int* errcode_ret) {
+    TRACE_FUNCTION("num_devices", num_devices);
     LOG_API_CALL("properties = %p, num_devices = %u, devices = %p, pfn_notify "
                  "= %p, user_data = %p, errcode_ret = %p",
                  properties, num_devices, devices, pfn_notify, user_data,
@@ -948,9 +964,12 @@ cl_context CLVK_API_CALL clCreateContextFromType(
     const cl_context_properties* properties, cl_device_type device_type,
     void(CL_CALLBACK* pfn_notify)(const char*, const void*, size_t, void*),
     void* user_data, cl_int* errcode_ret) {
-    LOG_API_CALL("properties = %p, device_type = %lu, pfn_notify = %p, "
+    TRACE_FUNCTION("device_type",
+                   TRACE_STRING(cl_device_type_to_string(device_type)));
+    LOG_API_CALL("properties = %p, device_type = %lu (%s), pfn_notify = %p, "
                  "user_data = %p, errcode_ret = %p",
-                 properties, device_type, pfn_notify, user_data, errcode_ret);
+                 properties, device_type, cl_device_type_to_string(device_type),
+                 pfn_notify, user_data, errcode_ret);
 
     cl_device_id device;
 
@@ -967,6 +986,7 @@ cl_context CLVK_API_CALL clCreateContextFromType(
 }
 
 cl_int CLVK_API_CALL clRetainContext(cl_context context) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p", context);
 
     if (!is_valid_context(context)) {
@@ -979,6 +999,7 @@ cl_int CLVK_API_CALL clRetainContext(cl_context context) {
 }
 
 cl_int CLVK_API_CALL clReleaseContext(cl_context context) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p", context);
 
     if (!is_valid_context(context)) {
@@ -994,6 +1015,7 @@ cl_int CLVK_API_CALL clSetContextDestructorCallback(
     cl_context context,
     void(CL_CALLBACK* pfn_notify)(cl_context context, void* user_data),
     void* user_data) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, pfn_notify = %p, user_data = %p", context,
                  pfn_notify, user_data);
 
@@ -1015,6 +1037,7 @@ cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
                                       size_t param_value_size,
                                       void* param_value,
                                       size_t* param_value_size_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)ctx, "param_name", param_name);
     LOG_API_CALL(
         "context = %p, param_name = %u, size = %zu, value = %p, size_ret = %p",
         ctx, param_name, param_value_size, param_value, param_value_size_ret);
@@ -1072,6 +1095,7 @@ cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
 // Event APIs
 cl_int CLVK_API_CALL clWaitForEvents(cl_uint num_events,
                                      const cl_event* event_list) {
+    TRACE_FUNCTION("num_events", num_events);
     LOG_API_CALL("num_events = %u, event_list = %p", num_events, event_list);
 
     if ((num_events == 0) || (event_list == nullptr)) {
@@ -1091,6 +1115,8 @@ cl_int CLVK_API_CALL clWaitForEvents(cl_uint num_events,
 cl_int CLVK_API_CALL clEnqueueWaitForEvents(cl_command_queue command_queue,
                                             cl_uint num_events,
                                             const cl_event* event_list) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue, "num_events",
+                   num_events);
     LOG_API_CALL("command_queue = %p, num_events = %u, event_list = %p",
                  command_queue, num_events, event_list);
 
@@ -1098,6 +1124,7 @@ cl_int CLVK_API_CALL clEnqueueWaitForEvents(cl_command_queue command_queue,
 }
 
 cl_int CLVK_API_CALL clReleaseEvent(cl_event event) {
+    TRACE_FUNCTION("event", (uintptr_t)event);
     LOG_API_CALL("event = %p", event);
 
     if (!is_valid_event(event)) {
@@ -1110,6 +1137,7 @@ cl_int CLVK_API_CALL clReleaseEvent(cl_event event) {
 }
 
 cl_int CLVK_API_CALL clRetainEvent(cl_event event) {
+    TRACE_FUNCTION("event", (uintptr_t)event);
     LOG_API_CALL("event = %p", event);
 
     if (!is_valid_event(event)) {
@@ -1123,6 +1151,7 @@ cl_int CLVK_API_CALL clRetainEvent(cl_event event) {
 
 cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
                                          cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, errcode_ret = %p", context, errcode_ret);
 
     if (!is_valid_context(context)) {
@@ -1143,7 +1172,12 @@ cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
 
 cl_int CLVK_API_CALL clSetUserEventStatus(cl_event event,
                                           cl_int execution_status) {
-    LOG_API_CALL("event = %p, execution_status = %d", event, execution_status);
+    TRACE_FUNCTION(
+        "event", (uintptr_t)event, "execution_status",
+        TRACE_STRING(cl_command_execution_status_to_string(execution_status)));
+    LOG_API_CALL("event = %p, execution_status = %d (%s)", event,
+                 execution_status,
+                 cl_command_execution_status_to_string(execution_status));
 
     if (!is_valid_event(event) || !icd_downcast(event)->is_user_event()) {
         return CL_INVALID_EVENT;
@@ -1164,9 +1198,15 @@ cl_int CLVK_API_CALL clSetEventCallback(
                                         cl_int event_command_exec_status,
                                         void* user_data),
     void* user_data) {
+    TRACE_FUNCTION("event", (uintptr_t)event, "execution_status",
+                   TRACE_STRING(cl_command_execution_status_to_string(
+                       command_exec_callback_type)));
     LOG_API_CALL(
-        "event = %p, callback_type = %d, pfn_event_notify = %p, user_data = %p",
-        event, command_exec_callback_type, pfn_event_notify, user_data);
+        "event = %p, callback_type = %d (%s), pfn_event_notify = %p, user_data "
+        "= %p",
+        event, command_exec_callback_type,
+        cl_command_execution_status_to_string(command_exec_callback_type),
+        pfn_event_notify, user_data);
 
     if (!is_valid_event(event)) {
         return CL_INVALID_EVENT;
@@ -1220,6 +1260,8 @@ cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
 cl_int CLVK_API_CALL clEnqueueMarkerWithWaitList(
     cl_command_queue command_queue, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
                  command_queue, num_events_in_wait_list, event_wait_list,
@@ -1232,6 +1274,7 @@ cl_int CLVK_API_CALL clEnqueueMarkerWithWaitList(
 
 cl_int CLVK_API_CALL clEnqueueMarker(cl_command_queue command_queue,
                                      cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p, event = %p", command_queue, event);
 
     return cvk_enqueue_marker_with_wait_list(icd_downcast(command_queue), 0,
@@ -1259,6 +1302,8 @@ cl_int cvk_enqueue_barrier_with_wait_list(cvk_command_queue* command_queue,
 cl_int CLVK_API_CALL clEnqueueBarrierWithWaitList(
     cl_command_queue command_queue, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
                  command_queue, num_events_in_wait_list, event_wait_list,
@@ -1270,6 +1315,7 @@ cl_int CLVK_API_CALL clEnqueueBarrierWithWaitList(
 }
 
 cl_int CLVK_API_CALL clEnqueueBarrier(cl_command_queue command_queue) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
 
     return cvk_enqueue_barrier_with_wait_list(icd_downcast(command_queue), 0,
@@ -1279,6 +1325,7 @@ cl_int CLVK_API_CALL clEnqueueBarrier(cl_command_queue command_queue) {
 cl_int CLVK_API_CALL clGetEventInfo(cl_event evt, cl_event_info param_name,
                                     size_t param_value_size, void* param_value,
                                     size_t* param_value_size_ret) {
+    TRACE_FUNCTION("event", (uintptr_t)evt, "param_name", param_name);
     LOG_API_CALL("event = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  evt, param_name, param_value_size, param_value,
@@ -1387,6 +1434,8 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
 cl_command_queue CLVK_API_CALL clCreateCommandQueue(
     cl_context context, cl_device_id device,
     cl_command_queue_properties properties, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "device", (uintptr_t)device,
+                   "properties", properties);
     LOG_API_CALL(
         "context = %p, device = %p, properties = %lu, errcode_ret = %p",
         context, device, properties, errcode_ret);
@@ -1447,6 +1496,7 @@ cl_command_queue cvk_create_command_queue_with_properties(
 cl_command_queue CLVK_API_CALL clCreateCommandQueueWithProperties(
     cl_context context, cl_device_id device,
     const cl_queue_properties* properties, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "device", (uintptr_t)device);
     LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
                  context, device, properties, errcode_ret);
 
@@ -1457,6 +1507,7 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueueWithProperties(
 cl_command_queue CLVK_API_CALL clCreateCommandQueueWithPropertiesKHR(
     cl_context context, cl_device_id device,
     const cl_queue_properties* properties, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "device", (uintptr_t)device);
     LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
                  context, device, properties, errcode_ret);
 
@@ -1465,6 +1516,7 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueueWithPropertiesKHR(
 }
 
 cl_int CLVK_API_CALL clReleaseCommandQueue(cl_command_queue command_queue) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
 
     if (!is_valid_command_queue(command_queue)) {
@@ -1479,6 +1531,7 @@ cl_int CLVK_API_CALL clReleaseCommandQueue(cl_command_queue command_queue) {
 }
 
 cl_int CLVK_API_CALL clRetainCommandQueue(cl_command_queue command_queue) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
 
     if (!is_valid_command_queue(command_queue)) {
@@ -1494,6 +1547,7 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
                                            size_t param_value_size,
                                            void* param_value,
                                            size_t* param_value_size_ret) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "param_name", param_name);
     LOG_API_CALL("command_queue = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  cq, param_name, param_value_size, param_value,
@@ -1571,6 +1625,8 @@ cl_int CLVK_API_CALL clGetCommandQueueInfo(cl_command_queue cq,
 
 cl_int CLVK_API_CALL clSetDefaultDeviceCommandQueue(
     cl_context context, cl_device_id device, cl_command_queue command_queue) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "device", (uintptr_t)device,
+                   "command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("context = %p, device = %p, command_queue = %p", context,
                  device, command_queue);
     return CL_INVALID_OPERATION;
@@ -1579,6 +1635,8 @@ cl_int CLVK_API_CALL clSetDefaultDeviceCommandQueue(
 cl_int CLVK_API_CALL clSetCommandQueueProperty(
     cl_command_queue command_queue, cl_command_queue_properties properties,
     cl_bool enable, cl_command_queue_properties* old_properties) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue, "properties",
+                   properties);
     LOG_API_CALL("command_queue = %p, properties = %lx, enable = %d, "
                  "old_properties = %p",
                  command_queue, properties, enable, old_properties);
@@ -1597,6 +1655,7 @@ cl_int CLVK_API_CALL clSetCommandQueueProperty(
 cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                                     size_t size, void* host_ptr,
                                     cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL("context = %p, flags = %lu, size = %zu, host_ptr = %p, "
                  "errcode_ret = %p",
                  context, flags, size, host_ptr, errcode_ret);
@@ -1620,6 +1679,7 @@ cl_mem CLVK_API_CALL clCreateBufferWithProperties(
     cl_context context, const cl_mem_properties* properties, cl_mem_flags flags,
     size_t size, void* host_ptr, cl_int* errcode_ret) {
 
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL("context = %p, properties = %p, flags = %lx, size = %zu, "
                  "host_ptr = %p, errcode_ret = %p",
                  context, properties, flags, size, host_ptr, errcode_ret);
@@ -1653,6 +1713,8 @@ cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
                                        cl_buffer_create_type buffer_create_type,
                                        const void* buffer_create_info,
                                        cl_int* errcode_ret) {
+    TRACE_FUNCTION("buffer", (uintptr_t)buf, "flags", flags,
+                   "buffer_create_type", buffer_create_type);
     LOG_API_CALL("buffer = %p, flags = %lu, buffer_create_type = %u, "
                  "buffer_create_info = %p, errcode_ret = %p",
                  buf, flags, buffer_create_type, buffer_create_info,
@@ -1715,6 +1777,7 @@ cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
 }
 
 cl_int CLVK_API_CALL clRetainMemObject(cl_mem memobj) {
+    TRACE_FUNCTION("memobj", (uintptr_t)memobj);
     LOG_API_CALL("memobj = %p", memobj);
 
     if (!is_valid_mem_object(memobj)) {
@@ -1727,6 +1790,7 @@ cl_int CLVK_API_CALL clRetainMemObject(cl_mem memobj) {
 }
 
 cl_int CLVK_API_CALL clReleaseMemObject(cl_mem memobj) {
+    TRACE_FUNCTION("memobj", (uintptr_t)memobj);
     LOG_API_CALL("memobj = %p", memobj);
 
     if (!is_valid_mem_object(memobj)) {
@@ -1742,6 +1806,7 @@ cl_int CLVK_API_CALL clSetMemObjectDestructorCallback(
     cl_mem memobj,
     void(CL_CALLBACK* pfn_notify)(cl_mem memobj, void* user_data),
     void* user_data) {
+    TRACE_FUNCTION("memobj", (uintptr_t)memobj);
     LOG_API_CALL("memobj = %p, pfn_notify = %p, user_data = %p", memobj,
                  pfn_notify, user_data);
 
@@ -1762,6 +1827,9 @@ cl_int CLVK_API_CALL clEnqueueMigrateMemObjects(
     cl_command_queue cq, cl_uint num_mem_objects, const cl_mem* mem_objects,
     cl_mem_migration_flags flags, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "num_mem_objects",
+                   num_mem_objects, "flags", flags, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, num_mem_objects = %u, mem_objects = %p, "
                  "flags = %lx, num_events_in_wait_list = %u, "
                  "event_wait_list = %p, event = %p",
@@ -1815,6 +1883,7 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
                                         size_t param_value_size,
                                         void* param_value,
                                         size_t* param_value_size_ret) {
+    TRACE_FUNCTION("memobj", (uintptr_t)mem, "param_name", param_name);
     LOG_API_CALL("memobj = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  mem, param_name, param_value_size, param_value,
@@ -1922,6 +1991,7 @@ cl_program CLVK_API_CALL clCreateProgramWithSource(cl_context context,
                                                    const char** strings,
                                                    const size_t* lengths,
                                                    cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "count", count);
     LOG_API_CALL("context = %p, count = %u, lengths = %p", context, count,
                  lengths);
 
@@ -1952,6 +2022,7 @@ cl_program CLVK_API_CALL clCreateProgramWithBinary(
     cl_context ctx, cl_uint num_devices, const cl_device_id* device_list,
     const size_t* lengths, const unsigned char** binaries,
     cl_int* binary_status, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)ctx, "num_devices", num_devices);
     LOG_API_CALL("context = %p, num_devices = %u, device_list = %p, lengths = "
                  "%p, binaries = %p, binary_status = %p, errcode_ret = %p",
                  ctx, num_devices, device_list, lengths, binaries,
@@ -2017,6 +2088,7 @@ cl_program CLVK_API_CALL clCreateProgramWithBinary(
 cl_program CLVK_API_CALL clCreateProgramWithBuiltInKernels(
     cl_context context, cl_uint num_devices, const cl_device_id* device_list,
     const char* kernel_names, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "num_devices", num_devices);
     LOG_API_CALL("context = %p, num_devices = %u, device_list = %p, "
                  "kernel_names = \"%s\", errcode_ret = %p",
                  context, num_devices, device_list, kernel_names, errcode_ret);
@@ -2059,6 +2131,7 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
                void(CL_CALLBACK* pfn_notify)(cl_program /* program */,
                                              void* /* user_data */),
                void* user_data) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "num_devices", num_devices);
     LOG_API_CALL("program = %p, num_device = %d, device_list = %p, options = "
                  "%s, pfn_notify = %p, user_data = %p",
                  prog, num_devices, device_list, options, pfn_notify,
@@ -2124,6 +2197,8 @@ cl_int CLVK_API_CALL clCompileProgram(
     const cl_program* input_headers, const char** header_include_names,
     void(CL_CALLBACK* pfn_notify)(cl_program program, void* user_data),
     void* user_data) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "num_devices", num_devices,
+                   "num_input_headers", num_input_headers);
     LOG_API_CALL("program = %p, num_devices = %u, device_list = %p, options = "
                  "%p, num_input_headers = %u, input_headers = %p, "
                  "header_include_names = %p, pfn_notify = %p, user_data = %p",
@@ -2194,6 +2269,8 @@ cl_program CLVK_API_CALL clLinkProgram(
     const cl_program* input_programs,
     void(CL_CALLBACK* pfn_notify)(cl_program program, void* user_data),
     void* user_data, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "num_devices", num_devices,
+                   "num_input_programs", num_input_programs);
     LOG_API_CALL("context = %p, num_devices = %d, device_list = %p, options = "
                  "%p, num_input_programs = %d, input_programs = %p, pfn_notify "
                  "= %p, user_data = %p, errcode_ret = %p",
@@ -2293,6 +2370,7 @@ cl_program CLVK_API_CALL clLinkProgram(
 }
 
 cl_int CLVK_API_CALL clUnloadPlatformCompiler(cl_platform_id platform) {
+    TRACE_FUNCTION("platform", (uintptr_t)platform);
     LOG_API_CALL("platform = %p", platform);
 
     if (!is_valid_platform(platform)) {
@@ -2303,6 +2381,7 @@ cl_int CLVK_API_CALL clUnloadPlatformCompiler(cl_platform_id platform) {
 }
 
 cl_int CLVK_API_CALL clUnloadCompiler() {
+    TRACE_FUNCTION();
     LOG_API_CALL("%s", "");
 
     return CL_SUCCESS;
@@ -2313,6 +2392,7 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
                                       size_t param_value_size,
                                       void* param_value,
                                       size_t* param_value_size_ret) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "param_name", param_name);
     LOG_API_CALL("program = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  prog, param_name, param_value_size, param_value,
@@ -2439,6 +2519,8 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
                                            size_t param_value_size,
                                            void* param_value,
                                            size_t* param_value_size_ret) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "device", (uintptr_t)dev,
+                   "param_name", param_name);
     LOG_API_CALL("program = %p, device = %p, param_name = %x, param_value_size "
                  "= %zu, param_value = %p, param_value_size_ret = %p",
                  prog, dev, param_name, param_value_size, param_value,
@@ -2504,6 +2586,7 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
 }
 
 cl_int CLVK_API_CALL clRetainProgram(cl_program program) {
+    TRACE_FUNCTION("program", (uintptr_t)program);
     LOG_API_CALL("program = %p", program);
 
     if (!is_valid_program(program)) {
@@ -2515,6 +2598,7 @@ cl_int CLVK_API_CALL clRetainProgram(cl_program program) {
 }
 
 cl_int CLVK_API_CALL clReleaseProgram(cl_program program) {
+    TRACE_FUNCTION("program", (uintptr_t)program);
     LOG_API_CALL("program = %p", program);
 
     if (!is_valid_program(program)) {
@@ -2529,6 +2613,7 @@ cl_int CLVK_API_CALL clSetProgramReleaseCallback(
     cl_program program,
     void(CL_CALLBACK* pfn_notify)(cl_program program, void* user_data),
     void* user_data) {
+    TRACE_FUNCTION("program", (uintptr_t)program);
     LOG_API_CALL("program = %p, pfn_notify = %p, user_data = %p", program,
                  pfn_notify, user_data);
     return CL_INVALID_OPERATION;
@@ -2551,6 +2636,8 @@ cl_kernel cvk_create_kernel(cl_program program, const char* kernel_name,
 
 cl_kernel CLVK_API_CALL clCreateKernel(cl_program prog, const char* kernel_name,
                                        cl_int* errcode_ret) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "kernel_name",
+                   TRACE_STRING(kernel_name));
     LOG_API_CALL("program = %p, kernel_name = %s", prog, kernel_name);
 
     auto program = icd_downcast(prog);
@@ -2583,6 +2670,7 @@ cl_int CLVK_API_CALL clCreateKernelsInProgram(cl_program prog,
                                               cl_uint num_kernels,
                                               cl_kernel* kernels,
                                               cl_uint* num_kernels_ret) {
+    TRACE_FUNCTION("program", (uintptr_t)prog, "num_kernels", num_kernels);
     LOG_API_CALL(
         "program = %p, num_kernels = %u, kernels = %p, num_kernels_ret = %p",
         prog, num_kernels, kernels, num_kernels_ret);
@@ -2624,6 +2712,7 @@ cl_int CLVK_API_CALL clCreateKernelsInProgram(cl_program prog,
 
 cl_kernel CLVK_API_CALL clCloneKernel(cl_kernel source_kernel,
                                       cl_int* errcode_ret) {
+    TRACE_FUNCTION("source_kernel", (uintptr_t)source_kernel);
     LOG_API_CALL("kernel = %p, errcode_ret = %p", source_kernel, errcode_ret);
 
     if (!is_valid_kernel(source_kernel)) {
@@ -2649,6 +2738,7 @@ cl_kernel CLVK_API_CALL clCloneKernel(cl_kernel source_kernel,
 cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
                                     size_t arg_size, const void* arg_value) {
 
+    TRACE_FUNCTION("kernel", (uintptr_t)kern, "arg_index", arg_index);
     LOG_API_CALL("kernel = %p, arg_index = %u, arg_size = %zu, arg_value = %p",
                  kern, arg_index, arg_size, arg_value);
 
@@ -2697,6 +2787,7 @@ cl_int CLVK_API_CALL clSetKernelExecInfo(cl_kernel kernel,
                                          cl_kernel_exec_info param_name,
                                          size_t param_value_size,
                                          const void* param_value) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel);
     LOG_API_CALL("kernel = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p",
                  kernel, param_name, param_value_size, param_value);
@@ -2706,6 +2797,7 @@ cl_int CLVK_API_CALL clSetKernelExecInfo(cl_kernel kernel,
 cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
                                      size_t param_value_size, void* param_value,
                                      size_t* param_value_size_ret) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kern, "param_name", param_name);
     LOG_API_CALL("kernel = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  kern, param_name, param_value_size, param_value,
@@ -2773,6 +2865,8 @@ cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kern, cl_uint arg_index,
                                         size_t param_value_size,
                                         void* param_value,
                                         size_t* param_value_size_ret) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kern, "arg_index", arg_index,
+                   "param_name", param_name);
     LOG_API_CALL("kernel = %p, arg_index = %u, param_name = %x, "
                  "param_value_size = %zu, param_value = %p, "
                  "param_value_size_ret = %p",
@@ -2850,6 +2944,8 @@ cl_int CLVK_API_CALL clGetKernelArgInfo(cl_kernel kern, cl_uint arg_index,
 cl_int CLVK_API_CALL clGetKernelWorkGroupInfo(
     cl_kernel kern, cl_device_id dev, cl_kernel_work_group_info param_name,
     size_t param_value_size, void* param_value, size_t* param_value_size_ret) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kern, "device", (uintptr_t)dev,
+                   "param_name", param_name);
     LOG_API_CALL(
         "kernel = %p, device = %p, param_name = %x, param_value_size = %zu, "
         "param_value = %p, param_value_size_ret = %p",
@@ -2925,6 +3021,8 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
     cl_kernel kern, cl_device_id dev, cl_kernel_sub_group_info param_name,
     size_t input_value_size, const void* input_value, size_t param_value_size,
     void* param_value, size_t* param_value_size_ret) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kern, "device", (uintptr_t)dev,
+                   "param_name", param_name);
     LOG_API_CALL("kernel = %p, device = %p, param_name = %x, input_value_size "
                  "= %zu, input_value = %p, param_value_size = %zu, param_value "
                  "= %p, param_value_size_ret = %p",
@@ -3006,6 +3104,7 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
 }
 
 cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel);
     LOG_API_CALL("kernel = %p", kernel);
 
     if (!is_valid_kernel(kernel)) {
@@ -3018,6 +3117,7 @@ cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
 }
 
 cl_int CLVK_API_CALL clReleaseKernel(cl_kernel kernel) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel);
     LOG_API_CALL("kernel = %p", kernel);
 
     if (!is_valid_kernel(kernel)) {
@@ -3035,6 +3135,7 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
                                              size_t param_value_size,
                                              void* param_value,
                                              size_t* param_value_size_ret) {
+    TRACE_FUNCTION("event", (uintptr_t)evt, "param_name", param_name);
     LOG_API_CALL("event = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  evt, param_name, param_value_size, param_value,
@@ -3086,6 +3187,7 @@ cl_int CLVK_API_CALL clGetEventProfilingInfo(cl_event evt,
 
 /* Flush and Finish APIs */
 cl_int CLVK_API_CALL clFlush(cl_command_queue command_queue) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
 
     if (!is_valid_command_queue(command_queue)) {
@@ -3096,6 +3198,7 @@ cl_int CLVK_API_CALL clFlush(cl_command_queue command_queue) {
 }
 
 cl_int CLVK_API_CALL clFinish(cl_command_queue command_queue) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
 
     if (!is_valid_command_queue(command_queue)) {
@@ -3113,6 +3216,9 @@ cl_int CLVK_API_CALL clEnqueueReadBuffer(cl_command_queue cq, cl_mem buf,
                                          cl_uint num_events_in_wait_list,
                                          const cl_event* event_wait_list,
                                          cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "blocking_read", blocking_read, "offset", offset, "size",
+                   size, "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = "
                  "%zu, size = %zu, ptr = %p",
                  cq, buf, blocking_read, offset, size, ptr);
@@ -3152,6 +3258,9 @@ cl_int CLVK_API_CALL clEnqueueWriteBuffer(cl_command_queue cq, cl_mem buf,
                                           cl_uint num_events_in_wait_list,
                                           const cl_event* event_wait_list,
                                           cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "blocking_write", blocking_write, "offset", offset, "size",
+                   size, "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d, offset = "
                  "%zu, size = %zu, ptr = %p",
                  cq, buf, blocking_write, offset, size, ptr);
@@ -3194,6 +3303,9 @@ cl_int CLVK_API_CALL clEnqueueReadBufferRect(
     size_t host_row_pitch, size_t host_slice_pitch, void* ptr,
     cl_uint num_events_in_wait_list, const cl_event* event_wait_list,
     cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "blocking_read", blocking_read, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
                  blocking_read);
     LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
@@ -3245,6 +3357,9 @@ cl_int CLVK_API_CALL clEnqueueWriteBufferRect(
     size_t host_row_pitch, size_t host_slice_pitch, const void* ptr,
     cl_uint num_events_in_wait_list, const cl_event* event_wait_list,
     cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "blocking_write", blocking_write, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, buffer = %p, blocking = %d", cq, buf,
                  blocking_write);
     LOG_API_CALL("buffer_origin = {%zu,%zu,%zu}, host_origin = {%zu,%zu,%zu}, "
@@ -3293,6 +3408,9 @@ cl_int CLVK_API_CALL clEnqueueFillBuffer(
     cl_command_queue cq, cl_mem buf, const void* pattern, size_t pattern_size,
     size_t offset, size_t size, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "offset", offset, "size", size, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL(
         "command_queue = %p, buffer = %p, pattern = %p, pattern_size = %zu,"
         "offset = %zu, size = %zu, num_events = %u, event_wait_list = %p, "
@@ -3356,6 +3474,10 @@ cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
                                          cl_uint num_events_in_wait_list,
                                          const cl_event* event_wait_list,
                                          cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "src_buffer",
+                   (uintptr_t)srcbuf, "dst_buffer", (uintptr_t)dstbuf,
+                   "src_offset", src_offset, "dst_offset", dst_offset, "size",
+                   size, "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_buffer = %p, "
                  "src_offset = %zu,"
                  "dst_offset = %zu, size = %zu, num_events = %u, "
@@ -3402,6 +3524,9 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferRect(
     size_t src_row_pitch, size_t src_slice_pitch, size_t dst_row_pitch,
     size_t dst_slice_pitch, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "src_buffer",
+                   (uintptr_t)src_buffer, "dst_buffer", (uintptr_t)dst_buffer,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_buffer = %p, "
                  "src_origin = {%zu,%zu,%zu}, dst_origin = {%zu,%zu,%zu}, "
                  "region = {%zu,%zu,%zu}, src_row_pitch = %zu, "
@@ -3485,6 +3610,10 @@ void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
                                        cl_uint num_events_in_wait_list,
                                        const cl_event* event_wait_list,
                                        cl_event* event, cl_int* errcode_ret) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "buffer", (uintptr_t)buf,
+                   "blocking_map", blocking_map, "map_flags", map_flags,
+                   "offset", offset, "size", size, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, buffer = %p, offset = %zu, size = %zu",
                  cq, buf, offset, size);
 
@@ -3585,6 +3714,8 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
                                              cl_uint num_events_in_wait_list,
                                              const cl_event* event_wait_list,
                                              cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "memobj", (uintptr_t)mem,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, memobj = %p, mapped_ptr = %p", cq, mem,
                  mapped_ptr);
 
@@ -3747,6 +3878,9 @@ cl_int CLVK_API_CALL clEnqueueTask(cl_command_queue command_queue,
                                    cl_uint num_events_in_wait_list,
                                    const cl_event* event_wait_list,
                                    cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue, "kernel",
+                   (uintptr_t)kernel, "num_events_in_wait_list",
+                   (uintptr_t)num_events_in_wait_list);
     LOG_API_CALL(
         "command_queue = %p, kernel = %p, num_events_in_wait_list = %d,"
         " event_wait_list = %p, event = %p",
@@ -3766,6 +3900,9 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
     const size_t* local_work_size, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
 
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue, "kernel",
+                   (uintptr_t)kernel, "num_events_in_wait_list",
+                   (uintptr_t)num_events_in_wait_list);
     LOG_API_CALL(
         "command_queue = %p, kernel = %p, work_dim = %u, "
         "num_events_in_wait_list = %u, event_wait_list = %p, event = %p",
@@ -3801,6 +3938,9 @@ cl_int CLVK_API_CALL clEnqueueNativeKernel(
     void* args, size_t cb_args, cl_uint num_mem_objects, const cl_mem* mem_list,
     const void** args_mem_loc, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue,
+                   "num_events_in_wait_list",
+                   (uintptr_t)num_events_in_wait_list);
     LOG_API_CALL(
         "command_queue = %p, user_func = %p, args = %p, cb_args = %zu, "
         "num_mem_objects = %u, mem_list = %p, args_mem_loc = %p, "
@@ -3846,6 +3986,9 @@ cl_sampler CLVK_API_CALL clCreateSampler(cl_context context,
                                          cl_addressing_mode addressing_mode,
                                          cl_filter_mode filter_mode,
                                          cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "normalized_coords",
+                   normalized_coords, "addressing_mode", addressing_mode,
+                   "filter_mode", filter_mode);
     LOG_API_CALL("context = %p, normalized_coords = %d, addressing_mode = %d, "
                  "filter_mode = %d, errcode_ret = %p",
                  context, normalized_coords, addressing_mode, filter_mode,
@@ -3869,6 +4012,7 @@ cl_sampler CLVK_API_CALL clCreateSamplerWithProperties(
     cl_context context, const cl_sampler_properties* sampler_properties,
     cl_int* errcode_ret) {
 
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, sampler_properties = %p, errcode_ret = %p",
                  context, sampler_properties, errcode_ret);
 
@@ -3921,6 +4065,7 @@ cl_sampler CLVK_API_CALL clCreateSamplerWithProperties(
 }
 
 cl_int CLVK_API_CALL clRetainSampler(cl_sampler sampler) {
+    TRACE_FUNCTION("sampler", (uintptr_t)sampler);
     LOG_API_CALL("sampler = %p", sampler);
 
     if (!is_valid_sampler(sampler)) {
@@ -3933,6 +4078,7 @@ cl_int CLVK_API_CALL clRetainSampler(cl_sampler sampler) {
 }
 
 cl_int CLVK_API_CALL clReleaseSampler(cl_sampler sampler) {
+    TRACE_FUNCTION("sampler", (uintptr_t)sampler);
     LOG_API_CALL("sampler = %p", sampler);
 
     if (!is_valid_sampler(sampler)) {
@@ -3949,6 +4095,7 @@ cl_int CLVK_API_CALL clGetSamplerInfo(cl_sampler samp,
                                       size_t param_value_size,
                                       void* param_value,
                                       size_t* param_value_size_ret) {
+    TRACE_FUNCTION("sampler", (uintptr_t)samp, "param_name", param_name);
     LOG_API_CALL("sampler = %p, param_name = %d, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  samp, param_name, param_value_size, param_value,
@@ -4086,6 +4233,7 @@ cl_mem CLVK_API_CALL clCreateImage(cl_context context, cl_mem_flags flags,
                                    const cl_image_format* image_format,
                                    const cl_image_desc* image_desc,
                                    void* host_ptr, cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL(
         "context = %p, flags = %lu, image_format = %p, image_desc = %p,"
         " host_ptr = %p, errcode_ret = %p",
@@ -4107,6 +4255,7 @@ cl_mem CLVK_API_CALL clCreateImageWithProperties(
     const cl_image_format* image_format, const cl_image_desc* image_desc,
     void* host_ptr, cl_int* errcode_ret) {
 
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL("context = %p, properties = %p, flags = %lx, image_format = "
                  "%p, image_desc = %p, host_ptr = %p, errcode_ret = %p",
                  context, properties, flags, image_format, image_desc, host_ptr,
@@ -4138,6 +4287,7 @@ cl_mem CLVK_API_CALL clCreateImage2D(cl_context context, cl_mem_flags flags,
                                      size_t image_width, size_t image_height,
                                      size_t image_row_pitch, void* host_ptr,
                                      cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL(
         "context = %p, flags = %lu, image_format = %p, image_width = %zu, "
         "image_height = %zu, image_row_pitch = %zu, host_ptr = %p, "
@@ -4175,6 +4325,7 @@ cl_mem CLVK_API_CALL clCreateImage3D(cl_context context, cl_mem_flags flags,
                                      size_t image_depth, size_t image_row_pitch,
                                      size_t image_slice_pitch, void* host_ptr,
                                      cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags);
     LOG_API_CALL(
         "context = %p, flags = %lu, image_format = %p, image_width = %zu, "
         "image_height = %zu, image_depth = %zu, image_row_pitch = %zu, "
@@ -4209,6 +4360,7 @@ cl_mem CLVK_API_CALL clCreateImage3D(cl_context context, cl_mem_flags flags,
 cl_int CLVK_API_CALL clGetImageInfo(cl_mem image, cl_image_info param_name,
                                     size_t param_value_size, void* param_value,
                                     size_t* param_value_size_ret) {
+    TRACE_FUNCTION("image", (uintptr_t)image, "param_name", param_name);
     LOG_API_CALL("image = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  image, param_name, param_value_size, param_value,
@@ -4488,6 +4640,8 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
                                                 cl_uint num_entries,
                                                 cl_image_format* image_formats,
                                                 cl_uint* num_image_formats) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags, "image_type",
+                   image_type, "num_entries", num_entries);
     LOG_API_CALL(
         "context = %p, flags = %lu, image_type = %d, num_entries = %u, "
         "image_formats = %p, num_image_formats = %p",
@@ -4622,6 +4776,9 @@ cl_int CLVK_API_CALL clEnqueueReadImage(
     const size_t* origin, const size_t* region, size_t row_pitch,
     size_t slice_pitch, void* ptr, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "image", (uintptr_t)img,
+                   "blocking_read", blocking_read, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, image = %p, blocking_read = %d, "
                  "origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "row_pitch = %zu, slice_pitch = %zu, ptr = %p, "
@@ -4681,6 +4838,9 @@ cl_int CLVK_API_CALL clEnqueueWriteImage(
     const size_t* origin, const size_t* region, size_t input_row_pitch,
     size_t input_slice_pitch, const void* ptr, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "image", (uintptr_t)img,
+                   "blocking_write", blocking_write, "num_events_in_wait_list",
+                   num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, image = %p, blocking_write = %d, "
                  "origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "input_row_pitch = %zu, input_slice_pitch = %zu, ptr = %p, "
@@ -4742,6 +4902,9 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
                    const size_t* src_origin, const size_t* dst_origin,
                    const size_t* region, cl_uint num_events_in_wait_list,
                    const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "src_image",
+                   (uintptr_t)src_image, "dst_image", (uintptr_t)dst_image,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, src_image = %p, dst_image = %p, "
                  "src_origin = {%zu,%zu,%zu}, dst_origin = {%zu, %zu, %zu}, "
                  "region = {%zu, %zu, %zu}, "
@@ -4819,6 +4982,8 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     cl_command_queue cq, cl_mem image, const void* fill_color,
     const size_t* origin, const size_t* region, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "image", (uintptr_t)image,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, image = %p, fill_color = %p, "
                  "origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "num_events_in_wait_list = %u, event_wait_list = %p, "
@@ -4913,6 +5078,9 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
     const size_t* src_origin, const size_t* region, size_t dst_offset,
     cl_uint num_events_in_wait_list, const cl_event* event_wait_list,
     cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "src_image",
+                   (uintptr_t)src_image, "dst_buffer", (uintptr_t)dst_buffer,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, src_image = %p, dst_buffer = %p, "
                  "src_origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
                  "dst_offset = %zu, num_events_in_wait_list = %u, "
@@ -4986,6 +5154,9 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
     const size_t* dst_origin, const size_t* region,
     cl_uint num_events_in_wait_list, const cl_event* event_wait_list,
     cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "src_buffer",
+                   (uintptr_t)src_buffer, "dst_image", (uintptr_t)dst_image,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, src_buffer = %p, dst_image = %p, "
                  "src_offset = %zu, "
                  "dst_origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
@@ -5173,6 +5344,9 @@ void* CLVK_API_CALL clEnqueueMapImage(
     size_t* image_row_pitch, size_t* image_slice_pitch,
     cl_uint num_events_in_wait_list, const cl_event* event_wait_list,
     cl_event* event, cl_int* errcode_ret) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)cq, "image", (uintptr_t)image,
+                   "blocking_map", blocking_map, "map_flags", map_flags,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p, image = %p, blocking_map = %d, "
                  "map_flags = %lx, "
                  "origin = {%zu,%zu,%zu}, region = {%zu, %zu, %zu}, "
@@ -5223,6 +5397,7 @@ cl_program cvk_create_program_with_il(cl_context context, const void* il,
 cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
                                                   const void* il, size_t length,
                                                   cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, il = %p, length = %zu, errcode_ret = %p",
                  context, il, length, errcode_ret);
 
@@ -5239,6 +5414,7 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
 cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
                                                const void* il, size_t length,
                                                cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, il = %p, length = %zu, errcode_ret = %p",
                  context, il, length, errcode_ret);
 
@@ -5255,6 +5431,8 @@ cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
 cl_int CLVK_API_CALL
 clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
                                    size_t spec_size, const void* spec_value) {
+    TRACE_FUNCTION("program", (uintptr_t)program, "spec_id", spec_id,
+                   "spec_size", spec_size);
     LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
                  program, spec_id, spec_size, spec_value);
     return CL_INVALID_OPERATION;
@@ -5264,6 +5442,8 @@ clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
 void* CLVK_API_CALL clSVMAlloc(cl_context context, cl_svm_mem_flags flags,
                                size_t size, cl_uint alignment) {
 
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags, "size", size,
+                   "alignment", alignment);
     LOG_API_CALL("context = %p, flags = %lu, size = %zu, alignment = %u",
                  context, flags, size, alignment);
 
@@ -5271,6 +5451,7 @@ void* CLVK_API_CALL clSVMAlloc(cl_context context, cl_svm_mem_flags flags,
 }
 
 void CLVK_API_CALL clSVMFree(cl_context context, void* svm_pointer) {
+    TRACE_FUNCTION("context", (uintptr_t)context);
     LOG_API_CALL("context = %p, svm_pointer = %p", context, svm_pointer);
 }
 
@@ -5282,6 +5463,9 @@ cl_int CLVK_API_CALL clEnqueueSVMFree(
                                      void* svm_pointers[], void* user_data),
     void* user_data, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue,
+                   "num_svm_pointers", num_svm_pointers,
+                   "num_events_in_wait_list", num_events_in_wait_list);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(num_svm_pointers);
     UNUSED(svm_pointers);
@@ -5299,6 +5483,7 @@ cl_int CLVK_API_CALL clEnqueueSVMMap(cl_command_queue command_queue,
                                      cl_uint num_events_in_wait_list,
                                      const cl_event* event_wait_list,
                                      cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(blocking_map);
     UNUSED(flags);
@@ -5316,6 +5501,7 @@ cl_int CLVK_API_CALL clEnqueueSVMMemcpy(cl_command_queue command_queue,
                                         cl_uint num_events_in_wait_list,
                                         const cl_event* event_wait_list,
                                         cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(blocking_copy);
     UNUSED(dst_ptr);
@@ -5333,6 +5519,7 @@ cl_int CLVK_API_CALL clEnqueueSVMMemFill(cl_command_queue command_queue,
                                          cl_uint num_events_in_wait_list,
                                          const cl_event* event_wait_list,
                                          cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(svm_ptr);
     UNUSED(pattern);
@@ -5349,6 +5536,7 @@ cl_int CLVK_API_CALL clEnqueueSVMMigrateMem(
     const void** svm_pointers, const size_t* sizes,
     cl_mem_migration_flags flags, cl_uint num_events_in_wait_list,
     const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(num_svm_pointers);
     UNUSED(svm_pointers);
@@ -5365,6 +5553,7 @@ cl_int CLVK_API_CALL clEnqueueSVMUnmap(cl_command_queue command_queue,
                                        cl_uint num_events_in_wait_list,
                                        const cl_event* event_wait_list,
                                        cl_event* event) {
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue);
     LOG_API_CALL("command_queue = %p", command_queue);
     UNUSED(svm_ptr);
     UNUSED(num_events_in_wait_list);
@@ -5376,6 +5565,7 @@ cl_int CLVK_API_CALL clEnqueueSVMUnmap(cl_command_queue command_queue,
 cl_int CLVK_API_CALL clSetKernelArgSVMPointer(cl_kernel kernel,
                                               cl_uint arg_index,
                                               const void* arg_value) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel, "arg_index", arg_index);
     LOG_API_CALL("kernel = %p, arg_index = %u, arg_value = %p", kernel,
                  arg_index, arg_value);
     UNUSED(kernel);
@@ -5390,6 +5580,9 @@ cl_mem CLVK_API_CALL clCreatePipe(cl_context context, cl_mem_flags flags,
                                   cl_uint pipe_max_packets,
                                   const cl_pipe_properties* properties,
                                   cl_int* errcode_ret) {
+    TRACE_FUNCTION("context", (uintptr_t)context, "flags", flags,
+                   "pipe_packet_size", pipe_packet_size, "pipe_max_packets",
+                   pipe_max_packets);
     LOG_API_CALL("context = %p, flags = %lx, packet_size = %u, max_packets = "
                  "%u, properties = %p, errcode_ret = %p",
                  context, flags, pipe_packet_size, pipe_max_packets, properties,
@@ -5403,6 +5596,7 @@ cl_mem CLVK_API_CALL clCreatePipe(cl_context context, cl_mem_flags flags,
 cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
                                    size_t param_value_size, void* param_value,
                                    size_t* param_value_size_ret) {
+    TRACE_FUNCTION("pipe", (uintptr_t)pipe, "param_name", param_name);
     LOG_API_CALL("pipe = %p, param_name = %x, param_value_size = %zu, "
                  "param_value = %p, param_value_size_ret = %p",
                  pipe, param_name, param_value_size, param_value,
@@ -5414,6 +5608,7 @@ cl_int CLVK_API_CALL clGetPipeInfo(cl_mem pipe, cl_pipe_info param_name,
 cl_int CLVK_API_CALL clGetHostTimer(cl_device_id device,
                                     cl_ulong* host_timestamp) {
 
+    TRACE_FUNCTION("device", (uintptr_t)device);
     LOG_API_CALL("device = %p, host_timestamp = %p", device, host_timestamp);
 
     if (!is_valid_device(device)) {
@@ -5437,6 +5632,7 @@ cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
                                              cl_ulong* device_timestamp,
                                              cl_ulong* host_timestamp) {
 
+    TRACE_FUNCTION("device", (uintptr_t)device);
     LOG_API_CALL("device = %p, device_timestamp = %p, host_timestamp = %p",
                  device, device_timestamp, host_timestamp);
 
@@ -5651,6 +5847,7 @@ cl_int CLVK_API_CALL clIcdGetPlatformIDsKHR(cl_uint num_entries,
                                             cl_uint* num_platforms) {
     auto state = get_or_init_global_state();
 
+    TRACE_FUNCTION("num_entries", num_entries);
     LOG_API_CALL("num_entries = %u, platforms = %p, num_platforms = %p",
                  num_entries, platforms, num_platforms);
 
@@ -5662,6 +5859,8 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
     const size_t* global_work_offset, const size_t* global_work_size,
     size_t* suggested_local_work_size) {
 
+    TRACE_FUNCTION("command_queue", (uintptr_t)command_queue, "kernel",
+                   (uintptr_t)kernel);
     LOG_API_CALL(
         "command_queue = %p, kernel = %p, work_dim = %u, global_work_offset = "
         "%p, global_work_size = %p, suggested_local_work_size = %p",
