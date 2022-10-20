@@ -980,7 +980,9 @@ cl_context CLVK_API_CALL clCreateContextFromType(
         return clCreateContext(properties, 1, &device, pfn_notify, user_data,
                                errcode_ret);
     } else {
-        *errcode_ret = err;
+        if (errcode_ret != nullptr) {
+            *errcode_ret = err;
+        }
         return nullptr;
     }
 }
@@ -1660,6 +1662,13 @@ cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                  "errcode_ret = %p",
                  context, flags, size, host_ptr, errcode_ret);
 
+    if (!is_valid_context(context)) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_CONTEXT;
+        }
+        return nullptr;
+    }
+
     cl_int err;
     auto buffer =
         cvk_buffer::create(icd_downcast(context), flags, size, host_ptr, &err);
@@ -2001,10 +2010,22 @@ cl_program CLVK_API_CALL clCreateProgramWithSource(cl_context context,
         }
         return nullptr;
     }
+    if (count == 0 || strings == nullptr) {
+        if (errcode_ret != nullptr) {
+            *errcode_ret = CL_INVALID_VALUE;
+        }
+        return nullptr;
+    }
 
     cvk_program* prog = new cvk_program(icd_downcast(context));
 
     for (cl_uint i = 0; i < count; i++) {
+        if (strings[i] == nullptr) {
+            if (errcode_ret != nullptr) {
+                *errcode_ret = CL_INVALID_VALUE;
+            }
+            return nullptr;
+        }
         size_t len = (lengths != nullptr) ? lengths[i] : 0;
         prog->append_source(strings[i], len);
     }
@@ -2622,6 +2643,11 @@ cl_int CLVK_API_CALL clSetProgramReleaseCallback(
 // Kernel Object APIs
 cl_kernel cvk_create_kernel(cl_program program, const char* kernel_name,
                             cl_int* errcode_ret) {
+    if (kernel_name == nullptr) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
     auto kernel =
         std::make_unique<cvk_kernel>(icd_downcast(program), kernel_name);
 
