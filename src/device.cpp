@@ -73,10 +73,9 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         auto corever = std::get<0>(ver_ext_prop);
         auto ext = std::get<1>(ver_ext_prop);
         auto prop = std::get<2>(ver_ext_prop);
-        if ((corever != 0) && (m_properties.apiVersion >= corever)) {
-            prop->pNext = pNext;
-            pNext = prop;
-        } else if ((ext != nullptr) && is_vulkan_extension_enabled(ext)) {
+        if (((ext != nullptr) && is_vulkan_extension_enabled(ext)) ||
+            ((ext == nullptr) && (corever != 0) &&
+             (m_properties.apiVersion >= corever))) {
             prop->pNext = pNext;
             pNext = prop;
         }
@@ -363,10 +362,9 @@ void cvk_device::init_features(VkInstance instance) {
         auto corever = std::get<0>(ver_ext_feat);
         auto ext = std::get<1>(ver_ext_feat);
         auto feat = std::get<2>(ver_ext_feat);
-        if ((corever != 0) && (m_properties.apiVersion >= corever)) {
-            feat->pNext = pNext;
-            pNext = feat;
-        } else if ((ext != nullptr) && is_vulkan_extension_enabled(ext)) {
+        if (((ext != nullptr) && is_vulkan_extension_enabled(ext)) ||
+            ((ext == nullptr) && (corever != 0) &&
+             (m_properties.apiVersion >= corever))) {
             feat->pNext = pNext;
             pNext = feat;
         }
