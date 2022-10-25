@@ -259,7 +259,6 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 }
 
 void cvk_executor_thread::set_queue(cvk_command_queue* queue) {
-    m_queue.reset(queue);
     m_profiling = queue->has_property(CL_QUEUE_PROFILING_ENABLE);
 }
 
@@ -286,6 +285,9 @@ void cvk_executor_thread::executor() {
 
         lock.unlock();
 
+        CVK_ASSERT(group->commands.size() > 0);
+        cvk_command_queue_holder queue = group->commands.front()->queue();
+
         while (group->commands.size() > 0) {
 
             cvk_command* cmd = group->commands.front();
@@ -311,8 +313,7 @@ void cvk_executor_thread::executor() {
             delete cmd;
         }
 
-        CVK_ASSERT(m_queue);
-        m_queue->group_completed();
+        queue->group_completed();
 
         lock.lock();
     }

@@ -36,8 +36,7 @@ struct cvk_command_group {
 struct cvk_executor_thread {
 
     cvk_executor_thread()
-        : m_thread(nullptr), m_shutdown(false), m_profiling(false),
-          m_queue(nullptr) {
+        : m_thread(nullptr), m_shutdown(false), m_profiling(false) {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
@@ -74,7 +73,6 @@ private:
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
     bool m_profiling;
-    cvk_command_queue_holder m_queue;
 };
 
 struct cvk_command_pool {
