@@ -62,7 +62,7 @@ PERFETTO_DEFINE_CATEGORIES(
 #define TRACE_BEGIN(name, ...)
 #define TRACE_END()
 
-#define TRACE_CNT(str, value)
+#define TRACE_CNT(str, value) UNUSED(value)
 #define TRACE_CNT_VAR(name)
 #define TRACE_CNT_VAR_INIT(name, value)
 
