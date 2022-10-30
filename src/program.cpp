@@ -117,6 +117,10 @@ spv_result_t parse_reflection(void* user_data,
             return kernel_argument_kind::sampled_image;
         case NonSemanticClspvReflectionArgumentStorageImage:
             return kernel_argument_kind::storage_image;
+        case NonSemanticClspvReflectionArgumentStorageTexelBuffer:
+            return kernel_argument_kind::storage_texel_buffer;
+        case NonSemanticClspvReflectionArgumentUniformTexelBuffer:
+            return kernel_argument_kind::uniform_texel_buffer;
         case NonSemanticClspvReflectionArgumentSampler:
             return kernel_argument_kind::sampler;
         case NonSemanticClspvReflectionArgumentWorkgroup:
@@ -234,6 +238,8 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionArgumentUniform:
             case NonSemanticClspvReflectionArgumentSampledImage:
             case NonSemanticClspvReflectionArgumentStorageImage:
+            case NonSemanticClspvReflectionArgumentStorageTexelBuffer:
+            case NonSemanticClspvReflectionArgumentUniformTexelBuffer:
             case NonSemanticClspvReflectionArgumentSampler: {
                 // These arguments have descriptor set, binding and an optional
                 // arg info.
@@ -1742,6 +1748,12 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             break;
         case kernel_argument_kind::storage_image:
             dt = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            break;
+        case kernel_argument_kind::storage_texel_buffer:
+            dt = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+            break;
+        case kernel_argument_kind::uniform_texel_buffer:
+            dt = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
             break;
         case kernel_argument_kind::sampler:
             dt = VK_DESCRIPTOR_TYPE_SAMPLER;

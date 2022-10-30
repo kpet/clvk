@@ -1141,7 +1141,9 @@ struct cvk_command_image_init final : public cvk_command_batchable {
 
     cvk_command_image_init(cvk_command_queue* queue, cvk_image* image)
         : cvk_command_batchable(CLVK_COMMAND_IMAGE_INIT, queue),
-          m_image(image) {}
+          m_image(image) {
+        CVK_ASSERT(!m_image->is_backed_by_buffer_view());
+    }
     bool is_data_movement() const override { return true; }
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;

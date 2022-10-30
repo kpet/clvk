@@ -317,7 +317,9 @@ struct cvk_buffer : public cvk_mem {
         VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+				         VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
+					 VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
         if (m_context->device()->uses_physical_addressing()) {
             usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         }
@@ -485,10 +487,16 @@ struct cvk_image : public cvk_mem {
                   /* FIXME parent_offset */ 0, std::move(properties),
                   desc->image_type),
           m_desc(*desc), m_format(*format), m_image(VK_NULL_HANDLE),
-          m_sampled_view(VK_NULL_HANDLE), m_storage_view(VK_NULL_HANDLE) {
+          m_sampled_view(VK_NULL_HANDLE), m_storage_view(VK_NULL_HANDLE),
+          m_buffer_view(VK_NULL_HANDLE) {
         // All images require asynchronous initialiation for the initial
-        // layout transition (and copy/use host ptr init)
-        m_init_tracker.set_state(cvk_mem_init_state::required);
+        // layout transition (and copy/use host ptr init) apart from
+        // those backed by a texel buffer
+        if (is_backed_by_buffer_view()) {
+            m_init_tracker.set_state(cvk_mem_init_state::completed);
+        } else {
+            m_init_tracker.set_state(cvk_mem_init_state::required);
+        }
     }
 
     ~cvk_image() {
@@ -501,6 +509,9 @@ struct cvk_image : public cvk_mem {
         }
         if (m_storage_view != VK_NULL_HANDLE) {
             vkDestroyImageView(vkdev, m_storage_view, nullptr);
+        }
+        if (m_buffer_view != VK_NULL_HANDLE) {
+            vkDestroyBufferView(vkdev, m_buffer_view, nullptr);
         }
         if (buffer() != nullptr) {
             buffer()->release();
@@ -530,9 +541,26 @@ struct cvk_image : public cvk_mem {
                              const cl_image_format* format, void* host_ptr,
                              std::vector<cl_mem_properties>&& properties);
 
-    VkImage vulkan_image() const { return m_image; }
-    VkImageView vulkan_sampled_view() const { return m_sampled_view; }
-    VkImageView vulkan_storage_view() const { return m_storage_view; }
+    bool is_backed_by_buffer_view() const {
+        return type() == CL_MEM_OBJECT_IMAGE1D_BUFFER;
+    }
+
+    VkImage vulkan_image() const {
+        CVK_ASSERT(!is_backed_by_buffer_view());
+        return m_image;
+    }
+    VkImageView vulkan_sampled_view() const {
+        CVK_ASSERT(!is_backed_by_buffer_view());
+        return m_sampled_view;
+    }
+    VkImageView vulkan_storage_view() const {
+        CVK_ASSERT(!is_backed_by_buffer_view());
+        return m_storage_view;
+    }
+    VkBufferView vulkan_buffer_view() const {
+        CVK_ASSERT(is_backed_by_buffer_view());
+        return m_buffer_view;
+    }
     const cl_image_format& format() const { return m_format; }
     size_t element_size() const {
         switch (m_format.image_channel_data_type) {
@@ -693,6 +721,8 @@ struct cvk_image : public cvk_mem {
                               size_t* size_ret) const;
 
 private:
+    bool init_vulkan_image();
+    bool init_vulkan_texel_buffer();
     bool init();
 
     size_t num_channels() const {
@@ -746,6 +776,7 @@ private:
     VkImage m_image;
     VkImageView m_sampled_view;
     VkImageView m_storage_view;
+    VkBufferView m_buffer_view;
     std::unordered_map<void*, std::list<cvk_image_mapping>> m_mappings;
     std::mutex m_mappings_lock;
     std::unique_ptr<cvk_buffer> m_init_data;

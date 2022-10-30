@@ -710,7 +710,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
-        val_sizet = device->vulkan_limits().maxImageDimension1D;
+        val_sizet = device->vulkan_limits().maxTexelBufferElements;
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
@@ -4718,6 +4718,26 @@ std::unordered_map<cl_image_format, image_format_support, ClFormatMapHash,
         {{CL_BGRA, CL_SIGNED_INT8}, VK_FORMAT_B8G8R8A8_SINT},
 };
 
+static void get_component_mappings_for_channel_order(
+    cl_channel_order order, VkComponentMapping* components_sampled,
+    VkComponentMapping* components_storage) {
+    if (order == CL_LUMINANCE) {
+        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A};
+    } else if (order == CL_INTENSITY) {
+        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R};
+    } else {
+        *components_sampled = {
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+    }
+
+    *components_storage = {
+        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+}
+
 bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
                                       VkFormat* format,
                                       VkComponentMapping* components_sampled,
@@ -4730,23 +4750,14 @@ bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
         success = true;
     }
 
-    if (clformat.image_channel_order == CL_LUMINANCE) {
-        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A};
-    } else if (clformat.image_channel_order == CL_INTENSITY) {
-        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R};
-    } else {
-        *components_sampled = {
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
-    }
-
-    *components_storage = {
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+    get_component_mappings_for_channel_order(
+        clformat.image_channel_order, components_sampled, components_storage);
 
     return success;
+}
+
+bool operator!=(const VkComponentMapping& lhs, const VkComponentMapping& rhs) {
+    return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b || lhs.a != rhs.a;
 }
 
 cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
@@ -4809,29 +4820,38 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
             "  buffer : %s",
             vulkan_format_features_string(properties.bufferFeatures).c_str());
 
-        cvk_debug("  required format features %s",
-                  vulkan_format_features_string(required_format_feature_flags)
-                      .c_str());
+        cvk_debug(
+            "Required format features %s",
+            vulkan_format_features_string(required_format_feature_flags).c_str());
         VkFormatFeatureFlags features;
-        // TODO support linear tiling
-        features = properties.optimalTilingFeatures;
-
-        auto channel_order_str =
-            cl_channel_order_to_string(clfmt.image_channel_order);
-        auto channel_type_str =
-            cl_channel_type_to_string(clfmt.image_channel_data_type);
+        if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+            features = properties.bufferFeatures;
+        } else {
+            // TODO support linear tiling
+            features = properties.optimalTilingFeatures;
+        }
         if ((features & required_format_feature_flags) ==
             required_format_feature_flags) {
+            const cl_image_format& clfmt = clvkfmt.first;
+            VkComponentMapping components_sampled, components_storage;
+            get_component_mappings_for_channel_order(
+                clfmt.image_channel_order, &components_sampled,
+                &components_storage);
+            if ((components_sampled != components_storage) &&
+                (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)) {
+                continue;
+            }
             if ((image_formats != nullptr) &&
                 (num_formats_found < num_entries)) {
                 image_formats[num_formats_found] = clfmt;
-                cvk_debug("  reporting image format {%s, %s}",
-                          channel_order_str.c_str(), channel_type_str.c_str());
+                cvk_debug_fn(
+                    "reporting image format {%s, %s}",
+                    cl_channel_order_to_string(clfmt.image_channel_order)
+                        .c_str(),
+                    cl_channel_type_to_string(clfmt.image_channel_data_type)
+                        .c_str());
             }
             num_formats_found++;
-        } else {
-            cvk_debug("  no support for image format {%s, %s}",
-                      channel_order_str.c_str(), channel_type_str.c_str());
         }
     }
 
