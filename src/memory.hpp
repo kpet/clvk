@@ -280,10 +280,6 @@ struct cvk_buffer_mapping : public cvk_memobj_mappping {
 
 struct cvk_buffer : public cvk_mem {
 
-    static const VkBufferUsageFlags USAGE_FLAGS =
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
     cvk_buffer(cvk_context* ctx, cl_mem_flags flags, size_t size,
                void* host_ptr, cvk_mem* parent, size_t parent_offset,
                std::vector<cl_mem_properties>&& properties)
@@ -312,6 +308,20 @@ struct cvk_buffer : public cvk_mem {
     create(cvk_context* context, cl_mem_flags, size_t size, void* host_ptr,
            std::vector<cl_mem_properties>&& properties, cl_int* errcode_ret);
     cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
+
+    VkBufferUsageFlags prepare_usage_flags() {
+        VkBufferUsageFlags usage_flags =
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        if (flags() & CL_MEM_WRITE_ONLY) {
+            usage_flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        } else if (flags() & CL_MEM_READ_ONLY) {
+            usage_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        } else {
+            usage_flags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        }
+        return usage_flags;
+    }
 
     VkBuffer vulkan_buffer() const {
         if (m_parent == nullptr) {
@@ -471,6 +481,24 @@ struct cvk_image : public cvk_mem {
         if (buffer() != nullptr) {
             buffer()->release();
         }
+    }
+
+    static VkFormatFeatureFlags
+    required_format_feature_flags_for(cl_mem_object_type type,
+                                      cl_mem_flags flags);
+    VkImageUsageFlags prepare_usage_flags() {
+        VkImageUsageFlags usage_flags =
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        if (flags() & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
+            usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
+        } else if (flags() & CL_MEM_READ_ONLY) {
+            usage_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        } else {
+            usage_flags |=
+                VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+        }
+        return usage_flags;
     }
 
     static cvk_image* create(cvk_context* ctx, cl_mem_flags flags,

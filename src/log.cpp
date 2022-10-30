@@ -278,6 +278,48 @@ std::string vulkan_calibrateable_time_domain_string(VkTimeDomainEXT td) {
     }
 }
 
+std::string vulkan_format_features_string(VkFormatFeatureFlags flags) {
+    std::string str;
+
+    if (flags & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) {
+        str += "SAMPLED_IMAGE ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) {
+        str += "STORAGE_IMAGE ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT) {
+        str += "STORAGE_IMAGE_ATOMIC ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT) {
+        str += "UNIFORM_TEXEL_BUFFER ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT) {
+        str += "STORAGE_TEXEL_BUFFER ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT) {
+        str += "STORAGE_TEXEL_BUFFER_ATOMIC ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT) {
+        str += "SAMPLED_IMAGE_FILTER_LINEAR ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_TRANSFER_SRC_BIT) {
+        str += "TRANSFER_SRC ";
+    }
+
+    if (flags & VK_FORMAT_FEATURE_TRANSFER_DST_BIT) {
+        str += "TRANSFER_DST ";
+    }
+
+    return str;
+}
+
 std::string cl_channel_order_to_string(cl_channel_order order) {
     switch (order) {
         CASE(CL_R)

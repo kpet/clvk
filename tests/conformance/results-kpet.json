@@ -57,7 +57,7 @@
       "load_two_kernels_manually": "pass",
       "mem_object_destructor_callback": "pass",
       "min_data_type_align_size_alignment": "pass",
-      "min_image_formats": "pass",
+      "min_image_formats": "fail",
       "min_max_address_bits": "pass",
       "min_max_compute_units": "pass",
       "min_max_constant_args": "pass",
