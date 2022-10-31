@@ -781,7 +781,8 @@ struct cvk_command_batch : public cvk_command {
 
     cl_uint batch_size() { return m_commands.size(); }
 
-    CHECK_RETURN cl_int set_profiling_info(cl_profiling_info pinfo) override final {
+    CHECK_RETURN cl_int
+    set_profiling_info(cl_profiling_info pinfo) override final {
         cl_int status = cvk_command::set_profiling_info(pinfo);
         if (m_queue->profiling_on_device()) {
             if (pinfo == CL_PROFILING_COMMAND_START) {
