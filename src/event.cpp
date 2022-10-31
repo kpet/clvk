@@ -29,26 +29,25 @@ cl_command_type cvk_event::command_type() const {
         return CL_COMMAND_USER;
 }
 
-void cvk_event::set_status_no_notify_no_lock(cl_int status) {
-    CVK_ASSERT(status <= m_status);
-    m_status = status;
-
-    if (m_queue && m_queue->has_property(CL_QUEUE_PROFILING_ENABLE) &&
-        status >= CL_COMPLETE && status <= CL_QUEUED) {
-        cl_profiling_info pinfo = status_to_profiling_info[status];
-        if (get_profiling_info(pinfo) ==
-            0) { // profiling could have already been set. In particular in the
-                 // case of the command_batch
-            m_status = m_cmd->set_profiling_info(pinfo, m_status);
-        }
-    }
-}
-
 void cvk_event::set_status(cl_int status) {
     cvk_debug("cvk_event::set_status: event = %p, status = %d", this, status);
     std::lock_guard<std::mutex> lock(m_lock);
 
-    set_status_no_notify_no_lock(status);
+    CVK_ASSERT(status <= m_status);
+    m_status = status;
+
+    if (m_queue && m_queue->has_property(CL_QUEUE_PROFILING_ENABLE) && m_cmd &&
+        status >= CL_COMPLETE && status <= CL_QUEUED) {
+        cl_profiling_info pinfo = status_to_profiling_info[status];
+        // profiling could have already been set. In particular in the
+        // case of the command_batch
+        if (get_profiling_info(pinfo) == 0) {
+            // set_profiling_info return strategy:
+            // success: return m_status pass in input
+            // failure: return the error code of the failure
+            m_status = m_cmd->set_profiling_info(pinfo, m_status);
+        }
+    }
 
     if (completed() || terminated()) {
 

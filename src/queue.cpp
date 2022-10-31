@@ -161,8 +161,6 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
 
-    cmd->set_status(CL_QUEUED);
-
     if (event != nullptr) {
         // The event will be returned to the app, retain it for the user
         cmd->event()->retain();
@@ -331,7 +329,7 @@ cl_int cvk_command_queue::flush_no_lock() {
 
     // Set event state and profiling info
     for (auto cmd : group->commands) {
-        cmd->set_status(CL_SUBMITTED);
+        cmd->set_event_status(CL_SUBMITTED);
     }
 
     // Create execution thread if it doesn't exist

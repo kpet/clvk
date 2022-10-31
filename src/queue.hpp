@@ -358,14 +358,14 @@ struct cvk_command {
             cvk_error_fn("one or more dependencies have failed for cmd %p",
                          this);
         } else {
-            set_status(CL_RUNNING);
+            set_event_status(CL_RUNNING);
             TRACE_BEGIN_CMD(m_type, "queue", (uintptr_t) & (*m_queue),
                             "command", (uintptr_t)this);
             status = do_action();
             TRACE_END();
         }
 
-        set_status(status);
+        set_event_status(status);
         return status;
     }
 
@@ -384,7 +384,7 @@ struct cvk_command {
         return {};
     }
 
-    virtual void set_status(cl_int status) { m_event->set_status(status); }
+    virtual void set_event_status(cl_int status) { m_event->set_status(status); }
 
     CHECK_RETURN virtual cl_int set_profiling_info(cl_profiling_info pinfo,
                                                    cl_int status) {
@@ -773,9 +773,8 @@ struct cvk_command_batch : public cvk_command {
                                            cl_int status) override final {
         const cl_int target_status = status;
         status = cvk_command::set_profiling_info(pinfo, status);
-        if (m_queue->profiling_on_device() &&
-            pinfo == CL_PROFILING_COMMAND_START) {
-            if (m_queue->device()->has_timer_support()) {
+        if (m_queue->profiling_on_device()) {
+            if (pinfo == CL_PROFILING_COMMAND_START) {
                 cl_ulong sync_dev, sync_host;
                 auto ret = m_queue->device()->get_device_host_timer(&sync_dev,
                                                                     &sync_host);
@@ -784,13 +783,13 @@ struct cvk_command_batch : public cvk_command {
                 for (auto& cmd : m_commands) {
                     cmd->set_sync_values(sync_dev, sync_host);
                 }
-            }
-        } else if (m_queue->profiling_on_device()) {
-            for (auto& cmd : m_commands) {
-                auto ret_status = cmd->set_profiling_info(pinfo, status);
-                // do not stop at first error, but record only the first one
-                if (ret_status != status && status == target_status) {
-                    status = ret_status;
+            } else {
+                for (auto& cmd : m_commands) {
+                    auto ret_status = cmd->set_profiling_info(pinfo, status);
+                    // do not stop at first error, but record only the first one
+                    if (ret_status != status && status == target_status) {
+                        status = ret_status;
+                    }
                 }
             }
         } else {
@@ -801,12 +800,11 @@ struct cvk_command_batch : public cvk_command {
         return status;
     }
 
-    void set_status(cl_int status) override final {
-        m_event->set_status_no_notify(status);
-        for (auto& cmd : m_commands) {
-            cmd->set_status(status);
-        }
+    void set_event_status(cl_int status) override final {
         m_event->set_status(status);
+        for (auto& cmd : m_commands) {
+            cmd->set_event_status(status);
+        }
     }
 
 private:

@@ -37,18 +37,21 @@ struct cvk_event_callback {
 struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
     cvk_event(cvk_context* ctx, cvk_command* cmd, cvk_command_queue* queue)
-        : api_object(ctx), m_status(CL_QUEUED), m_cmd(cmd), m_queue(queue) {}
+        : api_object(ctx), m_cmd(cmd), m_queue(queue) {
+        if (cmd == nullptr) {
+            m_status = CL_SUBMITTED;
+        } else {
+            m_status = CL_QUEUED;
+            set_profiling_info_from_monotonic_clock(
+                CL_PROFILING_COMMAND_QUEUED);
+        }
+    }
 
     bool completed() { return m_status == CL_COMPLETE; }
 
     bool terminated() { return m_status < 0; }
 
     void set_status(cl_int status);
-
-    void set_status_no_notify(cl_int status) {
-        std::lock_guard<std::mutex> lock(m_lock);
-        set_status_no_notify_no_lock(status);
-    }
 
     void register_callback(cl_int callback_type,
                            cvk_event_callback_pointer_type ptr,
@@ -112,7 +115,6 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
     }
 
 private:
-    void set_status_no_notify_no_lock(cl_int status);
     void execute_callback(cvk_event_callback cb) {
         cb.pointer(this, m_status, cb.data);
     }
