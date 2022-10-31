@@ -22,11 +22,17 @@ static const cl_profiling_info status_to_profiling_info[4] = {
     CL_PROFILING_COMMAND_QUEUED,
 };
 
-cl_command_type cvk_event::command_type() const {
-    if (m_cmd)
-        return m_cmd->type();
-    else
-        return CL_COMMAND_USER;
+cvk_event::cvk_event(cvk_context* ctx, cvk_command* cmd,
+                     cvk_command_queue* queue)
+    : api_object(ctx), m_cmd(cmd), m_queue(queue) {
+    if (cmd == nullptr) {
+        m_status = CL_SUBMITTED;
+        m_command_type = CL_COMMAND_USER;
+    } else {
+        m_status = CL_QUEUED;
+        m_command_type = cmd->type();
+        set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_QUEUED);
+    }
 }
 
 void cvk_event::set_status(cl_int status) {
@@ -42,10 +48,10 @@ void cvk_event::set_status(cl_int status) {
         // profiling could have already been set. In particular in the
         // case of the command_batch
         if (get_profiling_info(pinfo) == 0) {
-            // set_profiling_info return strategy:
-            // success: return m_status pass in input
-            // failure: return the error code of the failure
-            m_status = m_cmd->set_profiling_info(pinfo, m_status);
+            auto err = m_cmd->set_profiling_info(pinfo);
+            if (err != CL_SUCCESS) {
+                m_status = err;
+            }
         }
     }
 

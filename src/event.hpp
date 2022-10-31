@@ -36,16 +36,7 @@ struct cvk_event_callback {
 
 struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
-    cvk_event(cvk_context* ctx, cvk_command* cmd, cvk_command_queue* queue)
-        : api_object(ctx), m_cmd(cmd), m_queue(queue) {
-        if (cmd == nullptr) {
-            m_status = CL_SUBMITTED;
-        } else {
-            m_status = CL_QUEUED;
-            set_profiling_info_from_monotonic_clock(
-                CL_PROFILING_COMMAND_QUEUED);
-        }
-    }
+    cvk_event(cvk_context* ctx, cvk_command* cmd, cvk_command_queue* queue);
 
     bool completed() { return m_status == CL_COMPLETE; }
 
@@ -68,7 +59,7 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
     }
 
     cl_int get_status() const { return m_status; }
-    cl_command_type command_type() const;
+    cl_command_type command_type() const { return m_command_type; };
 
     bool is_user_event() const { return command_type() == CL_COMMAND_USER; }
 
@@ -123,6 +114,7 @@ private:
     std::condition_variable m_cv;
     cl_int m_status;
     cl_ulong m_profiling_data[4]{};
+    cl_command_type m_command_type;
     cvk_command* m_cmd;
     cvk_command_queue* m_queue;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
