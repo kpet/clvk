@@ -272,7 +272,6 @@ void cvk_executor_thread::executor() {
         if (m_shutdown) {
             continue;
         }
-        m_running = true;
 
         auto group = std::move(m_groups.front());
         m_groups.pop_front();
