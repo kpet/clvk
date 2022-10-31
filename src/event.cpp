@@ -33,7 +33,7 @@ void cvk_event::set_status(cl_int status) {
     cvk_debug("cvk_event::set_status: event = %p, status = %d", this, status);
     std::lock_guard<std::mutex> lock(m_lock);
 
-    CVK_ASSERT(status <= m_status);
+    CVK_ASSERT(status < m_status);
     m_status = status;
 
     if (m_queue && m_queue->has_property(CL_QUEUE_PROFILING_ENABLE) && m_cmd &&

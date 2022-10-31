@@ -384,7 +384,9 @@ struct cvk_command {
         return {};
     }
 
-    virtual void set_event_status(cl_int status) { m_event->set_status(status); }
+    virtual void set_event_status(cl_int status) {
+        m_event->set_status(status);
+    }
 
     CHECK_RETURN virtual cl_int set_profiling_info(cl_profiling_info pinfo,
                                                    cl_int status) {
