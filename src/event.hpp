@@ -59,9 +59,9 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
     }
 
     cl_int get_status() const { return m_status; }
-    cl_command_type command_type() const { return m_command_type; };
+    cl_command_type command_type() const { return m_command_type; }
 
-    bool is_user_event() const { return command_type() == CL_COMMAND_USER; }
+    bool is_user_event() const { return m_command_type == CL_COMMAND_USER; }
 
     cvk_command_queue* queue() const {
         CVK_ASSERT(!is_user_event());
