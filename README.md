@@ -150,7 +150,7 @@ When clspv is not built into the shared library (which is currently the default)
 you also need to make sure that clvk has access to the `clspv` binary. If you
 wish to move the built library and `clspv` binary out of the build tree, you will
 need to make sure that you provide clvk with a path to the `clspv` binary via the
-`CLVK_CLSPV_BIN` environment variable
+`CLVK_CLSPV_PATH` environment variable
 (see [Environment variables](#environment-variables)).
 
 ### Unix-like systems (Linux, macOS)
@@ -250,7 +250,7 @@ variables. Here's a quick guide:
    * `file:<fname>`: logging goes to `<fname>`. The file will be created if it
      does not exist and will be truncated.
 
-* `CLVK_CLSPV_BIN` to provide a path to the clspv binary to use
+* `CLVK_CLSPV_PATH` to provide a path to the clspv binary to use
 
 * `CLVK_LLVMSPIRV_BIN` to provide a path to the llvm-spirv binary to use
 
