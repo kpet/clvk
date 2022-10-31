@@ -49,6 +49,11 @@ struct cvk_executor_thread {
         m_lock.unlock();
     }
 
+    bool is_idle() {
+        std::unique_lock<std::mutex> lock(m_lock);
+        return !m_running;
+    }
+
     void wait_idle() {
         std::unique_lock<std::mutex> lock(m_lock);
         while (m_running) {
@@ -255,6 +260,9 @@ struct cvk_executor_thread_pool {
             if (exec_state.second == executor_state::free) {
                 exec_state.second = executor_state::bound;
                 auto exec = exec_state.first;
+                if (!exec->is_idle()) {
+                    continue;
+                }
                 return exec;
             }
         }
@@ -266,9 +274,18 @@ struct cvk_executor_thread_pool {
     }
 
     void return_executor(cvk_executor_thread* exec) {
+        // No need to drain all commands here.
+        // We will make sure the thread is idle before giving it to another
+        // queue.
+        //
+        // Also trying to wait_idle here can produce a deadlock.
+        // When a queue is release before the execution of all commands, the
+        // queue will be destroyed in `cvk_executor_thread::executor` when
+        // releasing the holder on the queue. But at that point, the executor
+        // will have the lock. When calling wait_idle here, we will never be
+        // able to take the lock, generating the deadlock.
         std::unique_lock<std::mutex> lock(m_lock);
 
-        exec->wait_idle();
         m_executors[exec] = executor_state::free;
     }
 
