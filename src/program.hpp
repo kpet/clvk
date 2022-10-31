@@ -42,8 +42,8 @@ enum class kernel_argument_kind
     pod,
     pod_ubo,
     pod_pushconstant,
-    ro_image,
-    wo_image,
+    sampled_image,
+    storage_image,
     sampler,
     local,
 };
@@ -88,8 +88,8 @@ struct kernel_argument {
     bool is_mem_object_backed() const {
         return (kind == kernel_argument_kind::buffer) ||
                (kind == kernel_argument_kind::buffer_ubo) ||
-               (kind == kernel_argument_kind::ro_image) ||
-               (kind == kernel_argument_kind::wo_image);
+               (kind == kernel_argument_kind::sampled_image) ||
+               (kind == kernel_argument_kind::storage_image);
     }
 };
 
