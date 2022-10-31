@@ -786,6 +786,11 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += " -hack-mul-extended ";
     }
 
+    // Features
+    options += " -enable-feature-macros=";
+    options += "__opencl_c_read_write_images";
+    options += " ";
+
     // Select target SPIR-V version
     options += " -spv-version=";
     switch (device->vulkan_spirv_env()) {
