@@ -262,6 +262,8 @@ void cvk_executor_thread::executor() {
     while (!m_shutdown) {
 
         if (m_groups.size() == 0) {
+            m_running = false;
+            m_running_cv.notify_all();
             TRACE_BEGIN("executor_wait");
             m_cv.wait(lock);
             TRACE_END();
@@ -270,6 +272,7 @@ void cvk_executor_thread::executor() {
         if (m_shutdown) {
             continue;
         }
+        m_running = true;
 
         auto group = std::move(m_groups.front());
         m_groups.pop_front();
@@ -337,10 +340,6 @@ cl_int cvk_command_queue::flush_no_lock() {
         m_executor = get_thread_pool()->get_executor();
     }
 
-    auto ev = group->commands.back()->event();
-    m_finish_event.reset(ev);
-    cvk_debug_fn("stored event %p", ev);
-
     // Submit command group to executor
     m_executor->send_group(std::move(group));
     group_sent();
@@ -357,12 +356,15 @@ cl_int cvk_command_queue::finish() {
     std::lock_guard<std::mutex> lock(m_lock);
 
     auto status = flush_no_lock();
-
-    if ((status == CL_SUCCESS) && (m_finish_event != nullptr)) {
-        m_finish_event->wait();
+    if (status != CL_SUCCESS) {
+        return status;
     }
 
-    return status;
+    if (m_executor != nullptr) {
+        m_executor->wait_idle();
+    }
+
+    return CL_SUCCESS;
 }
 
 VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {

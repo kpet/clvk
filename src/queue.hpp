@@ -35,7 +35,8 @@ struct cvk_command_group {
 
 struct cvk_executor_thread {
 
-    cvk_executor_thread() : m_thread(nullptr), m_shutdown(false) {
+    cvk_executor_thread()
+        : m_thread(nullptr), m_shutdown(false), m_running(false) {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
@@ -44,7 +45,15 @@ struct cvk_executor_thread {
         m_lock.lock();
         m_groups.push_back(std::move(group));
         m_cv.notify_one();
+        m_running = true;
         m_lock.unlock();
+    }
+
+    void wait_idle() {
+        std::unique_lock<std::mutex> lock(m_lock);
+        while (m_running) {
+            m_running_cv.wait(lock);
+        }
     }
 
     void shutdown() {
@@ -69,6 +78,9 @@ private:
     std::unique_ptr<std::thread> m_thread;
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
+
+    bool m_running;
+    std::condition_variable m_running_cv;
 };
 
 struct cvk_command_pool {
@@ -198,7 +210,6 @@ private:
     std::vector<cl_queue_properties> m_properties_array;
 
     cvk_executor_thread* m_executor;
-    cvk_event_holder m_finish_event;
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
@@ -255,9 +266,9 @@ struct cvk_executor_thread_pool {
     }
 
     void return_executor(cvk_executor_thread* exec) {
-        // FIXME Drain all commands before returning to the pool
         std::unique_lock<std::mutex> lock(m_lock);
 
+        exec->wait_idle();
         m_executors[exec] = executor_state::free;
     }
 
