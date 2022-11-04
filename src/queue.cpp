@@ -503,7 +503,8 @@ void cvk_command_kernel::update_global_push_constants(
     if (m_kernel->has_pod_arguments() &&
         !m_kernel->has_pod_buffer_arguments()) {
         for (auto& arg : m_kernel->arguments()) {
-            if (arg.kind == kernel_argument_kind::pod_pushconstant) {
+            if (arg.kind == kernel_argument_kind::pod_pushconstant ||
+                arg.kind == kernel_argument_kind::pointer_pushconstant) {
                 CVK_ASSERT(arg.offset + arg.size <=
                            m_argument_values->pod_data().size());
 

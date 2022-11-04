@@ -488,7 +488,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_fpconfig);
         break;
     case CL_DEVICE_ADDRESS_BITS:
-        val_uint = 32; // FIXME
+        val_uint = (config.spirv_arch() == "spir64") ? 64 : 32;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;

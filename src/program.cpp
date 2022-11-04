@@ -107,6 +107,10 @@ spv_result_t parse_reflection(void* user_data,
             return kernel_argument_kind::pod_ubo;
         case NonSemanticClspvReflectionArgumentPodPushConstant:
             return kernel_argument_kind::pod_pushconstant;
+        case NonSemanticClspvReflectionArgumentPointerUniform:
+            return kernel_argument_kind::pointer_ubo;
+        case NonSemanticClspvReflectionArgumentPointerPushConstant:
+            return kernel_argument_kind::pointer_pushconstant;
         case NonSemanticClspvReflectionArgumentSampledImage:
             return kernel_argument_kind::sampled_image;
         case NonSemanticClspvReflectionArgumentStorageImage:
@@ -239,7 +243,8 @@ spv_result_t parse_reflection(void* user_data,
                 break;
             }
             case NonSemanticClspvReflectionArgumentPodStorageBuffer:
-            case NonSemanticClspvReflectionArgumentPodUniform: {
+            case NonSemanticClspvReflectionArgumentPodUniform:
+            case NonSemanticClspvReflectionArgumentPointerUniform: {
                 // These arguments have descriptor set, binding, offset, size
                 // and an optional arg info.
                 auto kernel = parse_data->strings[inst->words[5]];
@@ -261,7 +266,8 @@ spv_result_t parse_reflection(void* user_data,
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
-            case NonSemanticClspvReflectionArgumentPodPushConstant: {
+            case NonSemanticClspvReflectionArgumentPodPushConstant:
+            case NonSemanticClspvReflectionArgumentPointerPushConstant: {
                 // These arguments have offset, size and an optional arg info.
                 auto kernel = parse_data->strings[inst->words[5]];
                 auto ordinal = parse_data->constants[inst->words[6]];
@@ -1478,10 +1484,12 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             continue;
         case kernel_argument_kind::pod:
         case kernel_argument_kind::pod_ubo:
+        case kernel_argument_kind::pointer_ubo:
             if (!pod_found) {
                 if (arg.kind == kernel_argument_kind::pod) {
                     dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                } else if (arg.kind == kernel_argument_kind::pod_ubo) {
+                } else if (arg.kind == kernel_argument_kind::pod_ubo ||
+                           arg.kind == kernel_argument_kind::pointer_ubo) {
                     dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 }
 
@@ -1493,6 +1501,7 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             }
             break;
         case kernel_argument_kind::pod_pushconstant:
+        case kernel_argument_kind::pointer_pushconstant:
             continue;
         }
 

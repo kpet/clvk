@@ -325,6 +325,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         case kernel_argument_kind::pod: // skip POD arguments
         case kernel_argument_kind::pod_ubo:
         case kernel_argument_kind::pod_pushconstant:
+        case kernel_argument_kind::pointer_ubo:
+        case kernel_argument_kind::pointer_pushconstant:
             break;
         case kernel_argument_kind::local: // nothing to do?
             break;

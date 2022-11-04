@@ -253,7 +253,19 @@ struct cvk_kernel_argument_values {
 
     cl_int set_arg(const kernel_argument& arg, size_t size, const void* value) {
 
-        if (arg.is_pod()) {
+        if (arg.is_pod_pointer()) {
+            auto mem = *reinterpret_cast<const cl_mem*>(value);
+            if (mem == NULL) {
+                // OpenCL permits cl_mem to be NULL
+                uint64_t null = 0;
+                set_pod_data(arg.offset, arg.size, &null);
+            } else {
+                auto mem_downcast = icd_downcast(mem);
+                auto buff = reinterpret_cast<const cvk_buffer*>(mem_downcast);
+                auto dev_addr = buff->device_address();
+                set_pod_data(arg.offset, arg.size, &dev_addr);
+            }
+        } else if (arg.is_pod()) {
             // If the argument is a vec3, OpenCL requires to call clSetKernelArg
             // with a size of 4 times the element size. But clspv arg size is
             // only 3 times the element size. When size and arg.size do not
