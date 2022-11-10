@@ -114,10 +114,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
         return m_program->required_work_group_size(m_name);
     }
 
-    bool args_valid() const {
-        return std::all_of(m_args_set.begin(), m_args_set.end(),
-                           [](bool b) { return b; });
-    }
+    bool args_valid() const;
 
     bool has_extended_arg_info(cl_uint arg_index) const {
         return m_args.at(arg_index).info.extended_valid;
@@ -154,7 +151,6 @@ private:
     std::string m_name;
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
-    std::vector<bool> m_args_set;
     const kernel_image_metadata_map* m_image_metadata;
 };
 
@@ -171,7 +167,7 @@ struct cvk_kernel_argument_values {
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
           m_kernel_resources(m_entry_point->num_resource_slots()),
           m_local_args_size(m_entry_point->args().size(), 0),
-          m_descriptor_sets{VK_NULL_HANDLE} {}
+          m_args_set(m_args.size(), false), m_descriptor_sets{VK_NULL_HANDLE} {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values& other)
         : m_entry_point(other.m_entry_point), m_is_enqueued(false),
@@ -179,7 +175,7 @@ struct cvk_kernel_argument_values {
           m_kernel_resources(other.m_kernel_resources),
           m_local_args_size(other.m_local_args_size),
           m_specialization_constants(other.m_specialization_constants),
-          m_descriptor_sets{VK_NULL_HANDLE} {}
+          m_args_set(other.m_args_set), m_descriptor_sets{VK_NULL_HANDLE} {}
 
     ~cvk_kernel_argument_values() {
         for (auto ds : m_descriptor_sets) {
@@ -288,6 +284,7 @@ struct cvk_kernel_argument_values {
             }
         }
 
+        m_args_set[arg.pos] = true;
         return CL_SUCCESS;
     }
 
@@ -340,6 +337,11 @@ struct cvk_kernel_argument_values {
         return mems;
     }
 
+    bool args_valid() const {
+        return std::all_of(m_args_set.cbegin(), m_args_set.cend(),
+                           [](bool b) { return b; });
+    }
+
 private:
     bool create_pod_buffer() {
         CVK_ASSERT(m_pod_data->size() >= m_entry_point->pod_buffer_size());
@@ -363,6 +365,7 @@ private:
     std::vector<refcounted*> m_kernel_resources;
     std::vector<size_t> m_local_args_size;
     std::unordered_map<uint32_t, uint32_t> m_specialization_constants;
+    std::vector<bool> m_args_set;
 
     std::unique_ptr<cvk_buffer> m_pod_buffer;
     std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
