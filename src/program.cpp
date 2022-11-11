@@ -108,9 +108,9 @@ spv_result_t parse_reflection(void* user_data,
         case NonSemanticClspvReflectionArgumentPodPushConstant:
             return kernel_argument_kind::pod_pushconstant;
         case NonSemanticClspvReflectionArgumentSampledImage:
-            return kernel_argument_kind::ro_image;
+            return kernel_argument_kind::sampled_image;
         case NonSemanticClspvReflectionArgumentStorageImage:
-            return kernel_argument_kind::wo_image;
+            return kernel_argument_kind::storage_image;
         case NonSemanticClspvReflectionArgumentSampler:
             return kernel_argument_kind::sampler;
         case NonSemanticClspvReflectionArgumentWorkgroup:
@@ -1380,10 +1380,10 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
         case kernel_argument_kind::buffer_ubo:
             dt = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             break;
-        case kernel_argument_kind::ro_image:
+        case kernel_argument_kind::sampled_image:
             dt = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
             break;
-        case kernel_argument_kind::wo_image:
+        case kernel_argument_kind::storage_image:
             dt = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
             break;
         case kernel_argument_kind::sampler:

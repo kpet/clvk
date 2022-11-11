@@ -118,8 +118,8 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
 
     // if the argument is an image, we need to set its metadata
     // (channel_order/channel_data_type).
-    if (arg.kind == kernel_argument_kind::ro_image ||
-        arg.kind == kernel_argument_kind::wo_image) {
+    if (arg.kind == kernel_argument_kind::sampled_image ||
+        arg.kind == kernel_argument_kind::storage_image) {
         set_image_metadata(index, value);
     }
 
@@ -288,10 +288,10 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
             descriptor_writes.push_back(writeDescriptorSet);
             break;
         }
-        case kernel_argument_kind::ro_image:
-        case kernel_argument_kind::wo_image: {
+        case kernel_argument_kind::sampled_image:
+        case kernel_argument_kind::storage_image: {
             auto image = static_cast<cvk_image*>(get_arg_value(arg));
-            bool sampled = arg.kind == kernel_argument_kind::ro_image;
+            bool sampled = arg.kind == kernel_argument_kind::sampled_image;
             auto view = sampled ? image->vulkan_sampled_view()
                                 : image->vulkan_storage_view();
 
