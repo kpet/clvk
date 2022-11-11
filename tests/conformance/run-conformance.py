@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2018 The clvk authors.
+# Copyright 2018-2022 The clvk authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -90,27 +90,33 @@ TESTS_IMAGES_FAST = (
     ('Images (clFillImage)', 'images/clFillImage/test_cl_fill_images'),
     ('Images (clFillImage pitch)', 'images/clFillImage/test_cl_fill_images', 'use_pitches'),
     ('Images (clFillImage max size)', 'images/clFillImage/test_cl_fill_images', 'max_images'),
+    ('Images (Samplerless)', 'images/samplerlessReads/test_samplerless_reads'),
+    ('Images (Samplerless pitch)', 'images/samplerlessReads/test_samplerless_reads', 'use_pitches'),
+    ('Images (Samplerless max size)', 'images/samplerlessReads/test_samplerless_reads', 'max_images'),
+    ('Images (Kernel Methods)', 'images/kernel_image_methods/test_kernel_image_methods'),
 )
 
 
 TESTS_IMAGES_SLOW = (
-    ('Images (Kernel Methods)', 'images/kernel_image_methods/test_kernel_image_methods'),
     ('Images (Kernel)', 'images/kernel_read_write/test_image_streams', 'CL_FILTER_NEAREST'),
     ('Images (Kernel pitch)', 'images/kernel_read_write/test_image_streams', 'use_pitches', 'CL_FILTER_NEAREST'),
     ('Images (Kernel max size)', 'images/kernel_read_write/test_image_streams', 'max_images', 'CL_FILTER_NEAREST'),
-    ('Images (Samplerless)', 'images/samplerlessReads/test_samplerless_reads'),
-    ('Images (Samplerless pitch)', 'images/samplerlessReads/test_samplerless_reads', 'use_pitches'),
-    ('Images (Samplerless max size)', 'images/samplerlessReads/test_samplerless_reads', 'max_images'),
     ('Images (clCopyImage)', 'images/clCopyImage/test_cl_copy_images'),
     ('Images (clCopyImage small)', 'images/clCopyImage/test_cl_copy_images', 'small_images'),
     ('Images (clCopyImage max size)', 'images/clCopyImage/test_cl_copy_images', 'max_images'),
 )
 
+TESTS_EXTENSIONS = (
+    ('cl_ext_cxx_for_opencl', 'test_cl_ext_cxx_for_opencl'),
+    ('cl_khr_command_buffer', 'test_cl_khr_command_buffer'),
+    ('External memory and synchronisation', 'test_vulkan'),
+)
+
 TESTS_IMAGES = TESTS_IMAGES_FAST + TESTS_IMAGES_SLOW
 
-TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY + TESTS_IMAGES_FAST
+TESTS_WIMPY = TESTS_FOR_WIMPY + TESTS_MODE_WIMPY + TESTS_IMAGES_FAST + TESTS_EXTENSIONS
 
-TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + (
+TESTS_FULL_CONFORMANCE = TESTS_FOR_WIMPY + TESTS_MODE_NOT_WIMPY + TESTS_IMAGES + TESTS_EXTENSIONS + (
     ('Allocations (single maximum)', 'allocations/test_allocations', 'single', '5', 'all'),
     ('Allocations (total maximum)', 'allocations/test_allocations', 'multiple', '5', 'all'),
 #    ('CL_DEVICE_TYPE_CPU, Images (Kernel CL_FILTER_LINEAR),images/kernel_read_write/test_image_streams CL_FILTER_LINEAR
@@ -126,9 +132,15 @@ TEST_SETS = {
     'images': TESTS_IMAGES,
     'images-fast': TESTS_IMAGES_FAST,
     'images-slow': TESTS_IMAGES_SLOW,
+    'extensions': TESTS_EXTENSIONS,
 }
 
 TIME_SERIALISATION_FORMAT = '%H:%M:%S.%f'
+
+COLOUR_RED = '\033[0;31m'
+COLOUR_GREEN = '\033[0;32m'
+COLOUR_YELLOW = '\033[0;33m'
+COLOUR_RESET = '\033[0m'
 
 def timedelta_from_string(string):
     duration_as_date = datetime.datetime.strptime(string, TIME_SERIALISATION_FORMAT)
@@ -188,7 +200,7 @@ def run_conformance_binary(path, args):
         'duration': timedelta_to_string(duration),
     }
 
-def get_totals(suite_results):
+def get_suite_totals(suite_results):
     totals = {
         'pass': 0,
         'fail': 0,
@@ -211,7 +223,7 @@ def run_tests(test_set):
         print("Running", name, "...")
         status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), list(args))
         results[name] = status
-        totals = get_totals(status)
+        totals = get_suite_totals(status)
         print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))
         print(totals['pass'], "test(s) out of", totals['total'], "passed. ", totals['skip'], "were skipped.")
         print("")
@@ -285,11 +297,13 @@ def report(results, args):
     len_result_str = len(tests_passed_template.format(0,0,0))
 
     # Print results
+    all_suites_passing = True
     for name in sorted(results):
         status = results[name]
-        suite_totals = get_totals(status)
+        suite_totals = get_suite_totals(status)
+        has_results = status['has_results']
         # Print status
-        if not status['has_results']:
+        if not has_results:
             result_str = 'NO RESULTS'
         else:
             with_results += 1
@@ -303,7 +317,12 @@ def report(results, args):
             'duration': status['duration'],
         })
 
-        print(line)
+        all_tests_passing = (suite_totals['pass'] == suite_totals['total']) and has_results
+        if not all_tests_passing:
+            all_suites_passing = False
+
+        colour = COLOUR_GREEN if all_tests_passing else COLOUR_RED
+        print(colour + line + COLOUR_RESET)
 
         # Accumulate totals
         total += suite_totals['total']
@@ -320,8 +339,9 @@ def report(results, args):
         'result_str-len': len_result_str,
         'duration': time,
     })
+    colour = COLOUR_GREEN if all_suites_passing else COLOUR_RED
     print('-' * len(line))
-    print(line)
+    print(colour + line + COLOUR_RESET)
     print("")
 
     if args.reference_results:

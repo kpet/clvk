@@ -7,7 +7,7 @@
       "binary_get": "pass",
       "bool_type": "pass",
       "buffer_properties_queries": "pass",
-      "clone_kernel": "fail",
+      "clone_kernel": "pass",
       "consistency_2d_image_from_buffer": "pass",
       "consistency_3d_image_writes": "pass",
       "consistency_depth_images": "pass",
@@ -372,7 +372,7 @@
       "atomic_fetch_xor": "pass",
       "atomic_fetch_xor2": "pass",
       "atomic_flag": "fail",
-      "atomic_init": "fail",
+      "atomic_init": "pass",
       "atomic_load": "pass",
       "atomic_store": "pass",
       "svm_atomic_compare_exchange_strong": "pass",
@@ -553,9 +553,22 @@
     "retcode": 0
   },
   "Device execution": {
-    "duration": "00:00:00.284703",
-    "has_results": false,
-    "results": {},
+    "duration": "00:00:00.191662",
+    "has_results": true,
+    "results": {
+      "device_info": "skip",
+      "device_queue": "skip",
+      "enqueue_block": "skip",
+      "enqueue_flags": "skip",
+      "enqueue_multi_queue": "skip",
+      "enqueue_ndrange": "skip",
+      "enqueue_nested_blocks": "skip",
+      "enqueue_profiling": "skip",
+      "enqueue_wg_size": "skip",
+      "execute_block": "skip",
+      "host_multi_queue": "skip",
+      "host_queue_order": "skip"
+    },
     "retcode": 0
   },
   "Device timer": {
@@ -602,10 +615,38 @@
     },
     "retcode": 0
   },
-  "Generic Address Space": {
-    "duration": "00:00:00.276349",
+  "External memory and synchronisation": {
+    "duration": "00:00:00.235188",
     "has_results": false,
     "results": {},
+    "retcode": 0
+  },
+  "Generic Address Space": {
+    "duration": "00:00:00.181068",
+    "has_results": true,
+    "results": {
+      "builtin_functions": "skip",
+      "casting": "skip",
+      "chain_casting": "skip",
+      "compare_pointers": "skip",
+      "conditional_casting": "skip",
+      "function_get_fence": "skip",
+      "function_to_address_space": "skip",
+      "generic_advanced_casting": "skip",
+      "generic_ptr_to_host_mem": "skip",
+      "generic_ptr_to_host_mem_svm": "skip",
+      "generic_variable_const": "skip",
+      "generic_variable_gentype": "skip",
+      "generic_variable_volatile": "skip",
+      "language_struct": "skip",
+      "language_union": "skip",
+      "library_function": "skip",
+      "max_number_of_params": "skip",
+      "multiple_calls_same_function": "skip",
+      "ternary_operator_casting": "skip",
+      "variable_get_fence": "skip",
+      "variable_to_address_space": "skip"
+    },
     "retcode": 0
   },
   "Geometric Functions": {
@@ -660,12 +701,12 @@
     "has_results": true,
     "results": {
       "1D": "pass",
-      "1Darray": "fail",
+      "1Darray": "pass",
       "2D": "pass",
-      "2Darray": "fail",
-      "3D": "fail"
+      "2Darray": "pass",
+      "3D": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Images (Kernel max size)": {
     "duration": "00:07:46.762297",
@@ -708,10 +749,10 @@
     "has_results": true,
     "results": {
       "1D": "fail",
-      "1Darray": "fail",
-      "2D": "fail",
-      "2Darray": "fail",
-      "3D": "fail"
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
     },
     "retcode": 1
   },
@@ -719,11 +760,11 @@
     "duration": "00:01:02.701511",
     "has_results": true,
     "results": {
-      "1D": "pass",
-      "1Darray": "fail",
-      "2D": "fail",
-      "2Darray": "fail",
-      "3D": "fail"
+      "1D": "fail",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
     },
     "retcode": 1
   },
@@ -732,10 +773,10 @@
     "has_results": true,
     "results": {
       "1D": "fail",
-      "1Darray": "fail",
-      "2D": "fail",
-      "2Darray": "fail",
-      "3D": "fail"
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
     },
     "retcode": 1
   },
@@ -1093,9 +1134,65 @@
     "retcode": 1
   },
   "Pipes": {
-    "duration": "00:00:00.278300",
-    "has_results": false,
-    "results": {},
+    "duration": "00:00:00.185328",
+    "has_results": true,
+    "results": {
+      "pipe_convenience_readwrite_char": "skip",
+      "pipe_convenience_readwrite_double": "skip",
+      "pipe_convenience_readwrite_float": "skip",
+      "pipe_convenience_readwrite_half": "skip",
+      "pipe_convenience_readwrite_int": "skip",
+      "pipe_convenience_readwrite_long": "skip",
+      "pipe_convenience_readwrite_short": "skip",
+      "pipe_convenience_readwrite_struct": "skip",
+      "pipe_convenience_readwrite_uchar": "skip",
+      "pipe_convenience_readwrite_uint": "skip",
+      "pipe_convenience_readwrite_ulong": "skip",
+      "pipe_convenience_readwrite_ushort": "skip",
+      "pipe_info": "skip",
+      "pipe_max_active_reservations": "skip",
+      "pipe_max_args": "skip",
+      "pipe_max_packet_size": "skip",
+      "pipe_query_functions": "skip",
+      "pipe_readwrite_char": "skip",
+      "pipe_readwrite_double": "skip",
+      "pipe_readwrite_errors": "skip",
+      "pipe_readwrite_float": "skip",
+      "pipe_readwrite_half": "skip",
+      "pipe_readwrite_int": "skip",
+      "pipe_readwrite_long": "skip",
+      "pipe_readwrite_short": "skip",
+      "pipe_readwrite_struct": "skip",
+      "pipe_readwrite_uchar": "skip",
+      "pipe_readwrite_uint": "skip",
+      "pipe_readwrite_ulong": "skip",
+      "pipe_readwrite_ushort": "skip",
+      "pipe_subgroup_readwrite_char": "skip",
+      "pipe_subgroup_readwrite_double": "skip",
+      "pipe_subgroup_readwrite_float": "skip",
+      "pipe_subgroup_readwrite_half": "skip",
+      "pipe_subgroup_readwrite_int": "skip",
+      "pipe_subgroup_readwrite_long": "skip",
+      "pipe_subgroup_readwrite_short": "skip",
+      "pipe_subgroup_readwrite_struct": "skip",
+      "pipe_subgroup_readwrite_uchar": "skip",
+      "pipe_subgroup_readwrite_uint": "skip",
+      "pipe_subgroup_readwrite_ulong": "skip",
+      "pipe_subgroup_readwrite_ushort": "skip",
+      "pipe_subgroups_divergence": "skip",
+      "pipe_workgroup_readwrite_char": "skip",
+      "pipe_workgroup_readwrite_double": "skip",
+      "pipe_workgroup_readwrite_float": "skip",
+      "pipe_workgroup_readwrite_half": "skip",
+      "pipe_workgroup_readwrite_int": "skip",
+      "pipe_workgroup_readwrite_long": "skip",
+      "pipe_workgroup_readwrite_short": "skip",
+      "pipe_workgroup_readwrite_struct": "skip",
+      "pipe_workgroup_readwrite_uchar": "skip",
+      "pipe_workgroup_readwrite_uint": "skip",
+      "pipe_workgroup_readwrite_ulong": "skip",
+      "pipe_workgroup_readwrite_ushort": "skip"
+    },
     "retcode": 0
   },
   "Printf": {
@@ -1448,9 +1545,24 @@
     "retcode": 1
   },
   "SVM": {
-    "duration": "00:00:00.282835",
-    "has_results": false,
-    "results": {},
+    "duration": "00:00:00.188871",
+    "has_results": true,
+    "results": {
+      "svm_allocate_shared_buffer": "skip",
+      "svm_byte_granularity": "skip",
+      "svm_cross_buffer_pointers_coarse_grain": "skip",
+      "svm_enqueue_api": "skip",
+      "svm_fine_grain_memory_consistency": "skip",
+      "svm_fine_grain_sync_buffers": "skip",
+      "svm_migrate": "skip",
+      "svm_pointer_passing": "skip",
+      "svm_set_kernel_exec_info_svm_ptrs": "skip",
+      "svm_shared_address_space_coarse_grain_new_api": "skip",
+      "svm_shared_address_space_coarse_grain_old_api": "skip",
+      "svm_shared_address_space_fine_grain": "skip",
+      "svm_shared_address_space_fine_grain_buffers": "skip",
+      "svm_shared_sub_buffers": "skip"
+    },
     "retcode": 0
   },
   "Select": {
@@ -1535,9 +1647,49 @@
     "retcode": 1
   },
   "Workgroups": {
-    "duration": "00:00:00.202533",
-    "has_results": false,
-    "results": {},
+    "duration": "00:00:00.195785",
+    "has_results": true,
+    "results": {
+      "work_group_all": "skip",
+      "work_group_any": "skip",
+      "work_group_broadcast_1D": "skip",
+      "work_group_broadcast_2D": "skip",
+      "work_group_broadcast_3D": "skip",
+      "work_group_reduce_add": "skip",
+      "work_group_reduce_max": "skip",
+      "work_group_reduce_min": "skip",
+      "work_group_scan_exclusive_add": "skip",
+      "work_group_scan_exclusive_max": "skip",
+      "work_group_scan_exclusive_min": "skip",
+      "work_group_scan_inclusive_add": "skip",
+      "work_group_scan_inclusive_max": "skip",
+      "work_group_scan_inclusive_min": "skip",
+      "work_group_suggested_local_size_1D": "skip",
+      "work_group_suggested_local_size_2D": "skip",
+      "work_group_suggested_local_size_3D": "skip"
+    },
+    "retcode": 0
+  },
+  "cl_ext_cxx_for_opencl": {
+    "duration": "00:00:00.219438",
+    "has_results": true,
+    "results": {
+      "cxx_for_opencl_ext": "skip",
+      "cxx_for_opencl_ver": "skip"
+    },
+    "retcode": 0
+  },
+  "cl_khr_command_buffer": {
+    "duration": "00:00:00.191704",
+    "has_results": true,
+    "results": {
+      "explicit_flush": "skip",
+      "interleaved_enqueue": "skip",
+      "mixed_commands": "skip",
+      "out_of_order": "skip",
+      "single_ndrange": "skip",
+      "user_events": "skip"
+    },
     "retcode": 0
   }
 }
