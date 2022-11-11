@@ -73,6 +73,7 @@ struct cvk_device : public _cl_device_id,
 
         m_clvk_properties =
             create_cvk_device_properties(m_properties.deviceName);
+        m_device_name = m_properties.deviceName;
     }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
@@ -102,7 +103,7 @@ struct cvk_device : public _cl_device_id,
         return m_properties.limits;
     }
     cvk_platform* platform() const { return m_platform; }
-    const char* name() const { return m_properties.deviceName; }
+    const std::string& name() const { return m_device_name; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
 
     CHECK_RETURN uint32_t memory_type_index_for_resource(
@@ -543,6 +544,7 @@ private:
     std::vector<cvk_vulkan_queue_wrapper> m_vulkan_queues;
     uint32_t m_vulkan_queue_alloc_index;
 
+    std::string m_device_name;
     std::string m_extension_string;
     std::vector<cl_name_version> m_extensions;
     std::string m_ils_string;

@@ -922,6 +922,19 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
+    // Device specific builtins options
+    std::vector<std::string> native_builtins;
+    if(device->name() == "Samsung Xclipse 920") {
+        native_builtins.push_back("fma");
+    }
+    if(!native_builtins.empty()){
+        std::string builtin_list = "";
+        for(const auto& builtin : native_builtins) {
+            builtin_list += builtin + ",";
+        }
+        options += " --use-native-builtins=" + builtin_list;
+    }
+
     // Select target SPIR-V version
     options += " -spv-version=";
     switch (device->vulkan_spirv_env()) {
