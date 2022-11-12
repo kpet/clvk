@@ -634,15 +634,15 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
 private:
     void do_build();
     std::string prepare_build_options(const cvk_device* device) const;
-    CHECK_RETURN cl_build_status build_source(const cvk_device* device);
+    CHECK_RETURN cl_build_status do_build_inner(const cvk_device* device);
 
 #if COMPILER_AVAILABLE
 #ifndef CLSPV_ONLINE_COMPILER
     CHECK_RETURN cl_build_status
-    build_source_offline(bool build_to_ir, bool build_from_il,
-                         std::string& build_options, std::string& tmp_folder);
+    do_build_inner_offline(bool build_to_ir, bool build_from_il,
+                           std::string& build_options, std::string& tmp_folder);
 #else
-    CHECK_RETURN cl_build_status build_source_online(
+    CHECK_RETURN cl_build_status do_build_inner_online(
         bool build_to_ir, bool build_from_il, std::string& build_options);
 #endif
 #endif
@@ -664,11 +664,7 @@ private:
     std::mutex m_lock;
     std::unique_ptr<std::thread> m_thread;
     std::string m_source;
-#ifndef CLSPV_ONLINE_COMPILER
     std::vector<uint8_t> m_ir;
-#else
-    std::string m_ir;
-#endif
     std::vector<uint8_t> m_il;
     VkShaderModule m_shader_module;
     std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>

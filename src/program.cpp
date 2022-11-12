@@ -832,10 +832,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 #if COMPILER_AVAILABLE
 #ifndef CLSPV_ONLINE_COMPILER
 
-cl_build_status cvk_program::build_source_offline(bool build_to_ir,
-                                                  bool build_from_il,
-                                                  std::string& build_options,
-                                                  std::string& tmp_folder) {
+cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
+                                                    bool build_from_il,
+                                                    std::string& build_options,
+                                                    std::string& tmp_folder) {
     // Compose clspv command-line
     std::string cmd{config.clspv_path};
     cmd += " ";
@@ -908,10 +908,16 @@ cl_build_status cvk_program::build_source_offline(bool build_to_ir,
         }
     }
 
-    std::string spirv_file{tmp_folder + "/compiled.spv"};
+    std::string clspv_output_file{tmp_folder + "/compiled"};
+    if (build_to_ir) {
+        clspv_output_file += ".bc";
+    } else {
+        clspv_output_file += ".spv";
+    }
+
     cmd += build_options;
     cmd += " -o ";
-    cmd += spirv_file;
+    cmd += clspv_output_file;
 
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
@@ -920,31 +926,36 @@ cl_build_status cvk_program::build_source_offline(bool build_to_ir,
         return CL_BUILD_ERROR;
     }
 
+    // Load output from clspv
     if (build_to_ir) {
-        std::ifstream stream(spirv_file, std::ios::in | std::ios::binary);
+        std::ifstream stream(clspv_output_file,
+                             std::ios::in | std::ios::binary);
         m_ir.assign((std::istreambuf_iterator<char>(stream)),
                     std::istreambuf_iterator<char>());
-        cvk_info("Loaded IR binary from \"%s\", size = %zu", spirv_file.c_str(),
-                 spirv_file.size());
+        if (!stream.good()) {
+            return CL_BUILD_ERROR;
+        }
     } else {
-        // Load SPIR-V program
-        const char* filename = spirv_file.c_str();
+        const char* filename = clspv_output_file.c_str();
         if (!m_binary.load(filename)) {
             cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
             return CL_BUILD_ERROR;
-        } else {
-            cvk_info("Loaded SPIR-V binary from \"%s\", size = %zu words",
-                     filename, m_binary.code().size());
         }
     }
+
+    cvk_info("Loaded %s binary from \"%s\", size = %zu %s",
+             build_to_ir ? "IR" : "SPIR-V", clspv_output_file.c_str(),
+             build_to_ir ? m_ir.size() : m_binary.code().size(),
+             build_to_ir ? "bytes" : "words");
+
     return CL_BUILD_SUCCESS;
 }
 
-#else
+#else // #ifndef CLSPV_ONLINE_COMPILER
 
-cl_build_status cvk_program::build_source_online(bool build_to_ir,
-                                                 bool build_from_il,
-                                                 std::string& build_options) {
+cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
+                                                   bool build_from_il,
+                                                   std::string& build_options) {
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
     if (build_from_il) {
@@ -996,13 +1007,14 @@ cl_build_status cvk_program::build_source_online(bool build_to_ir,
                         CL_PROGRAM_BINARY_TYPE_LIBRARY) {
                     return CL_BUILD_ERROR;
                 }
-                programs.push_back(input_program->m_ir);
+                programs.emplace_back(std::string{input_program->m_ir.begin(),
+                                                  input_program->m_ir.end()});
             }
         } else {
             if (m_source.empty() && !m_ir.empty()) {
-                programs.push_back(m_ir);
+                programs.emplace_back(std::string{m_ir.begin(), m_ir.end()});
             } else {
-                programs.push_back(m_source);
+                programs.emplace_back(m_source);
             }
         }
         m_build_log.clear();
@@ -1026,10 +1038,10 @@ cl_build_status cvk_program::build_source_online(bool build_to_ir,
     return CL_BUILD_SUCCESS;
 }
 
-#endif
-#endif
+#endif // #ifndef CLSPV_ONLINE_COMPILER
+#endif // #if COMPILER_AVAILABLE
 
-cl_build_status cvk_program::build_source(const cvk_device* device) {
+cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 #if !COMPILER_AVAILABLE
     UNUSED(device);
 #else
@@ -1088,10 +1100,10 @@ cl_build_status cvk_program::build_source(const cvk_device* device) {
     cl_build_status build_status;
 #ifdef CLSPV_ONLINE_COMPILER
     build_status =
-        build_source_online(build_to_ir, build_from_il, build_options);
+        do_build_inner_online(build_to_ir, build_from_il, build_options);
 #else
-    build_status = build_source_offline(build_to_ir, build_from_il,
-                                        build_options, tmp_folder);
+    build_status = do_build_inner_offline(build_to_ir, build_from_il,
+                                          build_options, tmp_folder);
 #endif // CLSPV_ONLINE_COMPILER
     if (build_status != CL_BUILD_SUCCESS) {
         return build_status;
@@ -1106,7 +1118,7 @@ cl_build_status cvk_program::build_source(const cvk_device* device) {
         m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
     }
 
-#endif
+#endif // #if !COMPILER_AVAILABLE
     return CL_BUILD_SUCCESS;
 }
 
@@ -1156,7 +1168,7 @@ void cvk_program::do_build() {
     auto device = m_context->device();
 
     if (m_operation != build_operation::build_binary) {
-        cl_build_status status = build_source(device);
+        cl_build_status status = do_build_inner(device);
 
         if ((m_binary_type != CL_PROGRAM_BINARY_TYPE_EXECUTABLE) ||
             (status != CL_BUILD_SUCCESS)) {
