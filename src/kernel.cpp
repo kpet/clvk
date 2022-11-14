@@ -160,7 +160,9 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     image_info.reserve(max_descriptor_writes);
 
     // Setup module-scope variables
-    if (program->module_constant_data_buffer() != nullptr) {
+    if (program->module_constant_data_buffer() != nullptr &&
+        program->module_constant_data_buffer_info()->type ==
+            constant_data_buffer_type::storage_buffer) {
         auto buffer = program->module_constant_data_buffer();
         auto info = program->module_constant_data_buffer_info();
         cvk_debug_fn(
