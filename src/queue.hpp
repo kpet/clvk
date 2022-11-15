@@ -57,7 +57,9 @@ struct cvk_executor_thread {
     void wait_idle() {
         std::unique_lock<std::mutex> lock(m_lock);
         while (m_running) {
+            TRACE_BEGIN("wait_idle");
             m_running_cv.wait(lock);
+            TRACE_END();
         }
     }
 
