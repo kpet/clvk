@@ -64,6 +64,13 @@ struct cvk_device_properties_amd : public cvk_device_properties {
     cl_uint get_max_cmd_group_size() const override final { return 1; }
 };
 
+struct cvk_device_properties_samsung_xclipse_920
+    : public cvk_device_properties {
+    const std::vector<std::string> get_native_builtins() const override final {
+        return std::vector<std::string>({"fma"});
+    }
+};
+
 #define RETURN(x)                                                              \
     cvk_info_fn(#x);                                                           \
     return std::make_unique<x>();
@@ -103,6 +110,8 @@ create_cvk_device_properties(const char* name) {
         RETURN(cvk_device_properties_intel);
     } else if (strncmp(name, "AMD", 3) == 0) {
         RETURN(cvk_device_properties_amd);
+    } else if (strcmp(name, "Samsung Xclipse 920") == 0) {
+        RETURN(cvk_device_properties_samsung_xclipse_920);
     } else {
         cvk_warn("Unrecognized device '%s', some device properties will be "
                  "incorrect.",

@@ -853,7 +853,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    // Prepare options
+    // Check for some options we need and add them if not present.
     std::string necessary_options[] = {
         "-cl-single-precision-constant",
         "-cl-kernel-arg-info",
@@ -864,49 +864,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    if (!devices_support_images()) {
-        options += " -images=0 ";
-    }
-
-    // 8-bit storage capability restrictions.
-    const auto& features_8bit_storage = device->device_8bit_storage_features();
-    if (features_8bit_storage.storageBuffer8BitAccess == VK_FALSE) {
-        options += " -no-8bit-storage=ssbo ";
-    }
-    if (features_8bit_storage.uniformAndStorageBuffer8BitAccess == VK_FALSE) {
-        options += " -no-8bit-storage=ubo ";
-    }
-    if (features_8bit_storage.storagePushConstant8 == VK_FALSE) {
-        options += " -no-8bit-storage=pushconstant ";
-    }
-
-    // 16-bit storage capability restrictions.
-    const auto& features_16bit_storage =
-        device->device_16bit_storage_features();
-    if (features_16bit_storage.storageBuffer16BitAccess == VK_FALSE) {
-        options += " -no-16bit-storage=ssbo ";
-    }
-    if (features_16bit_storage.uniformAndStorageBuffer16BitAccess == VK_FALSE) {
-        options += " -no-16bit-storage=ubo ";
-    }
-    if (features_16bit_storage.storagePushConstant16 == VK_FALSE) {
-        options += " -no-16bit-storage=pushconstant ";
-    }
-
-    // Types support
-    if (!device->supports_fp16()) {
-        options += " -fp16=0 ";
-    }
-    if (!device->supports_fp64()) {
-        options += " -fp64=0 ";
-    }
-    if (device->supports_int8()) {
-        options += " -int8 ";
-    }
-    if (device->supports_ubo_stdlayout()) {
-        options += " -std430-ubo-layout ";
-    }
-
+    // The device sets up some compiler options based on its capabilities.
     options += " " + device->get_device_specific_compile_options() + " ";
 
     // Features
@@ -922,49 +880,6 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    // Device specific builtins options
-    std::vector<std::string> native_builtins;
-    if(device->name() == "Samsung Xclipse 920") {
-        native_builtins.push_back("fma");
-    }
-    if(!native_builtins.empty()){
-        std::string builtin_list = "";
-        for(const auto& builtin : native_builtins) {
-            builtin_list += builtin + ",";
-        }
-        options += " --use-native-builtins=" + builtin_list;
-    }
-
-    // Select target SPIR-V version
-    options += " -spv-version=";
-    switch (device->vulkan_spirv_env()) {
-    default:
-    case SPV_ENV_VULKAN_1_0:
-        options += "1.0 ";
-        break;
-    case SPV_ENV_VULKAN_1_1:
-        options += "1.3 ";
-        break;
-    case SPV_ENV_VULKAN_1_1_SPIRV_1_4:
-        options += "1.4 ";
-        break;
-    case SPV_ENV_VULKAN_1_2:
-        options += "1.5 ";
-        break;
-    case SPV_ENV_VULKAN_1_3:
-        options += "1.6 ";
-        break;
-    }
-
-    // Limits
-    options += " -max-pushconstant-size=" +
-               std::to_string(device->vulkan_max_push_constants_size()) + " ";
-    options += " -max-ubo-size=" +
-               std::to_string(device->vulkan_max_uniform_buffer_range()) + " ";
-    options += " -global-offset ";
-    options += " -long-vector ";
-    options += " -module-constants-in-storage-buffer ";
-    options += " -cl-arm-non-uniform-work-group-size ";
 #if COMPILER_AVAILABLE
     options += " " + config.clspv_options() + " ";
 #endif
