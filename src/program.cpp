@@ -788,9 +788,17 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     }
 
     // Features
-    options += " -enable-feature-macros=";
-    options += "__opencl_c_read_write_images";
-    options += " ";
+    if (options.find("-cl-std=CL3.0") != std::string::npos) {
+        auto features = device->opencl_c_features();
+        if (!features.empty()) {
+            options += "-enable-feature-macros=";
+            for (auto& feature : features) {
+                options += feature.name;
+                options += ',';
+            }
+            options.back() = ' '; // replace the final comma
+        }
+    }
 
     // Select target SPIR-V version
     options += " -spv-version=";
