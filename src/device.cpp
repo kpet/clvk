@@ -901,6 +901,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
                VK_SUBGROUP_FEATURE_BALLOT_BIT;
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
+    case spv::CapabilityShaderNonUniform:
+        return m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0);
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
