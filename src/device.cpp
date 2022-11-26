@@ -278,6 +278,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_PCI_BUS_INFO_EXTENSION_NAME,
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
         VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -908,7 +909,9 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
-        return m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0);
+        return m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
+               is_vulkan_extension_enabled(
+                   VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
