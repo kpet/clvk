@@ -234,7 +234,8 @@ protected:
         return program;
     }
 
-    holder<cl_program> CreateProgramWithBinary(std::vector<uint8_t>& binary) {
+    holder<cl_program>
+    CreateProgramWithBinary(const std::vector<uint8_t>& binary) {
         cl_int err;
         const size_t size = binary.size();
         const unsigned char* data = binary.data();
@@ -247,7 +248,7 @@ protected:
     }
 
     holder<cl_program>
-    CreateAndBuildProgramWithBinary(std::vector<uint8_t>& binary,
+    CreateAndBuildProgramWithBinary(const std::vector<uint8_t>& binary,
                                     const char* options = nullptr) {
         auto program = CreateProgramWithBinary(binary);
 
