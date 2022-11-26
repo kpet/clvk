@@ -214,10 +214,7 @@ protected:
         return program;
     }
 
-    holder<cl_program> CreateAndBuildProgram(const char* source,
-                                             const char* options = nullptr) {
-        auto program = CreateProgram(source);
-
+    void BuildProgram(cl_program program, const char* options = nullptr) {
         cl_int err =
             clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
         EXPECT_CL_SUCCESS(err);
@@ -226,6 +223,35 @@ protected:
             std::string build_log = GetProgramBuildLog(program);
             printf("Build log:\n%s\n", build_log.c_str());
         }
+    }
+
+    holder<cl_program> CreateAndBuildProgram(const char* source,
+                                             const char* options = nullptr) {
+        auto program = CreateProgram(source);
+
+        BuildProgram(program, options);
+
+        return program;
+    }
+
+    holder<cl_program> CreateProgramWithBinary(std::vector<uint8_t>& binary) {
+        cl_int err;
+        const size_t size = binary.size();
+        const unsigned char* data = binary.data();
+        cl_int binary_status;
+        auto program = clCreateProgramWithBinary(m_context, 1, &gDevice, &size,
+                                                 &data, &binary_status, &err);
+        EXPECT_CL_SUCCESS(err);
+        EXPECT_EQ(binary_status, CL_BUILD_SUCCESS);
+        return program;
+    }
+
+    holder<cl_program>
+    CreateAndBuildProgramWithBinary(std::vector<uint8_t>& binary,
+                                    const char* options = nullptr) {
+        auto program = CreateProgramWithBinary(binary);
+
+        BuildProgram(program, options);
 
         return program;
     }
@@ -271,6 +297,30 @@ protected:
         }
 
         return program;
+    }
+
+    cl_program_binary_type GetProgramBinaryType(cl_program program) {
+        cl_program_binary_type binary_type;
+        cl_int err =
+            clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BINARY_TYPE,
+                                  sizeof(binary_type), &binary_type, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        return binary_type;
+    }
+
+    std::vector<uint8_t> GetProgramBinary(cl_program program) {
+        std::vector<uint8_t> binary;
+        size_t binary_size;
+        cl_int err =
+            clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES,
+                             sizeof(binary_size), &binary_size, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        binary.resize(binary_size);
+        unsigned char* data = binary.data();
+        err = clGetProgramInfo(program, CL_PROGRAM_BINARIES, binary_size, &data,
+                               nullptr);
+        EXPECT_CL_SUCCESS(err);
+        return binary;
     }
 
     std::string GetProgramBuildLog(cl_program program) {
