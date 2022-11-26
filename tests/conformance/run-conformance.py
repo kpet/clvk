@@ -212,16 +212,19 @@ def get_suite_totals(suite_results):
     totals['total'] = totals['pass'] + totals['fail']
     return totals
 
-def run_tests(test_set):
+def run_tests(args):
 
+    test_set = TEST_SETS[args.test_set]
     results = {}
 
     for test in test_set:
         name = test[0]
         binary = test[1]
-        args = test[2:]
+        test_args = test[2:]
+        if args.filter and not re.match(args.filter, name):
+            continue
         print("Running", name, "...")
-        status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), list(args))
+        status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), list(test_args))
         results[name] = status
         totals = get_suite_totals(status)
         print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))
@@ -379,11 +382,16 @@ def main():
         help="Only compare results to reference",
     )
 
+    parser.add_argument(
+        '--filter',
+        help="Only run tests that match this regexp",
+    )
+
     args = parser.parse_args()
 
     # Run tests or load results
     if not args.compare_only:
-        results = run_tests(TEST_SETS[args.test_set])
+        results = run_tests(args)
         if args.save_results:
             with open(args.save_results, 'w') as f:
                 json.dump(results, f, indent=2, sort_keys=True, separators=(',', ': '))
