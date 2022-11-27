@@ -23,6 +23,7 @@
 #include <mutex>
 #include <unordered_map>
 
+struct cvk_command;
 struct cvk_command_queue;
 
 using cvk_event_callback_pointer_type = void(CL_CALLBACK*)(
@@ -35,34 +36,13 @@ struct cvk_event_callback {
 
 struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
-    cvk_event(cvk_context* ctx, cl_int status, cl_command_type type,
-              cvk_command_queue* queue)
-        : api_object(ctx), m_status(status), m_command_type(type),
-          m_queue(queue) {}
+    cvk_event(cvk_context* ctx, cvk_command* cmd, cvk_command_queue* queue);
 
     bool completed() { return m_status == CL_COMPLETE; }
 
     bool terminated() { return m_status < 0; }
 
-    void set_status(cl_int status) {
-        cvk_debug("cvk_event::set_status: event = %p, status = %d", this,
-                  status);
-        std::lock_guard<std::mutex> lock(m_lock);
-
-        CVK_ASSERT(status < m_status);
-        m_status = status;
-
-        if (completed() || terminated()) {
-
-            for (auto& type_cb : m_callbacks) {
-                for (auto& cb : type_cb.second) {
-                    execute_callback(cb);
-                }
-            }
-
-            m_cv.notify_all();
-        }
-    }
+    void set_status(cl_int status);
 
     void register_callback(cl_int callback_type,
                            cvk_event_callback_pointer_type ptr,
@@ -92,7 +72,8 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug("cvk_event::wait: event = %p, status = %d", this, m_status);
         if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
-            TRACE_BEGIN_EVENT(m_command_type, "queue", (uintptr_t)m_queue);
+            TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
+                              "command", (uintptr_t)m_cmd);
             m_cv.wait(lock);
             TRACE_END();
         }
@@ -132,8 +113,9 @@ private:
     std::mutex m_lock;
     std::condition_variable m_cv;
     cl_int m_status;
-    cl_ulong m_profiling_data[4];
+    cl_ulong m_profiling_data[4]{};
     cl_command_type m_command_type;
+    cvk_command* m_cmd;
     cvk_command_queue* m_queue;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
 };

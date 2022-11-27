@@ -985,6 +985,8 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
         vkdev, num_requested_timestamps, timestamp_infos, timestamps,
         &max_deviation);
     if (res != VK_SUCCESS) {
+        cvk_error_fn("vkGetCalibratedTimestampsEXT failed %d %s", res,
+                     vulkan_error_string(res));
         return CL_OUT_OF_RESOURCES;
     }
 

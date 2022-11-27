@@ -36,18 +36,31 @@ struct cvk_command_group {
 struct cvk_executor_thread {
 
     cvk_executor_thread()
-        : m_thread(nullptr), m_shutdown(false), m_profiling(false) {
+        : m_thread(nullptr), m_shutdown(false), m_running(false) {
         m_thread =
             std::make_unique<std::thread>(&cvk_executor_thread::executor, this);
     }
-
-    void set_queue(cvk_command_queue* queue);
 
     void send_group(std::unique_ptr<cvk_command_group>&& group) {
         m_lock.lock();
         m_groups.push_back(std::move(group));
         m_cv.notify_one();
+        m_running = true;
         m_lock.unlock();
+    }
+
+    bool is_idle() {
+        std::unique_lock<std::mutex> lock(m_lock);
+        return !m_running;
+    }
+
+    void wait_idle() {
+        std::unique_lock<std::mutex> lock(m_lock);
+        while (m_running) {
+            TRACE_BEGIN("wait_idle");
+            m_running_cv.wait(lock);
+            TRACE_END();
+        }
     }
 
     void shutdown() {
@@ -72,7 +85,9 @@ private:
     std::unique_ptr<std::thread> m_thread;
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
-    bool m_profiling;
+
+    bool m_running;
+    std::condition_variable m_running_cv;
 };
 
 struct cvk_command_pool {
@@ -202,7 +217,6 @@ private:
     std::vector<cl_queue_properties> m_properties_array;
 
     cvk_executor_thread* m_executor;
-    cvk_event_holder m_finish_event;
 
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
@@ -239,7 +253,7 @@ struct cvk_executor_thread_pool {
         }
     }
 
-    cvk_executor_thread* get_executor(cvk_command_queue* queue) {
+    cvk_executor_thread* get_executor() {
 
         std::unique_lock<std::mutex> lock(m_lock);
 
@@ -248,20 +262,30 @@ struct cvk_executor_thread_pool {
             if (exec_state.second == executor_state::free) {
                 exec_state.second = executor_state::bound;
                 auto exec = exec_state.first;
-                exec->set_queue(queue);
+                if (!exec->is_idle()) {
+                    continue;
+                }
                 return exec;
             }
         }
 
         // No free executor found in the pool, create a new one
         cvk_executor_thread* exec = new cvk_executor_thread();
-        exec->set_queue(queue);
         m_executors[exec] = executor_state::bound;
         return exec;
     }
 
     void return_executor(cvk_executor_thread* exec) {
-        // FIXME Drain all commands before returning to the pool
+        // No need to drain all commands here.
+        // We will make sure the thread is idle before giving it to another
+        // queue.
+        //
+        // Also trying to wait_idle here can produce a deadlock.
+        // When a queue is released before the execution of all commands, the
+        // queue will be destroyed in `cvk_executor_thread::executor` when
+        // releasing the holder on the queue. But at that point, the executor
+        // will have the lock. When calling wait_idle here, we will never be
+        // able to take the lock, generating the deadlock.
         std::unique_lock<std::mutex> lock(m_lock);
 
         m_executors[exec] = executor_state::free;
@@ -312,7 +336,7 @@ struct cvk_command {
 
     cvk_command(cl_command_type type, cvk_command_queue* queue)
         : m_type(type), m_queue(queue),
-          m_event(new cvk_event(m_queue->context(), CL_QUEUED, type, queue)) {}
+          m_event(new cvk_event(m_queue->context(), this, queue)) {}
 
     virtual ~cvk_command() { m_event->release(); }
 
@@ -360,12 +384,18 @@ struct cvk_command {
         }
 
         // Then execute the action if no dependencies failed
-        if (status == CL_COMPLETE) {
-            TRACE_BEGIN_CMD(m_type, "queue", (uintptr_t) & (*m_queue));
+        if (status != CL_COMPLETE) {
+            cvk_error_fn("one or more dependencies have failed for cmd %p",
+                         this);
+        } else {
+            set_event_status(CL_RUNNING);
+            TRACE_BEGIN_CMD(m_type, "queue", (uintptr_t) & (*m_queue),
+                            "command", (uintptr_t)this);
             status = do_action();
             TRACE_END();
         }
 
+        set_event_status(status);
         return status;
     }
 
@@ -377,13 +407,20 @@ struct cvk_command {
 
     cvk_command_queue* queue() const { return m_queue; }
 
-    virtual bool is_profiled_by_executor() const { return true; }
-
     const std::vector<cvk_event*>& dependencies() const { return m_event_deps; }
 
     virtual const std::vector<cvk_mem*> memory_objects() const {
         CVK_ASSERT(false && "Should never be called");
         return {};
+    }
+
+    virtual void set_event_status(cl_int status) {
+        m_event->set_status(status);
+    }
+
+    CHECK_RETURN virtual cl_int set_profiling_info(cl_profiling_info pinfo) {
+        m_event->set_profiling_info_from_monotonic_clock(pinfo);
+        return CL_SUCCESS;
     }
 
 protected:
@@ -591,11 +628,6 @@ struct cvk_command_batchable : public cvk_command {
     bool can_be_batched() const override final;
     bool is_built_before_enqueue() const override final { return false; }
 
-    bool is_profiled_by_executor() const override final {
-        return !m_queue->device()->has_timer_support() &&
-               !config.queue_profiling_use_timestamp_queries;
-    }
-
     CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,
                                                     cl_ulong* end);
 
@@ -605,6 +637,45 @@ struct cvk_command_batchable : public cvk_command {
     build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
     CHECK_RETURN cl_int do_action() override;
 
+    CHECK_RETURN cl_int
+    set_profiling_info(cl_profiling_info pinfo) override final {
+        if (pinfo == CL_PROFILING_COMMAND_QUEUED ||
+            pinfo == CL_PROFILING_COMMAND_SUBMIT ||
+            !m_queue->profiling_on_device()) {
+            return cvk_command::set_profiling_info(pinfo);
+        } else if (pinfo == CL_PROFILING_COMMAND_START) {
+            if (m_queue->device()->has_timer_support()) {
+                auto ret = m_queue->device()->get_device_host_timer(
+                    &m_sync_dev, &m_sync_host);
+                if (ret != CL_SUCCESS)
+                    return ret;
+            }
+            return CL_SUCCESS;
+        } else {
+            CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
+
+            cl_ulong start, end;
+            auto perr = get_timestamp_query_results(&start, &end);
+            if (perr != CL_COMPLETE) {
+                return perr;
+            }
+            if (m_queue->device()->has_timer_support()) {
+                start = m_queue->device()->device_timer_to_host(
+                    start, m_sync_dev, m_sync_host);
+                end = m_queue->device()->device_timer_to_host(end, m_sync_dev,
+                                                              m_sync_host);
+            }
+            m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start);
+            m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end);
+            return CL_SUCCESS;
+        }
+    }
+
+    void set_sync_values(cl_ulong sync_dev, cl_ulong sync_host) {
+        m_sync_dev = sync_dev;
+        m_sync_host = sync_host;
+    }
+
 private:
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
     VkQueryPool m_query_pool;
@@ -612,6 +683,8 @@ private:
     static const int NUM_POOL_QUERIES_PER_COMMAND = 2;
     static const int POOL_QUERY_CMD_START = 0;
     static const int POOL_QUERY_CMD_END = 1;
+
+    cl_ulong m_sync_dev, m_sync_host;
 };
 
 struct cvk_ndrange {
@@ -727,11 +800,44 @@ struct cvk_command_batch : public cvk_command {
 
     cl_uint batch_size() { return m_commands.size(); }
 
-    bool is_profiled_by_executor() const override final { return false; }
+    CHECK_RETURN cl_int
+    set_profiling_info(cl_profiling_info pinfo) override final {
+        cl_int status = cvk_command::set_profiling_info(pinfo);
+        if (m_queue->profiling_on_device()) {
+            if (pinfo == CL_PROFILING_COMMAND_START) {
+                cl_ulong sync_dev, sync_host;
+                auto ret = m_queue->device()->get_device_host_timer(&sync_dev,
+                                                                    &sync_host);
+                if (ret != CL_SUCCESS)
+                    return ret;
+                for (auto& cmd : m_commands) {
+                    cmd->set_sync_values(sync_dev, sync_host);
+                }
+            } else {
+                for (auto& cmd : m_commands) {
+                    auto err = cmd->set_profiling_info(pinfo);
+                    // do not stop at first error, but record only the first one
+                    if (err != CL_SUCCESS && status == CL_SUCCESS) {
+                        status = err;
+                    }
+                }
+            }
+        } else {
+            for (auto& cmd : m_commands) {
+                cmd->event()->copy_profiling_info(pinfo, m_event);
+            }
+        }
+        return status;
+    }
+
+    void set_event_status(cl_int status) override final {
+        m_event->set_status(status);
+        for (auto& cmd : m_commands) {
+            cmd->set_event_status(status);
+        }
+    }
 
 private:
-    CHECK_RETURN cl_int submit_and_wait();
-
     std::vector<std::unique_ptr<cvk_command_batchable>> m_commands;
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
 };
