@@ -291,7 +291,8 @@ void cvk_executor_thread::executor() {
         while (group->commands.size() > 0) {
 
             cvk_command* cmd = group->commands.front();
-            cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
+            cvk_debug_fn("executing command %p (%s), event %p", cmd,
+                         cl_command_type_to_string(cmd->type()), cmd->event());
 
             if (m_profiling && cmd->is_profiled_by_executor()) {
                 cmd->event()->set_profiling_info_from_monotonic_clock(

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <array>
+#include <list>
 
 #include "device.hpp"
 #include "event.hpp"
@@ -567,21 +568,26 @@ struct cvk_image : public cvk_mem {
 
         auto num_mappings_with_same_pointer = m_mappings.count(mapping.ptr);
         // TODO support multiple mappings with the same pointer
-        if (num_mappings_with_same_pointer != 0) {
-            cvk_error_fn("creating multiple image mappings with the same "
-                         "pointer is not supported");
+        if (num_mappings_with_same_pointer != 0 &&
+            !has_flags(CL_MEM_USE_HOST_PTR)) {
+            cvk_error_fn(
+                "creating multiple image mappings with the same "
+                "pointer is not supported for image without a host ptr");
             return false;
         }
 
-        m_mappings[mapping.ptr] = mapping;
+        m_mappings[mapping.ptr].push_back(mapping);
 
         return true;
     }
 
     cvk_image_mapping remove_mapping(void* ptr) {
         CVK_ASSERT(m_mappings.count(ptr) > 0);
-        auto mapping = m_mappings.at(ptr);
-        m_mappings.erase(ptr);
+        auto mapping = m_mappings.at(ptr).front();
+        m_mappings.at(ptr).pop_front();
+        if (m_mappings.at(ptr).size() == 0) {
+            m_mappings.erase(ptr);
+        }
         mapping.buffer->unmap();
         mapping.buffer->release();
         mapping.buffer = nullptr;
@@ -591,7 +597,7 @@ struct cvk_image : public cvk_mem {
 
     cvk_image_mapping mapping_for(void* ptr) {
         CVK_ASSERT(m_mappings.count(ptr) > 0);
-        auto mapping = m_mappings.at(ptr);
+        auto mapping = m_mappings.at(ptr).front();
         return mapping;
     }
 
@@ -684,7 +690,7 @@ private:
     VkImage m_image;
     VkImageView m_sampled_view;
     VkImageView m_storage_view;
-    std::unordered_map<void*, cvk_image_mapping> m_mappings;
+    std::unordered_map<void*, std::list<cvk_image_mapping>> m_mappings;
     std::unique_ptr<cvk_buffer> m_init_data;
 };
 
