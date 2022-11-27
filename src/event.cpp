@@ -31,7 +31,6 @@ cvk_event::cvk_event(cvk_context* ctx, cvk_command* cmd,
     } else {
         m_status = CL_QUEUED;
         m_command_type = cmd->type();
-        set_profiling_info_from_monotonic_clock(CL_PROFILING_COMMAND_QUEUED);
     }
 }
 
