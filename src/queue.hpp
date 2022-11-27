@@ -281,7 +281,7 @@ struct cvk_executor_thread_pool {
         // queue.
         //
         // Also trying to wait_idle here can produce a deadlock.
-        // When a queue is release before the execution of all commands, the
+        // When a queue is released before the execution of all commands, the
         // queue will be destroyed in `cvk_executor_thread::executor` when
         // releasing the holder on the queue. But at that point, the executor
         // will have the lock. When calling wait_idle here, we will never be
