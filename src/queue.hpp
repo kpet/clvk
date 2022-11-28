@@ -637,43 +637,38 @@ struct cvk_command_batchable : public cvk_command {
     build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
     CHECK_RETURN cl_int do_action() override;
 
-    CHECK_RETURN cl_int
-    set_profiling_info(cl_profiling_info pinfo) override final {
-        if (pinfo == CL_PROFILING_COMMAND_QUEUED ||
-            pinfo == CL_PROFILING_COMMAND_SUBMIT ||
-            !m_queue->profiling_on_device()) {
-            return cvk_command::set_profiling_info(pinfo);
-        } else if (pinfo == CL_PROFILING_COMMAND_START) {
-            if (m_queue->device()->has_timer_support()) {
-                auto ret = m_queue->device()->get_device_host_timer(
-                    &m_sync_dev, &m_sync_host);
-                if (ret != CL_SUCCESS)
-                    return ret;
-            }
-            return CL_SUCCESS;
-        } else {
-            CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
-
-            cl_ulong start, end;
-            auto perr = get_timestamp_query_results(&start, &end);
-            if (perr != CL_COMPLETE) {
-                return perr;
-            }
-            if (m_queue->device()->has_timer_support()) {
-                start = m_queue->device()->device_timer_to_host(
-                    start, m_sync_dev, m_sync_host);
-                end = m_queue->device()->device_timer_to_host(end, m_sync_dev,
-                                                              m_sync_host);
-            }
-            m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start);
-            m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end);
-            return CL_SUCCESS;
+    CHECK_RETURN cl_int set_profiling_info_end(cl_ulong sync_dev,
+                                               cl_ulong sync_host) {
+        cl_ulong start, end;
+        auto perr = get_timestamp_query_results(&start, &end);
+        if (perr != CL_COMPLETE) {
+            return perr;
         }
+        start =
+            m_queue->device()->device_timer_to_host(start, sync_dev, sync_host);
+        end = m_queue->device()->device_timer_to_host(end, sync_dev, sync_host);
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start);
+        m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end);
+        return CL_SUCCESS;
     }
 
-    void set_sync_values(cl_ulong sync_dev, cl_ulong sync_host) {
-        m_sync_dev = sync_dev;
-        m_sync_host = sync_host;
+    CHECK_RETURN cl_int
+    set_profiling_info(cl_profiling_info pinfo) override final {
+        if (!m_queue->profiling_on_device()) {
+            return cvk_command::set_profiling_info(pinfo);
+        }
+
+        if (pinfo == CL_PROFILING_COMMAND_QUEUED ||
+            pinfo == CL_PROFILING_COMMAND_SUBMIT) {
+            return cvk_command::set_profiling_info(pinfo);
+        } else if (pinfo == CL_PROFILING_COMMAND_START) {
+            return m_queue->device()->get_device_host_timer(&m_sync_dev,
+                                                            &m_sync_host);
+        } else {
+            CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
+            CVK_ASSERT(m_sync_dev != 0 && m_sync_host != 0);
+            return set_profiling_info_end(m_sync_dev, m_sync_host);
+        }
     }
 
 private:
@@ -684,7 +679,7 @@ private:
     static const int POOL_QUERY_CMD_START = 0;
     static const int POOL_QUERY_CMD_END = 1;
 
-    cl_ulong m_sync_dev, m_sync_host;
+    cl_ulong m_sync_dev{}, m_sync_host{};
 };
 
 struct cvk_ndrange {
@@ -805,17 +800,17 @@ struct cvk_command_batch : public cvk_command {
         cl_int status = cvk_command::set_profiling_info(pinfo);
         if (m_queue->profiling_on_device()) {
             if (pinfo == CL_PROFILING_COMMAND_START) {
-                cl_ulong sync_dev, sync_host;
-                auto ret = m_queue->device()->get_device_host_timer(&sync_dev,
-                                                                    &sync_host);
-                if (ret != CL_SUCCESS)
-                    return ret;
-                for (auto& cmd : m_commands) {
-                    cmd->set_sync_values(sync_dev, sync_host);
-                }
+                return m_queue->device()->get_device_host_timer(&m_sync_dev,
+                                                                &m_sync_host);
             } else {
                 for (auto& cmd : m_commands) {
-                    auto err = cmd->set_profiling_info(pinfo);
+                    cl_int err;
+                    if (pinfo == CL_PROFILING_COMMAND_END) {
+                        err = cmd->set_profiling_info_end(m_sync_dev,
+                                                          m_sync_host);
+                    } else {
+                        err = cmd->set_profiling_info(pinfo);
+                    }
                     // do not stop at first error, but record only the first one
                     if (err != CL_SUCCESS && status == CL_SUCCESS) {
                         status = err;
@@ -840,6 +835,7 @@ struct cvk_command_batch : public cvk_command {
 private:
     std::vector<std::unique_ptr<cvk_command_batchable>> m_commands;
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
+    cl_ulong m_sync_dev, m_sync_host;
 };
 
 struct cvk_command_map_buffer final : public cvk_command_buffer_base_region {

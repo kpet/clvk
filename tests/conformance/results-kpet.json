@@ -442,8 +442,8 @@
       "compiler_defines_for_extensions": "pass",
       "execute_after_embedded_header_link": "pass",
       "execute_after_included_header_link": "pass",
-      "execute_after_serialize_reload_library": "fail",
-      "execute_after_serialize_reload_object": "fail",
+      "execute_after_serialize_reload_library": "pass",
+      "execute_after_serialize_reload_object": "pass",
       "execute_after_simple_compile_and_link": "pass",
       "execute_after_simple_compile_and_link_no_device_info": "pass",
       "execute_after_simple_compile_and_link_with_callbacks": "pass",
@@ -479,7 +479,7 @@
       "preprocessor_include": "pass",
       "preprocessor_line_error": "pass",
       "preprocessor_pragma": "pass",
-      "program_binary_type": "fail",
+      "program_binary_type": "pass",
       "simple_compile_only": "pass",
       "simple_compile_with_callback": "pass",
       "simple_embedded_header_compile": "pass",
@@ -504,7 +504,7 @@
       "unload_repeated": "pass",
       "unload_valid": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Compute Info": {
     "duration": "00:00:00.275205",
@@ -860,16 +860,16 @@
     "retcode": 0
   },
   "Images (clFillImage pitch)": {
-    "duration": "00:00:00.699710",
+    "duration": "00:06:55.362949",
     "has_results": true,
     "results": {
-      "1D": "fail",
-      "1Darray": "fail",
-      "2D": "fail",
-      "2Darray": "fail",
-      "3D": "fail"
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass"
     },
-    "retcode": 1
+    "retcode": 0
   },
   "Images (clFillImage)": {
     "duration": "00:00:38.539826",

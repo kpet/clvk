@@ -161,6 +161,9 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
 
+    cmd->event()->set_profiling_info_from_monotonic_clock(
+        CL_PROFILING_COMMAND_QUEUED);
+
     if (event != nullptr) {
         // The event will be returned to the app, retain it for the user
         cmd->event()->retain();
