@@ -44,6 +44,7 @@ add_library(OpenCL-objects OBJECT
   api.cpp
   config.cpp
   device.cpp
+  device_properties.cpp
   event.cpp
   init.cpp
   kernel.cpp

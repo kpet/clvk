@@ -25,6 +25,7 @@
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
+#include "device_properties.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
 #include "sha1.hpp"
@@ -69,6 +70,9 @@ struct cvk_device : public _cl_device_id,
             m_type |= CL_DEVICE_TYPE_ACCELERATOR;
             break;
         }
+
+        m_clvk_properties =
+            create_cvk_device_properties(m_properties.deviceName);
     }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
@@ -220,9 +224,13 @@ struct cvk_device : public _cl_device_id,
         return std::max(required_by_vulkan_impl, 1024U);
     }
 
-    cl_ulong global_mem_cache_size() const { return m_global_mem_cache_size; }
+    cl_ulong global_mem_cache_size() const {
+        return m_clvk_properties.get_global_mem_cache_size();
+    }
 
-    cl_uint num_compute_units() const { return m_num_compute_units; }
+    cl_uint num_compute_units() const {
+        return m_clvk_properties.get_num_compute_units();
+    }
 
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
@@ -478,6 +486,10 @@ struct cvk_device : public _cl_device_id,
         return m_max_first_cmd_group_size;
     }
 
+    std::string get_device_specific_compile_options() const {
+        return m_clvk_properties.get_compile_options();
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -489,7 +501,6 @@ private:
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
     void init_clvk_runtime_behaviors();
-    void init_opencl_properties();
     void init_vulkan_properties(VkInstance instance);
     void init_driver_behaviors();
     void init_features(VkInstance instance);
@@ -539,10 +550,6 @@ private:
     std::vector<cl_name_version> m_opencl_c_versions;
     std::vector<cl_name_version> m_opencl_c_features;
 
-    // Device properties that do not come from Vulkan
-    cl_ulong m_global_mem_cache_size;
-    cl_ulong m_num_compute_units;
-
     uint32_t m_driver_behaviors;
 
     // Pipeline caching
@@ -576,6 +583,8 @@ private:
     cl_uint m_max_first_cmd_group_size;
 
     spv_target_env m_vulkan_spirv_env;
+
+    cvk_device_properties m_clvk_properties;
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {

@@ -20,10 +20,6 @@
 #include "log.hpp"
 #include "memory.hpp"
 
-#ifdef __ANDROID__
-#include <sys/system_properties.h>
-#endif
-
 constexpr VkMemoryPropertyFlags cvk_device::buffer_supported_memory_types[];
 constexpr VkMemoryPropertyFlags cvk_device::image_supported_memory_types[];
 
@@ -95,79 +91,21 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
-    m_max_cmd_batch_size = config.max_cmd_batch_size;
-    m_max_first_cmd_batch_size = config.max_first_cmd_batch_size;
-    m_max_cmd_group_size = config.max_cmd_group_size;
-    m_max_first_cmd_group_size = config.max_first_cmd_group_size;
-
-#define DEFAULT_DEVICE_CONFIG(option, val)                                     \
+#define SET_DEVICE_PROPERTY(option)                                            \
     do {                                                                       \
-        if (!config.option.set) {                                              \
-            m_##option = val;                                                  \
+        if (config.option.set) {                                               \
+            m_##option = config.option;                                        \
+        } else {                                                               \
+            m_##option = m_clvk_properties.get_##option();                     \
         }                                                                      \
+        cvk_info_fn(#option ": %u", m_##option);                               \
     } while (0)
 
-    if (strstr(m_properties.deviceName, "Intel")) {
-        DEFAULT_DEVICE_CONFIG(max_first_cmd_batch_size, 10);
-        DEFAULT_DEVICE_CONFIG(max_cmd_group_size, 1);
-    }
-#undef DEFAULT_DEVICE_CONFIG
-    cvk_info_fn("max_cmd_batch_size: %u", m_max_cmd_batch_size);
-    cvk_info_fn("max_first_cmd_batch_size: %u", m_max_first_cmd_batch_size);
-    cvk_info_fn("max_cmd_group_size: %u", m_max_cmd_group_size);
-    cvk_info_fn("max_first_cmd_group_size: %u", m_max_first_cmd_group_size);
-}
-
-void cvk_device::init_opencl_properties() {
-    // Set default values for all properties.
-    m_global_mem_cache_size = 0;
-    m_num_compute_units = 1;
-
-    // Set correct property values for known devices.
-    // These values can be obtained from the native OpenCL driver.
-    if (!strncmp(m_properties.deviceName, "Mali-", 5)) {
-#ifdef __ANDROID__
-        // Find out which SoC this is.
-        char soc[PROP_VALUE_MAX + 1];
-        int len = __system_property_get("ro.hardware", soc);
-        if (len == 0) {
-            cvk_warn("Unable to query 'ro.hardware' system property, some "
-                     "device properties will be incorrect.");
-            return;
-        }
-
-        if (!strcmp(soc, "exynos9820")) {
-            m_global_mem_cache_size = 262144;
-            m_num_compute_units = 12;
-        } else if (!strcmp(soc, "exynos990")) {
-            m_global_mem_cache_size = 262144;
-            m_num_compute_units = 11;
-        } else {
-            cvk_warn("Unrecognized 'ro.hardware' value '%s', some device "
-                     "properties will be incorrect.",
-                     soc);
-        }
-#else
-        cvk_warn("Unrecognized Mali device, some device properties will be "
-                 "incorrect.");
-#endif
-    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 615")) {
-        m_global_mem_cache_size = 65536;
-        m_num_compute_units = 1;
-    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 620")) {
-        m_global_mem_cache_size = 65536;
-        m_num_compute_units = 1;
-    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 630")) {
-        m_global_mem_cache_size = 131072;
-        m_num_compute_units = 2;
-    } else if (!strcmp(m_properties.deviceName, "Adreno (TM) 640")) {
-        m_global_mem_cache_size = 131072;
-        m_num_compute_units = 2;
-    } else {
-        cvk_warn("Unrecognized device '%s', some device properties will be "
-                 "incorrect.",
-                 m_properties.deviceName);
-    }
+    SET_DEVICE_PROPERTY(max_cmd_batch_size);
+    SET_DEVICE_PROPERTY(max_first_cmd_batch_size);
+    SET_DEVICE_PROPERTY(max_cmd_group_size);
+    SET_DEVICE_PROPERTY(max_first_cmd_group_size);
+#undef SET_DEVICE_PROPERTY
 }
 
 void cvk_device::init_driver_behaviors() {
@@ -842,8 +780,6 @@ bool cvk_device::init(VkInstance instance) {
     init_clvk_runtime_behaviors();
 
     init_vulkan_properties(instance);
-
-    init_opencl_properties();
 
     init_driver_behaviors();
 
