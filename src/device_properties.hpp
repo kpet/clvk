@@ -17,8 +17,8 @@
 #include <memory>
 #include <string>
 
-#include "config.hpp"
 #include "cl_headers.hpp"
+#include "config.hpp"
 
 struct cvk_device_properties {
     virtual cl_ulong get_global_mem_cache_size() const { return 0; }
