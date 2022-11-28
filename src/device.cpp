@@ -407,6 +407,9 @@ void cvk_device::init_compiler_options() {
     if (supports_ubo_stdlayout()) {
         m_device_compiler_options += " -std430-ubo-layout ";
     }
+    if (supports_non_uniform_decoration()) {
+        m_device_compiler_options += " -decorate-nonuniform ";
+    }
 
     // Device specific options
     m_device_compiler_options +=
@@ -942,9 +945,7 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
-        return m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
-               is_vulkan_extension_enabled(
-                   VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+        return supports_non_uniform_decoration();
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
