@@ -40,4 +40,5 @@ struct cvk_device_properties {
     virtual std::string get_compile_options() const { return ""; }
 };
 
-cvk_device_properties create_cvk_device_properties(const char* name);
+std::unique_ptr<cvk_device_properties>
+create_cvk_device_properties(const char* name);

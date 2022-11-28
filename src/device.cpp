@@ -96,7 +96,7 @@ void cvk_device::init_clvk_runtime_behaviors() {
         if (config.option.set) {                                               \
             m_##option = config.option;                                        \
         } else {                                                               \
-            m_##option = m_clvk_properties.get_##option();                     \
+            m_##option = m_clvk_properties->get_##option();                    \
         }                                                                      \
         cvk_info_fn(#option ": %u", m_##option);                               \
     } while (0)

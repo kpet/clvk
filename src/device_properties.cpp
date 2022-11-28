@@ -59,7 +59,17 @@ struct cvk_device_properties_intel : public cvk_device_properties {
     }
 };
 
-cvk_device_properties create_cvk_device_properties(const char* name) {
+struct cvk_device_properties_amd : public cvk_device_properties {
+    cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
+    cl_uint get_max_cmd_group_size() const override final { return 1; }
+};
+
+#define RETURN(x)                                                              \
+    cvk_info_fn(#x);                                                           \
+    return std::make_unique<x>();
+
+std::unique_ptr<cvk_device_properties>
+create_cvk_device_properties(const char* name) {
     if (strncmp(name, "Mali-", 5) == 0) {
 #ifdef __ANDROID__
         // Find out which SoC this is.
@@ -68,10 +78,10 @@ cvk_device_properties create_cvk_device_properties(const char* name) {
         if (len == 0) {
             cvk_warn("Unable to query 'ro.hardware' system property, some "
                      "device properties will be incorrect.");
-        } else if (!strcmp(soc, "exynos9820")) {
-            return cvk_device_properties_mali_exynos9820();
-        } else if (!strcmp(soc, "exynos990")) {
-            return cvk_device_properties_mali_exynos990();
+        } else if (strcmp(soc, "exynos9820") == 0) {
+            RETURN(cvk_device_properties_mali_exynos9820);
+        } else if (strcmp(soc, "exynos990") == 0) {
+            RETURN(cvk_device_properties_mali_exynos990);
         } else {
             cvk_warn("Unrecognized 'ro.hardware' value '%s', some device "
                      "properties will be incorrect.",
@@ -81,21 +91,23 @@ cvk_device_properties create_cvk_device_properties(const char* name) {
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
-    } else if (strcmp(name, "Adreno (TM) 615")) {
-        return cvk_device_properties_adreno_615();
-    } else if (strcmp(name, "Adreno (TM) 620")) {
-        return cvk_device_properties_adreno_620();
-    } else if (strcmp(name, "Adreno (TM) 630")) {
-        return cvk_device_properties_adreno_630();
-    } else if (strcmp(name, "Adreno (TM) 640")) {
-        return cvk_device_properties_adreno_640();
-    } else if (strstr(name, "Intel")) {
-        return cvk_device_properties_intel();
+    } else if (strcmp(name, "Adreno (TM) 615") == 0) {
+        RETURN(cvk_device_properties_adreno_615);
+    } else if (strcmp(name, "Adreno (TM) 620") == 0) {
+        RETURN(cvk_device_properties_adreno_620);
+    } else if (strcmp(name, "Adreno (TM) 630") == 0) {
+        RETURN(cvk_device_properties_adreno_630);
+    } else if (strcmp(name, "Adreno (TM) 640") == 0) {
+        RETURN(cvk_device_properties_adreno_640);
+    } else if (strncmp(name, "Intel", 5) == 0) {
+        RETURN(cvk_device_properties_intel);
+    } else if (strncmp(name, "AMD", 3) == 0) {
+        RETURN(cvk_device_properties_amd);
     } else {
         cvk_warn("Unrecognized device '%s', some device properties will be "
                  "incorrect.",
                  name);
     }
 
-    return cvk_device_properties();
+    RETURN(cvk_device_properties);
 }
