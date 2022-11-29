@@ -38,6 +38,8 @@ struct cvk_device_properties {
     }
 
     virtual std::string get_compile_options() const { return ""; }
+
+    virtual ~cvk_device_properties() {}
 };
 
 cvk_device_properties create_cvk_device_properties(const char* name);
