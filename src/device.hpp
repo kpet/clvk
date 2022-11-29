@@ -225,11 +225,11 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_ulong global_mem_cache_size() const {
-        return m_clvk_properties.get_global_mem_cache_size();
+        return m_clvk_properties->get_global_mem_cache_size();
     }
 
     cl_uint num_compute_units() const {
-        return m_clvk_properties.get_num_compute_units();
+        return m_clvk_properties->get_num_compute_units();
     }
 
     cl_uint max_samplers() const {
@@ -487,7 +487,7 @@ struct cvk_device : public _cl_device_id,
     }
 
     std::string get_device_specific_compile_options() const {
-        return m_clvk_properties.get_compile_options();
+        return m_clvk_properties->get_compile_options();
     }
 
 private:
@@ -584,7 +584,7 @@ private:
 
     spv_target_env m_vulkan_spirv_env;
 
-    cvk_device_properties m_clvk_properties;
+    std::unique_ptr<cvk_device_properties> m_clvk_properties;
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {

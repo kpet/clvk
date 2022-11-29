@@ -42,4 +42,5 @@ struct cvk_device_properties {
     virtual ~cvk_device_properties() {}
 };
 
-cvk_device_properties create_cvk_device_properties(const char* name);
+std::unique_ptr<cvk_device_properties>
+create_cvk_device_properties(const char* name);
