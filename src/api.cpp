@@ -788,11 +788,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     case CL_DEVICE_ATOMIC_MEMORY_CAPABILITIES:
         val_atomic_capabilities =
             CL_DEVICE_ATOMIC_ORDER_RELAXED | CL_DEVICE_ATOMIC_SCOPE_WORK_GROUP;
-        if (device->vulkan_memory_model_features().vulkanMemoryModel) {
+        if (device->supports_atomic_order_acq_rel()) {
             val_atomic_capabilities |= CL_DEVICE_ATOMIC_ORDER_ACQ_REL;
         }
-        if (device->vulkan_memory_model_features()
-                .vulkanMemoryModelDeviceScope) {
+        if (device->supports_atomic_scope_device()) {
             val_atomic_capabilities |= CL_DEVICE_ATOMIC_SCOPE_DEVICE;
         }
         copy_ptr = &val_atomic_capabilities;

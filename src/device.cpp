@@ -455,11 +455,11 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_read_write_images"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_3d_image_writes"),
     };
-    if (m_features_vulkan_memory_model.vulkanMemoryModel) {
+    if (supports_atomic_order_acq_rel()) {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_order_acq_rel"));
     }
-    if (m_features_vulkan_memory_model.vulkanMemoryModelDeviceScope) {
+    if (supports_atomic_scope_device()) {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_scope_device"));
     }
