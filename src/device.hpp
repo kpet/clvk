@@ -270,6 +270,14 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_subgroups() const { return m_has_subgroups_support; }
 
+    bool supports_atomic_order_acq_rel() const {
+        return m_features_vulkan_memory_model.vulkanMemoryModel;
+    }
+
+    bool supports_atomic_scope_device() const {
+        return m_features_vulkan_memory_model.vulkanMemoryModelDeviceScope;
+    }
+
     bool compiler_available() const {
 #ifdef COMPILER_AVAILABLE
         return true;
