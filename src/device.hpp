@@ -486,8 +486,8 @@ struct cvk_device : public _cl_device_id,
         return m_max_first_cmd_group_size;
     }
 
-    std::string get_device_specific_compile_options() const {
-        return m_clvk_properties->get_compile_options();
+    const std::string& get_device_specific_compile_options() const {
+        return m_device_compiler_options;
     }
 
 private:
@@ -504,6 +504,7 @@ private:
     void init_vulkan_properties(VkInstance instance);
     void init_driver_behaviors();
     void init_features(VkInstance instance);
+    void init_compiler_options();
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,
                                                       uint32_t queue_family);
@@ -549,6 +550,7 @@ private:
     std::vector<cl_name_version> m_ils;
     std::vector<cl_name_version> m_opencl_c_versions;
     std::vector<cl_name_version> m_opencl_c_features;
+    std::string m_device_compiler_options;
 
     uint32_t m_driver_behaviors;
 

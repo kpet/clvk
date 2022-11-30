@@ -363,6 +363,100 @@ void cvk_device::init_features(VkInstance instance) {
     m_features.pNext = pNext;
 }
 
+void cvk_device::init_compiler_options() {
+    m_device_compiler_options = "";
+
+    if (!devices_support_images()) {
+        m_device_compiler_options += " -images=0 ";
+    }
+
+    // 8-bit storage capability restrictions.
+    if (device_8bit_storage_features().storageBuffer8BitAccess == VK_FALSE) {
+        m_device_compiler_options += " -no-8bit-storage=ssbo ";
+    }
+    if (device_8bit_storage_features().uniformAndStorageBuffer8BitAccess ==
+        VK_FALSE) {
+        m_device_compiler_options += " -no-8bit-storage=ubo ";
+    }
+    if (device_8bit_storage_features().storagePushConstant8 == VK_FALSE) {
+        m_device_compiler_options += " -no-8bit-storage=pushconstant ";
+    }
+
+    // 16-bit storage capability restrictions.
+    if (device_16bit_storage_features().storageBuffer16BitAccess == VK_FALSE) {
+        m_device_compiler_options += " -no-16bit-storage=ssbo ";
+    }
+    if (device_16bit_storage_features().uniformAndStorageBuffer16BitAccess ==
+        VK_FALSE) {
+        m_device_compiler_options += " -no-16bit-storage=ubo ";
+    }
+    if (device_16bit_storage_features().storagePushConstant16 == VK_FALSE) {
+        m_device_compiler_options += " -no-16bit-storage=pushconstant ";
+    }
+
+    // Types support
+    if (!supports_fp16()) {
+        m_device_compiler_options += " -fp16=0 ";
+    }
+    if (!supports_fp64()) {
+        m_device_compiler_options += " -fp64=0 ";
+    }
+    if (supports_int8()) {
+        m_device_compiler_options += " -int8 ";
+    }
+    if (supports_ubo_stdlayout()) {
+        m_device_compiler_options += " -std430-ubo-layout ";
+    }
+
+    // Device specific options
+    m_device_compiler_options +=
+        " " + m_clvk_properties->get_compile_options() + " ";
+
+    // Builtin options
+    auto native_builtins = m_clvk_properties->get_native_builtins();
+    if (!native_builtins.empty()) {
+        std::string builtin_list = "";
+        for (const auto& builtin : native_builtins) {
+            builtin_list += builtin + ",";
+        }
+        m_device_compiler_options +=
+            " --use-native-builtins=" + builtin_list + " ";
+    }
+
+    // Select target SPIR-V version
+    m_device_compiler_options += " -spv-version=";
+    switch (vulkan_spirv_env()) {
+    default:
+    case SPV_ENV_VULKAN_1_0:
+        m_device_compiler_options += "1.0 ";
+        break;
+    case SPV_ENV_VULKAN_1_1:
+        m_device_compiler_options += "1.3 ";
+        break;
+    case SPV_ENV_VULKAN_1_1_SPIRV_1_4:
+        m_device_compiler_options += "1.4 ";
+        break;
+    case SPV_ENV_VULKAN_1_2:
+        m_device_compiler_options += "1.5 ";
+        break;
+    case SPV_ENV_VULKAN_1_3:
+        m_device_compiler_options += "1.6 ";
+        break;
+    }
+
+    // Limits
+    m_device_compiler_options +=
+        " -max-pushconstant-size=" +
+        std::to_string(vulkan_max_push_constants_size()) + " ";
+    m_device_compiler_options +=
+        " -max-ubo-size=" + std::to_string(vulkan_max_uniform_buffer_range()) +
+        " ";
+    m_device_compiler_options += " -global-offset ";
+    m_device_compiler_options += " -long-vector ";
+    m_device_compiler_options += " -module-constants-in-storage-buffer ";
+    m_device_compiler_options += " -cl-arm-non-uniform-work-group-size ";
+}
+
 void cvk_device::build_extension_ils_list() {
 
     m_extensions = {
@@ -798,6 +892,9 @@ bool cvk_device::init(VkInstance instance) {
     init_spirv_environment();
 
     log_limits_and_memory_information();
+
+    // Must be done last as it relies on info set up in several of the above.
+    init_compiler_options();
 
     return true;
 }
