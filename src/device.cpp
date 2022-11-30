@@ -550,10 +550,16 @@ void cvk_device::build_extension_ils_list() {
     m_opencl_c_features = {
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_images"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_read_write_images"),
-        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_order_acq_rel"),
-        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_scope_device"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_3d_image_writes"),
     };
+    if (supports_atomic_order_acq_rel()) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_order_acq_rel"));
+    }
+    if (supports_atomic_scope_device()) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_scope_device"));
+    }
     if (supports_subgroups()) {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_subgroups"));
