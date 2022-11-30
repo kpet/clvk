@@ -275,7 +275,6 @@ struct cvk_device : public _cl_device_id,
                is_vulkan_extension_enabled(
                    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
     }
-    
     bool supports_atomic_order_acq_rel() const {
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     }
