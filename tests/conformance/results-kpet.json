@@ -1348,7 +1348,7 @@
       "decorate_aliased": "pass",
       "decorate_alignment": "pass",
       "decorate_constant": "pass",
-      "decorate_cpacked": "fail",
+      "decorate_cpacked": "pass",
       "decorate_fp_rounding_mode_rte_double_long": "pass",
       "decorate_fp_rounding_mode_rte_float_int": "fail",
       "decorate_fp_rounding_mode_rtn_double_long": "pass",
