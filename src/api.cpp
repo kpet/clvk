@@ -74,6 +74,23 @@ bool is_valid_event(cl_event event) {
     return event != nullptr && icd_downcast(event)->is_valid();
 }
 
+bool is_valid_event_wait_list(cl_uint num_events_in_wait_list,
+                              const cl_event* event_wait_list) {
+
+    if (((num_events_in_wait_list > 0) && (event_wait_list == nullptr)) ||
+        ((num_events_in_wait_list == 0) && (event_wait_list != nullptr))) {
+        return false;
+    }
+
+    for (cl_uint i = 0; i < num_events_in_wait_list; i++) {
+        if (!is_valid_event(event_wait_list[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool is_same_context(cl_command_queue queue, cl_mem mem) {
     return icd_downcast(queue)->context() == icd_downcast(mem)->context();
 }
@@ -1218,23 +1235,6 @@ cl_int CLVK_API_CALL clSetEventCallback(
     return CL_SUCCESS;
 }
 
-static bool event_wait_list_is_valid(cl_uint num_events_in_wait_list,
-                                     const cl_event* event_wait_list) {
-
-    if (((num_events_in_wait_list > 0) && (event_wait_list == nullptr)) ||
-        ((num_events_in_wait_list == 0) && (event_wait_list != nullptr))) {
-        return false;
-    }
-
-    for (cl_uint i = 0; i < num_events_in_wait_list; i++) {
-        if (!is_valid_event(event_wait_list[i])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
                                          cl_uint num_events_in_wait_list,
                                          const cl_event* event_wait_list,
@@ -1243,7 +1243,7 @@ cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -1285,7 +1285,7 @@ cl_int cvk_enqueue_barrier_with_wait_list(cvk_command_queue* command_queue,
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -1339,7 +1339,7 @@ cl_int CLVK_API_CALL clGetEventInfo(cl_event evt, cl_event_info param_name,
     auto event = icd_downcast(evt);
 
     if (!is_valid_event(event)) {
-        return CL_INVALID_VALUE;
+        return CL_INVALID_EVENT;
     }
 
     switch (param_name) {
@@ -1860,7 +1860,7 @@ cl_int CLVK_API_CALL clEnqueueMigrateMemObjects(
         return CL_INVALID_COMMAND_QUEUE;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3262,7 +3262,7 @@ cl_int CLVK_API_CALL clEnqueueReadBuffer(cl_command_queue cq, cl_mem buf,
         return CL_INVALID_OPERATION;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3306,7 +3306,7 @@ cl_int CLVK_API_CALL clEnqueueWriteBuffer(cl_command_queue cq, cl_mem buf,
         return CL_INVALID_OPERATION;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3359,7 +3359,7 @@ cl_int CLVK_API_CALL clEnqueueReadBufferRect(
         return CL_INVALID_OPERATION;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3413,7 +3413,7 @@ cl_int CLVK_API_CALL clEnqueueWriteBufferRect(
         return CL_INVALID_OPERATION;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3478,7 +3478,7 @@ cl_int CLVK_API_CALL clEnqueueFillBuffer(
         return CL_INVALID_VALUE;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3529,7 +3529,7 @@ cl_int CLVK_API_CALL clEnqueueCopyBuffer(cl_command_queue cq, cl_mem srcbuf,
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3589,7 +3589,7 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferRect(
     // object and src_slice_pitch is not equal to dst_slice_pitch and
     // src_row_pitch is not equal to dst_row_pitch.
     //
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -3658,7 +3658,7 @@ void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
         return nullptr;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         if (errcode_ret != nullptr) {
             *errcode_ret = CL_INVALID_EVENT_WAIT_LIST;
         }
@@ -3791,7 +3791,7 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
         return CL_INVALID_KERNEL;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -4846,7 +4846,7 @@ cl_int CLVK_API_CALL clEnqueueReadImage(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -4909,7 +4909,7 @@ cl_int CLVK_API_CALL clEnqueueWriteImage(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -4979,7 +4979,7 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
         return CL_INVALID_CONTEXT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -5049,7 +5049,7 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -5146,7 +5146,7 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -5223,7 +5223,7 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
         return CL_INVALID_MEM_OBJECT;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
@@ -5292,7 +5292,7 @@ void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
         return nullptr;
     }
 
-    if (!event_wait_list_is_valid(num_events_in_wait_list, event_wait_list)) {
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         *errcode_ret = CL_INVALID_EVENT_WAIT_LIST;
         return nullptr;
     }
