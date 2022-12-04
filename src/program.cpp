@@ -1115,9 +1115,13 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
     std::string tmp_folder;
     if (use_tmp_folder) {
         // Create temporary folder
-        std::string tmp_template{"clvk-XXXXXX"};
+        std::filesystem::path tmp_prefix(config.compiler_temp_dir());
+        std::filesystem::path tmp_suffix("clvk-XXXXXX");
+        std::string tmp_template = (tmp_prefix / tmp_suffix).string();
         const char* tmp = cvk_mkdtemp(tmp_template);
         if (tmp == nullptr) {
+            cvk_error_fn("Could not create temporary folder \"%s\"",
+                         tmp_template.c_str());
             return CL_BUILD_ERROR;
         }
         tmp_folder = tmp;
