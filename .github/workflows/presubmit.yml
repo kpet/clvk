@@ -179,6 +179,14 @@ jobs:
         run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
         env:
           CLVK_LOG: 2
+      # TODO #477 - enable these tests
+      # - name: API tests (physical addressing)
+      #   if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+      #   run: ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
+      #   env:
+      #     CLVK_LOG: 2
+      #     CLVK_SPIRV_ARCH: spir64
+      #     CLVK_PHYSICAL_ADDRESSING: 1
       - name: Offline compilation simple tests
         if: ${{ matrix.android-abi == '' }}
         run: |
