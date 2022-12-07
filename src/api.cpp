@@ -5460,7 +5460,14 @@ cl_program cvk_create_program_with_il(cl_context context, const void* il,
 
     auto program = new cvk_program(icd_downcast(context), il, length);
 
-    *errcode_ret = CL_SUCCESS;
+    if (!program->parse_user_spec_constants()) {
+        // If we fail to parse spec constants we can assume the IL stream is
+        // wonky.
+        *errcode_ret = CL_INVALID_VALUE;
+    } else {
+        *errcode_ret = CL_SUCCESS;
+    }
+
     return program;
 }
 
@@ -5499,13 +5506,31 @@ cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
 }
 
 cl_int CLVK_API_CALL
-clSetProgramSpecializationConstant(cl_program program, cl_uint spec_id,
+clSetProgramSpecializationConstant(cl_program prog, cl_uint spec_id,
                                    size_t spec_size, const void* spec_value) {
-    TRACE_FUNCTION("program", (uintptr_t)program, "spec_id", spec_id,
-                   "spec_size", spec_size);
+    TRACE_FUNCTION("program", (uintptr_t)prog, "spec_id", spec_id, "spec_size",
+                   spec_size);
     LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
-                 program, spec_id, spec_size, spec_value);
-    return CL_INVALID_OPERATION;
+                 prog, spec_id, spec_size, spec_value);
+
+    auto program = icd_downcast(prog);
+
+    if (!is_valid_program(program)) {
+        return CL_INVALID_PROGRAM;
+    }
+
+    // TODO CL_INVALID_OPERATION if no devices associated with program support
+    // intermediate language programs.
+    // TODO CL_COMPILER_NOT_AVAILABLE if program is created with
+    // clCreateProgramWithIL and a compiler is not available, i.e.
+    // CL_DEVICE_COMPILER_AVAILABLE specified in the Device Queries table is set
+    // to CL_FALSE.
+
+    if (spec_value == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    return program->set_user_spec_constant(spec_id, spec_size, spec_value);
 }
 
 // Shared Virtual Memory
