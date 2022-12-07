@@ -894,9 +894,92 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return options;
 }
 
+bool cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE
 #ifndef CLSPV_ONLINE_COMPILER
+    // We'll need to go through the whole temp folder rigamarole to query the
+    // spec constant info with the command line tool.
+    std::filesystem::path tmp_prefix(config.compiler_temp_dir());
+    std::filesystem::path tmp_suffix("clvk-XXXXXX");
+    std::string tmp_template = (tmp_prefix / tmp_suffix).string();
+    const char* tmp = cvk_mkdtemp(tmp_template);
+    if (tmp == nullptr) {
+        cvk_error_fn("Could not create temporary folder \"%s\"",
+                     tmp_template.c_str());
+        return false;
+    }
+    std::string tmp_folder = tmp;
+    cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
 
+    std::string llvmspirv_input_file = tmp_folder + "/source.spv";
+
+    if (!save_il_to_file(llvmspirv_input_file, m_il)) {
+        cvk_error_fn("Couldn't save IL to file!");
+        return false;
+    }
+
+    std::string cmd_spv =
+        std::string(config.llvmspirv_bin) + " --spec-const-info";
+
+    std::string output = "";
+    cvk_exec(cmd_spv + " " + llvmspirv_input_file + " --spec-const-info",
+             &output);
+    auto output_stream = std::istringstream(output);
+
+    for (std::string line; std::getline(output_stream, line);) {
+        if (line.find("Spec const id") == std::string::npos) {
+            continue;
+        }
+
+        auto delim = line.find(",");
+        auto id_string = line.substr(0, delim);
+        line.erase(0, delim + 1);
+        id_string = id_string.substr(id_string.find("=") + 1);
+        auto id = static_cast<uint32_t>(atoi(id_string.c_str()));
+
+        delim = line.find(",");
+        auto size_string = line.substr(0, delim);
+        line.erase(0, delim + 1);
+        size_string = size_string.substr(size_string.find("=") + 1);
+        auto size = static_cast<uint32_t>(atoi(size_string.c_str()));
+
+        // We need to consume the "=" and the " " here since we aren't
+        // converting the value from a string.
+        auto type_string = line.substr(line.find("=") + 2);
+        m_user_spec_constants[id] = user_spec_constant_data(type_string, size);
+    }
+    std::filesystem::remove_all(tmp_folder.c_str());
+    return true;
+#else
+    auto m_il_start = reinterpret_cast<const unsigned char*>(m_il.data());
+    membuf m_il_buf(m_il_start, m_il_start + m_il.size());
+    std::istream m_il_stream(&m_il_buf);
+    SPIRV::TranslatorOpts translator_opts;
+    // We don't need llvm-spirv to validate extensions for us.
+    translator_opts.enableAllExtensions();
+    static std::mutex llvmspirv_compile_mutex;
+    std::lock_guard<std::mutex> llvmspirv_compile_lock(llvmspirv_compile_mutex);
+
+    std::vector<llvm::SpecConstInfoTy> spec_const_info;
+
+    if (!getSpecConstInfo(m_il_stream, spec_const_info)) {
+        cvk_error_fn("Failed to parse spec constants");
+        return false;
+    }
+
+    for (const auto& spec_const : spec_const_info) {
+        m_user_spec_constants[spec_const.ID] =
+            user_spec_constant_data(spec_const.Type, spec_const.Size);
+    }
+    return true;
+#endif // CLSPV_ONLINE_COMPILER
+#else
+    return false;
+#endif // COMPILER_AVAILABLE
+}
+
+#if COMPILER_AVAILABLE
+#ifndef CLSPV_ONLINE_COMPILER
 cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                                                     bool build_from_il,
                                                     std::string& build_options,
@@ -916,6 +999,51 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         }
         // Compose llvm-spirv command-line
         std::string cmd_spv{config.llvmspirv_bin};
+
+        if (!m_user_spec_constants.empty()) {
+            std::string spec_constant_flag = " --spec-const=";
+            for (const auto& spec_const : m_user_spec_constants) {
+                if (!spec_const.second.set) {
+                    continue;
+                }
+                const auto& type_string = spec_const.second.type;
+                spec_constant_flag +=
+                    std::to_string(spec_const.first) + ":" + type_string + ":";
+
+                if (type_string.find("i32") != std::string::npos) {
+                    spec_constant_flag +=
+                        std::to_string(spec_const.second.data.i32);
+                } else if (type_string.find("i16") != std::string::npos) {
+                    spec_constant_flag +=
+                        std::to_string(spec_const.second.data.i16);
+                } else if (type_string.find("i8") != std::string::npos ||
+                           type_string.find("i1") != std::string::npos) {
+                    spec_constant_flag +=
+                        std::to_string(spec_const.second.data.i8);
+                } else if (type_string.find("i64") != std::string::npos) {
+                    spec_constant_flag +=
+                        std::to_string(spec_const.second.data.i64);
+                } else if (type_string.find("f16") != std::string::npos) {
+                    // At most we should need seven (0xFFFF\0)
+                    char buf[7];
+                    std::snprintf(buf, 7, "0x%04X", spec_const.second.data.i16);
+                    spec_constant_flag += std::string(buf);
+                } else if (type_string.find("f32") != std::string::npos) {
+                    float spec_value;
+                    std::memcpy(&spec_value, &spec_const.second.data.i32,
+                                spec_const.second.size);
+                    spec_constant_flag += std::to_string(spec_value);
+                } else if (type_string.find("f64") != std::string::npos) {
+                    double spec_value;
+                    std::memcpy(&spec_value, &spec_const.second.data.i64,
+                                spec_const.second.size);
+                    spec_constant_flag += std::to_string(spec_value);
+                }
+                spec_constant_flag += " ";
+            }
+            cmd_spv += spec_constant_flag;
+        }
+
         cmd_spv += " -r ";
         cmd_spv +=
             " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
@@ -934,7 +1062,6 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
         cmd += clspv_input_file;
         cmd += " ";
-
     } else if (m_operation == build_operation::link) {
         for (auto input_program : m_input_programs) {
             if (input_program->m_binary_type !=
@@ -1030,6 +1157,31 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
         auto m_il_start = reinterpret_cast<const unsigned char*>(m_il.data());
         membuf m_il_buf(m_il_start, m_il_start + m_il.size());
         std::istream m_il_stream(&m_il_buf);
+        SPIRV::TranslatorOpts translator_opts;
+        // We don't need llvm-spirv to validate extensions for us.
+        translator_opts.enableAllExtensions();
+
+        for (const auto& spec_const : m_user_spec_constants) {
+            if (!spec_const.second.set) {
+                continue;
+            }
+            uint64_t spec_const_value = 0;
+            if (spec_const.second.type == "i1" ||
+                spec_const.second.type == "i8") {
+                spec_const_value = spec_const.second.data.i8;
+            } else if (spec_const.second.type == "i16" ||
+                       spec_const.second.type == "f16") {
+                spec_const_value = spec_const.second.data.i16;
+            } else if (spec_const.second.type == "i32" ||
+                       spec_const.second.type == "f32") {
+                spec_const_value = spec_const.second.data.i32;
+            } else if (spec_const.second.type == "i64" ||
+                       spec_const.second.type == "f64") {
+                spec_const_value = spec_const.second.data.i64;
+            }
+            translator_opts.setSpecConst(spec_const.first, spec_const_value);
+        }
+
         // llvm-spirv is based on LLVM. LLVM options parsing is done using
         // global variable that are not thread safe. Thus, we need to lock call
         // to llvm-spirv in order to ensure a thread safe execution.
@@ -1044,7 +1196,9 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
                                                 // clspv is ready
             llvm::cl::ResetAllOptionOccurrences();
             llvm::cl::ParseCommandLineOptions(llvmArgc, llvmArgv);
-            if (!llvm::readSpirv(llvm_context, m_il_stream, llvm_module, err)) {
+
+            if (!llvm::readSpirv(llvm_context, translator_opts, m_il_stream,
+                                 llvm_module, err)) {
                 cvk_error_fn("Fails to load SPIR-V as LLVM Module: %s",
                              err.c_str());
                 return CL_BUILD_ERROR;

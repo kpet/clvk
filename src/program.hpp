@@ -142,6 +142,35 @@ enum class spec_constant
     subgroup_max_size,
 };
 
+struct user_spec_constant_data {
+    std::string type;
+    uint32_t size;
+    bool set;
+    union {
+        uint8_t i8;
+        uint16_t i16;
+        uint32_t i32;
+        uint64_t i64;
+    } data;
+
+    user_spec_constant_data(std::string type, uint32_t size)
+        : type(type), size(size), set(false) {}
+    user_spec_constant_data() : type(""), size(0), set(false) {}
+
+    void init_data(size_t size, const void* value) {
+        if (type == "i8" || type == "i1") {
+            std::memcpy(&data.i8, value, size);
+        } else if (type == "i16" || type == "f16") {
+            std::memcpy(&data.i16, value, size);
+        } else if (type == "i32" || type == "f32") {
+            std::memcpy(&data.i32, value, size);
+        } else if (type == "i64" || type == "f64") {
+            std::memcpy(&data.i64, value, size);
+        }
+        set = true;
+    }
+};
+
 struct constant_data_buffer_info {
     uint32_t set;
     uint32_t binding;
@@ -496,6 +525,19 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
                             const char** header_include_names,
                             cvk_program_callback cb, void* data);
 
+    cl_int set_user_spec_constant(uint32_t spec_id, size_t spec_size,
+                                  const void* spec_value) {
+        auto spec_const_iter = m_user_spec_constants.find(spec_id);
+        if (spec_const_iter == m_user_spec_constants.end()) {
+            return CL_INVALID_SPEC_ID;
+        }
+        if (spec_const_iter->second.size != spec_size) {
+            return CL_INVALID_VALUE;
+        }
+        spec_const_iter->second.init_data(spec_size, spec_value);
+        return CL_SUCCESS;
+    }
+
     const std::string& build_options() const { return m_build_options; }
 
     cl_build_status build_status(const cvk_device* device) const {
@@ -655,6 +697,8 @@ public:
         return status;
     }
 
+    bool parse_user_spec_constants();
+
 private:
     void do_build();
     std::string prepare_build_options(const cvk_device* device) const;
@@ -703,6 +747,7 @@ private:
     std::vector<uint32_t> m_stripped_binary;
     VkPipelineCache m_pipeline_cache;
     std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
+    std::unordered_map<uint32_t, user_spec_constant_data> m_user_spec_constants;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {
