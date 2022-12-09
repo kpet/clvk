@@ -32,6 +32,7 @@
 #include "init.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
+#include "printf.hpp"
 
 const int SPIR_WORD_SIZE = 4;
 
@@ -124,6 +125,7 @@ enum class pushconstant
     region_group_offset,
     image_metadata,
     module_constants_pointer,
+    printf_buffer_pointer,
 };
 
 struct pushconstant_desc {
@@ -143,7 +145,7 @@ enum class spec_constant
     subgroup_max_size,
 };
 
-enum class constant_data_buffer_type
+enum class module_buffer_type
 {
     storage_buffer,
     pointer_push_constant,
@@ -180,11 +182,19 @@ struct user_spec_constant_data {
 };
 
 struct constant_data_buffer_info {
-    constant_data_buffer_type type;
+    module_buffer_type type;
     uint32_t set;
     uint32_t binding;
     uint32_t pc_offset;
     std::vector<char> data;
+};
+
+struct printf_buffer_desc_info {
+    module_buffer_type type;
+    uint32_t set;
+    uint32_t binding;
+    uint32_t pc_offset;
+    uint32_t size = 0;
 };
 
 struct spirv_validation_options {
@@ -212,6 +222,7 @@ class spir_binary {
         std::unordered_map<std::string, std::vector<kernel_argument>>;
     using kernels_reqd_work_group_size_map =
         std::unordered_map<std::string, std::array<uint32_t, 3>>;
+    using kernels_flags_map = std::unordered_map<std::string, uint32_t>;
 
 public:
     spir_binary(spv_target_env env)
@@ -268,8 +279,13 @@ public:
         }
     }
 
+    const printf_descriptor_map_t& printf_descriptors() const {
+        return m_printf_descriptors;
+    }
+
     void add_kernel(const std::string& name, uint32_t num_args,
-                    const std::string& attributes) {
+                    const std::string& attributes, uint32_t flags) {
+        m_flags[name] = flags;
         auto& args = m_dmaps[name];
         kernel_argument unused = {
             {}, 0, 0, 0, 0, 0, kernel_argument_kind::unused, 0, 0};
@@ -332,6 +348,24 @@ public:
         m_image_metadata[name][ordinal].set_data_type(offset);
     }
 
+    void add_printf_descriptor(printf_descriptor&& desc) {
+        m_printf_descriptors[desc.printf_id] = desc;
+    }
+
+    void set_printf_buffer_info(const printf_buffer_desc_info& info) {
+        m_printf_buffer_info = info;
+    }
+
+    const printf_buffer_desc_info& printf_buffer_info() const {
+        return m_printf_buffer_info;
+    }
+
+    const printf_descriptor_map_t& get_printf_descriptors() const {
+        return m_printf_descriptors;
+    }
+
+    const kernels_flags_map& kernels_flags() const { return m_flags; }
+
 private:
     spv_context m_context;
     std::vector<uint32_t> m_code;
@@ -339,10 +373,13 @@ private:
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
     image_metadata_map m_image_metadata;
+    std::unordered_map<uint32_t, printf_descriptor> m_printf_descriptors;
+    printf_buffer_desc_info m_printf_buffer_info;
     std::unique_ptr<constant_data_buffer_info> m_constant_data_buffer;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
     std::unordered_map<std::string, std::string> m_kernels_attributes;
+    kernels_flags_map m_flags;
     bool m_loaded_from_binary;
     spv_target_env m_target_env;
 };
@@ -452,6 +489,8 @@ private:
     bool build_descriptor_sets_layout_bindings_for_literal_samplers(
         binding_stat_map& smap);
     bool build_descriptor_sets_layout_bindings_for_program_scope_buffers(
+        binding_stat_map& smap);
+    bool build_descriptor_sets_layout_bindings_for_printf_buffer(
         binding_stat_map& smap);
 
     // Structures for caching pipelines based on specialization constants
@@ -604,6 +643,11 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
 
     unsigned num_kernels() const { return m_binary.num_kernels(); }
     bool loaded_from_binary() const { return m_binary.loaded_from_binary(); }
+    bool uses_printf() { return !m_binary.printf_descriptors().empty(); }
+    const std::unordered_map<uint32_t, printf_descriptor>&
+    printf_descriptors() {
+        return m_binary.get_printf_descriptors();
+    }
 
     const std::vector<kernel_argument>* args_for_kernel(std::string& name) {
         auto const& args = m_binary.kernels_arguments().find(name);
@@ -701,6 +745,10 @@ public:
         return m_binary.constant_data_buffer();
     }
 
+    const printf_buffer_desc_info& printf_buffer_info() const {
+        return m_binary.printf_buffer_info();
+    }
+
     bool options_allow_split_region(std::string options) {
         if (options.find("-uniform-workgroup-size") != std::string::npos)
             return false;
@@ -719,6 +767,10 @@ public:
 
     const std::string& kernel_attributes(const std::string& kernel_name) const {
         return m_binary.kernels_attributes().at(kernel_name);
+    }
+
+    uint32_t kernel_flags(const std::string& kernel) const {
+        return m_binary.kernels_flags().at(kernel);
     }
 
 private:
@@ -770,6 +822,7 @@ private:
     VkPipelineCache m_pipeline_cache;
     std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
     std::unordered_map<uint32_t, user_spec_constant_data> m_user_spec_constants;
+    std::unique_ptr<cvk_buffer> m_printf_buffer;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {

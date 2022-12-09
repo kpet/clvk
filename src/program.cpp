@@ -149,6 +149,8 @@ spv_result_t parse_reflection(void* user_data,
             return pushconstant::image_metadata;
         case NonSemanticClspvReflectionConstantDataPointerPushConstant:
             return pushconstant::module_constants_pointer;
+        case NonSemanticClspvReflectionPrintfBufferPointerPushConstant:
+            return pushconstant::printf_buffer_pointer;
         default:
             cvk_error_fn("Unhandled reflection instruction for push constant");
             break;
@@ -182,11 +184,12 @@ spv_result_t parse_reflection(void* user_data,
                 const auto& name = parse_data->strings[inst->words[6]];
 
                 const auto& num_args = parse_data->constants[inst->words[7]];
+                const auto& flags = parse_data->constants[inst->words[8]];
                 const auto& attributes = parse_data->strings[inst->words[9]];
 
                 parse_data->strings[inst->result_id] = name;
-                parse_data->binary->add_kernel(name, num_args, attributes);
-
+                parse_data->binary->add_kernel(name, num_args, attributes,
+                                               flags);
                 break;
             }
             case NonSemanticClspvReflectionArgumentInfo: {
@@ -446,21 +449,52 @@ spv_result_t parse_reflection(void* user_data,
                 hex2bin(data.c_str(), binfo.data.data());
                 if (ext_inst ==
                     NonSemanticClspvReflectionConstantDataStorageBuffer) {
-                    binfo.type = constant_data_buffer_type::storage_buffer;
+                    binfo.type = module_buffer_type::storage_buffer;
                     binfo.set = parse_data->constants[inst->words[5]];
                     if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS)
                         return SPV_ERROR_INVALID_DATA;
                     binfo.binding = parse_data->constants[inst->words[6]];
 
                 } else {
-                    binfo.type =
-                        constant_data_buffer_type::pointer_push_constant;
+                    binfo.type = module_buffer_type::pointer_push_constant;
                     binfo.pc_offset = parse_data->constants[inst->words[5]];
                     parse_data->binary->add_push_constant(
                         pushconstant::module_constants_pointer,
                         {binfo.pc_offset, 8u});
                 }
                 parse_data->binary->set_constant_data_buffer(binfo);
+                break;
+            }
+            case NonSemanticClspvReflectionPrintfInfo: {
+                uint32_t printf_id = parse_data->constants[inst->words[5]];
+                std::string printf_string = parse_data->strings[inst->words[6]];
+                std::vector<uint32_t> printf_arg_sizes;
+                for (int i = 6; i < inst->num_operands; i++) {
+                    printf_arg_sizes.push_back(
+                        parse_data
+                            ->constants[inst->words[inst->operands[i].offset]]);
+                }
+                parse_data->binary->add_printf_descriptor(
+                    {printf_id, printf_string, printf_arg_sizes});
+                break;
+            }
+            case NonSemanticClspvReflectionPrintfBufferStorageBuffer: {
+                printf_buffer_desc_info binfo;
+                binfo.type = module_buffer_type::storage_buffer;
+                binfo.set = parse_data->constants[inst->words[5]];
+                binfo.binding = parse_data->constants[inst->words[6]];
+                binfo.size = parse_data->constants[inst->words[7]];
+                parse_data->binary->set_printf_buffer_info(binfo);
+                break;
+            }
+            case NonSemanticClspvReflectionPrintfBufferPointerPushConstant: {
+                printf_buffer_desc_info binfo;
+                binfo.type = module_buffer_type::pointer_push_constant;
+                binfo.pc_offset = parse_data->constants[inst->words[5]];
+                binfo.size = parse_data->constants[inst->words[7]];
+                parse_data->binary->set_printf_buffer_info(binfo);
+                parse_data->binary->add_push_constant(
+                    pushconstant::printf_buffer_pointer, {binfo.pc_offset, 8u});
                 break;
             }
             default:
@@ -911,6 +945,11 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
             options.back() = ' '; // replace the final comma
         }
     }
+
+    options += " -enable-printf ";
+    options +=
+        " -printf-buffer-size=" + std::to_string(config.printf_buffer_size) +
+        " ";
 
 #if COMPILER_AVAILABLE
     options += " " + config.clspv_options() + " ";
@@ -1768,11 +1807,39 @@ bool cvk_entry_point::
         auto info = m_program->module_constant_data_buffer_info();
         // If the program scope buffer isn't passed as a storage buffer (i.e.
         // it is passed a pointer push constant), there is nothing to bind here
-        if (info->type != constant_data_buffer_type::storage_buffer) {
+        if (info->type != module_buffer_type::storage_buffer) {
             return true;
         }
         VkDescriptorSetLayoutBinding binding = {
             info->binding,                     // binding
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+            1,                                 // decriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT,       // stageFlags
+            nullptr                            // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+    }
+
+    if (!build_descriptor_set_layout(layoutBindings)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_printf_buffer(
+    binding_stat_map& smap) {
+    std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+    if (m_program->printf_buffer_info().size > 0 &&
+        (m_program->kernel_flags(m_name) &
+         NonSemanticClspvReflectionMayUsePrintf)) {
+        auto info = m_program->printf_buffer_info();
+        if (info.type != module_buffer_type::storage_buffer) {
+            return true;
+        }
+        VkDescriptorSetLayoutBinding binding = {
+            info.binding,                      // binding
             VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
             1,                                 // decriptorCount
             VK_SHADER_STAGE_COMPUTE_BIT,       // stageFlags
@@ -1822,6 +1889,10 @@ cl_int cvk_entry_point::init() {
         return CL_INVALID_VALUE;
     }
     if (!build_descriptor_sets_layout_bindings_for_program_scope_buffers(
+            bindingTypes)) {
+        return CL_INVALID_VALUE;
+    }
+    if (!build_descriptor_sets_layout_bindings_for_printf_buffer(
             bindingTypes)) {
         return CL_INVALID_VALUE;
     }

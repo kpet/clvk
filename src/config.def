@@ -21,8 +21,11 @@ OPTION(bool, skip_spirv_capability_check, false)
 OPTION(bool, keep_temporaries, false)
 OPTION(std::string, spirv_arch, "spir")
 OPTION(bool, physical_addressing, false)
+
 OPTION(std::string, clspv_native_builtins, "")
 OPTION(std::string, clspv_library_builtins, "")
+
+OPTION(uint32_t, printf_buffer_size, 1048576u)
 
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")

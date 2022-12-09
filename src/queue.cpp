@@ -593,6 +593,25 @@ void cvk_command_kernel::update_global_push_constants(
                            &dev_addr);
     }
 
+    if (auto pc = program->push_constant(pushconstant::printf_buffer_pointer)) {
+        CVK_ASSERT(pc->size == 8);
+        CVK_ASSERT(program->uses_printf());
+
+        auto buffer = m_queue->printf_buffer();
+        VkBufferDeviceAddressInfo info{};
+        info.buffer = buffer->vulkan_buffer();
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.pNext = NULL;
+
+        auto dev_addr = vkGetBufferDeviceAddress(
+            m_kernel->context()->device()->vulkan_device(), &info);
+        dev_addr += buffer->vulkan_buffer_offset();
+
+        vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
+                           VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
+                           &dev_addr);
+    }
+
     uint32_t image_metadata_pc_start = UINT32_MAX;
     uint32_t image_metadata_pc_end = 0;
     if (const auto* md = m_kernel->get_image_metadata()) {
@@ -757,6 +776,32 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
     vkCmdDispatch(command_buffer, num_workgroups[0], num_workgroups[1],
                   num_workgroups[2]);
 
+    // If we have a kernel that requires serial execution (i.e. regions are not
+    // executed in parallel with other regions or other kernels) then serialize
+    // the command buffer
+    if (m_kernel->requires_serialized_execution()) {
+        VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                                         nullptr, VK_ACCESS_SHADER_WRITE_BIT,
+                                         VK_ACCESS_MEMORY_READ_BIT |
+                                             VK_ACCESS_MEMORY_WRITE_BIT};
+
+        // Workaround for a bug on some NVIDIA devices.
+        // This should already be covered by VK_ACCESS_MEMORY_READ_BIT.
+        memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(
+            command_buffer,
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
+            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // dstStageMask
+            0,                                    // dependencyFlags
+            1,                                    // memoryBarrierCount
+            &memoryBarrier,
+            0,        // bufferMemoryBarrierCount
+            nullptr,  // pBufferMemoryBarriers
+            0,        // imageMemoryBarrierCount
+            nullptr); // pImageMemoryBarriers
+    }
+
     return CL_SUCCESS;
 }
 
@@ -915,6 +960,41 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
         return CL_OUT_OF_RESOURCES;
     }
 
+    // Setup printf buffer descriptor if needed
+    if (m_kernel->program()->uses_printf()) {
+        // Create and initialize the printf buffer
+        auto buffer = m_queue->printf_buffer();
+        if (buffer->map()) {
+            memset(buffer->host_va(), 0, 4);
+            buffer->unmap();
+        }
+
+        if (m_kernel->program()->printf_buffer_info().type ==
+            module_buffer_type::storage_buffer) {
+
+            VkDescriptorBufferInfo bufferInfo = {buffer->vulkan_buffer(),
+                                                 0, // offset
+                                                 VK_WHOLE_SIZE};
+
+            auto* ds = m_argument_values->descriptor_sets();
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                ds[m_kernel->program()->printf_buffer_info().set],
+                m_kernel->program()->printf_buffer_info().binding,
+                0,                                 // dstArrayElement
+                1,                                 // descriptorCount
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+                nullptr,                           // pImageInfo
+                &bufferInfo,
+                nullptr, // pTexelBufferView
+            };
+
+            vkUpdateDescriptorSets(m_queue->device()->vulkan_device(), 1u,
+                                   &writeDescriptorSet, 0, nullptr);
+        }
+    }
+
     // Bind descriptors and update push constants
     if (m_kernel->num_set_layouts() > 0) {
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -954,6 +1034,15 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
         nullptr,  // pBufferMemoryBarriers
         0,        // imageMemoryBarrierCount
         nullptr); // pImageMemoryBarriers
+
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_kernel::do_post_action() {
+    if (m_kernel->uses_printf()) {
+        cvk_printf(m_queue->printf_buffer(),
+                   m_kernel->program()->printf_descriptors());
+    }
 
     return CL_SUCCESS;
 }
@@ -1078,7 +1167,7 @@ cl_int cvk_command_batchable::do_action() {
         return CL_OUT_OF_RESOURCES;
     }
 
-    return CL_COMPLETE;
+    return do_post_action();
 }
 
 cl_int cvk_command_batch::do_action() {

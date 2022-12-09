@@ -53,6 +53,7 @@ add_library(OpenCL-objects OBJECT
   kernel.cpp
   log.cpp
   memory.cpp
+  printf.cpp
   program.cpp
   queue.cpp
   semaphore.cpp
