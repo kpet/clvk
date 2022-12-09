@@ -205,7 +205,14 @@ struct cvk_device : public _cl_device_id,
         heap_index = m_mem_properties.memoryTypes[type_index].heapIndex;
         size = std::min(size, m_mem_properties.memoryHeaps[heap_index].size);
 
-        return size;
+        double percentage_of_available_memory_reported =
+            static_cast<double>(
+                config.percentage_of_available_memory_reported()) /
+            100;
+        cvk_info("Using %u%% of total memory size",
+                 config.percentage_of_available_memory_reported());
+
+        return size * percentage_of_available_memory_reported;
     }
 
     uint64_t memory_size() const {

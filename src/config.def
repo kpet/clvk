@@ -24,6 +24,7 @@ OPTION(bool, keep_temporaries, false)
 OPTION(uint32_t, log, 0u)
 OPTION(bool, log_colour, false)
 OPTION(std::string, log_dest, "")
+OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
 OPTION(uint32_t, spirv_validation, 2u)
 
 #if COMPILER_AVAILABLE
