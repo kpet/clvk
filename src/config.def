@@ -29,6 +29,7 @@ OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
 OPTION(uint32_t, spirv_validation, 2u)
 OPTION(std::string, spirv_arch, "spir")
 OPTION(bool, physical_addressing, false)
+OPTION(uint32_t, printf_buffer_size, 1048576u)
 
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")

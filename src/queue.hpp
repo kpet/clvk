@@ -22,6 +22,7 @@
 #include "init.hpp"
 #include "kernel.hpp"
 #include "objects.hpp"
+#include "printf.hpp"
 #include "tracing.hpp"
 
 struct cvk_command;
@@ -176,6 +177,16 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
+    cvk_buffer* printf_buffer() {
+        if (!m_printf_buffer) {
+            cl_int status;
+            m_printf_buffer = cvk_buffer::create(
+                context(), 0, config.printf_buffer_size, nullptr, &status);
+            CVK_ASSERT(status == CL_SUCCESS);
+        }
+        return m_printf_buffer.get();
+    }
+
     void command_pool_lock() { m_command_pool.lock(); }
 
     void command_pool_unlock() { m_command_pool.unlock(); }
@@ -236,6 +247,8 @@ private:
 
     TRACE_CNT_VAR(batch_in_flight_counter);
     TRACE_CNT_VAR(group_in_flight_counter);
+
+    std::unique_ptr<cvk_buffer> m_printf_buffer;
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
@@ -625,7 +638,7 @@ struct cvk_command_batchable : public cvk_command {
         }
     }
 
-    bool can_be_batched() const override final;
+    bool can_be_batched() const override;
     bool is_built_before_enqueue() const override final { return false; }
 
     CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,
@@ -636,6 +649,7 @@ struct cvk_command_batchable : public cvk_command {
     CHECK_RETURN virtual cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
     CHECK_RETURN cl_int do_action() override;
+    CHECK_RETURN virtual cl_int do_post_action() { return CL_SUCCESS; }
 
     CHECK_RETURN cl_int set_profiling_info_end(cl_ulong sync_dev,
                                                cl_ulong sync_host) {
@@ -730,6 +744,13 @@ struct cvk_command_kernel final : public cvk_command_batchable {
 
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
+
+    CHECK_RETURN cl_int do_post_action() override final;
+
+    bool can_be_batched() const override final {
+        return !m_kernel->uses_printf() &&
+               cvk_command_batchable::can_be_batched();
+    }
 
     const std::vector<cvk_mem*> memory_objects() const override {
         std::vector<cvk_mem*> ret;
