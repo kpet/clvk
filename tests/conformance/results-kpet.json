@@ -761,8 +761,9 @@
     "duration": "00:01:02.518806",
     "has_results": true,
     "results": {
-      "1D": "fail",
+      "1D": "pass",
       "1Darray": "pass",
+      "1Dbuffer": "fail",
       "2D": "pass",
       "2Darray": "pass",
       "3D": "pass"
@@ -773,8 +774,9 @@
     "duration": "00:01:02.701511",
     "has_results": true,
     "results": {
-      "1D": "fail",
+      "1D": "pass",
       "1Darray": "pass",
+      "1Dbuffer": "fail",
       "2D": "pass",
       "2Darray": "pass",
       "3D": "pass"
@@ -785,8 +787,9 @@
     "duration": "00:01:01.585071",
     "has_results": true,
     "results": {
-      "1D": "fail",
+      "1D": "pass",
       "1Darray": "pass",
+      "1Dbuffer": "fail",
       "2D": "pass",
       "2Darray": "pass",
       "3D": "pass"
