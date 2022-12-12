@@ -102,7 +102,13 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         if (err != CL_SUCCESS) {
             return err;
         }
-        tracker.set_event(icd_downcast(initev));
+        auto downcastev = icd_downcast(initev);
+        tracker.set_event(downcastev);
+
+        // the event has been retained by `enqueue_command` thinking it is a
+        // userspace event. But as it will not be given to the user, it needs to
+        // be released here to avoid a memory leak.
+        downcastev->release();
     }
 
     return CL_SUCCESS;
