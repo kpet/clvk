@@ -4684,36 +4684,59 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
 
-    bool report_formats = true;
+    const VkFormatFeatureFlags required_format_feature_flags =
+        cvk_image::required_format_feature_flags_for(image_type, flags);
 
-    if (report_formats) {
-        // Iterate over all known CL/VK format associations and report the CL
-        // formats for which the Vulkan format is supported
-        for (auto const& clvkfmt : gFormatMaps) {
-            auto const& fmt_support = clvkfmt.second;
-            if ((fmt_support.flags & flags) != flags) {
-                continue;
-            }
-            VkFormat format = fmt_support.vkfmt;
-            VkFormatProperties properties;
-            vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
+    // TODO tiling selection
+    //  No host access => OPTIMAL
+    //  Host ACCESS => LINEAR if supported, OPTIMAL otherwise?
 
-            // TODO handle linear tiling and sampled images
-            if (properties.optimalTilingFeatures &
-                VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT) {
-                const cl_image_format& clfmt = clvkfmt.first;
-                if ((image_formats != nullptr) &&
-                    (num_formats_found < num_entries)) {
-                    image_formats[num_formats_found] = clfmt;
-                    cvk_debug_fn(
-                        "reporting image format {%s, %s}",
-                        cl_channel_order_to_string(clfmt.image_channel_order)
-                            .c_str(),
-                        cl_channel_type_to_string(clfmt.image_channel_data_type)
-                            .c_str());
-                }
-                num_formats_found++;
+    // Iterate over all known CL/VK format associations and report the CL
+    // formats for which the Vulkan format is supported
+    for (auto const& clvkfmt : gFormatMaps) {
+        const cl_image_format& clfmt = clvkfmt.first;
+        auto const& fmt_support = clvkfmt.second;
+        if ((fmt_support.flags & flags) != flags) {
+            continue;
+        }
+        VkFormat format = fmt_support.vkfmt;
+        VkFormatProperties properties;
+        vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
+
+        cvk_debug("Vulkan format %d:", format);
+        cvk_debug("  linear : %s",
+                  vulkan_format_features_string(properties.linearTilingFeatures)
+                      .c_str());
+        cvk_debug("  optimal: %s", vulkan_format_features_string(
+                                       properties.optimalTilingFeatures)
+                                       .c_str());
+        cvk_debug(
+            "  buffer : %s",
+            vulkan_format_features_string(properties.bufferFeatures).c_str());
+
+        cvk_debug("  required format features %s",
+                  vulkan_format_features_string(required_format_feature_flags)
+                      .c_str());
+        VkFormatFeatureFlags features;
+        // TODO support linear tiling
+        features = properties.optimalTilingFeatures;
+
+        auto channel_order_str =
+            cl_channel_order_to_string(clfmt.image_channel_order);
+        auto channel_type_str =
+            cl_channel_type_to_string(clfmt.image_channel_data_type);
+        if ((features & required_format_feature_flags) ==
+            required_format_feature_flags) {
+            if ((image_formats != nullptr) &&
+                (num_formats_found < num_entries)) {
+                image_formats[num_formats_found] = clfmt;
+                cvk_debug("  reporting image format {%s, %s}",
+                          channel_order_str.c_str(), channel_type_str.c_str());
             }
+            num_formats_found++;
+        } else {
+            cvk_debug("  no support for image format {%s, %s}",
+                      channel_order_str.c_str(), channel_type_str.c_str());
         }
     }
 

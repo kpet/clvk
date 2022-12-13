@@ -57,6 +57,7 @@ std::string vulkan_memory_property_flags_string(VkMemoryPropertyFlags flags);
 std::string vulkan_queue_flags_string(VkQueueFlags flags);
 std::string vulkan_physical_device_type_string(VkPhysicalDeviceType type);
 std::string vulkan_calibrateable_time_domain_string(VkTimeDomainEXT td);
+std::string vulkan_format_features_string(VkFormatFeatureFlags flags);
 
 static inline std::string vulkan_version_string(uint32_t version) {
     std::string ret = std::to_string(VK_VERSION_MAJOR(version));

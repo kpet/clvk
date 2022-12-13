@@ -89,7 +89,7 @@ bool cvk_buffer::init() {
         nullptr,                              // pNext
         0,                                    // flags
         m_size,
-        cvk_buffer::USAGE_FLAGS, // usage
+        prepare_usage_flags(), // usage
         VK_SHARING_MODE_EXCLUSIVE,
         0,       // queueFamilyIndexCount
         nullptr, // pQueueFamilyIndices
@@ -232,6 +232,37 @@ bool cvk_sampler::init() {
     return (res == VK_SUCCESS);
 }
 
+VkFormatFeatureFlags
+cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
+                                             cl_mem_flags flags) {
+    // All images require TRANSFER_SRC, TRANSFER_DST
+    //  read-only: SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
+    //  write-only: STORAGE_IMAGE
+    //  read-write: STORAGE_IMAGE, SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
+    //  read-and-write: STORAGE_IMAGE
+    VkFormatFeatureFlags format_feature_flags = 0;
+    format_feature_flags =
+        VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+
+    VkFormatFeatureFlags format_feature_flags_RO;
+    format_feature_flags_RO = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+                              VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+
+    VkFormatFeatureFlags format_feature_flags_WO;
+    format_feature_flags_WO = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
+
+    if (flags & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
+        format_feature_flags |= format_feature_flags_WO;
+    } else if (flags & CL_MEM_READ_ONLY) {
+        format_feature_flags |= format_feature_flags_RO;
+    } else {
+        format_feature_flags |=
+            format_feature_flags_RO | format_feature_flags_WO;
+    }
+
+    return format_feature_flags;
+}
+
 cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
                              const cl_image_desc* desc,
                              const cl_image_format* format, void* host_ptr,
@@ -332,17 +363,16 @@ bool cvk_image::init() {
     // Create Image
     VkImageCreateInfo imageCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        nullptr,                 // pNext
-        0,                       // flags
-        image_type,              // imageType
-        format,                  // format
-        extent,                  // extent
-        1,                       // mipLevels
-        array_layers,            // arrayLayers
-        VK_SAMPLE_COUNT_1_BIT,   // samples
-        VK_IMAGE_TILING_OPTIMAL, // tiling
-        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT |
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        nullptr,                   // pNext
+        0,                         // flags
+        image_type,                // imageType
+        format,                    // format
+        extent,                    // extent
+        1,                         // mipLevels
+        array_layers,              // arrayLayers
+        VK_SAMPLE_COUNT_1_BIT,     // samples
+        VK_IMAGE_TILING_OPTIMAL,   // tiling
+        prepare_usage_flags(),     // usage
         VK_SHARING_MODE_EXCLUSIVE, // sharingMode
         0,                         // queueFamilyIndexCount
         nullptr,                   // pQueueFamilyIndices
