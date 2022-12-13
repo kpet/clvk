@@ -618,7 +618,7 @@ struct cvk_command_batchable : public cvk_command {
     cvk_command_batchable(cl_command_type type, cvk_command_queue* queue)
         : cvk_command(type, queue), m_query_pool(VK_NULL_HANDLE) {}
 
-    ~cvk_command_batchable() {
+    virtual ~cvk_command_batchable() {
         if (m_query_pool != VK_NULL_HANDLE) {
             auto vkdev = m_queue->device()->vulkan_device();
             vkDestroyQueryPool(vkdev, m_query_pool, nullptr);
