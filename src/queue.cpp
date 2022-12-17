@@ -102,7 +102,13 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         if (err != CL_SUCCESS) {
             return err;
         }
-        tracker.set_event(icd_downcast(initev));
+        auto downcastev = icd_downcast(initev);
+        tracker.set_event(downcastev);
+
+        // The event has been retained by `enqueue_command` to give its user
+        // a refcount on the event. The tracker will request a refcount so we
+        // need to give up the one we got from `enqueue_command`.
+        downcastev->release();
     }
 
     return CL_SUCCESS;
