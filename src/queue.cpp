@@ -105,9 +105,9 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         auto downcastev = icd_downcast(initev);
         tracker.set_event(downcastev);
 
-        // the event has been retained by `enqueue_command` thinking it is a
-        // userspace event. But as it will not be given to the user, it needs to
-        // be released here to avoid a memory leak.
+        // The event has been retained by `enqueue_command` to give its user
+        // a refcount on the event. The tracker will request a refcount so we need
+        // to give up the one we got from `enqueue_command`.
         downcastev->release();
     }
 
