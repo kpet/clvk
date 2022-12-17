@@ -106,8 +106,8 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         tracker.set_event(downcastev);
 
         // The event has been retained by `enqueue_command` to give its user
-        // a refcount on the event. The tracker will request a refcount so we need
-        // to give up the one we got from `enqueue_command`.
+        // a refcount on the event. The tracker will request a refcount so we
+        // need to give up the one we got from `enqueue_command`.
         downcastev->release();
     }
 
