@@ -42,6 +42,8 @@ enum class kernel_argument_kind
     pod,
     pod_ubo,
     pod_pushconstant,
+    pointer_ubo,
+    pointer_pushconstant,
     sampled_image,
     storage_image,
     sampler,
@@ -75,12 +77,20 @@ struct kernel_argument {
     bool is_pod() const {
         return (kind == kernel_argument_kind::pod) ||
                (kind == kernel_argument_kind::pod_ubo) ||
-               (kind == kernel_argument_kind::pod_pushconstant);
+               (kind == kernel_argument_kind::pod_pushconstant) ||
+               (kind == kernel_argument_kind::pointer_ubo) ||
+               (kind == kernel_argument_kind::pointer_pushconstant);
     }
 
     bool is_pod_buffer() const {
         return (kind == kernel_argument_kind::pod) ||
-               (kind == kernel_argument_kind::pod_ubo);
+               (kind == kernel_argument_kind::pod_ubo) ||
+               (kind == kernel_argument_kind::pointer_ubo);
+    }
+
+    bool is_pod_pointer() const {
+        return (kind == kernel_argument_kind::pointer_pushconstant) ||
+               (kind == kernel_argument_kind::pointer_ubo);
     }
 
     bool is_vec3() const { return info.is_vec3(); }

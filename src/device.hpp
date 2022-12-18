@@ -550,6 +550,8 @@ private:
         m_features_shader_subgroup_extended_types{};
     VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
         m_features_vulkan_memory_model{};
+    VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
+        m_features_buffer_device_address{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

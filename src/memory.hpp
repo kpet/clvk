@@ -385,6 +385,16 @@ struct cvk_buffer : public cvk_mem {
         return mapping;
     }
 
+    uint64_t device_address() const {
+        VkBufferDeviceAddressInfo info{};
+        info.buffer = vulkan_buffer();
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.pNext = NULL;
+        auto device_address = vkGetBufferDeviceAddress(
+            context()->device()->vulkan_device(), &info);
+        return device_address + vulkan_buffer_offset();
+    }
+
 private:
     bool init();
 

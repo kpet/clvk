@@ -217,6 +217,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
         VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -268,6 +269,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR;
     m_features_vulkan_memory_model.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES;
+    m_features_buffer_device_address.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -294,6 +297,10 @@ void cvk_device::init_features(VkInstance instance) {
             VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
                          m_features_vulkan_memory_model),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+                         m_features_buffer_device_address),
+
 #undef VER_EXT_FEAT
         };
 
@@ -415,6 +422,12 @@ void cvk_device::init_compiler_options() {
     // Device specific options
     m_device_compiler_options +=
         " " + m_clvk_properties->get_compile_options() + " ";
+
+    m_device_compiler_options += " -arch=" + config.spirv_arch() + " ";
+
+    if (config.physical_addressing()) {
+        m_device_compiler_options += " -physical-storage-buffers ";
+    }
 
     // Builtin options
     auto native_builtins = m_clvk_properties->get_native_builtins();
@@ -953,6 +966,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
         return supports_non_uniform_decoration();
+    case spv::CapabilityPhysicalStorageBufferAddresses:
+        return m_features_buffer_device_address.bufferDeviceAddress;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);

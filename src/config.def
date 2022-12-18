@@ -26,6 +26,8 @@ OPTION(uint32_t, log, 0u)
 OPTION(bool, log_colour, false)
 OPTION(std::string, log_dest, "")
 OPTION(uint32_t, spirv_validation, 2u)
+OPTION(std::string, spirv_arch, "spir")
+OPTION(bool, physical_addressing, false)
 
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")
