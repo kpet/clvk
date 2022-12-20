@@ -48,4 +48,5 @@ struct cvk_device_properties {
 };
 
 std::unique_ptr<cvk_device_properties>
-create_cvk_device_properties(const char* name);
+create_cvk_device_properties(const char* name, const uint32_t vendorID,
+                             const uint32_t deviceID);
