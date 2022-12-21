@@ -268,7 +268,7 @@ public:
         }
     }
 
-    void add_kernel(const std::string& name, uint32_t num_args) {
+    void add_kernel(const std::string& name, uint32_t num_args, const std::string& attributes) {
         auto& args = m_dmaps[name];
         kernel_argument unused = {
             {}, 0, 0, 0, 0, 0, kernel_argument_kind::unused, 0, 0};
@@ -281,6 +281,12 @@ public:
             arg.pos = pos++;
         }
         m_reqd_work_group_sizes[name] = {0, 0, 0};
+        m_kernels_attributes[name] = attributes;
+    }
+
+    const std::unordered_map<std::string, std::string>&
+    kernels_attributes() const {
+        return m_kernels_attributes;
     }
 
     void add_kernel_argument(const std::string& name, kernel_argument&& arg) {
@@ -335,6 +341,7 @@ private:
     std::unique_ptr<constant_data_buffer_info> m_constant_data_buffer;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
+    std::unordered_map<std::string, std::string> m_kernels_attributes;
     bool m_loaded_from_binary;
     spv_target_env m_target_env;
 };
@@ -708,6 +715,10 @@ public:
     }
 
     CHECK_RETURN cl_int parse_user_spec_constants();
+
+    const std::string& kernel_attributes(const std::string& kernel_name) const {
+        return m_binary.kernels_attributes().at(kernel_name);
+    }
 
 private:
     void do_build();
