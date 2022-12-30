@@ -843,6 +843,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         {"-cl-strict-aliasing", ""},
         // clspv require entrypoint inlining for OpenCL 2.0
         {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
+        {"-cl-std=CL3.0", "-cl-std=CL3.0 -inline-entry-points"},
         {"-create-library", ""},
     };
 
