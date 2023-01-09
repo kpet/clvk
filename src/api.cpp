@@ -2793,8 +2793,12 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
         return CL_INVALID_ARG_INDEX;
     }
 
+    // With opaque pointers, clspv is unable to infer the type of an unused
+    // kernel argument so just allow nullptr for its value. It will not have an
+    // affect on the kernel's operation.
     if ((arg_value == nullptr) &&
-        (kernel->arg_kind(arg_index) != kernel_argument_kind::local)) {
+        !((kernel->arg_kind(arg_index) != kernel_argument_kind::local) ||
+          (kernel->arg_kind(arg_index) != kernel_argument_kind::unused))) {
         cvk_error_fn("passing a null pointer to clSetKernelArg is only "
                      "supported for local arguments");
         return CL_INVALID_ARG_VALUE;

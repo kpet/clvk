@@ -330,6 +330,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
             break;
         case kernel_argument_kind::local: // nothing to do?
             break;
+        case kernel_argument_kind::unused:
+            break;
         default:
             cvk_error_fn("unsupported argument type");
             return false;
