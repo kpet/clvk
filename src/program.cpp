@@ -1307,16 +1307,13 @@ void cvk_program::do_build() {
     // reflection information for clGetProgramInfo.
     const uint32_t* spir_data = m_binary.spir_data();
     size_t spir_size = m_binary.spir_size();
-    if (!device->is_vulkan_extension_enabled(
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)) {
-        if (!m_binary.strip_reflection(&m_stripped_binary)) {
-            cvk_error_fn("couldn't strip reflection from SPIR-V module");
-            complete_operation(device, CL_BUILD_ERROR);
-            return;
-        }
-        spir_data = m_stripped_binary.data();
-        spir_size = m_stripped_binary.size() * sizeof(uint32_t);
+    if (!m_binary.strip_reflection(&m_stripped_binary)) {
+        cvk_error_fn("couldn't strip reflection from SPIR-V module");
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
     }
+    spir_data = m_stripped_binary.data();
+    spir_size = m_stripped_binary.size() * sizeof(uint32_t);
 
     // Create a shader module
     VkDevice dev = device->vulkan_device();
