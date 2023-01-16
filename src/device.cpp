@@ -409,8 +409,9 @@ void cvk_device::init_compiler_options() {
         m_device_compiler_options += " -fp64=0 ";
     }
     if (supports_int8()) {
-        m_device_compiler_options += " -int8 ";
         m_device_compiler_options += " -rewrite-packed-structs ";
+    } else {
+        m_device_compiler_options += " -int8=0 ";
     }
     if (supports_ubo_stdlayout()) {
         m_device_compiler_options += " -std430-ubo-layout ";
