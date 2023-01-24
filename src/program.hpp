@@ -48,6 +48,7 @@ enum class kernel_argument_kind
     storage_image,
     sampler,
     local,
+    unused,
 };
 
 struct kernel_argument_info {
@@ -101,6 +102,8 @@ struct kernel_argument {
                (kind == kernel_argument_kind::sampled_image) ||
                (kind == kernel_argument_kind::storage_image);
     }
+
+    bool is_unused() const { return kind == kernel_argument_kind::unused; }
 };
 
 struct sampler_desc {
@@ -226,13 +229,24 @@ public:
         }
     }
 
-    void add_kernel(const std::string& name) {
-        m_dmaps[name] = {};
+    void add_kernel(const std::string& name, uint32_t num_args) {
+        auto& args = m_dmaps[name];
+        kernel_argument unused = {
+            {}, 0, 0, 0, 0, 0, kernel_argument_kind::unused, 0, 0};
+        // Generate a placeholder for each argument in the kernel.
+        args.resize(num_args, unused);
+        uint32_t pos = 0;
+        // Assign the argument ordinals. Any used argument will overwrite these,
+        // but they are necessary for unused arguments.
+        for (auto& arg : args) {
+            arg.pos = pos++;
+        }
         m_reqd_work_group_sizes[name] = {0, 0, 0};
     }
 
     void add_kernel_argument(const std::string& name, kernel_argument&& arg) {
-        m_dmaps[name].push_back(arg);
+        // Overwrite the placeholder argument.
+        m_dmaps[name][arg.pos] = std::move(arg);
     }
 
     void add_spec_constant(spec_constant constant, uint32_t spec_id) {

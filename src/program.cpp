@@ -176,8 +176,9 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionKernel: {
                 // Record the kernel name.
                 const auto& name = parse_data->strings[inst->words[6]];
+                const auto& num_args = parse_data->constants[inst->words[7]];
                 parse_data->strings[inst->result_id] = name;
-                parse_data->binary->add_kernel(name);
+                parse_data->binary->add_kernel(name, num_args);
                 break;
             }
             case NonSemanticClspvReflectionArgumentInfo: {
@@ -1306,8 +1307,14 @@ void cvk_program::do_build() {
     // reflection information for clGetProgramInfo.
     const uint32_t* spir_data = m_binary.spir_data();
     size_t spir_size = m_binary.spir_size();
-    if (!device->is_vulkan_extension_enabled(
-            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)) {
+    const bool should_strip_reflection =
+        !device->is_vulkan_extension_enabled(
+            VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)
+#ifdef USING_SWIFTSHADER
+        || true
+#endif
+        ;
+    if (should_strip_reflection) {
         if (!m_binary.strip_reflection(&m_stripped_binary)) {
             cvk_error_fn("couldn't strip reflection from SPIR-V module");
             complete_operation(device, CL_BUILD_ERROR);
@@ -1502,6 +1509,7 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
             break;
         case kernel_argument_kind::pod_pushconstant:
         case kernel_argument_kind::pointer_pushconstant:
+        case kernel_argument_kind::unused:
             continue;
         }
 

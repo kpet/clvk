@@ -1,5 +1,5 @@
 struct ParamStruct {
-    char a;
+    uint a;
 };
 
 kernel void test_simple(global uint* out)

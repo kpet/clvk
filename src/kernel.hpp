@@ -282,7 +282,7 @@ struct cvk_kernel_argument_values {
             CVK_ASSERT(size % arg.local_elem_size == 0);
             m_specialization_constants[arg.local_spec_id] =
                 size / arg.local_elem_size;
-        } else {
+        } else if (!arg.is_unused()) {
             // We only expect cl_mem or cl_sampler here
             if (size != sizeof(void*)) {
                 return CL_INVALID_ARG_SIZE;
