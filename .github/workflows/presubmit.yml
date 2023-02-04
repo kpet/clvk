@@ -96,7 +96,7 @@ jobs:
       - name: Fetch LLVM
         run: python ./external/clspv/utils/fetch_sources.py --shallow --deps llvm
       - name: Fetch Vulkan Loader
-        run: git clone --depth 1 -b v1.2.169 https://github.com/KhronosGroup/Vulkan-Loader.git
+        run: git clone --depth 1 -b v1.3.240 https://github.com/KhronosGroup/Vulkan-Loader.git
       - name: Setup MSVC with Ninja
         uses: ilammy/msvc-dev-cmd@v1
       - name: Prepare Android CMake arguments
