@@ -59,10 +59,20 @@ struct cvk_device_properties_intel : public cvk_device_properties {
     }
 };
 
+static bool isIntelDevice(const char* name, const uint32_t vendorID) {
+    const uint32_t IntelVendorID = 0x8086;
+    return vendorID == IntelVendorID || strncmp(name, "Intel", 5) == 0;
+}
+
 struct cvk_device_properties_amd : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
 };
+
+static bool isAMDDevice(const char* name, const uint32_t vendorID) {
+    const uint32_t AMDVendorID = 0x1002;
+    return vendorID == AMDVendorID || strncmp(name, "AMD", 3) == 0;
+}
 
 struct cvk_device_properties_samsung_xclipse_920
     : public cvk_device_properties {
@@ -76,7 +86,8 @@ struct cvk_device_properties_samsung_xclipse_920
     return std::make_unique<x>();
 
 std::unique_ptr<cvk_device_properties>
-create_cvk_device_properties(const char* name) {
+create_cvk_device_properties(const char* name, const uint32_t vendorID,
+                             const uint32_t deviceID) {
     if (strncmp(name, "Mali-", 5) == 0) {
 #ifdef __ANDROID__
         // Find out which SoC this is.
@@ -106,16 +117,17 @@ create_cvk_device_properties(const char* name) {
         RETURN(cvk_device_properties_adreno_630);
     } else if (strcmp(name, "Adreno (TM) 640") == 0) {
         RETURN(cvk_device_properties_adreno_640);
-    } else if (strncmp(name, "Intel", 5) == 0) {
+    } else if (isIntelDevice(name, vendorID)) {
         RETURN(cvk_device_properties_intel);
-    } else if (strncmp(name, "AMD", 3) == 0) {
+    } else if (isAMDDevice(name, vendorID)) {
         RETURN(cvk_device_properties_amd);
     } else if (strcmp(name, "Samsung Xclipse 920") == 0) {
         RETURN(cvk_device_properties_samsung_xclipse_920);
     } else {
-        cvk_warn("Unrecognized device '%s', some device properties will be "
+        cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
+                 "'0x%x'), some device properties will be "
                  "incorrect.",
-                 name);
+                 name, vendorID, deviceID);
     }
 
     RETURN(cvk_device_properties);
