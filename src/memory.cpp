@@ -203,6 +203,8 @@ bool cvk_sampler::init() {
         unnormalized_coordinates = VK_FALSE;
     } else {
         unnormalized_coordinates = VK_TRUE;
+        // VUID-01073: unnormalized coords must use nearest mipmap filtering.
+        mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     }
 
     // TODO this is a rough first pass, dig into the details
