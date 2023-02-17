@@ -81,9 +81,10 @@ jobs:
         run: |
           mkdir ndk
           cd ndk
-          wget https://dl.google.com/android/repository/android-ndk-r22-linux-x86_64.zip
-          unzip android-ndk-r22-linux-x86_64.zip
-          rm android-ndk-r22-linux-x86_64.zip
+          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip android-ndk-r25c-linux.zip
+          rm android-ndk-r25c-linux.zip
+          ls -l
       - name: Select build directory
         shell: bash
         run: |
@@ -102,7 +103,7 @@ jobs:
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r22/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }}" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }}" >> $GITHUB_ENV
       - name: Configure
         shell: bash
         run: |
