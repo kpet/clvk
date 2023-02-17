@@ -161,10 +161,11 @@ elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
   set(BUILD_WSI_XCB_SUPPORT OFF CACHE BOOL "Vulkan loader WSI XCB support")
   set(BUILD_WSI_XLIB_SUPPORT OFF CACHE BOOL "Vulkan loader WSI Xlib support")
   set(BUILD_WSI_WAYLAND_SUPPORT OFF CACHE BOOL "Vulkan loader WSI Wayland support")
+  set(USE_GAS OFF)
   add_subdirectory(${CLVK_VULKAN_LOADER_DIR} EXCLUDE_FROM_ALL)
   set_property(DIRECTORY ${CLVK_VULKAN_LOADER_DIR}/loader APPEND PROPERTY
       COMPILE_DEFINITIONS USE_UNSAFE_FILE_SEARCH)
-  set_target_properties(asm_offset PROPERTIES C_STANDARD 11)
+  #set_target_properties(asm_offset PROPERTIES C_STANDARD 11)
   set(Vulkan_LIBRARIES vulkan)
   if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
     set(SWIFTSHADER_WARNINGS_AS_ERRORS OFF)
