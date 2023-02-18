@@ -218,7 +218,7 @@
       "intmath_long": "pass",
       "intmath_long2": "pass",
       "intmath_long4": "pass",
-      "kernel_call_kernel_function": "fail",
+      "kernel_call_kernel_function": "pass",
       "kernel_limit_constants": "pass",
       "kernel_memory_alignment_constant": "fail",
       "kernel_memory_alignment_global": "fail",
@@ -1655,7 +1655,7 @@
       "step_var": "pass",
       "vec_align_array": "fail",
       "vec_align_packed_struct": "pass",
-      "vec_align_packed_struct_arr": "fail",
+      "vec_align_packed_struct_arr": "pass",
       "vec_align_struct": "fail",
       "vec_align_struct_arr": "fail"
     },
@@ -1702,6 +1702,9 @@
       "interleaved_enqueue": "skip",
       "mixed_commands": "skip",
       "out_of_order": "skip",
+      "properties_queue_substitution": "skip",
+      "queue_substitution": "skip",
+      "simultaneous_queue_substitution": "skip",
       "single_ndrange": "skip",
       "user_events": "skip"
     },

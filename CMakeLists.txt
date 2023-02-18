@@ -153,20 +153,19 @@ if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL system)
   find_package(Vulkan)
 elseif (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
         ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
-  set(Vulkan_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/include/)
   if (NOT CLVK_VULKAN_LOADER_DIR)
     message(FATAL_ERROR "CLVK_VULKAN_LOADER_DIR must be provided with
     CLVK_VULKAN_IMPLEMENTATION=(loader|switftshader)")
   endif ()
-  set(VulkanHeaders_INCLUDE_DIR ${Vulkan_INCLUDE_DIRS})
-  set(VulkanRegistry_DIR
-      ${PROJECT_SOURCE_DIR}/external/Vulkan-Headers/registry)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/external/Vulkan-Headers EXCLUDE_FROM_ALL)
   set(BUILD_WSI_XCB_SUPPORT OFF CACHE BOOL "Vulkan loader WSI XCB support")
   set(BUILD_WSI_XLIB_SUPPORT OFF CACHE BOOL "Vulkan loader WSI Xlib support")
   set(BUILD_WSI_WAYLAND_SUPPORT OFF CACHE BOOL "Vulkan loader WSI Wayland support")
+  set(USE_GAS OFF CACHE BOOL "Use GAS")
   add_subdirectory(${CLVK_VULKAN_LOADER_DIR} EXCLUDE_FROM_ALL)
   set_property(DIRECTORY ${CLVK_VULKAN_LOADER_DIR}/loader APPEND PROPERTY
       COMPILE_DEFINITIONS USE_UNSAFE_FILE_SEARCH)
+  set_target_properties(vulkan PROPERTIES C_STANDARD 11)
   set(Vulkan_LIBRARIES vulkan)
   if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
     set(SWIFTSHADER_WARNINGS_AS_ERRORS OFF)

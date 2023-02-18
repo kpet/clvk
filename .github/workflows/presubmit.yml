@@ -81,9 +81,10 @@ jobs:
         run: |
           mkdir ndk
           cd ndk
-          wget https://dl.google.com/android/repository/android-ndk-r22-linux-x86_64.zip
-          unzip android-ndk-r22-linux-x86_64.zip
-          rm android-ndk-r22-linux-x86_64.zip
+          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
+          unzip android-ndk-r25c-linux.zip
+          rm android-ndk-r25c-linux.zip
+          ls -l
       - name: Select build directory
         shell: bash
         run: |
@@ -96,13 +97,13 @@ jobs:
       - name: Fetch LLVM
         run: python ./external/clspv/utils/fetch_sources.py --shallow --deps llvm
       - name: Fetch Vulkan Loader
-        run: git clone --depth 1 -b v1.2.169 https://github.com/KhronosGroup/Vulkan-Loader.git
+        run: git clone --depth 1 -b v1.3.240 https://github.com/KhronosGroup/Vulkan-Loader.git
       - name: Setup MSVC with Ninja
         uses: ilammy/msvc-dev-cmd@v1
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r22/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }}" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }}" >> $GITHUB_ENV
       - name: Configure
         shell: bash
         run: |
@@ -208,6 +209,6 @@ jobs:
       - name: Offline LLVM-IR compilation simple tests
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
         run: |
-          ${{ env.builddir }}/clspv${{ env.exe-ext }} --output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
+          ${{ env.builddir }}/clspv${{ env.exe-ext }} -enable-opaque-pointers=0 -output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary_static${{ env.exe-ext }}

@@ -29,7 +29,7 @@ macro(add_gtest_executable name)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
   include_directories(${Vulkan_INCLUDE_DIRS})
 
-  target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
+  target_link_libraries(${name} OpenCL Vulkan-Headers llvm_gtest llvm_gtest_main)
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()
