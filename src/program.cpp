@@ -1062,8 +1062,6 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         }
 
         cmd_spv += " -r ";
-        cmd_spv +=
-            " -opaque-pointers=0 "; // FIXME(#380) Re-enable when clspv is ready
         cmd_spv += " -o ";
         cmd_spv += clspv_input_file;
         cmd_spv += " ";
@@ -1206,13 +1204,11 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
             static std::mutex llvmspirv_compile_mutex;
             std::lock_guard<std::mutex> llvmspirv_compile_lock(
                 llvmspirv_compile_mutex);
-            int llvmArgc = 2;
-            const char* llvmArgv[2];
-            llvmArgv[0] = "llvm-spirv(online)";
-            llvmArgv[1] = "-opaque-pointers=0"; // FIXME(#380) Re-enable when
-                                                // clspv is ready
+            std::vector<const char*> llvmArgv{
+                "llvm-spirv(online)",
+            };
             llvm::cl::ResetAllOptionOccurrences();
-            llvm::cl::ParseCommandLineOptions(llvmArgc, llvmArgv);
+            llvm::cl::ParseCommandLineOptions(llvmArgv.size(), llvmArgv.data());
             if (!llvm::readSpirv(llvm_context, translator_opts, m_il_stream,
                                  llvm_module, err)) {
                 cvk_error_fn("Fails to load SPIR-V as LLVM Module: %s",

@@ -201,14 +201,13 @@ jobs:
       - name: Offline IL compilation simple tests
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
         run: |
-          # FIXME(#380) Re-enable opaque pointers when the translator is ready
-          ${{ env.builddir }}/external/clspv/third_party/llvm/bin/clang${{ env.exe-ext }} -Xclang -no-opaque-pointers -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
-          ${{ env.builddir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv --opaque-pointers=0
+          ${{ env.builddir }}/external/clspv/third_party/llvm/bin/clang${{ env.exe-ext }} -Xclang -finclude-default-header -c -target spir -O0 -emit-llvm -o simple-cl.bc ./tests/simple-from-il-binary/simple.cl
+          ${{ env.builddir }}/llvm-spirv${{ env.exe-ext }} simple-cl.bc -o simple-cl.spv
           ${{ env.testbindir }}/simple_test_from_il_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_il_binary_static${{ env.exe-ext }}
       - name: Offline LLVM-IR compilation simple tests
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
         run: |
-          ${{ env.builddir }}/clspv${{ env.exe-ext }} -enable-opaque-pointers=0 -output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
+          ${{ env.builddir }}/clspv${{ env.exe-ext }} -output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary_static${{ env.exe-ext }}
