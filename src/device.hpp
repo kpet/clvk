@@ -512,9 +512,7 @@ struct cvk_device : public _cl_device_id,
         return m_device_compiler_options;
     }
 
-    const cvk_vulkan_extension_functions& vkfns() const {
-        return m_vkfns;
-    }
+    const cvk_vulkan_extension_functions& vkfns() const { return m_vkfns; }
 
 private:
     std::string version_desc() const {
