@@ -33,6 +33,7 @@
 
 struct cvk_vulkan_extension_functions {
     PFN_vkGetCalibratedTimestampsEXT vkGetCalibratedTimestampsEXT;
+    PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
 };
 
 #define MAKE_NAME_VERSION(major, minor, patch, name)                           \
@@ -511,6 +512,10 @@ struct cvk_device : public _cl_device_id,
         return m_device_compiler_options;
     }
 
+    const cvk_vulkan_extension_functions& vkfns() const {
+        return m_vkfns;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -525,6 +530,7 @@ private:
     void init_vulkan_properties(VkInstance instance);
     void init_driver_behaviors();
     void init_features(VkInstance instance);
+    void init_command_pointers(VkInstance instance);
     void init_compiler_options();
     void build_extension_ils_list();
     CHECK_RETURN bool create_vulkan_queues_and_device(uint32_t num_queues,

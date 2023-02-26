@@ -370,6 +370,18 @@ void cvk_device::init_features(VkInstance instance) {
     m_features.pNext = pNext;
 }
 
+void cvk_device::init_command_pointers(VkInstance instance) {
+    // Buffer device address
+    if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0)) {
+        m_vkfns.vkGetBufferDeviceAddressKHR =
+            GET_INSTANCE_PROC(instance, vkGetBufferDeviceAddress);
+    } else if (is_vulkan_extension_enabled(
+                   VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)) {
+        m_vkfns.vkGetBufferDeviceAddressKHR =
+            GET_INSTANCE_PROC(instance, vkGetBufferDeviceAddressKHR);
+    }
+}
+
 void cvk_device::init_compiler_options() {
     m_device_compiler_options = "";
 
@@ -903,6 +915,8 @@ bool cvk_device::init(VkInstance instance) {
     init_driver_behaviors();
 
     init_features(instance);
+
+    init_command_pointers(instance);
 
     build_extension_ils_list();
 

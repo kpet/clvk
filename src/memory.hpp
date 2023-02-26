@@ -390,8 +390,9 @@ struct cvk_buffer : public cvk_mem {
         info.buffer = vulkan_buffer();
         info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
         info.pNext = NULL;
-        auto device_address = vkGetBufferDeviceAddress(
-            context()->device()->vulkan_device(), &info);
+        auto device = context()->device();
+        auto vkdev = device->vulkan_device();
+        auto device_address = device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info);
         return device_address + vulkan_buffer_offset();
     }
 
