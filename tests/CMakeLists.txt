@@ -20,6 +20,11 @@ set(CLVK_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/..)
 set(CLVK_BUILD_STATIC_TESTS ON CACHE BOOL
     "Set to OFF to disable the build of tests with static OpenCL library")
 
+if (CMAKE_VERSION VERSION_LESS "3.21")
+    # https://cmake.org/cmake/help/latest/variable/PROJECT_IS_TOP_LEVEL.html
+    string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
+endif()
+
 macro(add_gtest_executable name)
   add_executable(${name} ${ARGN})
   # Use the gtest copy that comes with clspv's version of LLVM
@@ -29,7 +34,13 @@ macro(add_gtest_executable name)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
   include_directories(${Vulkan_INCLUDE_DIRS})
 
-  target_link_libraries(${name} OpenCL Vulkan-Headers llvm_gtest llvm_gtest_main)
+  target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
+  if (NOT PROJECT_IS_TOP_LEVEL)
+    if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
+        ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+      target_link_libraries(${name} Vulkan-Headers)
+    endif()
+  endif()
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()
