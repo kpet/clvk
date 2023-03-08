@@ -145,6 +145,8 @@ spv_result_t parse_reflection(void* user_data,
             return pushconstant::image_metadata;
         case NonSemanticClspvReflectionImageArgumentInfoChannelDataTypePushConstant:
             return pushconstant::image_metadata;
+        case NonSemanticClspvReflectionConstantDataPointerPushConstant:
+            return pushconstant::module_constants_pointer;
         default:
             cvk_error_fn("Unhandled reflection instruction for push constant");
             break;
@@ -406,7 +408,8 @@ spv_result_t parse_reflection(void* user_data,
                                                                  z);
                 break;
             }
-            case NonSemanticClspvReflectionConstantDataStorageBuffer: {
+            case NonSemanticClspvReflectionConstantDataStorageBuffer:
+            case NonSemanticClspvReflectionConstantDataPointerPushConstant: {
 
                 auto char2int = [](char c) {
                     if (c >= '0' && c <= '9')
@@ -426,17 +429,29 @@ spv_result_t parse_reflection(void* user_data,
                 };
 
                 auto data = parse_data->strings[inst->words[7]];
-                constant_data_buffer_info binfo;
-                binfo.set = parse_data->constants[inst->words[5]];
-                binfo.binding = parse_data->constants[inst->words[6]];
                 if (data.size() & 1) {
                     cvk_error_fn("invalid constant data buffer string (odd "
                                  "number of digits)");
                     return SPV_ERROR_INVALID_DATA;
                 }
+                constant_data_buffer_info binfo;
                 auto data_size = data.size() / 2;
                 binfo.data.resize(data_size);
                 hex2bin(data.c_str(), binfo.data.data());
+                if (ext_inst ==
+                    NonSemanticClspvReflectionConstantDataStorageBuffer) {
+                    binfo.type = constant_data_buffer_type::storage_buffer;
+                    binfo.set = parse_data->constants[inst->words[5]];
+                    binfo.binding = parse_data->constants[inst->words[6]];
+
+                } else {
+                    binfo.type =
+                        constant_data_buffer_type::pointer_push_constant;
+                    binfo.pc_offset = parse_data->constants[inst->words[5]];
+                    parse_data->binary->add_push_constant(
+                        pushconstant::module_constants_pointer,
+                        {binfo.pc_offset, 8u});
+                }
                 parse_data->binary->set_constant_data_buffer(binfo);
                 break;
             }
@@ -1567,6 +1582,11 @@ bool cvk_entry_point::
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
     if (m_program->module_constant_data_buffer() != nullptr) {
         auto info = m_program->module_constant_data_buffer_info();
+        // If the program scope buffer isn't passed as a storage buffer (i.e.
+        // it is passed a pointer push constant), there is nothing to bind here
+        if (info->type != constant_data_buffer_type::storage_buffer) {
+            return true;
+        }
         VkDescriptorSetLayoutBinding binding = {
             info->binding,                     // binding
             VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType

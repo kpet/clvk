@@ -123,6 +123,7 @@ enum class pushconstant
     num_workgroups,
     region_group_offset,
     image_metadata,
+    module_constants_pointer,
 };
 
 struct pushconstant_desc {
@@ -142,9 +143,17 @@ enum class spec_constant
     subgroup_max_size,
 };
 
+enum class constant_data_buffer_type
+{
+    storage_buffer,
+    pointer_push_constant,
+};
+
 struct constant_data_buffer_info {
+    constant_data_buffer_type type;
     uint32_t set;
     uint32_t binding;
+    uint32_t pc_offset;
     std::vector<char> data;
 };
 
