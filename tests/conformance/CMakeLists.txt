@@ -17,6 +17,9 @@ set(CLConform_LIBRARIES -lOpenCL)
 set(CL_LIBCLCXX_DIR dummy)
 set(CL_INCLUDE_DIR ${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
 set(CL_LIB_DIR ${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-ICD-Loader/build)
+set(VULKAN_IS_SUPPORTED ON)
+set(GL_IS_SUPPORTED ON)
+set(GLES_IS_SUPPORTED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/conformance)
 add_subdirectory(${CLVK_PROJECT_SOURCE_DIR}/external/OpenCL-CTS
