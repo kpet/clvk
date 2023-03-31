@@ -52,6 +52,7 @@ add_library(OpenCL-objects OBJECT
   memory.cpp
   program.cpp
   queue.cpp
+  semaphore.cpp
   sha1.cpp
   tracing.cpp
   unit.cpp
