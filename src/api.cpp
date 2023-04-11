@@ -634,7 +634,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_GLOBAL_MEM_SIZE:
-        val_ulong = device->memory_size();
+        val_ulong = device->global_memory_size();
         copy_ptr = &val_ulong;
         size_ret = sizeof(val_ulong);
         break;
