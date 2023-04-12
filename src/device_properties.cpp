@@ -81,6 +81,21 @@ struct cvk_device_properties_samsung_xclipse_920
     }
 };
 
+struct cvk_device_properties_swiftshader : public cvk_device_properties {
+    const std::vector<std::string> get_native_builtins() const override final {
+        return std::vector<std::string>({"fma"});
+    }
+};
+
+static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
+                                const uint32_t deviceID) {
+    const uint32_t SwiftshaderDeviceID = 0xc0de;
+    const uint32_t SwiftshaderVendorID = 0x1ae0;
+    return (vendorID == SwiftshaderVendorID &&
+            deviceID == SwiftshaderDeviceID) ||
+           strncmp(name, "SwiftShader Device", 18);
+}
+
 #define RETURN(x)                                                              \
     cvk_info_fn(#x);                                                           \
     return std::make_unique<x>();
@@ -123,6 +138,8 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
         RETURN(cvk_device_properties_amd);
     } else if (strcmp(name, "Samsung Xclipse 920") == 0) {
         RETURN(cvk_device_properties_samsung_xclipse_920);
+    } else if (isSwiftShaderDevice(name, vendorID, deviceID)) {
+        RETURN(cvk_device_properties_swiftshader);
     } else {
         cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
                  "'0x%x'), some device properties will be "
