@@ -5765,7 +5765,7 @@ cl_semaphore_khr cvk_create_semaphore_with_properties_khr(
         return nullptr;
     }
 
-    if ((sema_props == nullptr)) {
+    if (sema_props == nullptr) {
         *errcode_ret = CL_INVALID_VALUE;
         return nullptr;
     }
