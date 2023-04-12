@@ -83,7 +83,20 @@ struct cvk_device_properties_samsung_xclipse_920
 
 struct cvk_device_properties_swiftshader : public cvk_device_properties {
     const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({"fma"});
+        return std::vector<std::string>({
+            "asin",          "asinpi",     "atan",
+            "atanpi",        "ceil",       "copysign",
+            "fabs",          "fdim",       "floor",
+            "fma",           "fmax",       "fmin",
+            "fmod",          "half_rsqrt", "half_sqrt",
+            "isequal",       "isgreater",  "isgreaterequal",
+            "isinf",         "isless",     "islessequal",
+            "islessgreater", "isnan",      "isnormal",
+            "isnotequal",    "isordered",  "isunordered",
+            "mad",           "rint",       "round",
+            "rsqrt",         "signbit",    "sqrt",
+            "trunc",
+        });
     }
 };
 
@@ -93,7 +106,30 @@ static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
     const uint32_t SwiftshaderVendorID = 0x1ae0;
     return (vendorID == SwiftshaderVendorID &&
             deviceID == SwiftshaderDeviceID) ||
-           strncmp(name, "SwiftShader Device", 18);
+           strncmp(name, "SwiftShader Device", 18) == 0;
+}
+
+struct cvk_device_properties_nvidia : public cvk_device_properties {
+    const std::vector<std::string> get_native_builtins() const override final {
+        return std::vector<std::string>({
+            "acos",        "acosh",          "acospi",      "asin",
+            "asinh",       "asinpi",         "atan",        "atan2",
+            "atan2pi",     "atanh",          "atanpi",      "ceil",
+            "copysign",    "fabs",           "fdim",        "floor",
+            "fma",         "fmax",           "fmin",        "frexp",
+            "half_rsqrt",  "half_sqrt",      "isequal",     "isfinite",
+            "isgreater",   "isgreaterequal", "isinf",       "isless",
+            "islessequal", "islessgreater",  "isnan",       "isnormal",
+            "isnotequal",  "isordered",      "isunordered", "ldexp",
+            "mad",         "rint",           "round",       "rsqrt",
+            "signbit",     "sqrt",           "tanh",        "trunc",
+        });
+    }
+};
+
+static bool isNVIDIADevice(const uint32_t vendorID) {
+    const uint32_t NVIDIAVendorID = 0x10de;
+    return vendorID == NVIDIAVendorID;
 }
 
 #define RETURN(x)                                                              \
@@ -140,6 +176,8 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
         RETURN(cvk_device_properties_samsung_xclipse_920);
     } else if (isSwiftShaderDevice(name, vendorID, deviceID)) {
         RETURN(cvk_device_properties_swiftshader);
+    } else if (isNVIDIADevice(vendorID)) {
+        RETURN(cvk_device_properties_nvidia);
     } else {
         cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
                  "'0x%x'), some device properties will be "
