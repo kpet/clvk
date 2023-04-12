@@ -60,7 +60,7 @@ jobs:
           df -h
           sudo apt-get remove -y '^dotnet-.*'
           sudo apt-get remove -y '^temurin-.*'
-          sudo apt-get remove -y azure-cli google-cloud-sdk microsoft-edge-stable hhvm google-chrome-stable firefox
+          sudo apt-get remove -y azure-cli google-cloud-sdk microsoft-edge-stable google-chrome-stable firefox
           sudo apt-get autoremove -y
           sudo apt-get clean
           sudo rm -rf /usr/share/dotnet/
