@@ -109,6 +109,7 @@ TESTS_IMAGES_SLOW = (
 TESTS_EXTENSIONS = (
     ('cl_ext_cxx_for_opencl', 'test_cl_ext_cxx_for_opencl'),
     ('cl_khr_command_buffer', 'test_cl_khr_command_buffer'),
+    ('cl_khr_semaphore', 'test_cl_khr_semaphore'),
     ('External memory and synchronisation', 'test_vulkan'),
 )
 
