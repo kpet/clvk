@@ -1386,10 +1386,12 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 
     // Check that each required capability is supported by the device.
     for (auto c : capabilities) {
-        cvk_info_fn("Program requires SPIR-V capability %d.", c);
+        cvk_info_fn("Program requires SPIR-V capability %d (%s).", c,
+                    spirv_capability_to_string(c));
         if (!device->supports_capability(c)) {
             // TODO: propagate this message to the build log
-            cvk_error_fn("Device does not support SPIR-V capability %d.", c);
+            cvk_error_fn("Device does not support SPIR-V capability %d (%s).",
+                         c, spirv_capability_to_string(c));
             return false;
         }
     }
