@@ -8,7 +8,7 @@ on:
 jobs:
   format:
     name: Code formatting check
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Install packages
         run: sudo apt-get install -y clang-format
@@ -25,15 +25,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macos-latest, windows-2019]
+        os: [ubuntu-22.04, macos-latest, windows-2019]
         online-compiler: [true, false]
         compiler-available: [true]
         android: ['']
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             online-compiler: false
             compiler-available: false
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             online-compiler: true
             compiler-available: true
             android-abi: arm64-v8a
@@ -41,7 +41,7 @@ jobs:
           - os: windows-2019
             online-compiler: true
             unit: true
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             online-compiler: false
             unit: true
           - os: macos-latest
