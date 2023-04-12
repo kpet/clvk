@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <spirv/unified1/spirv.hpp>
 #include <string>
 
 #include "cl_headers.hpp"
