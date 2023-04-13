@@ -54,6 +54,20 @@ struct cvk_device_properties_adreno_640 : public cvk_device_properties {
 struct cvk_device_properties_intel : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
+    const std::vector<std::string> get_native_builtins() const override final {
+        return std::vector<std::string>({
+            "ceil",           "copysign",    "exp2",      "fabs",
+            "floor",          "fma",         "fmax",      "fmin",
+            "half_exp",       "half_exp10",  "half_exp2", "half_log",
+            "half_log10",     "half_log2",   "half_powr", "half_rsqrt",
+            "half_sqrt",      "isequal",     "isfinite",  "isgreater",
+            "isgreaterequal", "isinf",       "isless",    "islessequal",
+            "islessgreater",  "isnan",       "isnormal",  "isnotequal",
+            "isordered",      "isunordered", "mad",       "rint",
+            "round",          "rsqrt",       "signbit",   "sqrt",
+            "trunc",
+        });
+    }
     std::string get_compile_options() const override final {
         return "-hack-mul-extended";
     }
@@ -67,6 +81,21 @@ static bool isIntelDevice(const char* name, const uint32_t vendorID) {
 struct cvk_device_properties_amd : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
+    const std::vector<std::string> get_native_builtins() const override final {
+        return std::vector<std::string>({
+            "ceil",        "copysign",       "exp2",        "fabs",
+            "fdim",        "floor",          "fmax",        "fmin",
+            "frexp",       "half_exp",       "half_exp10",  "half_exp2",
+            "half_log",    "half_log10",     "half_log2",   "half_powr",
+            "half_rsqrt",  "half_sqrt",      "isequal",     "isfinite",
+            "isgreater",   "isgreaterequal", "isinf",       "isless",
+            "islessequal", "islessgreater",  "isnan",       "isnormal",
+            "isnotequal",  "isordered",      "isunordered", "ldexp",
+            "log",         "log10",          "log2",        "mad",
+            "rint",        "round",          "rsqrt",       "signbit",
+            "sqrt",        "trunc",
+        });
+    }
 };
 
 static bool isAMDDevice(const char* name, const uint32_t vendorID) {
