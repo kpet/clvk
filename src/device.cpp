@@ -443,12 +443,33 @@ void cvk_device::init_compiler_options() {
     }
 
     // Builtin options
-    auto native_builtins = m_clvk_properties->get_native_builtins();
-    if (!native_builtins.empty()) {
-        std::string builtin_list = "";
-        for (const auto& builtin : native_builtins) {
-            builtin_list += builtin + ",";
+    auto parse_builtins = [](std::string s) {
+        std::set<std::string> builtins;
+        size_t pos = 0;
+        size_t comma = s.find(',', pos);
+        while (comma != std::string::npos) {
+            builtins.insert(s.substr(pos, comma - pos));
+            pos = comma + 1;
+            comma = s.find(',', pos);
         }
+        builtins.insert(s.substr(pos));
+        return builtins;
+    };
+    auto clspv_library_builtins =
+        parse_builtins(config.clspv_library_builtins());
+    auto native_builtins = m_clvk_properties->get_native_builtins();
+    auto clspv_native_builtins = parse_builtins(config.clspv_native_builtins());
+    native_builtins.insert(clspv_native_builtins.begin(),
+                           clspv_native_builtins.end());
+
+    std::string builtin_list = "";
+    for (const auto& builtin : native_builtins) {
+        if (clspv_library_builtins.count(builtin) > 0) {
+            continue;
+        }
+        builtin_list += builtin + ",";
+    }
+    if (builtin_list != "") {
         m_device_compiler_options +=
             " --use-native-builtins=" + builtin_list + " ";
     }

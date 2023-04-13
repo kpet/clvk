@@ -261,6 +261,12 @@ variables. Here's a quick guide:
 
 * `CLVK_CLSPV_OPTIONS` to provide additional options to pass to clspv
 
+* `CLVK_CLSPV_NATIVE_BUILTINS` comma separated list of builtins that will use
+  the native implementation by default
+
+* `CLVK_CLSPV_LIBRARY_BUILTINS` comma separated list of builtins that will be
+  forced to use the libclc implementation
+
 * `CLVK_QUEUE_PROFILING_USE_TIMESTAMP_QUERIES` to use timestamp queries to
   measure the `CL_PROFILING_COMMAND_{START,END}` profiling infos on devices
   that do not support `VK_EXT_calibrated_timestamps`.
