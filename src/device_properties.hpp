@@ -15,8 +15,8 @@
 #pragma once
 
 #include <memory>
+#include <set>
 #include <string>
-#include <vector>
 
 #include "cl_headers.hpp"
 #include "config.hpp"
@@ -40,8 +40,8 @@ struct cvk_device_properties {
 
     virtual std::string get_compile_options() const { return ""; }
 
-    virtual const std::vector<std::string> get_native_builtins() const {
-        return std::vector<std::string>();
+    virtual const std::set<std::string> get_native_builtins() const {
+        return std::set<std::string>();
     }
 
     virtual ~cvk_device_properties() {}

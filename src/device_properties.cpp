@@ -54,8 +54,8 @@ struct cvk_device_properties_adreno_640 : public cvk_device_properties {
 struct cvk_device_properties_intel : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
-    const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({
             "ceil",           "copysign",    "exp2",      "fabs",
             "floor",          "fma",         "fmax",      "fmin",
             "half_exp",       "half_exp10",  "half_exp2", "half_log",
@@ -81,8 +81,8 @@ static bool isIntelDevice(const char* name, const uint32_t vendorID) {
 struct cvk_device_properties_amd : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
-    const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({
             "ceil",        "copysign",       "exp2",        "fabs",
             "fdim",        "floor",          "fmax",        "fmin",
             "frexp",       "half_exp",       "half_exp10",  "half_exp2",
@@ -105,14 +105,14 @@ static bool isAMDDevice(const char* name, const uint32_t vendorID) {
 
 struct cvk_device_properties_samsung_xclipse_920
     : public cvk_device_properties {
-    const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({"fma"});
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({"fma"});
     }
 };
 
 struct cvk_device_properties_swiftshader : public cvk_device_properties {
-    const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({
             "asin",          "asinpi",     "atan",
             "atanpi",        "ceil",       "copysign",
             "fabs",          "fdim",       "floor",
@@ -139,8 +139,8 @@ static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
 }
 
 struct cvk_device_properties_nvidia : public cvk_device_properties {
-    const std::vector<std::string> get_native_builtins() const override final {
-        return std::vector<std::string>({
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({
             "acos",        "acosh",          "acospi",      "asin",
             "asinh",       "asinpi",         "atan",        "atan2",
             "atan2pi",     "atanh",          "atanpi",      "ceil",
