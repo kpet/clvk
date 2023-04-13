@@ -56,12 +56,12 @@ jobs:
       - name: Free space on runner
         if: ${{ matrix.android-abi != '' }}
         run: |
+          set +x
           dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
           df -h
           sudo apt-get remove -y '^dotnet-.*'
           sudo apt-get remove -y '^temurin-.*'
           sudo apt-get remove -y azure-cli google-cloud-sdk microsoft-edge-stable google-chrome-stable firefox
-          sudo apt-get autoremove -y
           sudo apt-get clean
           sudo rm -rf /usr/share/dotnet/
           sudo rm -rf /usr/local/share/powershell
