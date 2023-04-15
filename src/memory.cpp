@@ -237,6 +237,7 @@ bool cvk_sampler::init() {
 VkFormatFeatureFlags
 cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
                                              cl_mem_flags flags) {
+    UNUSED(type); // TODO will be required for 1D buffer images
     // All images require TRANSFER_SRC, TRANSFER_DST
     //  read-only: SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
     //  write-only: STORAGE_IMAGE

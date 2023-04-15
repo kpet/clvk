@@ -434,7 +434,7 @@ spv_result_t parse_reflection(void* user_data,
                                  "number of digits)");
                     return SPV_ERROR_INVALID_DATA;
                 }
-                constant_data_buffer_info binfo;
+                constant_data_buffer_info binfo{};
                 auto data_size = data.size() / 2;
                 binfo.data.resize(data_size);
                 hex2bin(data.c_str(), binfo.data.data());
