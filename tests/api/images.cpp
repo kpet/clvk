@@ -286,11 +286,11 @@ TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent) {
                                      region, &row_pitch, nullptr);
 
     // Check the pattern isn't visible
-    bool success = true;
+    bool success = false;
     for (cl_uint i = 0; i < IMAGE_HEIGHT * IMAGE_WIDTH; ++i) {
         auto val = data[i];
-        if (val == fill_value) {
-            success = false;
+        if (val != fill_value) {
+            success = true;
             break;
         }
     }
