@@ -251,6 +251,14 @@ TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent) {
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
 
+    const cl_uchar fill_value = 0x42;
+    cl_uchar host_data[IMAGE_WIDTH * IMAGE_HEIGHT];
+    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
+        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
+            host_data[row * IMAGE_HEIGHT + pix] = fill_value;
+        }
+    }
+
     cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE2D, // image_type
@@ -264,32 +272,13 @@ TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent) {
         0,                     // num_samples
         nullptr,               // buffer
     };
-    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+    auto image = CreateImage(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &format,
+                             &desc, host_data);
 
-    // Init content
     size_t origin[3] = {0, 0, 0};
     size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
-    const cl_uchar fill_value = 0x42;
+    cl_uchar* data;
     size_t row_pitch;
-    auto data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
-                                          CL_MAP_WRITE_INVALIDATE_REGION,
-                                          origin, region, &row_pitch, nullptr);
-    size_t row_pitch_pixels = row_pitch / sizeof(int8_t);
-
-    for (auto row = 0u; row < IMAGE_HEIGHT; row++) {
-        for (auto pix = 0u; pix < IMAGE_WIDTH; pix++) {
-            data[row * row_pitch_pixels + pix] = fill_value;
-        }
-    }
-
-    EnqueueUnmapMemObject(image, data);
-    Finish();
-
-    // Create a buffer of the size of the image to make it less likely that the
-    // mapping buffer of the next image map command gets the same region of
-    // memory occupied by the mapping buffer of the previous image map.
-    auto buffer =
-        CreateBuffer(CL_MEM_READ_WRITE, IMAGE_HEIGHT * IMAGE_WIDTH, nullptr);
 
     // Map with CL_MAP_WRITE_INVALIDATE_REGION
     data = EnqueueMapImage<cl_uchar>(image, CL_BLOCKING,
@@ -302,6 +291,7 @@ TEST_F(WithCommandQueue, ImageWriteInvalidateMappingDoesntCopyImageContent) {
         auto val = data[i];
         if (val != fill_value) {
             success = true;
+            break;
         }
     }
     EXPECT_TRUE(success);
