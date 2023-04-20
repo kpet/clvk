@@ -781,8 +781,12 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
     case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
-    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
         val_bool = CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
+    case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
+        val_bool = CL_TRUE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
         break;
