@@ -600,6 +600,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_images"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_read_write_images"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_3d_image_writes"),
+        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_generic_address_space"),
     };
     if (supports_atomic_order_acq_rel()) {
         m_opencl_c_features.push_back(

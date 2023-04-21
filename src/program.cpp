@@ -863,8 +863,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         // FIXME The 1.2 conformance tests shouldn't pass this option.
         //       It doesn't exist after OpenCL 1.0.
         {"-cl-strict-aliasing", ""},
-        // clspv require entrypoint inlining for OpenCL 2.0
+        // clspv require entrypoint inlining for OpenCL 2.0 and OpenCL 3.0 (for
+        // generic addrspace for example).
         {"-cl-std=CL2.0", "-cl-std=CL2.0 -inline-entry-points"},
+        {"-cl-std=CL3.0", "-cl-std=CL3.0 -inline-entry-points"},
         {"-create-library", ""},
     };
 
