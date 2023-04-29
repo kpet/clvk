@@ -786,7 +786,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_bool);
         break;
     case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
-        val_bool = CL_TRUE;
+        val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
         break;
