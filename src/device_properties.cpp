@@ -106,7 +106,25 @@ static bool isAMDDevice(const char* name, const uint32_t vendorID) {
 struct cvk_device_properties_samsung_xclipse_920
     : public cvk_device_properties {
     const std::set<std::string> get_native_builtins() const override final {
-        return std::set<std::string>({"fma"});
+        return std::set<std::string>({
+            "acos",             "acospi",           "asin",             "asinpi",
+            "atan",             "atanpi",           "ceil",             "copysign",
+            "cos",              "cosh",             "cospi",            "erfc",
+            "erf",              "exp",              "exp2",             "exp10",
+            "expm1",            "fabs",             "fdim",             "floor",
+            "fma",              "fmax",             "fmin",             "frexp",
+            "half_cos",         "half_exp",         "half_exp2",        "half_exp10",
+            "half_log",         "half_log2",        "half_log10",       "half_powr",
+            "half_rsqrt",       "half_sin",         "half_sqrt",        "isequal",
+            "isfinite",         "isgreater",        "isgreaterequal",   "isinf",
+            "isless",           "islessequal",      "islessgreater",    "isnan",
+            "isnormal",         "isnotequal",       "isordered",        "isunordered",
+            "ldexp",            "log",              "log10",            "log1p",
+            "log2",             "mad",              "pow",              "pown",
+            "powr",             "rint",             "round",            "rsqrt",
+            "sin",              "sincos",           "sinh",             "sinpi",
+            "sqrt",             "tan",
+            });
     }
 };
 
