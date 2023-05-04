@@ -1,6 +1,6 @@
 {
   "API": {
-    "duration": "00:00:13.748563",
+    "duration": "00:00:24.412746",
     "has_results": true,
     "results": {
       "binary_create": "pass",
@@ -57,7 +57,7 @@
       "load_two_kernels_manually": "pass",
       "mem_object_destructor_callback": "pass",
       "min_data_type_align_size_alignment": "pass",
-      "min_image_formats": "fail",
+      "min_image_formats": "pass",
       "min_max_address_bits": "pass",
       "min_max_compute_units": "pass",
       "min_max_constant_args": "pass",
@@ -88,7 +88,6 @@
       "native_kernel": "pass",
       "negative_get_platform_ids": "pass",
       "negative_get_platform_info": "pass",
-      "null_buffer_arg": "fail",
       "pipe_properties_queries": "skip",
       "platform_extensions": "pass",
       "queue_flush_on_release": "pass",
@@ -111,8 +110,34 @@
     },
     "retcode": 1
   },
+  "Allocations (single maximum)": {
+    "duration": "00:03:21.607114",
+    "has_results": true,
+    "results": {
+      "buffer": "pass",
+      "buffer_non_blocking": "pass",
+      "image2d_read": "pass",
+      "image2d_read_non_blocking": "pass",
+      "image2d_write": "pass",
+      "image2d_write_non_blocking": "pass"
+    },
+    "retcode": 0
+  },
+  "Allocations (total maximum)": {
+    "duration": "00:02:29.039358",
+    "has_results": true,
+    "results": {
+      "buffer": "pass",
+      "buffer_non_blocking": "pass",
+      "image2d_read": "pass",
+      "image2d_read_non_blocking": "pass",
+      "image2d_write": "pass",
+      "image2d_write_non_blocking": "pass"
+    },
+    "retcode": 0
+  },
   "Atomics": {
-    "duration": "00:00:08.425153",
+    "duration": "00:00:07.375129",
     "has_results": true,
     "results": {
       "atomic_add": "pass",
@@ -132,7 +157,7 @@
     "retcode": 0
   },
   "Basic": {
-    "duration": "00:03:14.456946",
+    "duration": "00:04:28.858000",
     "has_results": true,
     "results": {
       "arraycopy": "pass",
@@ -256,7 +281,7 @@
     "retcode": 1
   },
   "Buffers": {
-    "duration": "00:04:57.149131",
+    "duration": "00:02:07.196884",
     "has_results": true,
     "results": {
       "array_info_size": "pass",
@@ -356,7 +381,7 @@
     "retcode": 0
   },
   "C11 Atomics": {
-    "duration": "00:10:37.197696",
+    "duration": "00:08:19.550870",
     "has_results": true,
     "results": {
       "atomic_compare_exchange_strong": "pass",
@@ -397,7 +422,7 @@
     "retcode": 1
   },
   "Common Functions": {
-    "duration": "00:00:03.905201",
+    "duration": "00:00:06.799956",
     "has_results": true,
     "results": {
       "clamp": "pass",
@@ -421,7 +446,7 @@
     "retcode": 0
   },
   "Compiler": {
-    "duration": "00:00:29.147781",
+    "duration": "00:00:49.433832",
     "has_results": true,
     "results": {
       "async_build": "pass",
@@ -437,7 +462,7 @@
       "execute_after_simple_compile_and_link_with_defines": "pass",
       "execute_after_simple_library_with_link": "pass",
       "execute_after_two_file_link": "pass",
-      "features_macro": "pass",
+      "features_macro": "skip",
       "get_program_build_info": "pass",
       "get_program_info": "pass",
       "get_program_source": "pass",
@@ -491,10 +516,10 @@
       "unload_repeated": "pass",
       "unload_valid": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Compute Info": {
-    "duration": "00:00:00.275205",
+    "duration": "00:00:00.200104",
     "has_results": true,
     "results": {
       "computeinfo": "pass",
@@ -506,7 +531,7 @@
     "retcode": 1
   },
   "Contractions": {
-    "duration": "00:00:00.769400",
+    "duration": "00:00:01.368195",
     "has_results": true,
     "results": {
       "contractions_double_0": "pass",
@@ -529,7 +554,7 @@
     "retcode": 0
   },
   "Conversions": {
-    "duration": "00:01:35.273005",
+    "duration": "02:23:20.067205",
     "has_results": true,
     "results": {
       "conversions": "pass"
@@ -537,7 +562,7 @@
     "retcode": 0
   },
   "Device Partitioning": {
-    "duration": "00:00:00.284207",
+    "duration": "00:00:00.175449",
     "has_results": true,
     "results": {
       "partition_all": "pass",
@@ -553,7 +578,7 @@
     "retcode": 0
   },
   "Device execution": {
-    "duration": "00:00:00.191662",
+    "duration": "00:00:00.200283",
     "has_results": true,
     "results": {
       "device_info": "skip",
@@ -572,7 +597,7 @@
     "retcode": 0
   },
   "Device timer": {
-    "duration": "00:00:05.210056",
+    "duration": "00:00:05.179883",
     "has_results": true,
     "results": {
       "device_and_host_timers": "pass",
@@ -581,7 +606,7 @@
     "retcode": 0
   },
   "Events": {
-    "duration": "00:00:05.890379",
+    "duration": "00:00:04.608295",
     "has_results": true,
     "results": {
       "callbacks": "pass",
@@ -616,13 +641,13 @@
     "retcode": 0
   },
   "External memory and synchronisation": {
-    "duration": "00:00:00.235188",
+    "duration": "00:00:00.222424",
     "has_results": false,
     "results": {},
     "retcode": 0
   },
   "Generic Address Space": {
-    "duration": "00:00:00.181068",
+    "duration": "00:00:00.191847",
     "has_results": true,
     "results": {
       "builtin_functions": "skip",
@@ -650,7 +675,7 @@
     "retcode": 0
   },
   "Geometric Functions": {
-    "duration": "00:00:02.991922",
+    "duration": "00:00:03.623875",
     "has_results": true,
     "results": {
       "geom_cross": "pass",
@@ -665,7 +690,7 @@
     "retcode": 0
   },
   "Half Ops": {
-    "duration": "00:00:01.135629",
+    "duration": "00:18:05.342387",
     "has_results": true,
     "results": {
       "roundTrip": "fail",
@@ -685,7 +710,7 @@
     "retcode": 1
   },
   "Images (API Info)": {
-    "duration": "00:00:02.604261",
+    "duration": "00:03:17.410005",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -697,7 +722,7 @@
     "retcode": 0
   },
   "Images (Kernel Methods)": {
-    "duration": "00:01:36.355387",
+    "duration": "00:01:49.628544",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -709,43 +734,79 @@
     "retcode": 0
   },
   "Images (Kernel max size)": {
-    "duration": "00:07:46.762297",
+    "duration": "00:20:04.434337",
     "has_results": true,
     "results": {
-      "1D": "skip",
-      "1Darray": "skip",
-      "2D": "skip",
-      "2Darray": "skip",
-      "3D": "skip"
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass",
+      "clGetImageRequirementsInfoEXT_negative": "skip",
+      "cl_image_requirements_max_val_ext_negative": "skip",
+      "cl_image_requirements_max_val_ext_positive": "skip",
+      "cl_image_requirements_size_ext_consistency": "skip",
+      "cl_image_requirements_size_ext_negative": "skip",
+      "image2d_from_buffer_positive": "skip",
+      "imageInfo_image_from_buffer_positive": "skip",
+      "image_from_buffer_alignment_negative": "skip",
+      "image_from_buffer_fill_positive": "skip",
+      "image_from_buffer_read_positive": "skip",
+      "image_from_small_buffer_negative": "skip",
+      "memInfo_image_from_buffer_positive": "skip"
     },
     "retcode": 0
   },
   "Images (Kernel pitch)": {
-    "duration": "00:29:00.826391",
+    "duration": "00:15:57.791238",
     "has_results": true,
     "results": {
-      "1D": "skip",
-      "1Darray": "skip",
-      "2D": "skip",
-      "2Darray": "skip",
-      "3D": "skip"
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass",
+      "clGetImageRequirementsInfoEXT_negative": "skip",
+      "cl_image_requirements_max_val_ext_negative": "skip",
+      "cl_image_requirements_max_val_ext_positive": "skip",
+      "cl_image_requirements_size_ext_consistency": "skip",
+      "cl_image_requirements_size_ext_negative": "skip",
+      "image2d_from_buffer_positive": "skip",
+      "imageInfo_image_from_buffer_positive": "skip",
+      "image_from_buffer_alignment_negative": "skip",
+      "image_from_buffer_fill_positive": "skip",
+      "image_from_buffer_read_positive": "skip",
+      "image_from_small_buffer_negative": "skip",
+      "memInfo_image_from_buffer_positive": "skip"
     },
     "retcode": 0
   },
   "Images (Kernel)": {
-    "duration": "00:33:11.574345",
+    "duration": "00:17:32.387783",
     "has_results": true,
     "results": {
-      "1D": "skip",
-      "1Darray": "skip",
-      "2D": "skip",
-      "2Darray": "skip",
-      "3D": "skip"
+      "1D": "pass",
+      "1Darray": "pass",
+      "2D": "pass",
+      "2Darray": "pass",
+      "3D": "pass",
+      "clGetImageRequirementsInfoEXT_negative": "skip",
+      "cl_image_requirements_max_val_ext_negative": "skip",
+      "cl_image_requirements_max_val_ext_positive": "skip",
+      "cl_image_requirements_size_ext_consistency": "skip",
+      "cl_image_requirements_size_ext_negative": "skip",
+      "image2d_from_buffer_positive": "skip",
+      "imageInfo_image_from_buffer_positive": "skip",
+      "image_from_buffer_alignment_negative": "skip",
+      "image_from_buffer_fill_positive": "skip",
+      "image_from_buffer_read_positive": "skip",
+      "image_from_small_buffer_negative": "skip",
+      "memInfo_image_from_buffer_positive": "skip"
     },
     "retcode": 0
   },
   "Images (Samplerless max size)": {
-    "duration": "00:01:02.518806",
+    "duration": "00:00:15.514909",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -758,7 +819,7 @@
     "retcode": 1
   },
   "Images (Samplerless pitch)": {
-    "duration": "00:01:02.701511",
+    "duration": "00:00:35.054047",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -771,7 +832,7 @@
     "retcode": 1
   },
   "Images (Samplerless)": {
-    "duration": "00:01:01.585071",
+    "duration": "00:00:35.113778",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -784,7 +845,7 @@
     "retcode": 1
   },
   "Images (clCopyImage max size)": {
-    "duration": "00:02:24.078141",
+    "duration": "00:01:54.384830",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -802,7 +863,7 @@
     "retcode": 0
   },
   "Images (clCopyImage small)": {
-    "duration": "00:32:01.551202",
+    "duration": "00:29:31.102719",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -820,7 +881,7 @@
     "retcode": 0
   },
   "Images (clCopyImage)": {
-    "duration": "00:02:00.759141",
+    "duration": "00:07:27.876749",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -838,7 +899,7 @@
     "retcode": 0
   },
   "Images (clFillImage max size)": {
-    "duration": "00:01:04.034316",
+    "duration": "00:00:57.207119",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -850,7 +911,7 @@
     "retcode": 0
   },
   "Images (clFillImage pitch)": {
-    "duration": "00:06:55.362949",
+    "duration": "00:03:38.244550",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -862,7 +923,7 @@
     "retcode": 0
   },
   "Images (clFillImage)": {
-    "duration": "00:00:38.539826",
+    "duration": "00:02:09.278174",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -874,7 +935,7 @@
     "retcode": 0
   },
   "Images (clReadWriteImage max size)": {
-    "duration": "00:00:09.440613",
+    "duration": "00:00:12.654172",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -886,7 +947,7 @@
     "retcode": 0
   },
   "Images (clReadWriteImage pitch)": {
-    "duration": "00:00:05.117396",
+    "duration": "00:00:55.051692",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -898,7 +959,7 @@
     "retcode": 0
   },
   "Images (clReadWriteImage)": {
-    "duration": "00:00:04.934609",
+    "duration": "00:00:49.722630",
     "has_results": true,
     "results": {
       "1D": "pass",
@@ -910,9 +971,17 @@
     "retcode": 0
   },
   "Integer Ops": {
-    "duration": "00:02:19.408158",
+    "duration": "01:06:57.035913",
     "has_results": true,
     "results": {
+      "char_compare": "pass",
+      "char_logic": "pass",
+      "char_math": "pass",
+      "char_shift": "pass",
+      "int_compare": "pass",
+      "int_logic": "pass",
+      "int_math": "pass",
+      "int_shift": "pass",
       "integer_abs": "pass",
       "integer_abs_diff": "pass",
       "integer_addAssign": "pass",
@@ -940,6 +1009,10 @@
       "integer_sub_sat": "pass",
       "integer_subtractAssign": "pass",
       "integer_upsample": "pass",
+      "long_compare": "pass",
+      "long_logic": "pass",
+      "long_math": "pass",
+      "long_shift": "pass",
       "popcount": "pass",
       "quick_char_compare": "pass",
       "quick_char_logic": "pass",
@@ -973,15 +1046,35 @@
       "quick_ushort_logic": "pass",
       "quick_ushort_math": "pass",
       "quick_ushort_shift": "pass",
+      "short_compare": "pass",
+      "short_logic": "pass",
+      "short_math": "pass",
+      "short_shift": "pass",
+      "uchar_compare": "pass",
+      "uchar_logic": "pass",
+      "uchar_math": "pass",
+      "uchar_shift": "pass",
+      "uint_compare": "pass",
+      "uint_logic": "pass",
+      "uint_math": "pass",
+      "uint_shift": "pass",
+      "ulong_compare": "pass",
+      "ulong_logic": "pass",
+      "ulong_math": "pass",
+      "ulong_shift": "pass",
       "unary_ops_decrement": "pass",
       "unary_ops_full": "pass",
       "unary_ops_increment": "pass",
+      "ushort_compare": "pass",
+      "ushort_logic": "pass",
+      "ushort_math": "pass",
+      "ushort_shift": "pass",
       "vector_scalar": "pass"
     },
     "retcode": 0
   },
   "Math": {
-    "duration": "00:00:24.783542",
+    "duration": "05:10:30.650432",
     "has_results": true,
     "results": {
       "acos": "pass",
@@ -1049,7 +1142,7 @@
       "isunordered": "pass",
       "ldexp": "pass",
       "lgamma": "pass",
-      "lgamma_r": "pass",
+      "lgamma_r": "fail",
       "log": "pass",
       "log10": "pass",
       "log1p": "pass",
@@ -1071,10 +1164,10 @@
       "rint": "pass",
       "rootn": "pass",
       "round": "pass",
-      "rsqrt": "pass",
+      "rsqrt": "fail",
       "signbit": "pass",
       "sin": "pass",
-      "sincos": "pass",
+      "sincos": "fail",
       "sinh": "pass",
       "sinpi": "pass",
       "sqrt": "pass",
@@ -1085,10 +1178,10 @@
       "tanpi": "pass",
       "trunc": "pass"
     },
-    "retcode": 0
+    "retcode": 1
   },
   "Mem (Host Flags)": {
-    "duration": "00:00:00.282679",
+    "duration": "00:00:00.316824",
     "has_results": true,
     "results": {
       "mem_host_no_access_buffer": "pass",
@@ -1104,7 +1197,7 @@
     "retcode": 0
   },
   "Multiple Device/Context": {
-    "duration": "00:01:45.208176",
+    "duration": "00:01:41.190116",
     "has_results": true,
     "results": {
       "context_four_contexts_same_device": "pass",
@@ -1118,7 +1211,7 @@
     "retcode": 0
   },
   "Non-uniform work-group": {
-    "duration": "00:00:15.975344",
+    "duration": "00:00:11.407827",
     "has_results": true,
     "results": {
       "non_uniform_1d_atomics": "pass",
@@ -1137,7 +1230,7 @@
     "retcode": 0
   },
   "Pipes": {
-    "duration": "00:00:00.185328",
+    "duration": "00:00:00.181791",
     "has_results": true,
     "results": {
       "pipe_convenience_readwrite_char": "skip",
@@ -1199,7 +1292,7 @@
     "retcode": 0
   },
   "Printf": {
-    "duration": "00:00:04.402451",
+    "duration": "00:00:03.223141",
     "has_results": true,
     "results": {
       "address_space_0": "fail",
@@ -1278,7 +1371,7 @@
     "retcode": 1
   },
   "Profiling": {
-    "duration": "00:00:06.993772",
+    "duration": "00:00:08.219648",
     "has_results": true,
     "results": {
       "copy_array": "pass",
@@ -1316,7 +1409,7 @@
     "retcode": 0
   },
   "Relationals": {
-    "duration": "00:00:06.345003",
+    "duration": "00:05:07.667514",
     "has_results": true,
     "results": {
       "relational_all": "pass",
@@ -1340,13 +1433,13 @@
     "retcode": 0
   },
   "SPIR": {
-    "duration": "00:00:00.324724",
+    "duration": "00:00:00.196574",
     "has_results": false,
     "results": {},
     "retcode": 0
   },
   "SPIR-V": {
-    "duration": "00:00:10.376979",
+    "duration": "00:00:16.196633",
     "has_results": true,
     "results": {
       "decorate_aliased": "pass",
@@ -1546,7 +1639,7 @@
       "op_undef_ushort_simple": "pass",
       "op_unreachable_simple": "pass",
       "op_vector_char16_extract": "pass",
-      "op_vector_char16_insert": "pass",
+      "op_vector_char16_insert": "fail",
       "op_vector_double2_extract": "pass",
       "op_vector_double2_insert": "pass",
       "op_vector_float4_extract": "pass",
@@ -1561,7 +1654,7 @@
     "retcode": 1
   },
   "SVM": {
-    "duration": "00:00:00.188871",
+    "duration": "00:00:00.189630",
     "has_results": true,
     "results": {
       "svm_allocate_shared_buffer": "skip",
@@ -1582,7 +1675,7 @@
     "retcode": 0
   },
   "Select": {
-    "duration": "00:00:16.451812",
+    "duration": "00:54:57.804799",
     "has_results": true,
     "results": {
       "select_char_char": "pass",
@@ -1609,7 +1702,7 @@
     "retcode": 0
   },
   "Subgroups": {
-    "duration": "00:00:00.212465",
+    "duration": "00:00:04.792448",
     "has_results": true,
     "results": {
       "barrier_functions_core": "pass",
@@ -1634,20 +1727,20 @@
     "retcode": 0
   },
   "Thread Dimensions": {
-    "duration": "00:00:37.552855",
+    "duration": "00:07:46.651760",
     "has_results": true,
     "results": {
-      "quick_1d_explicit_local": "pass",
-      "quick_1d_implicit_local": "pass",
-      "quick_2d_explicit_local": "pass",
-      "quick_2d_implicit_local": "pass",
-      "quick_3d_explicit_local": "pass",
-      "quick_3d_implicit_local": "pass"
+      "full_1d_explicit_local": "pass",
+      "full_1d_implicit_local": "pass",
+      "full_2d_explicit_local": "pass",
+      "full_2d_implicit_local": "pass",
+      "full_3d_explicit_local": "pass",
+      "full_3d_implicit_local": "pass"
     },
     "retcode": 0
   },
   "Vectors": {
-    "duration": "00:01:16.326353",
+    "duration": "00:05:21.440035",
     "has_results": true,
     "results": {
       "step_type": "pass",
@@ -1663,7 +1756,7 @@
     "retcode": 1
   },
   "Workgroups": {
-    "duration": "00:00:00.195785",
+    "duration": "00:00:00.177244",
     "has_results": true,
     "results": {
       "work_group_all": "skip",
@@ -1687,7 +1780,7 @@
     "retcode": 0
   },
   "cl_ext_cxx_for_opencl": {
-    "duration": "00:00:00.219438",
+    "duration": "00:00:00.185788",
     "has_results": true,
     "results": {
       "cxx_for_opencl_ext": "skip",
@@ -1696,7 +1789,7 @@
     "retcode": 0
   },
   "cl_khr_command_buffer": {
-    "duration": "00:00:00.191704",
+    "duration": "00:00:00.192582",
     "has_results": true,
     "results": {
       "barrier_wait_list": "skip",
@@ -1741,12 +1834,12 @@
       "user_event_callback": "skip",
       "user_event_wait": "skip",
       "user_events_wait": "skip",
-      "wait_for_sec_queue_event": "skip"
+      "wait_for_sec_queue_event": "pass"
     },
     "retcode": 0
   },
   "cl_khr_semaphore": {
-    "duration": "00:00:00.185980",
+    "duration": "00:00:00.186443",
     "has_results": true,
     "results": {
       "semaphores_cross_queues_io": "skip",
