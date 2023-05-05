@@ -73,6 +73,11 @@ It is possible to disable the build of the tests by passing
 It is also possible to disable only the build of the tests linking with the
 static OpenCL library by passing `-DCLVK_BUILD_STATIC_TESTS=OFF`.
 
+By default, tests needing `gtest` are linked with the libraries coming from
+llvm (through clspv).
+It is possible to use other libraries by passing
+`-DCLVK_GTEST_LIBRARIES=<lib1>;<lib2>` (semicolumn separated list).
+
 ### Assertions
 
 Assertions can be controlled with the `CLVK_ENABLE_ASSERTIONS` build option.
