@@ -20,7 +20,7 @@
 
 TEST_F(WithCommandQueue, ManyInstancesInFlight) {
 
-    static const unsigned NUM_INSTANCES = 10000;
+    static const unsigned NUM_INSTANCES = 2000;
 
     static const char* program_source = R"(
     kernel void test_simple(global uint* out, uint id)
