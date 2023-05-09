@@ -257,7 +257,7 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 
     if (queues_to_flush.size() == 1) {
         for (auto q : queues_to_flush) {
-            auto status = q->execute_cmds_dominated_by(num_events, event_list);
+            auto status = q->execute_cmds_required_by(num_events, event_list);
             if (status != CL_SUCCESS)
                 return status;
         }
@@ -274,11 +274,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     return ret;
 }
 
-static cl_int execute_cmds(std::deque<cvk_command*>& cmds) {
+cl_int cvk_command_group::execute_cmds() {
     TRACE_FUNCTION();
     cl_int global_status = CL_SUCCESS;
-    while (!cmds.empty()) {
-        cvk_command* cmd = cmds.front();
+    while (!commands.empty()) {
+        cvk_command* cmd = commands.front();
         cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
 
         cl_int status = cmd->execute();
@@ -286,14 +286,14 @@ static cl_int execute_cmds(std::deque<cvk_command*>& cmds) {
             global_status = status;
         cvk_debug_fn("command returned %d", status);
 
-        cmds.pop_front();
+        commands.pop_front();
 
         delete cmd;
     }
     return global_status;
 }
 
-cl_int cvk_command_queue::execute_cmds_dominated_by_no_lock(
+cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
     cl_uint num_events, _cl_event* const* event_list) {
     auto* exec = m_executor;
     if (exec == nullptr) {
@@ -301,28 +301,29 @@ cl_int cvk_command_queue::execute_cmds_dominated_by_no_lock(
     }
 
     m_lock.unlock();
-    auto cmds = exec->extract_cmds_dominated_by(false, num_events, event_list);
-    auto ret = execute_cmds(cmds);
+    auto cmds = exec->extract_cmds_required_by(false, num_events, event_list);
+    auto ret = cmds.execute_cmds();
     m_lock.lock();
 
     return ret;
 }
 
 cl_int
-cvk_command_queue::execute_cmds_dominated_by(cl_uint num_events,
+cvk_command_queue::execute_cmds_required_by(cl_uint num_events,
                                              _cl_event* const* event_list) {
     std::unique_lock<std::mutex> lock(m_lock);
-    return execute_cmds_dominated_by_no_lock(num_events, event_list);
+    return execute_cmds_required_by_no_lock(num_events, event_list);
 }
 
-std::deque<cvk_command*>
-cvk_executor_thread::extract_cmds_dominated_by(bool only_non_batch_cmds,
-                                               cl_uint num_events,
-                                               _cl_event* const* event_list) {
+cvk_command_group
+cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
+                                              cl_uint num_events,
+                                              _cl_event* const* event_list) {
     std::lock_guard<std::mutex> lock(m_lock);
-    std::deque<cvk_command*> output_cmds;
+    cvk_command_group output;
+    std::deque<cvk_command*>& output_cmds = output.commands;
     if (m_groups.empty()) {
-        return output_cmds;
+        return output;
     }
 
     cvk_command_queue_holder queue = m_groups.back()->commands.front()->queue();
@@ -359,7 +360,7 @@ cvk_executor_thread::extract_cmds_dominated_by(bool only_non_batch_cmds,
         m_groups.push_back(std::move(executor_cmds));
         queue->group_sent();
     }
-    return output_cmds;
+    return output;
 }
 
 void cvk_executor_thread::executor() {
@@ -389,7 +390,7 @@ void cvk_executor_thread::executor() {
         CVK_ASSERT(group->commands.size() > 0);
         cvk_command_queue_holder queue = group->commands.front()->queue();
 
-        execute_cmds(group->commands);
+        group->execute_cmds();
 
         queue->group_completed();
 
@@ -436,7 +437,7 @@ cl_int cvk_command_queue::flush_no_lock() {
 
     auto ev = group->commands.back()->event();
     m_finish_event.reset(ev);
-    cvk_debug_fn("stored event %p", ev);
+    cvk_debug_fn("set finish event to %p", ev);
 
     // Submit command group to executor
     m_executor->send_group(std::move(group));
@@ -460,7 +461,7 @@ cl_int cvk_command_queue::finish() {
 
     if (m_finish_event != nullptr) {
         _cl_event* evt_list = (_cl_event*)&*m_finish_event;
-        execute_cmds_dominated_by_no_lock(1, &evt_list);
+        execute_cmds_required_by_no_lock(1, &evt_list);
         m_finish_event->wait();
     }
 

@@ -31,6 +31,7 @@ using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 struct cvk_command_group {
     std::deque<cvk_command*> commands;
+    cl_int execute_cmds();
 };
 
 struct cvk_executor_thread {
@@ -68,9 +69,9 @@ struct cvk_executor_thread {
         }
     }
 
-    std::deque<cvk_command*>
-    extract_cmds_dominated_by(bool only_non_batch_cmds, cl_uint num_events,
-                              _cl_event* const* event_list);
+    cvk_command_group extract_cmds_required_by(bool only_non_batch_cmds,
+                                               cl_uint num_events,
+                                               _cl_event* const* event_list);
 
 private:
     void executor();
@@ -200,9 +201,9 @@ struct cvk_command_queue : public _cl_command_queue,
         TRACE_CNT(group_in_flight_counter, group - 1);
     }
 
-    cl_int execute_cmds_dominated_by(cl_uint num_events,
+    cl_int execute_cmds_required_by(cl_uint num_events,
                                      _cl_event* const* event_list);
-    cl_int execute_cmds_dominated_by_no_lock(cl_uint num_events,
+    cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                              _cl_event* const* event_list);
 
 private:
