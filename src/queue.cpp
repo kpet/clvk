@@ -310,7 +310,7 @@ cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
 
 cl_int
 cvk_command_queue::execute_cmds_required_by(cl_uint num_events,
-                                             _cl_event* const* event_list) {
+                                            _cl_event* const* event_list) {
     std::unique_lock<std::mutex> lock(m_lock);
     return execute_cmds_required_by_no_lock(num_events, event_list);
 }
