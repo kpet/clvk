@@ -60,12 +60,14 @@ TEST_F(WithCommandQueue, InOrderQueueStopsExecutionAfterFailedCommand) {
     cl_int err;
     std::vector<cl_event> dependencies = {uevent};
     clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
-                       0, BUFFER_SIZE, dependencies.size(), dependencies.data(), nullptr, &err);
+                       0, BUFFER_SIZE, dependencies.size(), dependencies.data(),
+                       nullptr, &err);
 
     // Check the enqueue fails
     ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
 
-    // Enqueue another command with no dependencies to the same queue. The queue is in-order
+    // Enqueue another command with no dependencies to the same queue. The queue
+    // is in-order
     cl_event mapev;
     clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
                        0, BUFFER_SIZE, 0, nullptr, &mapev, &err);
