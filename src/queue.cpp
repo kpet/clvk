@@ -114,6 +114,20 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
     return CL_SUCCESS;
 }
 
+void cvk_command_queue::enqueue_command(cvk_command* cmd) {
+    TRACE_FUNCTION("queue", (uintptr_t)this, "cmd", (uintptr_t)cmd);
+    // clvk only supports inorder queues at the moment.
+    // But as the commands can be executed by 2 threads (1 executor and the main
+    // thread), we need to explicit the dependency to ensure it will be
+    // respected.
+    if (!m_groups.back()->commands.empty()) {
+        cmd->add_dependency(m_groups.back()->commands.back()->event());
+    } else if (m_finish_event != nullptr) {
+        cmd->add_dependency(m_finish_event);
+    }
+    m_groups.back()->commands.push_back(cmd);
+}
+
 cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
     cl_int err;
@@ -162,7 +176,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
             }
         }
 
-        m_groups.back()->commands.push_back(cmd);
+        enqueue_command(cmd);
     }
 
     cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
@@ -225,7 +239,7 @@ cl_int cvk_command_queue::end_current_command_batch() {
         if (!m_command_batch->end()) {
             return CL_OUT_OF_RESOURCES;
         }
-        m_groups.back()->commands.push_back(m_command_batch);
+        enqueue_command(m_command_batch);
         m_command_batch = nullptr;
 
         batch_enqueued();

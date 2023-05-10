@@ -208,6 +208,7 @@ struct cvk_command_queue : public _cl_command_queue,
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
+    void enqueue_command(cvk_command *cmd);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
     CHECK_RETURN cl_int end_current_command_batch();
     void executor();
