@@ -212,6 +212,28 @@ TEST_F(WithCommandQueue, ModuleScopeConstantData) {
     EXPECT_EQ(result[5], 0);
 }
 
+// clspv uses separate descriptor sets for
+// 0. Literal samplers
+// 1. Kernel arguments
+// 2. Module constants
+// Check that we support creating a kernel that uses all 3.
+TEST_F(WithContext, UseAllDescriptorSets) {
+    static const char* source = R"(
+    __constant uint ppp[2][3] = {{1,2,3}, {5}};
+
+    void kernel k(global uint* output, uint off) {
+        sampler_t smp = CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
+        output[0] = ppp[0+off][0];
+        output[1] = ppp[0+off][1];
+        output[2] = ppp[0+off][2];
+        output[3] = ppp[1+off][0];
+        output[4] = ppp[1+off][1];
+        output[5] = ppp[1+off][2];
+    }
+    )";
+    auto kernel = CreateKernel(source, "k");
+}
+
 TEST_F(WithCommandQueue, ProgramBinaryCompile) {
     static const char* source = R"(
       kernel void test(global uint *output) {

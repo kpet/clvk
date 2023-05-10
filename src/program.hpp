@@ -249,7 +249,7 @@ public:
     }
     CHECK_RETURN bool
     get_capabilities(std::vector<spv::Capability>& capabilities) const;
-    static constexpr uint32_t MAX_DESCRIPTOR_SETS = 2;
+    static constexpr uint32_t MAX_DESCRIPTOR_SETS = 3;
 
     const std::unordered_map<pushconstant, pushconstant_desc>&
     push_constants() const {
@@ -416,7 +416,7 @@ public:
     cvk_program* program() const { return m_program; }
 
 private:
-    const uint32_t MAX_INSTANCES = 16 * 1024; // FIXME find a better definition
+    const uint32_t MAX_INSTANCES = 2 * 1024; // FIXME find a better definition
 
     VkDevice m_device;
     cvk_context* m_context;

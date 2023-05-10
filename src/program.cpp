@@ -442,6 +442,8 @@ spv_result_t parse_reflection(void* user_data,
                     NonSemanticClspvReflectionConstantDataStorageBuffer) {
                     binfo.type = constant_data_buffer_type::storage_buffer;
                     binfo.set = parse_data->constants[inst->words[5]];
+                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                        return SPV_ERROR_INVALID_DATA;
                     binfo.binding = parse_data->constants[inst->words[6]];
 
                 } else {
