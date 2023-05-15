@@ -89,6 +89,9 @@ Passing `-DCLVK_BUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
 [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS).
 This is _not expected to work out-of-the box_ at the moment.
 
+It is also possible to build GL and GLES interroperability tests by passing
+`-DCLVK_BUILD_CONFORMANCE_TESTS_GL_GLES_SUPPORTED=ON`.
+
 ### Clspv compilation
 
 You can select the compilation style that clvk will use with Clspv via
