@@ -63,12 +63,14 @@ struct refcounted {
 
     void retain() {
         unsigned int refcount = m_refcount.fetch_add(1);
-        cvk_debug_fn("obj = %p, refcount now %u", this, refcount + 1);
+        cvk_debug_group_fn(loggroup::refcounting, "obj = %p, refcount now %u",
+                           this, refcount + 1);
     }
 
     void release() {
         unsigned int refcount = m_refcount.fetch_sub(1);
-        cvk_debug_fn("obj = %p, refcount now %u", this, refcount - 1);
+        cvk_debug_group_fn(loggroup::refcounting, "obj = %p, refcount now %u",
+                           this, refcount - 1);
 
         if (refcount == 1) {
             delete this;

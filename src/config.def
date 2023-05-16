@@ -12,21 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//
+// Compiler
+//
 OPTION(std::string, cache_dir, "")
 OPTION(std::string, compiler_temp_dir, "")
-OPTION(uint32_t, max_cmd_batch_size, 10000u)
-OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
-OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
-OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
 OPTION(bool, skip_spirv_capability_check, false)
-OPTION(bool, validation_layers, false)
-OPTION(bool, queue_profiling_use_timestamp_queries, false)
 OPTION(bool, keep_temporaries, false)
-OPTION(uint32_t, log, 0u)
-OPTION(bool, log_colour, false)
-OPTION(std::string, log_dest, "")
-OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
-OPTION(uint32_t, spirv_validation, 2u)
 OPTION(std::string, spirv_arch, "spir")
 OPTION(bool, physical_addressing, false)
 OPTION(std::string, clspv_native_builtins, "")
@@ -39,6 +31,34 @@ OPTION(std::string, clspv_path, DEFAULT_CLSPV_BINARY_PATH)
 OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif // !CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
+
+//
+// Command execution
+//
+OPTION(uint32_t, max_cmd_batch_size, 10000u)
+OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
+OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
+OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
+
+//
+// Logging
+//
+OPTION(uint32_t, log, 0u)
+OPTION(bool, log_colour, false)
+OPTION(std::string, log_dest, "")
+OPTION(std::string, log_groups, "")
+
+//
+// Debug
+//
+OPTION(bool, validation_layers, false)
+OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
+OPTION(uint32_t, spirv_validation, 2u)
+
+//
+// Instrumentation
+//
+OPTION(bool, queue_profiling_use_timestamp_queries, false)
 
 #if CLVK_PERFETTO_BACKEND_INPROCESS
 OPTION(uint32_t, perfetto_trace_max_size, 1024u)

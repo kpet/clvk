@@ -35,7 +35,9 @@ cvk_event::cvk_event(cvk_context* ctx, cvk_command* cmd,
 }
 
 void cvk_event::set_status(cl_int status) {
-    cvk_debug("cvk_event::set_status: event = %p, status = %d", this, status);
+    cvk_debug_group(loggroup::event,
+                    "cvk_event::set_status: event = %p, status = %d", this,
+                    status);
     std::lock_guard<std::mutex> lock(m_lock);
 
     CVK_ASSERT(status < m_status);

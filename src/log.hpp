@@ -29,6 +29,15 @@ enum loglevel
     debug = 4
 };
 
+enum loggroup
+{
+    refcounting = (1ULL << 0),
+    api = (1ULL << 1),
+    event = (1ULL << 2),
+    none = (1ULL << 63),
+    all = ~0ULL
+};
+
 #ifndef _MSC_VER
 #define CHECK_PRINTF(index, first) __attribute__((format(printf, index, first)))
 #else
@@ -37,20 +46,49 @@ enum loglevel
 
 void init_logging();
 void term_logging();
-void cvk_log(loglevel level, const char* fmt, ...) CHECK_PRINTF(2, 3);
+void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...)
+    CHECK_PRINTF(3, 4);
 bool cvk_log_level_enabled(loglevel level);
+bool cvk_log_group_enabled(uint64_t group_mask);
 
-#define cvk_fatal(fmt, ...) cvk_log(loglevel::fatal, fmt "\n", ##__VA_ARGS__)
-#define cvk_error(fmt, ...) cvk_log(loglevel::error, fmt "\n", ##__VA_ARGS__)
-#define cvk_warn(fmt, ...) cvk_log(loglevel::warn, fmt "\n", ##__VA_ARGS__)
-#define cvk_info(fmt, ...) cvk_log(loglevel::info, fmt "\n", ##__VA_ARGS__)
-#define cvk_debug(fmt, ...) cvk_log(loglevel::debug, fmt "\n", ##__VA_ARGS__)
+#define cvk_fatal(fmt, ...)                                                    \
+    cvk_log(loggroup::none, loglevel::fatal, fmt "\n", ##__VA_ARGS__)
+#define cvk_error(fmt, ...)                                                    \
+    cvk_log(loggroup::none, loglevel::error, fmt "\n", ##__VA_ARGS__)
+#define cvk_warn(fmt, ...)                                                     \
+    cvk_log(loggroup::none, loglevel::warn, fmt "\n", ##__VA_ARGS__)
+#define cvk_info(fmt, ...)                                                     \
+    cvk_log(loggroup::none, loglevel::info, fmt "\n", ##__VA_ARGS__)
+#define cvk_debug(fmt, ...)                                                    \
+    cvk_log(loggroup::none, loglevel::debug, fmt "\n", ##__VA_ARGS__)
 
 #define cvk_fatal_fn(fmt, ...) cvk_fatal("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_error_fn(fmt, ...) cvk_error("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_warn_fn(fmt, ...) cvk_warn("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_info_fn(fmt, ...) cvk_info("%s: " fmt, __func__, ##__VA_ARGS__)
 #define cvk_debug_fn(fmt, ...) cvk_debug("%s: " fmt, __func__, ##__VA_ARGS__)
+
+#define cvk_fatal_group(mask, fmt, ...)                                        \
+    cvk_log(mask, loglevel::fatal, fmt "\n", ##__VA_ARGS__)
+#define cvk_error_group(mask, fmt, ...)                                        \
+    cvk_log(mask, loglevel::error, fmt "\n", ##__VA_ARGS__)
+#define cvk_warn_group(mask, fmt, ...)                                         \
+    cvk_log(mask, loglevel::warn, fmt "\n", ##__VA_ARGS__)
+#define cvk_info_group(mask, fmt, ...)                                         \
+    cvk_log(mask, loglevel::info, fmt "\n", ##__VA_ARGS__)
+#define cvk_debug_group(mask, fmt, ...)                                        \
+    cvk_log(mask, loglevel::debug, fmt "\n", ##__VA_ARGS__)
+
+#define cvk_fatal_group_fn(mask, fmt, ...)                                     \
+    cvk_fatalgroup(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
+#define cvk_error_group_fn(mask, fmt, ...)                                     \
+    cvk_error_group(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
+#define cvk_warn_group_fn(mask, fmt, ...)                                      \
+    cvk_warn_group(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
+#define cvk_info_group_fn(mask, fmt, ...)                                      \
+    cvk_info_group(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
+#define cvk_debug_group_fn(mask, fmt, ...)                                     \
+    cvk_debug_group(mask, "%s: " fmt, __func__, ##__VA_ARGS__)
 
 const char* vulkan_error_string(VkResult result);
 std::string pretty_size(uint64_t size);

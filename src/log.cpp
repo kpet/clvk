@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <string>
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -35,8 +36,55 @@
         return #X;
 
 static int gLoggingLevel;
+static uint64_t gLoggingGroupMask;
 static bool gLoggingColour;
 static FILE* gLoggingFile;
+
+static uint64_t init_logging_groups() {
+    uint64_t mask = loggroup::all;
+
+    static std::unordered_map<std::string, loggroup> groups{
+        {"refcounting", loggroup::refcounting},
+        {"api", loggroup::api},
+        {"event", loggroup::event},
+        {"none", loggroup::none},
+        {"all", loggroup::all},
+    };
+
+    if (config.log_groups.set) {
+        std::stringstream sstr(config.log_groups());
+        bool first_group_enable_seen = false;
+        while (sstr.good()) {
+            std::string group_endis;
+            getline(sstr, group_endis, ',');
+            bool is_disable = false;
+            if (group_endis.rfind("-", 0) == 0) {
+                group_endis.erase(0, 1);
+                is_disable = true;
+            }
+            loggroup group;
+            if (groups.count(group_endis) != 0) {
+                group = groups.at(group_endis);
+            } else {
+                fprintf(stderr, "FATAL: Unknown log group '%s'.\n",
+                        group_endis.c_str());
+                exit(EXIT_FAILURE);
+            }
+
+            if (is_disable) {
+                mask &= ~group;
+            } else {
+                if (!first_group_enable_seen) {
+                    mask = 0;
+                    first_group_enable_seen = true;
+                }
+                mask |= group;
+            }
+        }
+    }
+
+    return mask;
+}
 
 void init_logging() {
     loglevel setting = static_cast<loglevel>(config.log());
@@ -49,6 +97,8 @@ void init_logging() {
         setting = static_cast<loglevel>(config.log());
     }
     gLoggingLevel = setting;
+
+    gLoggingGroupMask = init_logging_groups();
 
     if (config.log_dest.set) {
 
@@ -97,14 +147,21 @@ void term_logging() {
 }
 
 bool cvk_log_level_enabled(loglevel level) { return gLoggingLevel >= level; }
+bool cvk_log_group_enabled(uint64_t group_mask) {
+    return gLoggingGroupMask & group_mask;
+}
 
 static const char colourRed[] = "\e[0;31m";
 static const char colourYellow[] = "\e[0;33m";
 static const char colourReset[] = "\e[0m";
 
-void cvk_log(loglevel level, const char* fmt, ...) {
+void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
 
     if (!cvk_log_level_enabled(level)) {
+        return;
+    }
+
+    if (!cvk_log_group_enabled(group_mask)) {
         return;
     }
 

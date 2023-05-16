@@ -258,6 +258,17 @@ variables. Here's a quick guide:
    * `file:<fname>`: logging goes to `<fname>`. The file will be created if it
      does not exist and will be truncated.
 
+* `CLVK_LOG_GROUPS` controls what logging groups are enabled. A comma-separated
+  list of group enable/disable requests is accepted. A group is enabled by
+  giving its name and disabled by giving its name with a `-` prefix. A few
+  examples:
+
+   * `api` enables logging of the OpenCL API calls encountered and only that.
+   * `-refcounting` disables logging of object reference counting but keeps all
+     other groups enabled by default.
+
+  All groups are enabled by default. The first group enabled replaces the default.
+
 * `CLVK_CLSPV_PATH` to provide a path to the clspv binary to use
 
 * `CLVK_LLVMSPIRV_BIN` to provide a path to the llvm-spirv binary to use
