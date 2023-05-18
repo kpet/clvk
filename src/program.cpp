@@ -2006,7 +2006,7 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
                                  &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
-        cvk_error_fn("Could not create compute pipeline: %s for kernel %s",
+        cvk_error_fn("Could not create compute pipeline for kernel %s: %s",
                      vulkan_error_string(res), m_name.c_str());
         return VK_NULL_HANDLE;
     }
