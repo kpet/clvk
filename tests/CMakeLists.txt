@@ -25,6 +25,8 @@ if (CMAKE_VERSION VERSION_LESS "3.21")
     string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
 endif()
 
+set(CLVK_GTEST_LIBRARIES "llvm_gtest;llvm_gtest_main" CACHE STRING "gtest libraries to link with")
+
 macro(add_gtest_executable name)
   add_executable(${name} ${ARGN})
   # Use the gtest copy that comes with clspv's version of LLVM
@@ -34,7 +36,7 @@ macro(add_gtest_executable name)
   include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)
   include_directories(${Vulkan_INCLUDE_DIRS})
 
-  target_link_libraries(${name} OpenCL llvm_gtest llvm_gtest_main)
+  target_link_libraries(${name} OpenCL ${CLVK_GTEST_LIBRARIES})
   if (NOT PROJECT_IS_TOP_LEVEL)
     if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
         ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)

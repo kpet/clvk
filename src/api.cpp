@@ -24,7 +24,8 @@
 #include "semaphore.hpp"
 #include "tracing.hpp"
 
-#define LOG_API_CALL(fmt, ...) cvk_debug_fn(fmt, __VA_ARGS__)
+#define LOG_API_CALL(fmt, ...)                                                 \
+    cvk_debug_group_fn(loggroup::api, fmt, __VA_ARGS__)
 
 #define CLVK_API_CALL CL_API_CALL
 
@@ -786,7 +787,8 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_bool);
         break;
     case CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT:
-        val_bool = CL_TRUE;
+        // TODO(#216) re-enable when clspv ready
+        val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         size_ret = sizeof(val_bool);
         break;
@@ -2796,10 +2798,6 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
     }
 
     // TODO CL_INVALID_ARG_VALUE if arg_value specified is not a valid value.
-    // TODO CL_INVALID_MEM_OBJECT for an argument declared to be a memory object
-    // when the specified arg_value is not a valid memory object.
-    // TODO CL_INVALID_SAMPLER for an argument declared to be of type sampler_t
-    // when the specified arg_value is not a valid sampler object.
     // TODO CL_INVALID_ARG_SIZE if arg_size does not match the size of the data
     // type for an argument that is not a memory object or if the argument is a
     // memory object and arg_size != sizeof(cl_mem) or if arg_size is zero and
@@ -2810,15 +2808,14 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
     // cl_mem_flags of CL_MEM_WRITE or if the image argument is declared with
     // the write_only qualifier and arg_value refers to an image object created
     // with cl_mem_flags of CL_MEM_READ.
-    // TODO CL_OUT_OF_RESOURCES if there is a failure to allocate resources
-    // required by the OpenCL implementation on the device.
-    // TODO CL_OUT_OF_HOST_MEMORY if there is a failure to allocate resources
-    // required by the OpenCL implementation on the host.
 
     if (arg_index >= kernel->num_args()) {
         cvk_error_fn("the program has only %u arguments", kernel->num_args());
         return CL_INVALID_ARG_INDEX;
     }
+
+    // CL_INVALID_MEM_OBJECT and CL_INVALID_SAMPLER are handled in
+    // cvk_kernel_argument_values::set_arg.
 
     // With opaque pointers, clspv is unable to infer the type of an unused
     // kernel argument so allow nullptr for its value. It will not have an

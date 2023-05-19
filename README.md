@@ -73,6 +73,11 @@ It is possible to disable the build of the tests by passing
 It is also possible to disable only the build of the tests linking with the
 static OpenCL library by passing `-DCLVK_BUILD_STATIC_TESTS=OFF`.
 
+By default, tests needing `gtest` are linked with the libraries coming from
+llvm (through clspv).
+It is possible to use other libraries by passing
+`-DCLVK_GTEST_LIBRARIES=<lib1>;<lib2>` (semicolumn separated list).
+
 ### Assertions
 
 Assertions can be controlled with the `CLVK_ENABLE_ASSERTIONS` build option.
@@ -83,6 +88,9 @@ They are enabled by default in Debug builds and disabled in other build types.
 Passing `-DCLVK_BUILD_CONFORMANCE_TESTS=ON` will instruct CMake to build the
 [OpenCL conformance tests](https://github.com/KhronosGroup/OpenCL-CTS).
 This is _not expected to work out-of-the box_ at the moment.
+
+It is also possible to build GL and GLES interroperability tests by passing
+`-DCLVK_BUILD_CONFORMANCE_TESTS_GL_GLES_SUPPORTED=ON`.
 
 ### Clspv compilation
 
@@ -249,6 +257,17 @@ variables. Here's a quick guide:
    * `stdout`: logging goes to the standard output
    * `file:<fname>`: logging goes to `<fname>`. The file will be created if it
      does not exist and will be truncated.
+
+* `CLVK_LOG_GROUPS` controls what logging groups are enabled. A comma-separated
+  list of group enable/disable requests is accepted. A group is enabled by
+  giving its name and disabled by giving its name with a `-` prefix. A few
+  examples:
+
+   * `api` enables logging of the OpenCL API calls encountered and only that.
+   * `-refcounting` disables logging of object reference counting but keeps all
+     other groups enabled by default.
+
+  All groups are enabled by default. The first group enabled replaces the default.
 
 * `CLVK_CLSPV_PATH` to provide a path to the clspv binary to use
 

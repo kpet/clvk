@@ -288,11 +288,26 @@ struct cvk_kernel_argument_values {
                 return CL_INVALID_ARG_SIZE;
             }
             if (arg.kind == kernel_argument_kind::sampler) {
-                auto sampler = *reinterpret_cast<const cl_sampler*>(value);
-                m_kernel_resources[arg.binding] = icd_downcast(sampler);
+                auto apisampler = *reinterpret_cast<const cl_sampler*>(value);
+                if (apisampler == nullptr) {
+                    return CL_INVALID_SAMPLER;
+                }
+                auto sampler = icd_downcast(apisampler);
+                if (!sampler->is_valid()) {
+                    return CL_INVALID_SAMPLER;
+                }
+
+                m_kernel_resources[arg.binding] = sampler;
             } else {
-                auto mem = *reinterpret_cast<const cl_mem*>(value);
-                m_kernel_resources[arg.binding] = icd_downcast(mem);
+                auto apimem = *reinterpret_cast<const cl_mem*>(value);
+                if (apimem == nullptr) {
+                    return CL_INVALID_MEM_OBJECT;
+                }
+                auto mem = icd_downcast(apimem);
+                if (!mem->is_valid()) {
+                    return CL_INVALID_MEM_OBJECT;
+                }
+                m_kernel_resources[arg.binding] = mem;
             }
         }
 

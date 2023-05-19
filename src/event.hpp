@@ -70,7 +70,9 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
     cl_int wait() {
         std::unique_lock<std::mutex> lock(m_lock);
-        cvk_debug("cvk_event::wait: event = %p, status = %d", this, m_status);
+        cvk_debug_group(loggroup::event,
+                        "cvk_event::wait: event = %p, status = %d", this,
+                        m_status);
         if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
             TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
                               "command", (uintptr_t)m_cmd);

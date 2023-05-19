@@ -47,3 +47,31 @@ TEST_F(WithCommandQueue, FailedAndCompleteDependencies) {
 
     ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
 }
+
+TEST_F(WithCommandQueue, InOrderQueueStopsExecutionAfterFailedCommand) {
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               BUFFER_SIZE, nullptr);
+
+    // Create a user event in a terminated status
+    auto uevent = CreateUserEvent();
+    SetUserEventStatus(uevent, CL_INVALID_OPERATION);
+
+    // Enqueue a command that depends on it
+    cl_int err;
+    std::vector<cl_event> dependencies = {uevent};
+    clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
+                       0, BUFFER_SIZE, dependencies.size(), dependencies.data(),
+                       nullptr, &err);
+
+    // Check the enqueue fails
+    ASSERT_EQ(err, CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST);
+
+    // Enqueue another command with no dependencies to the same queue. The queue
+    // is in-order
+    cl_event mapev;
+    clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
+                       0, BUFFER_SIZE, 0, nullptr, &mapev, &err);
+    cl_int status;
+    GetEventInfo(mapev, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
+    ASSERT_NE(status, CL_COMPLETE);
+}

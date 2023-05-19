@@ -115,6 +115,7 @@ if (CLVK_COMPILER_AVAILABLE)
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
   set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator CACHE STRING
       "Path to SPIRV-LLVM-Translator directory")
+  set(LLVM_EXTERNAL_SPIRV_HEADERS_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
   set(LLVM_SPIRV_BUILD_EXTERNAL YES)
   add_subdirectory(${LLVM_SPIRV_SOURCE}
                    ${CMAKE_CURRENT_BINARY_DIR}/external/SPIRV-LLVM-Translator

@@ -212,6 +212,28 @@ TEST_F(WithCommandQueue, ModuleScopeConstantData) {
     EXPECT_EQ(result[5], 0);
 }
 
+// clspv uses separate descriptor sets for
+// 0. Literal samplers
+// 1. Kernel arguments
+// 2. Module constants
+// Check that we support creating a kernel that uses all 3.
+TEST_F(WithContext, UseAllDescriptorSets) {
+    static const char* source = R"(
+    __constant uint ppp[2][3] = {{1,2,3}, {5}};
+
+    void kernel k(global uint* output, uint off) {
+        sampler_t smp = CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
+        output[0] = ppp[0+off][0];
+        output[1] = ppp[0+off][1];
+        output[2] = ppp[0+off][2];
+        output[3] = ppp[1+off][0];
+        output[4] = ppp[1+off][1];
+        output[5] = ppp[1+off][2];
+    }
+    )";
+    auto kernel = CreateKernel(source, "k");
+}
+
 TEST_F(WithCommandQueue, ProgramBinaryCompile) {
     static const char* source = R"(
       kernel void test(global uint *output) {
@@ -400,4 +422,60 @@ TEST_F(WithCommandQueue, LinkPrograms) {
     ASSERT_EQ(result[1], source[1]);
     ASSERT_EQ(result[2], source[2]);
     ASSERT_EQ(result[3], source[3]);
+}
+
+TEST_F(WithContext, SetUnusedMemObjectArg) {
+    static const char* source = R"(
+      kernel void foo(global uint *dst) {}
+    )";
+
+    auto kernel = CreateKernel(source, "foo");
+
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, 64);
+
+    SetKernelArg(kernel, 0, buffer);
+}
+
+TEST_F(WithContext, SetUnusedSamplerArg) {
+    static const char* source = R"(
+      kernel void foo(sampler_t smp) {}
+    )";
+
+    auto kernel = CreateKernel(source, "foo");
+
+    auto sampler = CreateSampler(CL_TRUE, CL_ADDRESS_NONE, CL_FILTER_NEAREST);
+
+    SetKernelArg(kernel, 0, sampler);
+}
+
+TEST_F(WithContext, SetUnusedLocalArg) {
+    static const char* source = R"(
+      kernel void foo(local int* ptr) {}
+    )";
+
+    auto kernel = CreateKernel(source, "foo");
+
+    SetKernelArg(kernel, 0, 64, nullptr);
+}
+
+TEST_F(WithContext, SetUnusedMemObjectArgWithInvalidObject) {
+    static const char* source = R"(
+      kernel void foo(global uint *dst) {}
+    )";
+
+    auto kernel = CreateKernel(source, "foo");
+    cl_kernel kern = kernel;
+    cl_int err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &kern);
+    ASSERT_EQ(err, CL_INVALID_MEM_OBJECT);
+}
+
+TEST_F(WithContext, SetUnusedSamplerArgWithInvalidObject) {
+    static const char* source = R"(
+      kernel void foo(sampler_t smp) {}
+    )";
+
+    auto kernel = CreateKernel(source, "foo");
+    cl_kernel kern = kernel;
+    cl_int err = clSetKernelArg(kernel, 0, sizeof(cl_sampler), &kern);
+    ASSERT_EQ(err, CL_INVALID_SAMPLER);
 }

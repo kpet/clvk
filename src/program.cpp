@@ -442,6 +442,8 @@ spv_result_t parse_reflection(void* user_data,
                     NonSemanticClspvReflectionConstantDataStorageBuffer) {
                     binfo.type = constant_data_buffer_type::storage_buffer;
                     binfo.set = parse_data->constants[inst->words[5]];
+                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                        return SPV_ERROR_INVALID_DATA;
                     binfo.binding = parse_data->constants[inst->words[6]];
 
                 } else {
@@ -2004,8 +2006,8 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
                                  &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
-        cvk_error_fn("Could not create compute pipeline: %s",
-                     vulkan_error_string(res));
+        cvk_error_fn("Could not create compute pipeline for kernel %s: %s",
+                     vulkan_error_string(res), m_name.c_str());
         return VK_NULL_HANDLE;
     }
 
