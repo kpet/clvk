@@ -57,11 +57,13 @@ struct cvk_device : public _cl_device_id,
             m_type = CL_DEVICE_TYPE_DEFAULT;
         }
 
-        //--- Get maxMemoryAllocationSize for figuring out the  max single buffer allocation size.
-        m_mtn3Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+        //--- Get maxMemoryAllocationSize for figuring out the  max single
+        // buffer allocation size.
+        m_mtn3Properties.sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
         m_mtn3Properties.pNext = nullptr;
         m_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        m_properties2.pNext =  &m_mtn3Properties;
+        m_properties2.pNext = &m_mtn3Properties;
         vkGetPhysicalDeviceProperties2(pd, &m_properties2);
         //---
 
@@ -231,22 +233,28 @@ struct cvk_device : public _cl_device_id,
 
     uint64_t max_alloc_size() const {
         // Min memory as per the specs.
-        auto specMinAllocSz = std::max(std::min((uint64_t)(1024 * 1024 * 1024), (uint64_t)(actual_memory_size())),
-                                       (uint64_t)(32 * 1024 * 1024));
+        auto specMinAllocSz =
+            std::max(std::min((uint64_t)(1024 * 1024 * 1024),
+                              (uint64_t)(actual_memory_size())),
+                     (uint64_t)(32 * 1024 * 1024));
 
-        // Max memory allocation for single buffer is set in config.def to 1024 mb - minimum required by spec.
-        // For single allocation this value can be adjusted with environment variable CLVK_MAX_ALLOC_SIZE_MB
-        // For multiple allocations(total memory allocations), environment var
+        // Max memory allocation for single buffer is set in config.def to 1024
+        // mb - minimum required by spec. For single allocation this value can
+        // be adjusted with environment variable CLVK_MAX_ALLOC_SIZE_MB For
+        // multiple allocations(total memory allocations), environment var
         // CLVK_PERCENTAGE_OF_AVAILABLE_MEMORY_REPORTED can be adjusted.
-        auto maxAllocSz = std::min(m_mtn3Properties.maxMemoryAllocationSize,
-                                   (uint64_t)config.max_alloc_size_mb() * 1024 * 1024);
+        auto maxAllocSz =
+            std::min(m_mtn3Properties.maxMemoryAllocationSize,
+                     (uint64_t)config.max_alloc_size_mb() * 1024 * 1024);
         maxAllocSz = std::min(maxAllocSz, actual_memory_size());
 
         // Since the user has an option to change this value, do some checks.
-        if(specMinAllocSz > maxAllocSz) {
-        	  cvk_warn( "Returning maximum single buffer allocation size(CL_DEVICE_MAX_MEM_ALLOC_SIZE) which is\n"
-        	    "smaller than specified in the OpenCL specification. Size as per Specification:%llu   Actual size:%llu",
-        	    specMinAllocSz, maxAllocSz);
+        if (specMinAllocSz > maxAllocSz) {
+            cvk_warn("Returning maximum single buffer allocation "
+                     "size(CL_DEVICE_MAX_MEM_ALLOC_SIZE) which is\n"
+                     "smaller than specified in the OpenCL specification. Size "
+                     "as per Specification:%llu   Actual size:%llu",
+                     specMinAllocSz, maxAllocSz);
         }
 
         return maxAllocSz;
