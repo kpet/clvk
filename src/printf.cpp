@@ -95,8 +95,7 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
     // than likely to fit everything. If it doesn't fit, just keep retrying with
     // double the output size.
     size_t out_size = fmt.size() + 1024;
-    std::vector<char> out;
-    out.reserve(out_size);
+    std::vector<char> out(out_size);
     out[0] = '\0';
 
     auto conversion = std::tolower(get_fmt_conversion(fmt));
