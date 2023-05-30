@@ -82,6 +82,7 @@ set(SPIRV_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Headers CACHE 
     "Path to SPIRV headers directory")
 
 # SPIR-V Tools
+set(SPIRV_SKIP_TESTS ON)
 set(SPIRV_TOOLS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Tools CACHE STRING
     "Path to SPIRV-Tools directory")
 
