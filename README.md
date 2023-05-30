@@ -42,7 +42,7 @@ cmake ../
 make -j$(nproc)
 ```
 
-## Other options
+## Build options
 
 The build system allows a number of things to be configured.
 
@@ -125,6 +125,18 @@ You can also disable the build of `SPIRV-Tools` by setting
 repository.
 Note that it is not used if the compiler support is disabled (enabled by
 default).
+
+### Sanitizers
+
+Support for [sanitizers](https://github.com/google/sanitizers) is integrated into
+the build system:
+
+* `CLVK_ENABLE_ASAN` can be used to enable
+   [AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html).
+* `CLVK_ENABLE_TSAN` can be used to enable
+   [ThreadSanitizer](https://clang.llvm.org/docs/ThreadSanitizer.html).
+* `CLVK_ENABLE_UBSAN` can be used to enable
+   [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html).
 
 ## Building for Android
 
