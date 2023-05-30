@@ -20,8 +20,11 @@ import argparse
 import datetime
 import json
 import os
+import pprint
 import re
 import subprocess
+import sys
+import tempfile
 
 THIS_DIR = os.path.dirname(__file__)
 TOP_DIR = os.path.realpath(os.path.join(THIS_DIR, '..', '..'))
@@ -158,6 +161,10 @@ def timedelta_to_string(duration):
     )
     return datetime.datetime.strftime(duration_as_date, TIME_SERIALISATION_FORMAT)
 
+def load_json(path):
+    with open(path) as f:
+        return json.load(f)
+
 def run_conformance_binary(path, args):
     start = datetime.datetime.utcnow()
     dirname = os.path.dirname(path)
@@ -182,8 +189,7 @@ def run_conformance_binary(path, args):
     results = {}
 
     try:
-        with open(result_json) as f:
-            data = json.load(f)
+        data = load_json(result_json)
         os.remove(result_json)
 
         for test, result in data['results'].items():
@@ -213,8 +219,43 @@ def get_suite_totals(suite_results):
     totals['total'] = totals['pass'] + totals['fail']
     return totals
 
-def run_tests(args):
+def gather_system_info():
+    tmpjson = tempfile.mkstemp()[1]
+    cmd = [ 'vulkaninfo', '-o', tmpjson, '--json=0' ]
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        raise e
+    info_raw = load_json(tmpjson)
+    info_props = info_raw['capabilities']['device']['properties']
+    infos = {
+        'deviceID': info_props['VkPhysicalDeviceProperties']['deviceID'],
+        'deviceName': info_props['VkPhysicalDeviceProperties']['deviceName'],
+        'deviceType': info_props['VkPhysicalDeviceProperties']['deviceType'],
+        'driverVersion': info_props['VkPhysicalDeviceProperties']['driverVersion'],
+        'apiVersion': info_props['VkPhysicalDeviceProperties']['apiVersion'],
+    }
+    if 'VkPhysicalDeviceDriverProperties' in info_props:
+        infos['driverID'] = info_props['VkPhysicalDeviceDriverProperties']['driverID']
+        infos['driverName'] = info_props['VkPhysicalDeviceDriverProperties']['driverName']
+        infos['driverInfo'] = info_props['VkPhysicalDeviceDriverProperties']['driverInfo']
+    print("System information:")
+    pprint.pprint(infos, indent=2)
+    print("")
+    return infos
 
+def check_system_info(system_info, reference_results_path):
+    ref = load_json(reference_results_path)
+    refsys = ref['system-info']
+    sys_info_checks = ('deviceID','deviceName','deviceType','driverID','driverName')
+    success = True
+    for sic in sys_info_checks:
+        if refsys[sic] != system_info[sic]:
+            print("reference for '{}' is '{}' but got '{}'".format(sic, refsys[sic],system_info[sic]))
+            success = False
+    return success
+
+def run_tests(args):
     test_set = TEST_SETS[args.test_set]
     results = {}
 
@@ -349,9 +390,8 @@ def report(results, args):
     print("")
 
     if args.reference_results:
-        with open(args.reference_results) as f:
-            reference = json.load(f)
-        check_reference(results, reference, args)
+        reference = load_json(args.reference_results)
+        check_reference(results, reference['test-results'], args)
 
 def main():
 
@@ -392,16 +432,23 @@ def main():
 
     # Run tests or load results
     if not args.compare_only:
-        results = run_tests(args)
+        system_info = gather_system_info()
+        if args.reference_results and not check_system_info(system_info, args.reference_results):
+            print("\nLooks like the reference results do not correspond to the device being targeting, aborting run.\n")
+            sys.exit(1)
+        test_results = run_tests(args)
+        results = {
+            'system-info': system_info,
+            'test-results': test_results
+        }
         if args.save_results:
             with open(args.save_results, 'w') as f:
                 json.dump(results, f, indent=2, sort_keys=True, separators=(',', ': '))
     else:
-        with open(args.save_results, 'r') as f:
-            results = json.load(f)
+        results = load_json(args.save_results)
 
     # Process results
-    report(results, args)
+    report(results['test-results'], args)
 
 if __name__ == '__main__':
     main()
