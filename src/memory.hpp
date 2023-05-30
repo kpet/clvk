@@ -373,6 +373,7 @@ struct cvk_buffer : public cvk_mem {
     }
 
     bool insert_mapping(const cvk_buffer_mapping& mapping) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
         auto num_mappings_with_same_pointer = m_mappings.count(mapping.ptr);
         // TODO support multiple mappings with the same pointer
         if (num_mappings_with_same_pointer != 0) {
@@ -385,6 +386,7 @@ struct cvk_buffer : public cvk_mem {
     }
 
     cvk_buffer_mapping remove_mapping(void* ptr) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
         CVK_ASSERT(m_mappings.count(ptr) > 0);
         auto mapping = m_mappings.at(ptr);
         m_mappings.erase(ptr);
@@ -409,6 +411,7 @@ private:
 
     VkBuffer m_buffer;
     std::unordered_map<void*, cvk_buffer_mapping> m_mappings;
+    std::mutex m_mappings_lock;
 };
 
 using cvk_buffer_holder = refcounted_holder<cvk_buffer>;
@@ -581,6 +584,7 @@ struct cvk_image : public cvk_mem {
                                 std::array<size_t, 3> origin,
                                 std::array<size_t, 3> region,
                                 cl_map_flags flags, bool handle_host_ptr) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
         // TODO try to reuse existing mappings
         // TODO add overlap checks
 
@@ -623,12 +627,14 @@ struct cvk_image : public cvk_mem {
             return false;
         }
 
+        // TODO should insertion be deferred, as done for buffers?
         m_mappings[mapping.ptr].push_back(mapping);
 
         return true;
     }
 
     cvk_image_mapping remove_mapping(void* ptr) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
         CVK_ASSERT(m_mappings.count(ptr) > 0);
         auto mapping = m_mappings.at(ptr).front();
         m_mappings.at(ptr).pop_front();
@@ -643,6 +649,7 @@ struct cvk_image : public cvk_mem {
     }
 
     cvk_image_mapping mapping_for(void* ptr) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
         CVK_ASSERT(m_mappings.count(ptr) > 0);
         auto mapping = m_mappings.at(ptr).front();
         return mapping;
@@ -738,6 +745,7 @@ private:
     VkImageView m_sampled_view;
     VkImageView m_storage_view;
     std::unordered_map<void*, std::list<cvk_image_mapping>> m_mappings;
+    std::mutex m_mappings_lock;
     std::unique_ptr<cvk_buffer> m_init_data;
 };
 

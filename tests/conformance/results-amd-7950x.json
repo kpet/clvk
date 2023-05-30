@@ -759,16 +759,28 @@
       "retcode": 1
     },
     "Images (clFillImage max size)": {
-      "duration": "00:00:03.073710",
-      "has_results": false,
-      "results": {},
-      "retcode": -6
+      "duration": "00:00:12.015982",
+      "has_results": true,
+      "results": {
+        "1D": "pass",
+        "1Darray": "pass",
+        "2D": "pass",
+        "2Darray": "pass",
+        "3D": "pass"
+      },
+      "retcode": 0
     },
     "Images (clFillImage pitch)": {
-      "duration": "00:00:05.749350",
-      "has_results": false,
-      "results": {},
-      "retcode": -6
+      "duration": "00:00:11.917343",
+      "has_results": true,
+      "results": {
+        "1D": "pass",
+        "1Darray": "pass",
+        "2D": "pass",
+        "2Darray": "pass",
+        "3D": "pass"
+      },
+      "retcode": 0
     },
     "Images (clFillImage)": {
       "duration": "00:00:07.716860",
