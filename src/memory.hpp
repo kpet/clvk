@@ -35,9 +35,13 @@ struct cvk_memory_allocation {
     }
 
     VkResult allocate() {
+        const VkMemoryAllocateFlagsInfo flagsInfo = {
+            VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO, nullptr,
+            VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT, 0};
+
         const VkMemoryAllocateInfo memoryAllocateInfo = {
             VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            nullptr,
+            config.physical_addressing() ? &flagsInfo : nullptr,
             m_size,
             m_memory_type_index,
         };
@@ -312,6 +316,9 @@ struct cvk_buffer : public cvk_mem {
     VkBufferUsageFlags prepare_usage_flags() {
         VkBufferUsageFlags usage_flags =
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        if (config.physical_addressing()) {
+            usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        }
         if (flags() & CL_MEM_WRITE_ONLY) {
             usage_flags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         } else if (flags() & CL_MEM_READ_ONLY) {
