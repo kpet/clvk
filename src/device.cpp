@@ -575,7 +575,9 @@ void cvk_device::build_extension_ils_list() {
 
     // Build list of ILs
     m_ils = {
+#ifdef ENABLE_SPIRV_IL
         MAKE_NAME_VERSION(1, 0, 0, "SPIR-V"),
+#endif
     };
 
     for (auto& il : m_ils) {

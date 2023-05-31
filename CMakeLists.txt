@@ -110,8 +110,9 @@ add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
 set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
                       ${CMAKE_BINARY_DIR})
 
+option(CLVK_ENABLE_SPIRV_IL "Enable SPIR-V as an intermediate language" ON)
 # SPIRV-LLVM-Translator
-if (CLVK_COMPILER_AVAILABLE)
+if (CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
   set(LLVM_DIR
       ${CMAKE_BINARY_DIR}/external/clspv/third_party/llvm/lib/cmake/llvm)
   set(LLVM_SPIRV_SOURCE ${PROJECT_SOURCE_DIR}/external/SPIRV-LLVM-Translator CACHE STRING

@@ -28,7 +28,9 @@ OPTION(std::string, clspv_library_builtins, "")
 OPTION(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER
 OPTION(std::string, clspv_path, DEFAULT_CLSPV_BINARY_PATH)
+#if ENABLE_SPIRV_IL
 OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
+#endif
 #endif // !CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
