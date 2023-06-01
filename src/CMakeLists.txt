@@ -34,6 +34,9 @@ endif()
 
 if (CLVK_COMPILER_AVAILABLE)
     add_compile_options(-DCOMPILER_AVAILABLE=1)
+    if (CLVK_ENABLE_SPIRV_IL)
+        add_compile_options(-DENABLE_SPIRV_IL=1)
+    endif()
 endif()
 
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
@@ -133,9 +136,12 @@ endif()
 target_include_directories(OpenCL-objects PRIVATE
   "${CLSPV_SOURCE_DIR}/include")
 if (CLVK_CLSPV_ONLINE_COMPILER)
-  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core LLVMSPIRVLib)
-  target_include_directories(OpenCL-objects PRIVATE
-    "${LLVM_SPIRV_SOURCE}/include")
+  set(OpenCL-dependencies ${OpenCL-dependencies} clspv_core)
+  if (CLVK_ENABLE_SPIRV_IL)
+    set(OpenCL-dependencies ${OpenCL-dependencies} LLVMSPIRVLib)
+    target_include_directories(OpenCL-objects PRIVATE
+      "${LLVM_SPIRV_SOURCE}/include")
+  endif()
 else()
   if (CLVK_COMPILER_AVAILABLE)
     add_dependencies(OpenCL-objects clspv)
@@ -146,7 +152,7 @@ endif()
 
 # llvm-spirv needed to test simple_test_from_il_binary in CI even when
 # not used in online compilation mode
-if (CLVK_COMPILER_AVAILABLE)
+if (CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
   add_dependencies(OpenCL-objects llvm-spirv)
   set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})

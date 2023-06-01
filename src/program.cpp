@@ -914,7 +914,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 }
 
 bool cvk_program::parse_user_spec_constants() {
-#if COMPILER_AVAILABLE
+#if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
 #ifndef CLSPV_ONLINE_COMPILER
     // We'll need to go through the whole temp folder rigamarole to query the
     // spec constant info with the command line tool.
@@ -995,6 +995,13 @@ bool cvk_program::parse_user_spec_constants() {
     return true;
 #endif // CLSPV_ONLINE_COMPILER
 #else
+#if !COMPILER_AVAILABLE
+    cvk_error_fn("Could not parse user spec constants because clvk has been "
+                 "built with CLVK_COMPILER_AVAILABLE=OFF");
+#elif !ENABLE_SPIRV_IL
+    cvk_error_fn("Could not parse user spec constants because clvk has been "
+                 "built with CLVK_ENABLE_SPIRV_IL=OFF");
+#endif
     return false;
 #endif // COMPILER_AVAILABLE
 }
@@ -1012,6 +1019,11 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     std::string clspv_input_file{tmp_folder + "/source"};
     // Save input program to a file
     if (build_from_il) {
+#ifndef ENABLE_SPIRV_IL
+        cvk_error_fn("Could not build from il because clvk has been built with "
+                     "CLVK_ENABLE_SPIRV_IL=OFF");
+        return CL_BUILD_ERROR;
+#else  // ENABLE_SPIRV_IL
         std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
         clspv_input_file += ".bc";
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
@@ -1081,6 +1093,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
         cmd += clspv_input_file;
         cmd += " ";
+#endif // ENABLE_SPIRV_IL
     } else if (m_operation == build_operation::link) {
         for (auto input_program : m_input_programs) {
             if (input_program->m_binary_type !=
@@ -1170,6 +1183,11 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
     if (build_from_il) {
+#ifndef ENABLE_SPIRV_IL
+        cvk_error_fn("Could not build from il because clvk has been built with "
+                     "CLVK_ENABLE_SPIRV_IL=OFF");
+        return CL_BUILD_ERROR;
+#else  // ENABLE_SPIRV_IL
         llvm::LLVMContext llvm_context;
         llvm::Module* llvm_module;
         std::string err;
@@ -1224,6 +1242,7 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
         m_source.clear();
         llvm::raw_string_ostream spirv_stream(m_source);
         llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
+#endif // ENABLE_SPIRV_IL
     }
     cvk_info("About to compile \"%s\"", build_options.c_str());
     int status;

@@ -273,6 +273,11 @@ variables. Here's a quick guide:
 
 * `CLVK_LLVMSPIRV_BIN` to provide a path to the llvm-spirv binary to use
 
+* `CLVK_ENABLE_SPIRV_IL` to enable support for SPIR-V as an intermediate language
+
+   * 0: disabled
+   * 1: enabled (default)
+
 * `CLVK_VALIDATION_LAYERS` allows to enable Vulkan validation layers
 
    * 0: disabled (default)
