@@ -1007,10 +1007,18 @@
       "retcode": 0
     },
     "Multiple Device/Context": {
-      "duration": "00:00:22.184337",
-      "has_results": false,
-      "results": {},
-      "retcode": -11
+      "duration": "00:00:22.633599",
+      "has_results": true,
+      "results": {
+        "context_four_contexts_same_device": "pass",
+        "context_multiple_contexts_same_device": "pass",
+        "context_three_contexts_same_device": "pass",
+        "context_two_contexts_same_device": "pass",
+        "hundred_queues": "pass",
+        "max_devices": "fail",
+        "two_devices": "fail"
+      },
+      "retcode": 1
     },
     "Non-uniform work-group": {
       "duration": "00:00:02.930478",
