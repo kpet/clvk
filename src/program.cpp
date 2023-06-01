@@ -27,11 +27,13 @@
 #include "clspv/Sampler.h"
 
 #ifdef CLSPV_ONLINE_COMPILER
+#ifdef ENABLE_SPIRV_IL
 #include "LLVMSPIRVLib.h"
-#include "clspv/Compiler.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/Support/CommandLine.h" // FIXME(#380) remove
 #include "llvm/Support/raw_ostream.h"
+#endif
+#include "clspv/Compiler.h"
 #endif
 
 #include "spirv-tools/linker.hpp"
@@ -913,7 +915,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return options;
 }
 
-bool cvk_program::parse_user_spec_constants() {
+cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
 #ifndef CLSPV_ONLINE_COMPILER
     // We'll need to go through the whole temp folder rigamarole to query the
@@ -925,7 +927,7 @@ bool cvk_program::parse_user_spec_constants() {
     if (tmp == nullptr) {
         cvk_error_fn("Could not create temporary folder \"%s\"",
                      tmp_template.c_str());
-        return false;
+        return CL_INVALID_VALUE;
     }
     std::string tmp_folder = tmp;
     cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
@@ -934,7 +936,7 @@ bool cvk_program::parse_user_spec_constants() {
 
     if (!save_il_to_file(llvmspirv_input_file, m_il)) {
         cvk_error_fn("Couldn't save IL to file!");
-        return false;
+        return CL_INVALID_VALUE;
     }
 
     std::string cmd_spv{config.llvmspirv_bin()};
@@ -969,7 +971,7 @@ bool cvk_program::parse_user_spec_constants() {
             id, user_spec_constant_data{type_string, size});
     }
     std::filesystem::remove_all(tmp_folder.c_str());
-    return true;
+    return CL_SUCCESS;
 #else
     auto m_il_start = reinterpret_cast<const unsigned char*>(m_il.data());
     membuf m_il_buf(m_il_start, m_il_start + m_il.size());
@@ -984,7 +986,7 @@ bool cvk_program::parse_user_spec_constants() {
 
     if (!getSpecConstInfo(m_il_stream, spec_const_info)) {
         cvk_error_fn("Failed to parse spec constants");
-        return false;
+        return CL_INVALID_VALUE;
     }
 
     for (const auto& spec_const : spec_const_info) {
@@ -992,7 +994,7 @@ bool cvk_program::parse_user_spec_constants() {
             spec_const.ID,
             user_spec_constant_data{spec_const.Type, spec_const.Size});
     }
-    return true;
+    return CL_SUCCESS;
 #endif // CLSPV_ONLINE_COMPILER
 #else
 #if !COMPILER_AVAILABLE
@@ -1002,7 +1004,7 @@ bool cvk_program::parse_user_spec_constants() {
     cvk_error_fn("Could not parse user spec constants because clvk has been "
                  "built with CLVK_ENABLE_SPIRV_IL=OFF");
 #endif
-    return false;
+    return CL_INVALID_OPERATION;
 #endif // COMPILER_AVAILABLE
 }
 
