@@ -5461,13 +5461,7 @@ cl_program cvk_create_program_with_il(cl_context context, const void* il,
 
     auto program = new cvk_program(icd_downcast(context), il, length);
 
-    if (!program->parse_user_spec_constants()) {
-        // If we fail to parse spec constants we can assume the IL stream is
-        // wonky.
-        *errcode_ret = CL_INVALID_VALUE;
-    } else {
-        *errcode_ret = CL_SUCCESS;
-    }
+    *errcode_ret = program->parse_user_spec_constants();
 
     return program;
 }

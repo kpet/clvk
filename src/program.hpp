@@ -707,7 +707,7 @@ public:
         return status;
     }
 
-    bool parse_user_spec_constants();
+    CHECK_RETURN cl_int parse_user_spec_constants();
 
 private:
     void do_build();
