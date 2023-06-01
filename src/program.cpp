@@ -1020,8 +1020,8 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     // Save input program to a file
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
-        cvk_error_fn(
-            "Trying to build SPIR-V IL while SPIR-V IL has been disabled");
+        cvk_error_fn("Could not build from il because clvk has been built with "
+                     "CLVK_ENABLE_SPIRV_IL=OFF");
         return CL_BUILD_ERROR;
 #else  // ENABLE_SPIRV_IL
         std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
@@ -1184,8 +1184,8 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
                 build_to_ir);
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
-        cvk_error_fn(
-            "Trying to build SPIR-V IL while SPIR-V IL has been disabled");
+        cvk_error_fn("Could not build from il because clvk has been built with "
+                     "CLVK_ENABLE_SPIRV_IL=OFF");
         return CL_BUILD_ERROR;
 #else  // ENABLE_SPIRV_IL
         llvm::LLVMContext llvm_context;
