@@ -995,7 +995,7 @@ bool cvk_program::parse_user_spec_constants() {
     return true;
 #endif // CLSPV_ONLINE_COMPILER
 #else
-#ifndef COMPILER_AVAILABLE
+#if !COMPILER_AVAILABLE
     cvk_error_fn("Could not parse user spec constants because clvk has been "
                  "built with CLVK_COMPILER_AVAILABLE=OFF");
 #elif !ENABLE_SPIRV_IL
