@@ -205,6 +205,32 @@ Once traces have been generated, you can view them using the
 Copy `OpenCL.dll` into a system location or alongside the application executable
 you want to run with clvk.
 
+### Raspberry Pi
+
+Make sure you have an up-to-date Mesa installed on your system.
+At the time of writing (May 2023) RaspberryPi OS (Debian 11) did not, but Ubuntu
+23.04 does have a compatible vulkan driver.
+
+Install the prerequisites:
+```
+$ sudo apt install mesa-vulkan-drivers vulkan-tools libvulkan-dev git cmake clang clinfo
+```
+
+Check if your vulkan implementation has the `VK_KHR_storage_buffer_storage_class`
+extension or supports Vulkan 1.1. Note that it's not enough if this is the case for
+llvmpipe. You need v3dv to support this too. If it does not, your Mesa is too old.
+
+To fetch the dependencies, do `python3 ./external/clspv/utils/fetch_sources.py`
+because the python interpreter may not be found if not explicitly called as python3.
+
+Building will take many hours on a rPi4.
+Maybe you can skip some tool building, but building with default settings works, at least.
+
+Once the libOpenCL.so library has been built, verify with:
+```
+LD_LIBRARY_PATH=/path/to/build clinfo
+```
+
 ## Tuning clvk
 
 clvk can be tuned to improve the performance of specific workloads or on specific platforms. While we try to have the default
