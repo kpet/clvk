@@ -759,22 +759,40 @@
       "retcode": 1
     },
     "Images (clFillImage max size)": {
-      "duration": "00:00:11.033466",
-      "has_results": false,
-      "results": {},
-      "retcode": -11
+      "duration": "00:00:34.566830",
+      "has_results": true,
+      "results": {
+        "1D": "pass",
+        "1Darray": "pass",
+        "2D": "pass",
+        "2Darray": "pass",
+        "3D": "pass"
+      },
+      "retcode": 0
     },
     "Images (clFillImage pitch)": {
-      "duration": "00:00:26.927571",
-      "has_results": false,
-      "results": {},
-      "retcode": -11
+      "duration": "00:00:32.019595",
+      "has_results": true,
+      "results": {
+        "1D": "pass",
+        "1Darray": "pass",
+        "2D": "pass",
+        "2Darray": "pass",
+        "3D": "pass"
+      },
+      "retcode": 0
     },
     "Images (clFillImage)": {
-      "duration": "00:00:13.602608",
-      "has_results": false,
-      "results": {},
-      "retcode": -6
+      "duration": "00:00:26.987112",
+      "has_results": true,
+      "results": {
+        "1D": "pass",
+        "1Darray": "pass",
+        "2D": "pass",
+        "2Darray": "pass",
+        "3D": "pass"
+      },
+      "retcode": 0
     },
     "Images (clReadWriteImage max size)": {
       "duration": "00:00:08.666396",
