@@ -1091,6 +1091,10 @@ cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
     cl_uint val_uint;
     cl_device_id val_device;
 
+    if (!is_valid_context(ctx)) {
+        return CL_INVALID_CONTEXT;
+    }
+
     auto context = icd_downcast(ctx);
 
     switch (param_name) {
