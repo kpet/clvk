@@ -1,0 +1,38 @@
+name: 'install-vulkan-sdk'
+description: 'Install Vulkan SDK and Runtime'
+inputs:
+  version:
+    description: 'The version of Vulkan SDK to use'
+    required: true
+  rt-dir:
+    description: 'Directory in which to install the runtime artifacts'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Vulkan SDK
+      uses: kpet/install-vulkan-sdk@fix-macos
+      with:
+        version: ${{ inputs.version }}
+        cache: true
+    - name: Install Vulkan RT
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-${{ inputs.version }}-Components.zip
+          mkdir vulkanrt-temp
+          7z x vulkanrt.zip -ovulkanrt-temp
+          ls -lR vulkanrt-temp
+          mkdir -p '${{ inputs.rt-dir }}'
+          cp -v vulkanrt-temp/VulkanRT-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
+          rm -rf vulkanrt-temp
+        fi
+    # TODO remove the below once the SPIRV-LLVM-Translator can be configured to not use SPIRV-Tools (or at least successfully builds when it does)
+    - name: Remove SPIR-V Tools CMake modules on macOS
+      shell: bash
+      run: |
+        echo "RUNNER_OS: $RUNNER_OS"
+        if [ "$RUNNER_OS" == "macOS" ]; then
+          rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
+        fi

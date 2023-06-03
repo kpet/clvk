@@ -53,13 +53,10 @@ You can select the Vulkan implementation that clvk will target with the
 supported:
 
 * `-DCLVK_VULKAN_IMPLEMENTATION=system` instructs the build system to use the
-  Vulkan implementation provided by your system as detected by CMake. This
-  is the default.
-
-* `-DCLVK_VULKAN_IMPLEMENTATION=loader` enables building against a copy of the
-  [Vulkan Loader](https://github.com/KhronosGroup/Vulkan-Loader) sources
-  provided by the user using `CLVK_VULKAN_LOADER_DIR`.
-  The configuration of the loader to target Vulkan ICDs is left to the user.
+  Vulkan implementation provided by your system as detected by CMake's
+  `find_package(Vulkan)`. This is the default. You can use the
+  [Vulkan SDK](https://vulkan.lunarg.com/sdk/home) to provide headers and
+  libraries to build against.
 
 * `-DCLVK_VULKAN_IMPLEMENTATION=custom` instructs the build system to use the
   values provided by the user manually using `-DVulkan_INCLUDE_DIRS` and
@@ -138,8 +135,7 @@ clvk can be built for Android using the
 2. Pass the following options to CMake:
     - `-DCMAKE_TOOLCHAIN_FILE=/path/to/ndk/build/cmake/android.toolchain.cmake`
     - `-DANDROID_ABI=<ABI_FOR_THE_TARGET_DEVICE>`, most likely `arm64-v8a`
-    - `-DCLVK_VULKAN_IMPLEMENTATION=loader`
-    - `-DCLVK_VULKAN_LOADER_DIR=/path/to/Vulkan-Loader` (see above)
+    - `-DVulkan_LIBRARY=/path/to/ndk/**/<api-level>/libvulkan.so`
 3. That should be it!
 
 # Using
