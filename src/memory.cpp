@@ -205,6 +205,12 @@ bool cvk_sampler::init() {
         unnormalized_coordinates = VK_TRUE;
         // VUID-01073: unnormalized coords must use nearest mipmap filtering.
         mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        // VUID-01075: unnormalized coords must use clamp to edge or border
+        // addressing
+        if ((address_mode != VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE) &&
+            (address_mode != VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER)) {
+            address_mode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        }
     }
 
     // TODO this is a rough first pass, dig into the details
