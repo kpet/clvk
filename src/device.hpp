@@ -106,6 +106,7 @@ struct cvk_device : public _cl_device_id,
     cvk_platform* platform() const { return m_platform; }
     const char* name() const { return m_properties.deviceName; }
     uint32_t vendor_id() const { return m_properties.vendorID; }
+    std::string vendor() const;
 
     CHECK_RETURN uint32_t memory_type_index_for_resource(
         uint32_t valid_memory_type_bits,

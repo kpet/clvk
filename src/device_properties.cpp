@@ -21,37 +21,53 @@
 #include <sys/system_properties.h>
 #endif
 
-struct cvk_device_properties_mali_exynos9820 : public cvk_device_properties {
+struct cvk_device_properties_mali : public cvk_device_properties {
+    std::string vendor() const override final { return "ARM"; }
+};
+
+struct cvk_device_properties_mali_exynos9820
+    : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 12; }
 };
 
-struct cvk_device_properties_mali_exynos990 : public cvk_device_properties {
+struct cvk_device_properties_mali_exynos990
+    : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 11; }
 };
 
-struct cvk_device_properties_adreno_615 : public cvk_device_properties {
+static bool isMaliDevice(const char* name, const uint32_t vendorID) {
+    const uint32_t ARMVendorID = 0x13B5;
+    return vendorID == ARMVendorID || strncmp(name, "Mali-", 5) == 0;
+}
+
+struct cvk_device_properties_adreno : public cvk_device_properties {
+    std::string vendor() const override final { return "Qualcomm"; }
+};
+
+struct cvk_device_properties_adreno_615 : public cvk_device_properties_adreno {
     cl_ulong get_global_mem_cache_size() const override final { return 65536; }
     cl_ulong get_num_compute_units() const override final { return 1; }
 };
 
-struct cvk_device_properties_adreno_620 : public cvk_device_properties {
+struct cvk_device_properties_adreno_620 : public cvk_device_properties_adreno {
     cl_ulong get_global_mem_cache_size() const override final { return 65536; }
     cl_ulong get_num_compute_units() const override final { return 1; }
 };
 
-struct cvk_device_properties_adreno_630 : public cvk_device_properties {
+struct cvk_device_properties_adreno_630 : public cvk_device_properties_adreno {
     cl_ulong get_global_mem_cache_size() const override final { return 131072; }
     cl_ulong get_num_compute_units() const override final { return 2; }
 };
 
-struct cvk_device_properties_adreno_640 : public cvk_device_properties {
+struct cvk_device_properties_adreno_640 : public cvk_device_properties_adreno {
     cl_ulong get_global_mem_cache_size() const override final { return 131072; }
     cl_ulong get_num_compute_units() const override final { return 2; }
 };
 
 struct cvk_device_properties_intel : public cvk_device_properties {
+    std::string vendor() const override final { return "Intel Corporation"; }
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
     const std::set<std::string> get_native_builtins() const override final {
@@ -79,6 +95,9 @@ static bool isIntelDevice(const char* name, const uint32_t vendorID) {
 }
 
 struct cvk_device_properties_amd : public cvk_device_properties {
+    std::string vendor() const override final {
+        return "Advanced Micro Devices, Inc. [AMD/ATI]";
+    }
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
     const std::set<std::string> get_native_builtins() const override final {
@@ -105,6 +124,7 @@ static bool isAMDDevice(const char* name, const uint32_t vendorID) {
 
 struct cvk_device_properties_samsung_xclipse_920
     : public cvk_device_properties {
+    std::string vendor() const override final { return "Samsung"; }
     const std::set<std::string> get_native_builtins() const override final {
         return std::set<std::string>({
             "acos",          "acospi",    "asin",
@@ -134,6 +154,7 @@ struct cvk_device_properties_samsung_xclipse_920
 };
 
 struct cvk_device_properties_swiftshader : public cvk_device_properties {
+    std::string vendor() const override final { return "Google, Inc."; }
     const std::set<std::string> get_native_builtins() const override final {
         return std::set<std::string>({
             "asin",          "asinpi",     "atan",
@@ -162,6 +183,7 @@ static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
 }
 
 struct cvk_device_properties_nvidia : public cvk_device_properties {
+    std::string vendor() const override final { return "NVIDIA Corporation"; }
     const std::set<std::string> get_native_builtins() const override final {
         return std::set<std::string>({
             "acos",        "acosh",          "acospi",      "asin",
@@ -191,7 +213,7 @@ static bool isNVIDIADevice(const uint32_t vendorID) {
 std::unique_ptr<cvk_device_properties>
 create_cvk_device_properties(const char* name, const uint32_t vendorID,
                              const uint32_t deviceID) {
-    if (strncmp(name, "Mali-", 5) == 0) {
+    if (isMaliDevice(name, vendorID)) {
 #ifdef __ANDROID__
         // Find out which SoC this is.
         char soc[PROP_VALUE_MAX + 1];
@@ -212,6 +234,7 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
+        RETURN(cvk_device_properties_mali);
     } else if (strcmp(name, "Adreno (TM) 615") == 0) {
         RETURN(cvk_device_properties_adreno_615);
     } else if (strcmp(name, "Adreno (TM) 620") == 0) {

@@ -453,7 +453,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = val_string.size_with_null();
         break;
     case CL_DEVICE_VENDOR:
-        val_string = "FIXME";
+        val_string = device->vendor();
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;

@@ -965,6 +965,19 @@ bool cvk_device::init(VkInstance instance) {
     return true;
 }
 
+std::string cvk_device::vendor() const {
+    // Is this a Khronos vendor ID?
+    if (m_properties.vendorID > 0xFFFF) {
+        return vulkan_vendor_id_string(
+            static_cast<VkVendorId>(m_properties.vendorID));
+    }
+
+    // If not, we are looking at a PCI Vendor ID.
+    // TODO support looking it up in the PCI DB.
+
+    return m_clvk_properties->vendor();
+}
+
 bool cvk_device::supports_capability(spv::Capability capability) const {
     switch (capability) {
     // Capabilities required by all Vulkan implementations:
