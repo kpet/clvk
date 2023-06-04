@@ -217,10 +217,10 @@
         "intmath_long4": "pass",
         "kernel_call_kernel_function": "pass",
         "kernel_limit_constants": "pass",
-        "kernel_memory_alignment_constant": "fail",
-        "kernel_memory_alignment_global": "fail",
-        "kernel_memory_alignment_local": "fail",
-        "kernel_memory_alignment_private": "fail",
+        "kernel_memory_alignment_constant": "pass",
+        "kernel_memory_alignment_global": "pass",
+        "kernel_memory_alignment_local": "pass",
+        "kernel_memory_alignment_private": "pass",
         "kernel_numeric_constants": "pass",
         "kernel_preprocessor_macros": "pass",
         "local_arg_def": "pass",
@@ -1548,20 +1548,20 @@
       "retcode": 0
     },
     "Vectors": {
-      "duration": "00:01:13.119996",
+      "duration": "00:02:17.154664",
       "has_results": true,
       "results": {
         "step_type": "pass",
         "step_typedef_type": "pass",
         "step_typedef_var": "pass",
         "step_var": "pass",
-        "vec_align_array": "fail",
+        "vec_align_array": "pass",
         "vec_align_packed_struct": "pass",
         "vec_align_packed_struct_arr": "pass",
-        "vec_align_struct": "fail",
-        "vec_align_struct_arr": "fail"
+        "vec_align_struct": "pass",
+        "vec_align_struct_arr": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Workgroups": {
       "duration": "00:00:00.025286",
