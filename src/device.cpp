@@ -88,6 +88,16 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
             "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
     }
     func(m_pdev, &properties);
+
+    //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
+    // allocation size.
+    m_maintenance3_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+    m_maintenance3_properties.pNext = nullptr;
+    m_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    m_properties2.pNext = &m_maintenance3_properties;
+    vkGetPhysicalDeviceProperties2(m_pdev, &m_properties2);
+    //---
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {

@@ -57,16 +57,6 @@ struct cvk_device : public _cl_device_id,
             m_type = CL_DEVICE_TYPE_DEFAULT;
         }
 
-        //--- Get maxMemoryAllocationSize for figuring out the  max single
-        // buffer allocation size.
-        m_mtn3Properties.sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
-        m_mtn3Properties.pNext = nullptr;
-        m_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        m_properties2.pNext = &m_mtn3Properties;
-        vkGetPhysicalDeviceProperties2(pd, &m_properties2);
-        //---
-
         switch (m_properties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
         case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
@@ -196,7 +186,7 @@ struct cvk_device : public _cl_device_id,
         return ret;
     }
 
-    uint64_t actual_memory_size() const {
+    uint64_t global_mem_size() const {
         // Return the size of the smallest memory heap that can be used to
         // allocate images or buffers
         uint64_t size = UINT64_MAX;
@@ -227,34 +217,29 @@ struct cvk_device : public _cl_device_id,
         return size * percentage_of_available_memory_reported;
     }
 
-    uint64_t global_memory_size() const {
-        return std::min(max_alloc_size() * 4, actual_memory_size());
-    }
-
-    uint64_t max_alloc_size() const {
+    uint64_t max_mem_alloc_size() const {
         // Min memory as per the specs.
         auto specMinAllocSz =
             std::max(std::min((uint64_t)(1024 * 1024 * 1024),
-                              (uint64_t)(actual_memory_size())),
+                              (uint64_t)((1 / 4) * global_mem_size())),
                      (uint64_t)(32 * 1024 * 1024));
 
         // Max memory allocation for single buffer is set in config.def to 1024
         // mb - minimum required by spec. For single allocation this value can
-        // be adjusted with environment variable CLVK_MAX_ALLOC_SIZE_MB For
+        // be adjusted with environment variable CLVK_MEM_MAX_ALLOC_SIZE_MB For
         // multiple allocations(total memory allocations), environment var
         // CLVK_PERCENTAGE_OF_AVAILABLE_MEMORY_REPORTED can be adjusted.
         auto maxAllocSz =
-            std::min(m_mtn3Properties.maxMemoryAllocationSize,
-                     (uint64_t)config.max_alloc_size_mb() * 1024 * 1024);
-        maxAllocSz = std::min(maxAllocSz, actual_memory_size());
+            std::min(m_maintenance3_properties.maxMemoryAllocationSize,
+                     (uint64_t)config.max_mem_alloc_size_mb() * 1024 * 1024);
+        maxAllocSz = std::min(maxAllocSz, global_mem_size());
 
-        // Since the user has an option to change this value, do some checks.
         if (specMinAllocSz > maxAllocSz) {
-            cvk_warn("Returning maximum single buffer allocation "
-                     "size(CL_DEVICE_MAX_MEM_ALLOC_SIZE) which is\n"
-                     "smaller than specified in the OpenCL specification. Size "
-                     "as per Specification:%llu   Actual size:%llu",
-                     specMinAllocSz, maxAllocSz);
+            cvk_warn("Returning value (%s) for CL_DEVICE_MAX_MEM_ALLOC_SIZE "
+                     "which is\n"
+                     "smaller than required by the OpenCL specification (%s). ",
+                     pretty_size(maxAllocSz).c_str(),
+                     pretty_size(specMinAllocSz).c_str());
         }
 
         return maxAllocSz;
@@ -580,7 +565,7 @@ private:
     // Properties
     VkPhysicalDeviceProperties m_properties;
     VkPhysicalDeviceProperties2 m_properties2;
-    VkPhysicalDeviceMaintenance3Properties m_mtn3Properties;
+    VkPhysicalDeviceMaintenance3Properties m_maintenance3_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
