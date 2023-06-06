@@ -48,6 +48,13 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
     m_subgroup_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
 
+    //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
+    // allocation size.
+    m_maintenance3_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+    m_maintenance3_properties.pNext = nullptr;
+    //---
+
 #define VER_EXT_PROP(ver, ext, prop)                                           \
     {ver, ext, reinterpret_cast<VkBaseOutStructure*>(&prop)}
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
@@ -61,6 +68,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_pci_bus_info_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_subgroup_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 0, 0), nullptr,
+                         m_maintenance3_properties),
         };
 #undef VER_EXT_PROP
 
@@ -88,16 +97,6 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
             "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
     }
     func(m_pdev, &properties);
-
-    //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
-    // allocation size.
-    m_maintenance3_properties.sType =
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
-    m_maintenance3_properties.pNext = nullptr;
-    m_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    m_properties2.pNext = &m_maintenance3_properties;
-    vkGetPhysicalDeviceProperties2(m_pdev, &m_properties2);
-    //---
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
@@ -234,6 +233,10 @@ bool cvk_device::init_extensions() {
         desired_extensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
         desired_extensions.push_back(
             VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME);
+    }
+
+    if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {
+        desired_extensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
     }
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 1, 0)) {

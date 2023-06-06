@@ -218,14 +218,14 @@ struct cvk_device : public _cl_device_id,
     }
 
     uint64_t max_mem_alloc_size() const {
+        CVK_ASSERT(global_mem_size() % 4 == 0);
         // Min memory as per the specs.
         auto specMinAllocSz =
             std::max(std::min((uint64_t)(1024 * 1024 * 1024),
-                              (uint64_t)((1 / 4) * global_mem_size())),
+                              (uint64_t)(global_mem_size() / 4)),
                      (uint64_t)(32 * 1024 * 1024));
-
         // Max memory allocation for single buffer is set in config.def to 1024
-        // mb - minimum required by spec. For single allocation this value can
+        // MiB - minimum required by spec. For single allocation this value can
         // be adjusted with environment variable CLVK_MEM_MAX_ALLOC_SIZE_MB For
         // multiple allocations(total memory allocations), environment var
         // CLVK_PERCENTAGE_OF_AVAILABLE_MEMORY_REPORTED can be adjusted.
@@ -564,7 +564,6 @@ private:
     VkPhysicalDevice m_pdev;
     // Properties
     VkPhysicalDeviceProperties m_properties;
-    VkPhysicalDeviceProperties2 m_properties2;
     VkPhysicalDeviceMaintenance3Properties m_maintenance3_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
