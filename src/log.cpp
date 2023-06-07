@@ -391,8 +391,10 @@ std::string vulkan_vendor_id_string(VkVendorId vid) {
         return "Mesa";
     case VK_VENDOR_ID_POCL:
         return "PoCL";
+#ifdef VK_VENDOR_ID_MOBILEYE
     case VK_VENDOR_ID_MOBILEYE:
         return "Mobileye";
+#endif
     default:
         return "Unknown Khronos Vendor ID";
     }
