@@ -49,10 +49,11 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
 
     //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
-    // allocation size.
+    // allocation size and default init when the extension is not supported
+    m_maintenance3_properties.maxMemoryAllocationSize =
+        std::numeric_limits<VkDeviceSize>::max();
     m_maintenance3_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
-    m_maintenance3_properties.pNext = nullptr;
     //---
 
 #define VER_EXT_PROP(ver, ext, prop)                                           \
@@ -68,7 +69,7 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_pci_bus_info_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_subgroup_properties),
-            VER_EXT_PROP(VK_MAKE_VERSION(1, 0, 0), nullptr,
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_maintenance3_properties),
         };
 #undef VER_EXT_PROP
