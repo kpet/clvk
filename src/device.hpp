@@ -187,7 +187,7 @@ struct cvk_device : public _cl_device_id,
         return ret;
     }
 
-    uint64_t actual_memory_size() const {
+    uint64_t global_mem_size() const {
         // Return the size of the smallest memory heap that can be used to
         // allocate images or buffers
         uint64_t size = UINT64_MAX;
@@ -218,13 +218,32 @@ struct cvk_device : public _cl_device_id,
         return size * percentage_of_available_memory_reported;
     }
 
-    uint64_t memory_size() const {
-        return std::min(max_alloc_size() * 4, actual_memory_size());
-    }
+    uint64_t max_mem_alloc_size() const {
+        CVK_ASSERT(global_mem_size() % 4 == 0);
+        // Min memory as per the specs.
+        auto specMinAllocSz =
+            std::max(std::min((uint64_t)(1024 * 1024 * 1024),
+                              (uint64_t)(global_mem_size() / 4)),
+                     (uint64_t)(32 * 1024 * 1024));
+        // Max memory allocation for single buffer is set in config.def to 1024
+        // MiB - minimum required by spec. For single allocation this value can
+        // be adjusted with environment variable CLVK_MEM_MAX_ALLOC_SIZE_MB For
+        // multiple allocations(total memory allocations), environment var
+        // CLVK_PERCENTAGE_OF_AVAILABLE_MEMORY_REPORTED can be adjusted.
+        auto maxAllocSz =
+            std::min(m_maintenance3_properties.maxMemoryAllocationSize,
+                     (uint64_t)config.max_mem_alloc_size_mb() * 1024 * 1024);
+        maxAllocSz = std::min(maxAllocSz, global_mem_size());
 
-    uint64_t max_alloc_size() const {
-        uint64_t max_buffer_size = m_properties.limits.maxStorageBufferRange;
-        return std::min(max_buffer_size, actual_memory_size());
+        if (specMinAllocSz > maxAllocSz) {
+            cvk_warn("Returning value (%s) for CL_DEVICE_MAX_MEM_ALLOC_SIZE "
+                     "which is\n"
+                     "smaller than required by the OpenCL specification (%s). ",
+                     pretty_size(maxAllocSz).c_str(),
+                     pretty_size(specMinAllocSz).c_str());
+        }
+
+        return maxAllocSz;
     }
 
     cl_uint mem_base_addr_align() const {
@@ -546,6 +565,7 @@ private:
     VkPhysicalDevice m_pdev;
     // Properties
     VkPhysicalDeviceProperties m_properties;
+    VkPhysicalDeviceMaintenance3Properties m_maintenance3_properties;
     VkPhysicalDeviceMemoryProperties m_mem_properties;
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
