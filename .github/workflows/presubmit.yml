@@ -221,3 +221,20 @@ jobs:
           ${{ env.builddir }}/clspv${{ env.exe-ext }} -output-format=bc -o simple.bc ./tests/simple-from-llvm-ir-binary/simple.cl
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary${{ env.exe-ext }}
           ${{ env.testbindir }}/simple_test_from_llvm_ir_binary_static${{ env.exe-ext }}
+      - name: API tests (with validation layers)
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+        shell: bash
+        run: |
+          ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
+          cat validation.log
+          if [ -s validation.log ]; then
+            echo "VALIDATION LAYERS REPORTED ERRORS"
+            exit 1
+          fi
+        env:
+          CLVK_LOG: 1
+          CLVK_LOG_GROUPS: validation
+          CLVK_LOG_DEST: file:validation.log
+          CLVK_VALIDATION_LAYERS: 1
+          VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
+          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}
