@@ -81,7 +81,6 @@ target_include_directories(OpenCL-objects SYSTEM BEFORE PRIVATE
     ${SPIRV_TOOLS_SOURCE_DIR}/include
     ${Vulkan_INCLUDE_DIRS}
 )
-target_link_libraries(OpenCL-objects Vulkan-Headers)
 
 find_package(Threads)
 

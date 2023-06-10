@@ -37,12 +37,6 @@ macro(add_gtest_executable name)
   include_directories(${Vulkan_INCLUDE_DIRS})
 
   target_link_libraries(${name} OpenCL ${CLVK_GTEST_LIBRARIES})
-  if (NOT PROJECT_IS_TOP_LEVEL)
-    if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL loader OR
-        ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
-      target_link_libraries(${name} Vulkan-Headers)
-    endif()
-  endif()
   if (BUILD_SHARED_LIBS)
     target_link_libraries(${name} LLVMSupport)
   endif()
