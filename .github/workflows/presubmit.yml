@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - lavapipe
   pull_request:
 
 jobs:
@@ -264,3 +265,9 @@ jobs:
         env:
           CLVK_PERFETTO_TRACE_DEST: ${{ env.testbindir }}/perfetto.trace
           TRACE_PROCESSOR_SHELL: ${{ env.perfettodir }}/out/linux_clang_release/trace_processor_shell
+      - name: Test lavapipe
+        if: ${{ runner.os == 'Linux' }}
+        run: |
+          sudo apt install -y mesa-vulkan-drivers
+          unset VK_ICD_FILENAMES
+          ${{ env.testbindir }}/api_tests${{ env.exe-ext }}
