@@ -846,7 +846,12 @@ struct cvk_command_map_buffer final : public cvk_command_buffer_base_region {
                            size_t offset, size_t size, cl_map_flags flags)
         : cvk_command_buffer_base_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
                                          offset, size),
-          m_flags(flags) {}
+          m_flags(flags), m_mapping_needs_releasing_on_destruction(false) {}
+    ~cvk_command_map_buffer() {
+        if (m_mapping_needs_releasing_on_destruction) {
+            m_buffer->cleanup_mapping(m_mapping);
+        }
+    }
     CHECK_RETURN cl_int build(void** map_ptr);
     CHECK_RETURN cl_int do_action() override final;
 
@@ -857,6 +862,7 @@ struct cvk_command_map_buffer final : public cvk_command_buffer_base_region {
 private:
     cl_map_flags m_flags;
     cvk_buffer_mapping m_mapping;
+    bool m_mapping_needs_releasing_on_destruction;
 };
 
 struct cvk_command_unmap_buffer final : public cvk_command_buffer_base {

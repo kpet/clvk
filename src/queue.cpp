@@ -1289,6 +1289,7 @@ cl_int cvk_command_map_buffer::build(void** map_ptr) {
         return CL_OUT_OF_RESOURCES;
     }
 
+    m_mapping_needs_releasing_on_destruction = true;
     *map_ptr = m_mapping.buffer->map_ptr(m_offset);
 
     return CL_SUCCESS;
@@ -1305,6 +1306,10 @@ cl_int cvk_command_map_buffer::do_action() {
         auto dst = m_mapping.buffer->host_ptr();
         dst = pointer_offset(dst, m_offset);
         success = m_buffer->copy_to(dst, m_offset, m_size);
+    }
+
+    if (success) {
+        m_mapping_needs_releasing_on_destruction = false;
     }
 
     return success ? CL_COMPLETE : CL_OUT_OF_RESOURCES;

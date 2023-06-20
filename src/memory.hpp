@@ -388,6 +388,14 @@ struct cvk_buffer : public cvk_mem {
         return mapping;
     }
 
+    void cleanup_mapping(cvk_buffer_mapping& mapping) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
+        if (m_mappings.count(mapping.ptr)) {
+            m_mappings.erase(mapping.ptr);
+        }
+        mapping.buffer->unmap();
+    }
+
     uint64_t device_address() const {
         VkBufferDeviceAddressInfo info{};
         info.buffer = vulkan_buffer();
