@@ -497,7 +497,7 @@ bool spir_binary::load(std::istream& istream, uint32_t size) {
         return false;
     }
 
-    return load_descriptor_map();
+    return true;
 }
 
 bool spir_binary::read(const unsigned char* src, size_t size) {
