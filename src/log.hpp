@@ -29,11 +29,12 @@ enum loglevel
     debug = 4
 };
 
-enum loggroup
+enum loggroup : uint64_t
 {
     refcounting = (1ULL << 0),
     api = (1ULL << 1),
     event = (1ULL << 2),
+    validation = (1ULL << 3),
     none = (1ULL << 63),
     all = ~0ULL
 };

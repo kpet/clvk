@@ -32,7 +32,28 @@ runs:
     - name: Remove SPIR-V Tools CMake modules on macOS
       shell: bash
       run: |
+        find $VULKAN_SDK
         echo "RUNNER_OS: $RUNNER_OS"
         if [ "$RUNNER_OS" == "macOS" ]; then
           rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
         fi
+    - name: Setup environment variables
+      shell: bash
+      run: |
+        if [ $RUNNER_OS == "macOS" ]; then
+          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d" >> $GITHUB_ENV
+        fi
+        if [ $RUNNER_OS == "Linux" ]; then
+          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/etc/vulkan/explicit_layer.d" >> $GITHUB_ENV
+        fi
+        if [ $RUNNER_OS == "Windows" ]; then
+          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK\Bin" >> $GITHUB_ENV
+        fi
+        echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib" >> $GITHUB_ENV
+    - name: Install layers
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+          reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\ExplicitLayers'
+          reg add 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\ExplicitLayers' /v '${{ env.VULKAN_SDK }}\Bin\VkLayer_khronos_validation.json' /t REG_DWORD /d 0
+          reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\ExplicitLayers'

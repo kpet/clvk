@@ -47,6 +47,7 @@ static uint64_t init_logging_groups() {
         {"refcounting", loggroup::refcounting},
         {"api", loggroup::api},
         {"event", loggroup::event},
+        {"validation", loggroup::validation},
         {"none", loggroup::none},
         {"all", loggroup::all},
     };

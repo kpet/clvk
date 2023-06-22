@@ -38,16 +38,16 @@ static VkBool32 VKAPI_PTR debugCallback(
     UNUSED(pUserData);
 
     if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) {
-        cvk_error("%s", pMessage);
+        cvk_error_group(loggroup::validation, "%s", pMessage);
     } else if ((flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) ||
                (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)) {
-        cvk_warn("%s", pMessage);
+        cvk_warn_group(loggroup::validation, "%s", pMessage);
     } else if (flags & VK_DEBUG_REPORT_INFORMATION_BIT_EXT) {
-        cvk_info("%s", pMessage);
+        cvk_info_group(loggroup::validation, "%s", pMessage);
     } else if (flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT) {
-        cvk_debug("%s", pMessage);
+        cvk_debug_group(loggroup::validation, "%s", pMessage);
     } else {
-        cvk_error("%s", pMessage);
+        cvk_error_group(loggroup::validation, "%s", pMessage);
     }
 
     return VK_FALSE;
