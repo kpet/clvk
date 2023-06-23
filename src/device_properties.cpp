@@ -23,6 +23,8 @@
 
 struct cvk_device_properties_mali : public cvk_device_properties {
     std::string vendor() const override final { return "ARM"; }
+    cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
+    cl_uint get_max_cmd_group_size() const override final { return 1; }
 };
 
 struct cvk_device_properties_mali_exynos9820
