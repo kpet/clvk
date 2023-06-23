@@ -85,7 +85,7 @@ struct cvk_device_properties_intel : public cvk_device_properties {
         });
     }
     std::string get_compile_options() const override final {
-        return "-hack-mul-extended";
+        return "-hack-mul-extended -hack-convert-to-float";
     }
 };
 
@@ -114,6 +114,9 @@ struct cvk_device_properties_amd : public cvk_device_properties {
             "rint",        "round",          "rsqrt",       "signbit",
             "sqrt",        "trunc",
         });
+    }
+    std::string get_compile_options() const override final {
+        return "-hack-convert-to-float";
     }
 };
 
