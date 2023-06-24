@@ -111,7 +111,10 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'e':
         case 'g':
         case 'a': {
-            if (size == 4)
+            if (size == 2)
+                written = snprintf(out.data(), out_size, fmt.c_str(),
+                                   cl_half_to_float(read_buff<cl_half>(data)));
+            else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<float>(data));
             else
