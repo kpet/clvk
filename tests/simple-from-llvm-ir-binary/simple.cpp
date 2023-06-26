@@ -31,7 +31,7 @@
         }                                                                      \
     } while (0)
 
-int main(int argc, char* argv[]) {
+int main() {
     cl_platform_id platform;
     cl_device_id device;
     cl_int err;
