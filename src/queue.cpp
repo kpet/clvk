@@ -179,7 +179,8 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         enqueue_command(cmd);
     }
 
-    cvk_debug_fn("enqueued command %p, event %p", cmd, cmd->event());
+    cvk_debug_fn("enqueued command %p (%s), event %p", cmd,
+                 cl_command_type_to_string(cmd->type()), cmd->event());
 
     cmd->event()->set_profiling_info_from_monotonic_clock(
         CL_PROFILING_COMMAND_QUEUED);
@@ -293,7 +294,8 @@ cl_int cvk_command_group::execute_cmds() {
     cl_int global_status = CL_SUCCESS;
     while (!commands.empty()) {
         cvk_command* cmd = commands.front();
-        cvk_debug_fn("executing command %p, event %p", cmd, cmd->event());
+        cvk_debug_fn("executing command %p (%s), event %p", cmd,
+                     cl_command_type_to_string(cmd->type()), cmd->event());
 
         cl_int status = cmd->execute();
         if (status != CL_COMPLETE && global_status == CL_SUCCESS)
