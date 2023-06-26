@@ -387,8 +387,8 @@ struct cvk_command {
 
         // Then execute the action if no dependencies failed
         if (status != CL_COMPLETE) {
-            cvk_error_fn("one or more dependencies have failed for cmd %p",
-                         this);
+            cvk_error_fn("one or more dependencies have failed for cmd %p (%s)",
+                         this, cl_command_type_to_string(m_type));
         } else {
             set_event_status(CL_RUNNING);
             TRACE_BEGIN_CMD(m_type, "queue", (uintptr_t) & (*m_queue),
@@ -779,7 +779,8 @@ struct cvk_command_batch : public cvk_command {
             m_queue->command_pool_lock();
         }
 
-        cvk_debug_fn("add command %p to batch %p", cmd, this);
+        cvk_debug_fn("add command %p (%s) to batch %p", cmd,
+                     cl_command_type_to_string(cmd->type()), this);
         m_commands.emplace_back(cmd);
 
         cl_int ret = cmd->build(*m_command_buffer);
