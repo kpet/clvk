@@ -268,7 +268,8 @@ public:
         }
     }
 
-    void add_kernel(const std::string& name, uint32_t num_args, const std::string& attributes) {
+    void add_kernel(const std::string& name, uint32_t num_args,
+                    const std::string& attributes) {
         auto& args = m_dmaps[name];
         kernel_argument unused = {
             {}, 0, 0, 0, 0, 0, kernel_argument_kind::unused, 0, 0};
