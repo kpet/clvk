@@ -94,9 +94,6 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         CVK_ASSERT(mem->is_image_type());
         auto initcmd =
             new cvk_command_image_init(this, static_cast<cvk_image*>(mem));
-        if (initcmd->build() != CL_SUCCESS) {
-            return CL_OUT_OF_RESOURCES;
-        }
         _cl_event* initev;
         cl_int err = enqueue_command(initcmd, &initev);
         if (err != CL_SUCCESS) {
