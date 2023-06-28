@@ -2858,7 +2858,6 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
     cl_int ret = CL_SUCCESS;
     size_t ret_size = 0;
     const void* copy_ptr = nullptr;
-    // TODO could this be a union
     cl_uint val_uint;
     cl_context val_context;
     cl_program val_program;
@@ -2895,9 +2894,9 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
         ret_size = sizeof(val_program);
         break;
     case CL_KERNEL_ATTRIBUTES: {
-        const auto& attrs = kernel->attributes();
+        const api_query_string attrs = kernel->attributes();
         copy_ptr = attrs.c_str();
-        ret_size = attrs.size() + 1;
+        ret_size = attrs.size_with_null();
         break;
     }
     default:
