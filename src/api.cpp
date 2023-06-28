@@ -2893,7 +2893,12 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
         copy_ptr = &val_program;
         ret_size = sizeof(val_program);
         break;
-    case CL_KERNEL_ATTRIBUTES: // TODO implement
+    case CL_KERNEL_ATTRIBUTES: {
+        const api_query_string attrs = kernel->attributes();
+        copy_ptr = attrs.c_str();
+        ret_size = attrs.size_with_null();
+        break;
+    }
     default:
         ret = CL_INVALID_VALUE;
     }

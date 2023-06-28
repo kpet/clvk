@@ -34,9 +34,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     CHECK_RETURN cl_int init();
     std::unique_ptr<cvk_kernel> clone(cl_int* errcode_ret) const;
 
-    virtual ~cvk_kernel() {
-        m_argument_values.reset();
-    }
+    virtual ~cvk_kernel() { m_argument_values.reset(); }
 
     std::shared_ptr<cvk_kernel_argument_values> argument_values() const {
         return m_argument_values;
@@ -61,6 +59,9 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     }
 
     const std::string& name() const { return m_name; }
+    const std::string& attributes() const {
+        return m_program->kernel_attributes(m_name);
+    }
     uint32_t num_args() const { return m_args.size(); }
     uint32_t num_set_layouts() const {
         return m_entry_point->num_set_layouts();

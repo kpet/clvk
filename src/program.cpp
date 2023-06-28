@@ -180,9 +180,13 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionKernel: {
                 // Record the kernel name.
                 const auto& name = parse_data->strings[inst->words[6]];
+
                 const auto& num_args = parse_data->constants[inst->words[7]];
+                const auto& attributes = parse_data->strings[inst->words[9]];
+
                 parse_data->strings[inst->result_id] = name;
-                parse_data->binary->add_kernel(name, num_args);
+                parse_data->binary->add_kernel(name, num_args, attributes);
+
                 break;
             }
             case NonSemanticClspvReflectionArgumentInfo: {
