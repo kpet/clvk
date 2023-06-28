@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <fstream>
+#include <iterator>
+#include <sstream>
 
 #include "config.hpp"
 #include "device.hpp"
@@ -47,6 +49,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
     m_subgroup_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+    m_float_controls_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
 
     //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
     // allocation size and default init when the extension is not supported
@@ -71,6 +75,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_subgroup_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_maintenance3_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0), nullptr,
+                         m_float_controls_properties),
         };
 #undef VER_EXT_PROP
 
@@ -425,6 +431,26 @@ void cvk_device::init_compiler_options() {
     }
     if (device_16bit_storage_features().storagePushConstant16 == VK_FALSE) {
         m_device_compiler_options += " -no-16bit-storage=pushconstant ";
+    }
+    std::vector<std::string> roundingModeRTE;
+    if (m_float_controls_properties.shaderRoundingModeRTEFloat16) {
+        roundingModeRTE.push_back("16");
+    }
+    if (m_float_controls_properties.shaderRoundingModeRTEFloat32) {
+        roundingModeRTE.push_back("32");
+    }
+    if (m_float_controls_properties.shaderRoundingModeRTEFloat64) {
+        roundingModeRTE.push_back("64");
+    }
+    if (roundingModeRTE.size() > 0) {
+        m_device_compiler_options += " -rounding-mode-rte=";
+        for (unsigned i = 0; i < roundingModeRTE.size(); i++) {
+            if (i != 0) {
+                m_device_compiler_options += ",";
+            }
+            m_device_compiler_options += roundingModeRTE[i];
+        }
+        m_device_compiler_options += " ";
     }
 
     // Types support
@@ -1038,6 +1064,10 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return supports_non_uniform_decoration();
     case spv::CapabilityPhysicalStorageBufferAddresses:
         return m_features_buffer_device_address.bufferDeviceAddress;
+    case spv::CapabilityRoundingModeRTE:
+        return m_float_controls_properties.shaderRoundingModeRTEFloat32 ||
+               m_float_controls_properties.shaderRoundingModeRTEFloat16 ||
+               m_float_controls_properties.shaderRoundingModeRTEFloat64;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);

@@ -585,6 +585,7 @@ private:
         m_features_vulkan_memory_model{};
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
         m_features_buffer_device_address{};
+    VkPhysicalDeviceFloatControlsProperties m_float_controls_properties{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
