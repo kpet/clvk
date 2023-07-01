@@ -2861,6 +2861,7 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
     cl_uint val_uint;
     cl_context val_context;
     cl_program val_program;
+    api_query_string val_string;
 
     auto kernel = icd_downcast(kern);
 
@@ -2894,9 +2895,9 @@ cl_int CLVK_API_CALL clGetKernelInfo(cl_kernel kern, cl_kernel_info param_name,
         ret_size = sizeof(val_program);
         break;
     case CL_KERNEL_ATTRIBUTES: {
-        const api_query_string attrs = kernel->attributes();
-        copy_ptr = attrs.c_str();
-        ret_size = attrs.size_with_null();
+        val_string = kernel->attributes();
+        copy_ptr = val_string.c_str();
+        ret_size = val_string.size_with_null();
         break;
     }
     default:
