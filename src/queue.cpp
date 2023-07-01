@@ -998,7 +998,8 @@ cl_int cvk_command_batchable::build() {
 }
 
 cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
-    CVK_ASSERT(m_command_buffer == nullptr || (*m_command_buffer == command_buffer));
+    CVK_ASSERT(m_command_buffer == nullptr ||
+               (*m_command_buffer == command_buffer));
     // Create query pool
     VkQueryPoolCreateInfo query_pool_create_info = {
         VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
