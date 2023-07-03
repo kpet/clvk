@@ -433,13 +433,15 @@ void cvk_device::init_compiler_options() {
         m_device_compiler_options += " -no-16bit-storage=pushconstant ";
     }
     std::vector<std::string> roundingModeRTE;
-    if (m_float_controls_properties.shaderRoundingModeRTEFloat16) {
+    if (m_float_controls_properties.shaderRoundingModeRTEFloat16 &&
+        supports_fp16()) {
         roundingModeRTE.push_back("16");
     }
     if (m_float_controls_properties.shaderRoundingModeRTEFloat32) {
         roundingModeRTE.push_back("32");
     }
-    if (m_float_controls_properties.shaderRoundingModeRTEFloat64) {
+    if (m_float_controls_properties.shaderRoundingModeRTEFloat64 &&
+        supports_fp64()) {
         roundingModeRTE.push_back("64");
     }
     if (roundingModeRTE.size() > 0) {
