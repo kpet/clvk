@@ -1153,6 +1153,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     int status = cvk_exec(cmd, &m_build_log);
     if (status != 0) {
         cvk_error_fn("failed to compile the program");
+        cvk_debug_fn("%s", m_build_log.c_str());
         return CL_BUILD_ERROR;
     }
 
@@ -1293,6 +1294,7 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
     }
     if (status != 0) {
         cvk_error_fn("failed to compile the program");
+        cvk_debug_fn("%s", m_build_log.c_str());
         return CL_BUILD_ERROR;
     }
     return CL_BUILD_SUCCESS;
