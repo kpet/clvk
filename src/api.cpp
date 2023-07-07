@@ -769,6 +769,16 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_IMAGE_PITCH_ALIGNMENT:
+        // Alignment of zero only makes sense if images are not supported.
+        if (device->supports_images()) {
+            val_uint = 1;
+        } else {
+            val_uint = 0;
+        }
+
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
     case CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT:
         val_uint = 0;
         copy_ptr = &val_uint;
