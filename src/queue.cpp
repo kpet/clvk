@@ -831,6 +831,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
 
     if (region.lws[0] * region.lws[1] * region.lws[2] >
         vklimits.maxComputeWorkGroupInvocations) {
+        cvk_error_fn("Too many work items per workgroup: %u * %u * %u > %u",
+                     region.lws[0], region.lws[1], region.lws[2],
+                     vklimits.maxComputeWorkGroupInvocations);
         return CL_INVALID_WORK_GROUP_SIZE;
     }
 
@@ -1032,7 +1035,7 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
 
     auto err = build_batchable_inner(command_buffer);
     if (err != CL_SUCCESS) {
-        return CL_OUT_OF_RESOURCES;
+        return err;
     }
 
     // Sample timestamp if profiling
