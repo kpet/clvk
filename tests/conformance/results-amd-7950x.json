@@ -5,9 +5,9 @@
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 23.1.1",
+    "driverInfo": "Mesa 23.1.3",
     "driverName": "radv",
-    "driverVersion": 96473089
+    "driverVersion": 96473091
   },
   "test-results": {
     "API": {
@@ -58,7 +58,7 @@
         "image_properties_queries": "pass",
         "kernel_arg_changes": "pass",
         "kernel_arg_multi_setup_random": "pass",
-        "kernel_attributes": "fail",
+        "kernel_attributes": "pass",
         "kernel_global_constant": "pass",
         "kernel_private_memory_size": "pass",
         "kernel_required_group_size": "pass",
@@ -182,10 +182,8 @@
         "explicit_s2v_uint": "pass",
         "explicit_s2v_ulong": "pass",
         "explicit_s2v_ushort": "pass",
-        "float2int": "pass",
-        "fpmath_float": "pass",
-        "fpmath_float2": "pass",
-        "fpmath_float4": "pass",
+        "fp2int": "pass",
+        "fpmath": "pass",
         "get_global_offset": "pass",
         "get_linear_ids": "pass",
         "global_linear_id": "pass",
@@ -208,7 +206,7 @@
         "imagerandomcopy": "pass",
         "imagereadwrite": "pass",
         "imagereadwrite3d": "pass",
-        "int2float": "pass",
+        "int2fp": "pass",
         "intmath_int": "pass",
         "intmath_int2": "pass",
         "intmath_int4": "pass",
@@ -1400,6 +1398,7 @@
         "op_neg_double": "pass",
         "op_neg_float": "pass",
         "op_neg_float4": "pass",
+        "op_neg_half": "fail",
         "op_neg_int": "pass",
         "op_neg_int4": "pass",
         "op_neg_long": "pass",
@@ -1457,9 +1456,10 @@
         "op_vector_long2_extract": "pass",
         "op_vector_long2_insert": "pass",
         "op_vector_times_scalar_double": "pass",
-        "op_vector_times_scalar_float": "pass"
+        "op_vector_times_scalar_float": "pass",
+        "op_vector_times_scalar_half": "fail"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "SVM": {
       "duration": "00:00:00.026051",
@@ -1492,6 +1492,8 @@
         "select_double_ulong": "pass",
         "select_float_int": "pass",
         "select_float_uint": "pass",
+        "select_half_short": "pass",
+        "select_half_ushort": "pass",
         "select_int_int": "pass",
         "select_int_uint": "pass",
         "select_long_long": "pass",
@@ -1510,10 +1512,29 @@
       "retcode": 0
     },
     "Subgroups": {
-      "duration": "00:00:00.069976",
-      "has_results": false,
-      "results": {},
-      "retcode": -11
+      "duration": "00:00:01.182298",
+      "has_results": true,
+      "results": {
+        "barrier_functions_core": "pass",
+        "barrier_functions_ext": "skip",
+        "ifp_core": "skip",
+        "ifp_ext": "skip",
+        "sub_group_info_core": "pass",
+        "sub_group_info_ext": "skip",
+        "subgroup_functions_ballot": "skip",
+        "subgroup_functions_clustered_reduce": "skip",
+        "subgroup_functions_core": "pass",
+        "subgroup_functions_ext": "skip",
+        "subgroup_functions_extended_types": "skip",
+        "subgroup_functions_non_uniform_arithmetic": "skip",
+        "subgroup_functions_non_uniform_vote": "skip",
+        "subgroup_functions_rotate": "skip",
+        "subgroup_functions_shuffle": "skip",
+        "subgroup_functions_shuffle_relative": "skip",
+        "work_item_functions_core": "pass",
+        "work_item_functions_ext": "skip"
+      },
+      "retcode": 0
     },
     "Thread Dimensions": {
       "duration": "00:00:27.929199",
@@ -1603,6 +1624,7 @@
         "explicit_flush": "skip",
         "fill_buffer": "skip",
         "fill_image": "skip",
+        "info_context": "skip",
         "info_prop_array": "skip",
         "info_queues": "skip",
         "info_ref_count": "skip",
