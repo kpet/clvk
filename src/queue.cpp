@@ -598,14 +598,7 @@ void cvk_command_kernel::update_global_push_constants(
         CVK_ASSERT(program->uses_printf());
 
         auto buffer = m_queue->printf_buffer();
-        VkBufferDeviceAddressInfo info{};
-        info.buffer = buffer->vulkan_buffer();
-        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-        info.pNext = NULL;
-
-        auto dev_addr = vkGetBufferDeviceAddress(
-            m_kernel->context()->device()->vulkan_device(), &info);
-        dev_addr += buffer->vulkan_buffer_offset();
+        auto dev_addr = buffer->device_address();
 
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
                            VK_SHADER_STAGE_COMPUTE_BIT, pc->offset, pc->size,
