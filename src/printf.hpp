@@ -27,5 +27,5 @@ struct printf_descriptor {
 using printf_descriptor_map_t = std::unordered_map<uint32_t, printf_descriptor>;
 
 // Process the contents of the printf buffer and print the results to stdout
-void cvk_printf(cvk_mem* printf_buffer,
-                const printf_descriptor_map_t& descriptors);
+cl_int cvk_printf(cvk_mem* printf_buffer,
+                  const printf_descriptor_map_t& descriptors);

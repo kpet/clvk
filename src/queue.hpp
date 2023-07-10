@@ -172,7 +172,7 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
-    cvk_buffer* printf_buffer() {
+    cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
             cl_int status;
             m_printf_buffer = cvk_buffer::create(
@@ -180,6 +180,23 @@ struct cvk_command_queue : public _cl_command_queue,
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();
+    }
+
+    cvk_buffer* get_printf_buffer() {
+        if (!m_printf_buffer) {
+            return nullptr;
+        }
+        return m_printf_buffer.get();
+    }
+
+    cl_int reset_printf_buffer() {
+        if (m_printf_buffer && m_printf_buffer->map()) {
+            memset(m_printf_buffer->host_va(), 0, 4);
+            m_printf_buffer->unmap();
+            return CL_SUCCESS;
+        }
+        cvk_error_fn("Could not reset printf buffer");
+        return CL_OUT_OF_RESOURCES;
     }
 
     void command_pool_lock() { m_command_pool.lock(); }
@@ -766,7 +783,7 @@ struct cvk_command_kernel final : public cvk_command_batchable {
 private:
     CHECK_RETURN cl_int
     build_and_dispatch_regions(cvk_command_buffer& command_buffer);
-    void update_global_push_constants(cvk_command_buffer& command_buffer);
+    CHECK_RETURN cl_int update_global_push_constants(cvk_command_buffer& command_buffer);
     CHECK_RETURN cl_int dispatch_uniform_region_within_vklimits(
         const cvk_ndrange& region, cvk_command_buffer& command_buffer);
     CHECK_RETURN cl_int dispatch_uniform_region_iterate(

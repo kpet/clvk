@@ -145,10 +145,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
         return m_args.at(arg_index).info.type_qualifier;
     }
 
-    bool uses_printf() const {
-        return m_program->kernel_flags(m_name) &
-               NonSemanticClspvReflectionMayUsePrintf;
-    }
+    bool uses_printf() const { return m_entry_point->uses_printf(); }
 
     bool requires_serialized_execution() const { return uses_printf(); }
 

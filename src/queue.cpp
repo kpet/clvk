@@ -540,7 +540,7 @@ bool cvk_command_buffer::submit_and_wait() {
     return true;
 }
 
-void cvk_command_kernel::update_global_push_constants(
+cl_int cvk_command_kernel::update_global_push_constants(
     cvk_command_buffer& command_buffer) {
     auto program = m_kernel->program();
 
@@ -597,7 +597,11 @@ void cvk_command_kernel::update_global_push_constants(
         CVK_ASSERT(pc->size == 8);
         CVK_ASSERT(program->uses_printf());
 
-        auto buffer = m_queue->printf_buffer();
+        auto buffer = m_queue->get_printf_buffer();
+        if (buffer == nullptr) {
+            cvk_error_fn("printf buffer was not created");
+            return CL_OUT_OF_RESOURCES;
+        }
         auto dev_addr = buffer->device_address();
 
         vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
@@ -653,6 +657,7 @@ void cvk_command_kernel::update_global_push_constants(
             }
         }
     }
+    return CL_SUCCESS;
 }
 
 cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
@@ -956,10 +961,10 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     // Setup printf buffer descriptor if needed
     if (m_kernel->program()->uses_printf()) {
         // Create and initialize the printf buffer
-        auto buffer = m_queue->printf_buffer();
-        if (buffer->map()) {
-            memset(buffer->host_va(), 0, 4);
-            buffer->unmap();
+        auto buffer = m_queue->get_or_create_printf_buffer();
+        auto err = m_queue->reset_printf_buffer();
+        if (err != CL_SUCCESS) {
+            return err;
         }
 
         if (m_kernel->program()->printf_buffer_info().type ==
@@ -996,10 +1001,13 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
                                 m_argument_values->descriptor_sets(), 0, 0);
     }
 
-    update_global_push_constants(command_buffer);
+    auto err = update_global_push_constants(command_buffer);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
 
     // Dispatch work
-    auto err = build_and_dispatch_regions(command_buffer);
+    err = build_and_dispatch_regions(command_buffer);
     if (err != CL_SUCCESS) {
         return err;
     }
@@ -1033,8 +1041,12 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
 cl_int cvk_command_kernel::do_post_action() {
     if (m_kernel->uses_printf()) {
-        cvk_printf(m_queue->printf_buffer(),
-                   m_kernel->program()->printf_descriptors());
+        auto buffer = m_queue->get_printf_buffer();
+        if (buffer == nullptr) {
+            cvk_error_fn("printf buffer was not created");
+            return CL_OUT_OF_RESOURCES;
+        }
+        return cvk_printf(buffer, m_kernel->program()->printf_descriptors());
     }
 
     return CL_SUCCESS;

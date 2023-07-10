@@ -460,6 +460,8 @@ public:
 
     cvk_program* program() const { return m_program; }
 
+    bool uses_printf() const;
+
 private:
     const uint32_t MAX_INSTANCES = 2 * 1024; // FIXME find a better definition
 

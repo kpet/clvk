@@ -229,21 +229,26 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs) {
     printf("%s", printf_out.str().c_str());
 }
 
-void cvk_printf(cvk_mem* printf_buffer,
+cl_int cvk_printf(cvk_mem* printf_buffer,
                 const printf_descriptor_map_t& descriptors) {
+    CVK_ASSERT(printf_buffer);
     if (!printf_buffer->map()) {
         cvk_error("Could not map printf buffer");
-        return;
+        return CL_OUT_OF_RESOURCES;
     }
     char* data = static_cast<char*>(printf_buffer->host_va());
     auto buffer_size = printf_buffer->size();
+    const auto bytes_written_size = sizeof(uint32_t);
+    const auto data_size = buffer_size - bytes_written_size;
     auto bytes_written = read_inc_buff<uint32_t>(data) * 4;
     auto* data_start = data;
 
     while (static_cast<size_t>(data - data_start) < bytes_written &&
-           static_cast<size_t>(data - data_start) < buffer_size) {
+           static_cast<size_t>(data - data_start) < data_size) {
         process_printf(data, descriptors);
     }
 
     printf_buffer->unmap();
+
+    return CL_SUCCESS;
 }
