@@ -230,7 +230,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs) {
 }
 
 cl_int cvk_printf(cvk_mem* printf_buffer,
-                const printf_descriptor_map_t& descriptors) {
+                  const printf_descriptor_map_t& descriptors) {
     CVK_ASSERT(printf_buffer);
     if (!printf_buffer->map()) {
         cvk_error("Could not map printf buffer");

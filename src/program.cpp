@@ -1833,8 +1833,7 @@ bool cvk_entry_point::
 bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_printf_buffer(
     binding_stat_map& smap) {
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
-    if (m_program->printf_buffer_info().size > 0 &&
-        (uses_printf())) {
+    if (m_program->printf_buffer_info().size > 0 && (uses_printf())) {
         auto info = m_program->printf_buffer_info();
         if (info.type != module_buffer_type::storage_buffer) {
             return true;

@@ -15,8 +15,8 @@
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 #include "testcl.hpp"
-#include "utils.hpp"
 #include "unit.hpp"
+#include "utils.hpp"
 
 #include <filesystem>
 
