@@ -26,7 +26,9 @@
 #define CHECK_RETURN
 #endif
 
-char* cvk_mkdtemp(std::string& tmpl);
+extern "C" {
+char* CL_API_CALL cvk_mkdtemp(char* tmpl, size_t size);
+}
 int cvk_exec(const std::string& cmd, std::string* output = nullptr);
 
 #define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \

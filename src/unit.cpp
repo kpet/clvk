@@ -37,6 +37,13 @@ void CL_API_CALL clvk_restore_device_properties(cl_device_id device) {
 
     icd_downcast(device)->restore_device_properties();
 }
+
+void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size) {
+    auto printf_buffer_size =
+        (config_value<uint32_t>*)&config.printf_buffer_size;
+    printf_buffer_size->value = size;
+    printf_buffer_size->set = true;
+}
 }
 
 #endif

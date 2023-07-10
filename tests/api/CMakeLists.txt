@@ -20,6 +20,7 @@ add_gtest_executable(api_tests
     local_buffer.cpp
     main.cpp
     platform.cpp
+    printf.cpp
     profiling.cpp
     simple.cpp
     simple_image.cpp

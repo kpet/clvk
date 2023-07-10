@@ -966,7 +966,8 @@ cl_int cvk_program::parse_user_spec_constants() {
     std::filesystem::path tmp_prefix(config.compiler_temp_dir());
     std::filesystem::path tmp_suffix("clvk-XXXXXX");
     std::string tmp_template = (tmp_prefix / tmp_suffix).string();
-    const char* tmp = cvk_mkdtemp(tmp_template);
+    const char* tmp =
+        cvk_mkdtemp((char*)tmp_template.c_str, tmp_template.size());
     if (tmp == nullptr) {
         cvk_error_fn("Could not create temporary folder \"%s\"",
                      tmp_template.c_str());
@@ -1361,7 +1362,8 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
         std::filesystem::path tmp_prefix(config.compiler_temp_dir());
         std::filesystem::path tmp_suffix("clvk-XXXXXX");
         std::string tmp_template = (tmp_prefix / tmp_suffix).string();
-        const char* tmp = cvk_mkdtemp(tmp_template);
+        const char* tmp =
+            cvk_mkdtemp((char*)tmp_template.c_str(), tmp_template.size());
         if (tmp == nullptr) {
             cvk_error_fn("Could not create temporary folder \"%s\"",
                          tmp_template.c_str());
