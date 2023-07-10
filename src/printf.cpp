@@ -149,7 +149,7 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
             finished = true;
         } else {
             out_size *= 2;
-            out.reserve(out_size);
+            out.resize(out_size);
         }
     }
 
