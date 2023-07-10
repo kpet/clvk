@@ -822,7 +822,6 @@ private:
     VkPipelineCache m_pipeline_cache;
     std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
     std::unordered_map<uint32_t, user_spec_constant_data> m_user_spec_constants;
-    std::unique_ptr<cvk_buffer> m_printf_buffer;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {
