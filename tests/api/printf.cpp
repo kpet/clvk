@@ -87,11 +87,9 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     ASSERT_TRUE(getStdout(fd));
 
     const char message[] = "Hello World!";
-    char* source = nullptr;
-    asprintf(&source, "kernel void test_printf() { printf(\"%s\");}", message);
-    ASSERT_NE(source, nullptr);
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     auto kernel = CreateKernel(source, "test_printf");
-    free(source);
 
     size_t gws = 1;
     size_t lws = 1;
