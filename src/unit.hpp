@@ -26,8 +26,6 @@ void CL_API_CALL clvk_override_device_max_compute_work_group_count(
 void CL_API_CALL clvk_restore_device_properties(cl_device_id device);
 
 void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size);
-
-char* CL_API_CALL clvk_mkdtemp(char* tmpl, size_t size);
 }
 
 #endif

@@ -26,23 +26,20 @@
 #include <io.h>
 #endif
 
-extern "C" {
-char* CL_API_CALL cvk_mkdtemp(char* tmpl, size_t size) {
+char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32
-    if (_mktemp_s(tmpl, size + 1) != 0) {
+    if (_mktemp_s(&tmpl.front(), tmpl.size() + 1) != 0) {
         return nullptr;
     }
 
-    if (!CreateDirectory(tmpl, nullptr)) {
+    if (!CreateDirectory(tmpl.c_str(), nullptr)) {
         return nullptr;
     }
 
-    return tmpl;
+    return &tmpl.front();
 #else
-    UNUSED(size);
-    return mkdtemp(tmpl);
+    return mkdtemp(&tmpl.front());
 #endif
-}
 }
 
 int cvk_exec(const std::string& cmd, std::string* output) {

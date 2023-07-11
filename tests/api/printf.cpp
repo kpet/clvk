@@ -20,6 +20,15 @@
 
 #include <filesystem>
 
+#ifdef __APPLE__
+#include <unistd.h>
+#endif
+
+#ifdef WIN32
+#include <Windows.h>
+#include <io.h>
+#endif
+
 static std::string stdoutFileName;
 
 #define BUFFER_SIZE 1024
@@ -70,10 +79,26 @@ private:
     std::string m_path;
 };
 
+static char* mkdtemp(char* tmpl, size_t size) {
+#ifdef WIN32
+    if (_mktemp_s(tmpl, size + 1) != 0) {
+        return nullptr;
+    }
+
+    if (!CreateDirectory(tmpl, nullptr)) {
+        return nullptr;
+    }
+
+    return tmpl;
+#else
+    return mkdtemp(tmpl);
+#endif
+}
+
 static std::string getStdoutFileName(temp_folder_deletion& temp) {
     char template_tmp_dir[] = "clvk-XXXXXX";
     std::filesystem::path prefix(
-        cvk_mkdtemp(template_tmp_dir, sizeof(template_tmp_dir)));
+        mkdtemp(template_tmp_dir, sizeof(template_tmp_dir)));
     std::filesystem::path suffix("stdout_buffer");
     temp.set_path(prefix.string());
     return (prefix / suffix).string();
