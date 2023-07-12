@@ -227,6 +227,47 @@ Once the libOpenCL.so library has been built, verify with:
 LD_LIBRARY_PATH=/path/to/build clinfo
 ```
 
+### With global timing information
+
+Global timing information about API functions as well as some internal functions can be printed on stdout at the end of the execution by clvk.
+
+To enable it, pass the following option to CMake:
+  - `-DCLVK_ENABLE_TIMING=ON`
+
+Here is an example of what to expect running `simple_test`:
+
+```
+[CLVK] 0.00 ms -> clReleaseContext (1 blocks, avg 0.001 ms)
+[CLVK] 0.02 ms -> clReleaseProgram (1 blocks, avg 0.024 ms)
+[CLVK] 0.01 ms -> clReleaseKernel (1 blocks, avg 0.008 ms)
+[CLVK] 0.00 ms -> clReleaseCommandQueue (1 blocks, avg 0.005 ms)
+[CLVK] 0.01 ms -> clReleaseMemObject (1 blocks, avg 0.007 ms)
+[CLVK] 0.00 ms -> clEnqueueUnmapMemObject (1 blocks, avg 0.002 ms)
+[CLVK] 0.03 ms -> clEnqueueMapBuffer (1 blocks, avg 0.034 ms)
+[CLVK] 5.04 ms -> vkQueueWaitIdle (1 blocks, avg 5.043 ms)
+[CLVK] 5.13 ms -> executor_wait (1 blocks, avg 5.126 ms)
+[CLVK] 0.02 ms -> vkQueueSubmit (1 blocks, avg 0.022 ms)
+[CLVK] 5.07 ms -> execute_cmd: CLVK_COMMAND_BATCH (3 blocks, avg 1.690 ms)
+[CLVK] 5.09 ms -> execute_cmds (3 blocks, avg 1.698 ms)
+[CLVK] 0.00 ms -> extract_cmds_required_by (3 blocks, avg 0.001 ms)
+[CLVK] 0.00 ms -> enqueue_command (3 blocks, avg 0.001 ms)
+[CLVK] 0.00 ms -> end_current_command_batch (1 blocks, avg 0.002 ms)
+[CLVK] 0.12 ms -> flush_no_lock (4 blocks, avg 0.030 ms)
+[CLVK] 5.20 ms -> clFinish (2 blocks, avg 2.602 ms)
+[CLVK] 97.06 ms -> clEnqueueNDRangeKernel (1 blocks, avg 97.063 ms)
+[CLVK] 0.00 ms -> clSetKernelArg (1 blocks, avg 0.002 ms)
+[CLVK] 0.01 ms -> clCreateBuffer (1 blocks, avg 0.012 ms)
+[CLVK] 0.01 ms -> clCreateCommandQueue (1 blocks, avg 0.009 ms)
+[CLVK] 0.19 ms -> clCreateKernel (1 blocks, avg 0.187 ms)
+[CLVK] 237.71 ms -> clBuildProgram (1 blocks, avg 237.713 ms)
+[CLVK] 0.02 ms -> clCreateProgramWithSource (1 blocks, avg 0.016 ms)
+[CLVK] 0.00 ms -> clCreateContext (1 blocks, avg 0.000 ms)
+[CLVK] 0.00 ms -> clGetDeviceInfo (1 blocks, avg 0.001 ms)
+[CLVK] 0.00 ms -> clGetDeviceIDs (1 blocks, avg 0.001 ms)
+[CLVK] 0.00 ms -> clGetPlatformInfo (1 blocks, avg 0.002 ms)
+[CLVK] 0.00 ms -> clGetPlatformIDs (1 blocks, avg 0.000 ms)
+```
+
 ## Tuning clvk
 
 clvk can be tuned to improve the performance of specific workloads or on specific platforms. While we try to have the default
