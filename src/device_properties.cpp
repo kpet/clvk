@@ -187,6 +187,27 @@ static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
            strncmp(name, "SwiftShader Device", 18) == 0;
 }
 
+struct cvk_device_properties_llvmpipe : public cvk_device_properties {
+    std::string vendor() const override final { return "Mesa"; }
+    const std::set<std::string> get_native_builtins() const override final {
+        return std::set<std::string>({
+            "ceil",     "copysign",    "fabs",           "fdim",
+            "floor",    "fmax",        "fmin",           "isequal",
+            "isfinite", "isgreater",   "isgreaterequal", "isinf",
+            "isless",   "islessequal", "islessgreater",  "isnan",
+            "isnormal", "isnotequal",  "isordered",      "isunordered",
+            "mad",      "rint",        "round",          "rsqrt",
+            "signbit",  "sqrt",        "trunc",          "half_cos",
+            "half_exp", "half_exp2",   "half_exp10",     "half_rsqrt",
+            "half_sin", "half_sqrt",   "half_tan",
+        });
+    }
+};
+
+static bool isllvmpipeDevice(const uint32_t vendorID) {
+    return vendorID == 0x10005;
+}
+
 struct cvk_device_properties_nvidia : public cvk_device_properties {
     std::string vendor() const override final { return "NVIDIA Corporation"; }
     const std::set<std::string> get_native_builtins() const override final {
@@ -258,6 +279,8 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
         RETURN(cvk_device_properties_swiftshader);
     } else if (isNVIDIADevice(vendorID)) {
         RETURN(cvk_device_properties_nvidia);
+    } else if (isllvmpipeDevice(vendorID)) {
+        RETURN(cvk_device_properties_llvmpipe);
     } else {
         cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
                  "'0x%x'), some device properties will be "
