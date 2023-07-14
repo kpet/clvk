@@ -39,9 +39,7 @@ struct cvk_device_properties {
         return config.max_first_cmd_group_size();
     }
 
-    virtual std::string get_spirv_arch() const {
-        return config.spirv_arch();
-    }
+    virtual std::string get_spirv_arch() const { return config.spirv_arch(); }
     virtual bool get_physical_addressing() const {
         return config.physical_addressing();
     }
