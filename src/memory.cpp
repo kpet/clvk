@@ -110,7 +110,8 @@ bool cvk_buffer::init() {
 
     // Allocate memory
     m_memory = std::make_shared<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        vkdev, params.size, params.memory_type_index,
+        device->get_physical_addressing());
     res = m_memory->allocate();
 
     if (res != VK_SUCCESS) {
@@ -412,7 +413,8 @@ bool cvk_image::init() {
 
         // Allocate memory
         m_memory = std::make_unique<cvk_memory_allocation>(
-            vkdev, params.size, params.memory_type_index);
+            vkdev, params.size, params.memory_type_index,
+            device->get_physical_addressing());
 
         res = m_memory->allocate();
 

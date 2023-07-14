@@ -107,20 +107,34 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
-#define SET_DEVICE_PROPERTY(option)                                            \
+#define SET_DEVICE_PROPERTY(option, print)                                     \
     do {                                                                       \
         if (config.option.set) {                                               \
             m_##option = config.option;                                        \
         } else {                                                               \
             m_##option = m_clvk_properties->get_##option();                    \
         }                                                                      \
-        cvk_info_fn(#option ": %u", m_##option);                               \
+        print(option);                                                         \
     } while (0)
 
-    SET_DEVICE_PROPERTY(max_cmd_batch_size);
-    SET_DEVICE_PROPERTY(max_first_cmd_batch_size);
-    SET_DEVICE_PROPERTY(max_cmd_group_size);
-    SET_DEVICE_PROPERTY(max_first_cmd_group_size);
+#define PRINT_U(option) cvk_info_fn(#option ": %u", m_##option);
+#define SET_DEVICE_PROPERTY_U(option) SET_DEVICE_PROPERTY(option, PRINT_U)
+
+#define PRINT_S(option) cvk_info_fn(#option ": %s", m_##option.c_str());
+#define SET_DEVICE_PROPERTY_S(option) SET_DEVICE_PROPERTY(option, PRINT_S)
+
+    SET_DEVICE_PROPERTY_U(max_cmd_batch_size);
+    SET_DEVICE_PROPERTY_U(max_first_cmd_batch_size);
+    SET_DEVICE_PROPERTY_U(max_cmd_group_size);
+    SET_DEVICE_PROPERTY_U(max_first_cmd_group_size);
+
+    SET_DEVICE_PROPERTY_U(physical_addressing);
+    SET_DEVICE_PROPERTY_S(spirv_arch);
+
+#undef PRINT_U
+#undef PRINT_S
+#undef SET_DEVICE_PROPERTY_U
+#undef SET_DEVICE_PROPERTY_S
 #undef SET_DEVICE_PROPERTY
 }
 
@@ -478,9 +492,9 @@ void cvk_device::init_compiler_options() {
     m_device_compiler_options +=
         " " + m_clvk_properties->get_compile_options() + " ";
 
-    m_device_compiler_options += " -arch=" + config.spirv_arch() + " ";
+    m_device_compiler_options += " -arch=" + m_spirv_arch + " ";
 
-    if (config.physical_addressing()) {
+    if (m_physical_addressing) {
         m_device_compiler_options += " -physical-storage-buffers ";
     }
 

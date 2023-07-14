@@ -24,9 +24,11 @@
 
 struct cvk_memory_allocation {
 
-    cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index)
+    cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index,
+                          bool physical_addressing)
         : m_device(dev), m_size(size), m_memory(VK_NULL_HANDLE),
-          m_memory_type_index(type_index) {}
+          m_memory_type_index(type_index),
+          m_physical_addressing(physical_addressing) {}
 
     ~cvk_memory_allocation() {
         if (m_memory != VK_NULL_HANDLE) {
@@ -41,7 +43,7 @@ struct cvk_memory_allocation {
 
         const VkMemoryAllocateInfo memoryAllocateInfo = {
             VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            config.physical_addressing() ? &flagsInfo : nullptr,
+            m_physical_addressing ? &flagsInfo : nullptr,
             m_size,
             m_memory_type_index,
         };
@@ -62,6 +64,7 @@ private:
     VkDeviceSize m_size;
     VkDeviceMemory m_memory;
     uint32_t m_memory_type_index;
+    bool m_physical_addressing;
 };
 
 using cvk_mem_callback_pointer_type = void(CL_CALLBACK*)(cl_mem mem,
@@ -318,7 +321,7 @@ struct cvk_buffer : public cvk_mem {
                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        if (config.physical_addressing()) {
+        if (m_context->device()->get_physical_addressing()) {
             usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         }
         return usage_flags;
