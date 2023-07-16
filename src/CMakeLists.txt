@@ -165,6 +165,11 @@ if(WIN32)
 		NOMINMAX)
 endif()
 
+option(CLVK_ENABLE_TIMING "Enable timing of clvk internals" OFF)
+if (CLVK_ENABLE_TIMING)
+	target_compile_definitions(OpenCL-objects PRIVATE CVK_ENABLE_TIMING)
+endif()
+
 function(CLLibrary target type)
   add_library(${target} ${type} $<TARGET_OBJECTS:OpenCL-objects>)
   target_link_libraries(${target} ${OpenCL-dependencies})

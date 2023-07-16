@@ -53,6 +53,29 @@ PERFETTO_DEFINE_CATEGORIES(
     string_##name = value;                                                     \
     name = std::make_unique<perfetto::CounterTrack>(string_##name.c_str())
 
+#elif CVK_ENABLE_TIMING
+
+#include "timing.hpp"
+
+#define TRACE_STRING(str) str
+#define TRACE_FUNCTION(...) CVK_TIMED_FUNCTION
+#define TRACE_BEGIN_CMD(cmd_type, ...)                                         \
+    CVK_UNSCOPED_TIMER(unscoped_timer,                                         \
+                       std::string("execute_cmd: ") +                          \
+                           std::string(cl_command_type_to_string(cmd_type)))   \
+        .start();
+#define TRACE_BEGIN_EVENT(cmd_type, ...)                                       \
+    CVK_UNSCOPED_TIMER(unscoped_timer,                                         \
+                       std::string("event_wait: ") +                           \
+                           std::string(cl_command_type_to_string(cmd_type)))   \
+        .start();
+#define TRACE_BEGIN(name, ...) CVK_UNSCOPED_TIMER(unscoped_timer, name).start();
+#define TRACE_END() unscoped_timer.stop();
+
+#define TRACE_CNT(str, value) UNUSED(value)
+#define TRACE_CNT_VAR(name)
+#define TRACE_CNT_VAR_INIT(name, value)
+
 #else // CLVK_PERFETTO_ENABLE
 
 #define TRACE_STRING()
