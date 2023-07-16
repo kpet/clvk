@@ -71,7 +71,7 @@ jobs:
           sudo rm -rf /usr/local/lib/node_modules
           df -h
       - name: Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
+        uses: ./.github/actions/setup-ninja
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -104,8 +104,6 @@ jobs:
         with:
           version: 1.3.250.1
           rt-dir: ${{ github.workspace }}/vulkanrt
-      - name: Setup MSVC with Ninja
-        uses: ilammy/msvc-dev-cmd@v1
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |

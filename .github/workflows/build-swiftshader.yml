@@ -11,7 +11,7 @@ jobs:
         os: [ubuntu-20.04, macos-latest, windows-2019]
     steps:
       - name: Setup Ninja
-        uses: seanmiddleditch/gha-setup-ninja@master
+        uses: ./.github/actions/setup-ninja
       - name: Fetch sources
         run: |
           git clone -b master --depth 1 https://github.com/google/swiftshader.git swiftshader
@@ -20,8 +20,6 @@ jobs:
         with:
           variant: sccache
           key: ${{ matrix.os }}-swiftshader
-      - name: Setup MSVC with Ninja
-        uses: ilammy/msvc-dev-cmd@v1
       - name: Configure
         shell: bash
         run: |

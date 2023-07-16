@@ -1,0 +1,9 @@
+name: 'setup-ninja'
+description: 'Setup Ninja'
+runs:
+  using: "composite"
+  steps:
+   - name: Setup Ninja
+     uses: seanmiddleditch/gha-setup-ninja@master
+   - name: Setup MSVC with Ninja
+     uses: ilammy/msvc-dev-cmd@v1
