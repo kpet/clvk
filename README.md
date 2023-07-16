@@ -229,7 +229,7 @@ LD_LIBRARY_PATH=/path/to/build clinfo
 
 ### With global timing information
 
-Global timing information about API functions as well as some internal functions can be printed on stdout at the end of the execution by clvk.
+Global timing information about API functions as well as some internal functions can be logged at the end of the execution.
 
 To enable it, pass the following option to CMake:
   - `-DCLVK_ENABLE_TIMING=ON`
