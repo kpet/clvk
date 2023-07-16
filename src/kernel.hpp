@@ -19,6 +19,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "spirv/unified1/NonSemanticClspvReflection.h"
+
 #include "memory.hpp"
 #include "objects.hpp"
 #include "program.hpp"
@@ -142,6 +144,10 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     cl_kernel_arg_type_qualifier arg_type_qualifier(cl_uint arg_index) const {
         return m_args.at(arg_index).info.type_qualifier;
     }
+
+    bool uses_printf() const { return m_entry_point->uses_printf(); }
+
+    bool requires_serialized_execution() const { return uses_printf(); }
 
 private:
     friend cvk_kernel_argument_values;

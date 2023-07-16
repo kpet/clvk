@@ -162,7 +162,7 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     // Setup module-scope variables
     if (program->module_constant_data_buffer() != nullptr &&
         program->module_constant_data_buffer_info()->type ==
-            constant_data_buffer_type::storage_buffer) {
+            module_buffer_type::storage_buffer) {
         auto buffer = program->module_constant_data_buffer();
         auto info = program->module_constant_data_buffer_info();
         cvk_debug_fn(

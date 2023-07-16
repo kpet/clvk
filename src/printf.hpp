@@ -1,4 +1,4 @@
-// Copyright 2021 The clvk authors.
+// Copyright 2022 The clvk authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,18 +14,18 @@
 
 #pragma once
 
-#ifdef CLVK_UNIT_TESTING_ENABLED
+#include "memory.hpp"
 
-#include <CL/cl.h>
+#include <vector>
 
-extern "C" {
+struct printf_descriptor {
+    uint32_t printf_id;
+    std::string format_string;
+    std::vector<uint32_t> arg_sizes;
+};
 
-void CL_API_CALL clvk_override_device_max_compute_work_group_count(
-    cl_device_id device, uint32_t x, uint32_t y, uint32_t z);
+using printf_descriptor_map_t = std::unordered_map<uint32_t, printf_descriptor>;
 
-void CL_API_CALL clvk_restore_device_properties(cl_device_id device);
-
-void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size);
-}
-
-#endif
+// Process the contents of the printf buffer and print the results to stdout
+cl_int cvk_printf(cvk_mem* printf_buffer,
+                  const printf_descriptor_map_t& descriptors);
