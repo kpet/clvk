@@ -528,8 +528,8 @@ struct cvk_device : public _cl_device_id,
         return m_max_first_cmd_group_size;
     }
 
-    const std::string get_spirv_arch() const { return m_spirv_arch; }
-    bool get_physical_addressing() const { return m_physical_addressing; }
+    cl_uint address_bits() const { return m_spirv_arch == "spir64" ? 64 : 32; }
+    bool uses_physical_addressing() const { return m_physical_addressing; }
 
     const std::string& get_device_specific_compile_options() const {
         return m_device_compiler_options;
