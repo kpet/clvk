@@ -180,6 +180,14 @@ struct cvk_kernel_argument_values {
           m_args_set(other.m_args_set), m_descriptor_sets{VK_NULL_HANDLE},
           m_descriptor_sets_refcount(0) {}
 
+    ~cvk_kernel_argument_values() {
+        for (auto ds : m_descriptor_sets) {
+            if (ds != VK_NULL_HANDLE) {
+                m_entry_point->free_descriptor_set(ds);
+            }
+        }
+    }
+
     static std::shared_ptr<cvk_kernel_argument_values>
     create(cvk_entry_point* entry_point) {
         auto val = std::make_shared<cvk_kernel_argument_values>(entry_point);
