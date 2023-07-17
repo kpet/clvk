@@ -349,7 +349,7 @@ struct cvk_kernel_argument_values {
         std::lock_guard<std::mutex> lock(m_lock);
         if (--m_descriptor_sets_refcount == 0) {
             m_is_enqueued = false;
-            for (auto ds : m_descriptor_sets) {
+            for (auto& ds : m_descriptor_sets) {
                 if (ds != VK_NULL_HANDLE) {
                     m_entry_point->free_descriptor_set(ds);
                     ds = VK_NULL_HANDLE;
