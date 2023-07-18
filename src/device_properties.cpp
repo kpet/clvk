@@ -202,6 +202,9 @@ struct cvk_device_properties_llvmpipe : public cvk_device_properties {
             "half_sin", "half_sqrt",   "half_tan",
         });
     }
+    std::string get_compile_options() const override final {
+        return "-hack-convert-to-float";
+    }
 };
 
 static bool isllvmpipeDevice(const uint32_t vendorID) {
