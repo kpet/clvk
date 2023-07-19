@@ -268,6 +268,8 @@ struct cvk_kernel_argument_values {
                 set_pod_data(arg.offset, arg.size, &null);
             } else {
                 auto mem_downcast = icd_downcast(mem);
+                if (!mem_downcast->is_valid())
+                    return CL_INVALID_MEM_OBJECT;
                 auto buff = reinterpret_cast<const cvk_buffer*>(mem_downcast);
                 auto dev_addr = buff->device_address();
                 set_pod_data(arg.offset, arg.size, &dev_addr);
