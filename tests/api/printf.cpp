@@ -129,7 +129,9 @@ TEST_F(WithCommandQueue, SimplePrintf) {
 }
 
 TEST_F(WithCommandQueue, TooLongPrintf) {
-    clvk_override_printf_buffer_size(24);
+    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
+    // to print) + 4 for the byte written counter
+    clvk_override_printf_buffer_size(28);
 
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
@@ -140,7 +142,43 @@ TEST_F(WithCommandQueue, TooLongPrintf) {
     const char* source = R"(
     kernel void test_printf() {
       for (unsigned i = 0; i < 3; i++){
-        printf("get_global_id(%u) = %u\n", i, get_global_id(i));
+        printf("get_global_id(%u) = %u\n", i, (unsigned)get_global_id(i));
+      }
+    }
+    )";
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    releaseStdout(fd);
+    auto printf_buffer = getStdoutContent();
+    ASSERT_NE(printf_buffer, nullptr);
+
+    // We only get the first 2 prints because the buffer is too small to get the
+    // last one.
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
+    ASSERT_STREQ(printf_buffer, message);
+}
+
+TEST_F(WithCommandQueue, TooLongPrintf2) {
+    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
+    // to print) + 4 for the byte written counter + 8 which are not enough for
+    // the third print, but should not cause any issue in clvk
+    clvk_override_printf_buffer_size(36);
+
+    temp_folder_deletion temp;
+    stdoutFileName = getStdoutFileName(temp);
+
+    int fd;
+    ASSERT_TRUE(getStdout(fd));
+
+    const char* source = R"(
+    kernel void test_printf() {
+      for (unsigned i = 0; i < 3; i++){
+        printf("get_global_id(%u) = %u\n", i, (unsigned)get_global_id(i));
       }
     }
     )";

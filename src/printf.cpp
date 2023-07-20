@@ -156,7 +156,8 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
     return std::string(out.data());
 }
 
-void process_printf(char*& data, const printf_descriptor_map_t& descs) {
+void process_printf(char*& data, const printf_descriptor_map_t& descs,
+                    char* data_end) {
 
     uint32_t printf_id = read_inc_buff<uint32_t>(data);
     auto& format_string = descs.at(printf_id).format_string;
@@ -191,6 +192,11 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs) {
 
         // The size of the argument that this format part will consume
         auto& size = descs.at(printf_id).arg_sizes[arg_idx];
+
+        if (data + size > data_end) {
+            data += size;
+            return;
+        }
 
         // Check to see if we have a vector format specifier
         int vec_len = 0;
@@ -239,13 +245,13 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     char* data = static_cast<char*>(printf_buffer->host_va());
     auto buffer_size = printf_buffer->size();
     const auto bytes_written_size = sizeof(uint32_t);
-    const auto data_size = buffer_size - bytes_written_size;
-    auto bytes_written = read_inc_buff<uint32_t>(data) * 4;
-    auto* data_start = data;
+    const size_t data_size = buffer_size - bytes_written_size;
+    const size_t bytes_written = read_inc_buff<uint32_t>(data) * 4;
+    const size_t limit = std::min(bytes_written, data_size);
+    auto* data_end = data + limit;
 
-    while (static_cast<size_t>(data - data_start) < bytes_written &&
-           static_cast<size_t>(data - data_start) < data_size) {
-        process_printf(data, descriptors);
+    while (data < data_end) {
+        process_printf(data, descriptors, data_end);
     }
 
     printf_buffer->unmap();
