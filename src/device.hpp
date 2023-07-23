@@ -528,6 +528,9 @@ struct cvk_device : public _cl_device_id,
         return m_max_first_cmd_group_size;
     }
 
+    cl_uint address_bits() const { return m_spirv_arch == "spir64" ? 64 : 32; }
+    bool uses_physical_addressing() const { return m_physical_addressing; }
+
     const std::string& get_device_specific_compile_options() const {
         return m_device_compiler_options;
     }
@@ -632,6 +635,9 @@ private:
     cl_uint m_max_first_cmd_batch_size;
     cl_uint m_max_cmd_group_size;
     cl_uint m_max_first_cmd_group_size;
+
+    std::string m_spirv_arch;
+    bool m_physical_addressing;
 
     spv_target_env m_vulkan_spirv_env;
 
