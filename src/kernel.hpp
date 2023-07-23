@@ -174,7 +174,8 @@ struct cvk_kernel_argument_values {
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
           m_kernel_resources(m_entry_point->num_resource_slots()),
           m_local_args_size(m_entry_point->args().size(), 0),
-          m_args_set(m_args.size(), false), m_descriptor_sets{VK_NULL_HANDLE} {}
+          m_args_set(m_args.size(), false), m_descriptor_sets{VK_NULL_HANDLE},
+          m_descriptor_sets_refcount(0) {}
 
     cvk_kernel_argument_values(const cvk_kernel_argument_values& other)
         : m_entry_point(other.m_entry_point), m_is_enqueued(false),
@@ -182,7 +183,8 @@ struct cvk_kernel_argument_values {
           m_kernel_resources(other.m_kernel_resources),
           m_local_args_size(other.m_local_args_size),
           m_specialization_constants(other.m_specialization_constants),
-          m_args_set(other.m_args_set), m_descriptor_sets{VK_NULL_HANDLE} {}
+          m_args_set(other.m_args_set), m_descriptor_sets{VK_NULL_HANDLE},
+          m_descriptor_sets_refcount(0) {}
 
     ~cvk_kernel_argument_values() {
         for (auto ds : m_descriptor_sets) {
@@ -348,6 +350,8 @@ struct cvk_kernel_argument_values {
             if (resource)
                 resource->retain();
         }
+        std::lock_guard<std::mutex> lock(m_lock);
+        m_descriptor_sets_refcount++;
     }
 
     // Release all resources owned resources.
@@ -355,6 +359,16 @@ struct cvk_kernel_argument_values {
         for (auto& resource : m_kernel_resources) {
             if (resource)
                 resource->release();
+        }
+        std::lock_guard<std::mutex> lock(m_lock);
+        if (--m_descriptor_sets_refcount == 0) {
+            m_is_enqueued = false;
+            for (auto& ds : m_descriptor_sets) {
+                if (ds != VK_NULL_HANDLE) {
+                    m_entry_point->free_descriptor_set(ds);
+                    ds = VK_NULL_HANDLE;
+                }
+            }
         }
     }
 
@@ -403,4 +417,5 @@ private:
     std::unique_ptr<cvk_buffer> m_pod_buffer;
     std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
         m_descriptor_sets;
+    uint32_t m_descriptor_sets_refcount;
 };
