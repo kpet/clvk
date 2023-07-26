@@ -463,7 +463,7 @@ public:
     bool uses_printf() const;
 
 private:
-    const uint32_t MAX_INSTANCES = 2 * 1024; // FIXME find a better definition
+    const uint32_t MAX_INSTANCES = config.max_entry_points_instances;
 
     VkDevice m_device;
     cvk_context* m_context;
