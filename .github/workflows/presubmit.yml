@@ -11,13 +11,15 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Install packages
-        run: sudo apt-get install -y clang-format
+        run: sudo apt-get install -y clang-format clang-format-15
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Check format
         run: |
           ./tests/check-format.sh
+        env:
+          CLANG_FORMAT_BINARY: clang-format-15
   build:
     name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }}
     needs: format
