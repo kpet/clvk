@@ -300,10 +300,12 @@ struct cvk_device : public _cl_device_id,
     bool supports_subgroups() const { return m_has_subgroups_support; }
 
     bool supports_non_uniform_decoration() const {
-        return m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
-               is_vulkan_extension_enabled(
-                   VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+        return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
+                is_vulkan_extension_enabled(
+                    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) &&
+               !m_clvk_properties->is_non_uniform_decoration_broken();
     }
+
     bool supports_atomic_order_acq_rel() const {
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     }

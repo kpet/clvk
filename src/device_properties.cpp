@@ -25,18 +25,36 @@ struct cvk_device_properties_mali : public cvk_device_properties {
     std::string vendor() const override final { return "ARM"; }
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
+
+    cvk_device_properties_mali(const uint32_t deviceID)
+        : m_deviceID(deviceID) {}
+
+    bool is_non_uniform_decoration_broken() const override final {
+#define GPU_ID2_ARCH_MAJOR_SHIFT 28
+#define GPU_ID2_ARCH_MAJOR (0xF << GPU_ID2_ARCH_MAJOR_SHIFT)
+        // bifrost support of non uniform decoration is broken
+        const uint32_t bifrost_arch_major = 8 << GPU_ID2_ARCH_MAJOR_SHIFT;
+        return (m_deviceID & GPU_ID2_ARCH_MAJOR) <= bifrost_arch_major;
+    }
+
+private:
+    const uint32_t m_deviceID;
 };
 
 struct cvk_device_properties_mali_exynos9820
     : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 12; }
+    cvk_device_properties_mali_exynos9820(const uint32_t deviceID)
+        : cvk_device_properties_mali(deviceID) {}
 };
 
 struct cvk_device_properties_mali_exynos990
     : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 11; }
+    cvk_device_properties_mali_exynos990(const uint32_t deviceID)
+        : cvk_device_properties_mali(deviceID) {}
 };
 
 static bool isMaliDevice(const char* name, const uint32_t vendorID) {
@@ -235,9 +253,9 @@ static bool isNVIDIADevice(const uint32_t vendorID) {
     return vendorID == NVIDIAVendorID;
 }
 
-#define RETURN(x)                                                              \
+#define RETURN(x, ...)                                                         \
     cvk_info_fn(#x);                                                           \
-    return std::make_unique<x>();
+    return std::make_unique<x>(__VA_ARGS__);
 
 std::unique_ptr<cvk_device_properties>
 create_cvk_device_properties(const char* name, const uint32_t vendorID,
@@ -251,9 +269,9 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
             cvk_warn("Unable to query 'ro.hardware' system property, some "
                      "device properties will be incorrect.");
         } else if (strcmp(soc, "exynos9820") == 0) {
-            RETURN(cvk_device_properties_mali_exynos9820);
+            RETURN(cvk_device_properties_mali_exynos9820, deviceID);
         } else if (strcmp(soc, "exynos990") == 0) {
-            RETURN(cvk_device_properties_mali_exynos990);
+            RETURN(cvk_device_properties_mali_exynos990, deviceID);
         } else {
             cvk_warn("Unrecognized 'ro.hardware' value '%s', some device "
                      "properties will be incorrect.",
@@ -263,7 +281,7 @@ create_cvk_device_properties(const char* name, const uint32_t vendorID,
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
-        RETURN(cvk_device_properties_mali);
+        RETURN(cvk_device_properties_mali, deviceID);
     } else if (strcmp(name, "Adreno (TM) 615") == 0) {
         RETURN(cvk_device_properties_adreno_615);
     } else if (strcmp(name, "Adreno (TM) 620") == 0) {

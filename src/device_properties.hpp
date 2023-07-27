@@ -50,6 +50,8 @@ struct cvk_device_properties {
         return std::set<std::string>();
     }
 
+    virtual bool is_non_uniform_decoration_broken() const { return false; }
+
     virtual ~cvk_device_properties() {}
 };
 
