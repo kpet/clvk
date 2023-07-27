@@ -153,9 +153,6 @@ int main(int argc, char** argv) {
     //report time.
     std::chrono::duration<double> kernel_time = end - start;
     printf("Kernel execution time: %f seconds for %d iterations \n ", kernel_time.count(), num_iterations);
-<<<<<<< HEAD
-=======
 
     return 0;
->>>>>>> 71e6b11 (Add benchmark test for float-32)
 }
