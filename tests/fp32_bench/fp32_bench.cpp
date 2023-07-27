@@ -157,7 +157,7 @@ int main(int argc, char** argv) {
 
     // Report time.
     std::chrono::duration<double> kernel_time = end - start;
-    printf("Kernel execution time: %f seconds for %d iterations \n ", kernel_time.count(), num_iterations);
-
+    printf("Kernel execution time: %f seconds for %d iterations \n ",
+           kernel_time.count(), num_iterations);
     return 0;
 }
