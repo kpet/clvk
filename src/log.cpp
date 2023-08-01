@@ -199,6 +199,11 @@ void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
         fprintf(gLoggingFile, "%s", colourReset);
     }
 
+    // Force to flush error and fatal logs
+    if (level <= loglevel::error) {
+        fflush(gLoggingFile);
+    }
+
     if (level == loglevel::fatal) {
         exit(EXIT_FAILURE);
     }
