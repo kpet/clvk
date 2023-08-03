@@ -11,7 +11,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Install packages
-        run: sudo apt-get install -y clang-format clang-format-15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format clang-format-15
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
