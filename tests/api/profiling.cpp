@@ -118,6 +118,7 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
     if (res == 0) {
         GTEST_SKIP();
     }
+    printf("res = %lu\n", res);
 
     // Create kernel
     auto kernel = CreateKernel(program_source, "donothing");

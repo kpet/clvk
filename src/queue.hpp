@@ -51,10 +51,7 @@ struct cvk_executor_thread {
         m_lock.unlock();
     }
 
-    bool is_idle() {
-        std::unique_lock<std::mutex> lock(m_lock);
-        return !m_running;
-    }
+    bool is_idle() { return !m_running; }
 
     void shutdown() {
 
@@ -83,7 +80,7 @@ private:
     bool m_shutdown;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
 
-    bool m_running;
+    std::atomic<bool> m_running;
 };
 
 struct cvk_command_pool {

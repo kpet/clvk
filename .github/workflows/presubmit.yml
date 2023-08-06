@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - tsan
   pull_request:
 
 jobs:
@@ -23,7 +24,7 @@ jobs:
         env:
           CLANG_FORMAT_BINARY: clang-format-15
   build:
-    name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }}
+    name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }} TSAN ${{ matrix.tsan }}
     needs: format
     runs-on: ${{ matrix.os }}
     strategy:
@@ -52,6 +53,10 @@ jobs:
           - os: macos-latest
             online-compiler: true
             unit: true
+          - os: ubuntu-22.04
+            online-compiler: false
+            compiler-available: true
+            tsan: true
 
     steps:
       - uses: actions/checkout@v4
@@ -124,6 +129,10 @@ jobs:
           ${PERFETTO_DIR}/tools/install-build-deps
           ${PERFETTO_DIR}/tools/setup_all_configs.py
           ${PERFETTO_DIR}/tools/ninja -C ${PERFETTO_DIR}/out/linux_clang_release trace_processor_shell
+      - name: Prepare Compiler CMake arguments
+        if: ${{ matrix.tsan }}
+        run: |
+          echo "compiler-cmake-args=-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang" >> $GITHUB_ENV
       - name: Configure
         shell: bash
         run: |
@@ -142,6 +151,8 @@ jobs:
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
               -DCLVK_PERFETTO_ENABLE=${{ matrix.perfetto }} \
               -DCLVK_PERFETTO_SDK_DIR=${{ env.perfettodir }}/sdk \
+              -DCLVK_ENABLE_TSAN=${{ matrix.tsan }} \
+              ${{ env.compiler-cmake-args }} \
               ${{ env.android-cmake-args }} \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
@@ -155,7 +166,7 @@ jobs:
         run: cmake --install '${{ env.builddir }}'
       - uses: actions/upload-artifact@v4
         with:
-          name: clvk-${{ matrix.os }}-${{ matrix.android }}-${{ matrix.android-abi }}-compiler-${{ matrix.compiler-available }}-online-${{ matrix.online-compiler }}
+          name: clvk-${{ matrix.os }}-${{ matrix.android }}-${{ matrix.android-abi }}-compiler-${{ matrix.compiler-available }}-online-${{ matrix.online-compiler }}-tsan-${{ matrix.tsan }}
           path: ${{ env.builddir }}/install
       - name: Show stats
         shell: bash

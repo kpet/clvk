@@ -73,7 +73,7 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug_group(loggroup::event,
                         "cvk_event::wait: event = %p, status = %d", this,
-                        m_status);
+                        m_status.load());
         if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
             TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
                               "command", (uintptr_t)m_cmd);
@@ -115,7 +115,7 @@ private:
 
     std::mutex m_lock;
     std::condition_variable m_cv;
-    cl_int m_status;
+    std::atomic<cl_int> m_status;
     cl_ulong m_profiling_data[4]{};
     cl_command_type m_command_type;
     cvk_command* m_cmd;
