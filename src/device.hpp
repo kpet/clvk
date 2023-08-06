@@ -388,8 +388,10 @@ struct cvk_device : public _cl_device_id,
     }
 
     cvk_vulkan_queue_wrapper& vulkan_queue_allocate() {
-        // Simple round-robin allocation for now
+        static std::mutex queue_allocation_lock;
+        std::lock_guard lock(queue_allocation_lock);
 
+        // Simple round-robin allocation for now
         auto& queue = m_vulkan_queues[m_vulkan_queue_alloc_index++];
 
         if (m_vulkan_queue_alloc_index == m_vulkan_queues.size()) {
