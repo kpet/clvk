@@ -314,12 +314,13 @@ struct cvk_buffer : public cvk_mem {
     cvk_mem* create_subbuffer(cl_mem_flags, size_t origin, size_t size);
 
     VkBufferUsageFlags prepare_usage_flags() {
-        VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-				         VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
-					 VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+        VkBufferUsageFlags usage_flags =
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+            VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
+            VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
         if (m_context->device()->uses_physical_addressing()) {
             usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         }

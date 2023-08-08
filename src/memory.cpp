@@ -407,29 +407,24 @@ bool cvk_image::init_vulkan_image() {
         return false;
     }
 
-    if (m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
-        auto buffer = static_cast<cvk_mem*>(m_desc.buffer);
-        m_memory = buffer->memory();
-        buffer->retain();
-    } else {
-        // Select memory type
-        cvk_device::allocation_parameters params =
-            device->select_memory_for(m_image);
-        if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
-            cvk_error_fn("Could not get memory type!");
-            return false;
-        }
+    CVK_ASSERT(m_desc.image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
+    // Select memory type
+    cvk_device::allocation_parameters params =
+        device->select_memory_for(m_image);
+    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
+        cvk_error_fn("Could not get memory type!");
+        return false;
+    }
 
-        // Allocate memory
-        m_memory = std::make_unique<cvk_memory_allocation>(
-            vkdev, params.size, params.memory_type_index);
+    // Allocate memory
+    m_memory = std::make_unique<cvk_memory_allocation>(
+        vkdev, params.size, params.memory_type_index);
 
-        res = m_memory->allocate(device->uses_physical_addressing());
+    res = m_memory->allocate(device->uses_physical_addressing());
 
-        if (res != VK_SUCCESS) {
-            cvk_error_fn("Could not allocate memory!");
-            return false;
-        }
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not allocate memory!");
+        return false;
     }
 
     // Bind the image to memory

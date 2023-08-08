@@ -710,7 +710,9 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
-        val_sizet = device->vulkan_limits().maxTexelBufferElements;
+        val_sizet =
+            std::min((uint64_t)device->vulkan_limits().maxTexelBufferElements,
+                     device->max_mem_alloc_size());
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
@@ -3718,6 +3720,32 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferRect(
         cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
+void* cvk_enqueue_map_buffer(cvk_command_queue* cq, cvk_buffer* buffer,
+                             cl_bool blocking_map, size_t offset, size_t size,
+                             cl_map_flags map_flags,
+                             cl_uint num_events_in_wait_list,
+                             const cl_event* event_wait_list, cl_event* event,
+                             cl_int* errcode_ret) {
+    auto cmd = new cvk_command_map_buffer(cq, buffer, offset, size, map_flags);
+
+    void* map_ptr;
+    cl_int err = cmd->build(&map_ptr);
+
+    // FIXME This error cannot occur for objects created with
+    // CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
+    if (err != CL_SUCCESS) {
+        *errcode_ret = CL_MAP_FAILURE;
+        return nullptr;
+    }
+
+    err = cq->enqueue_command_with_deps(
+        cmd, blocking_map, num_events_in_wait_list, event_wait_list, event);
+
+    *errcode_ret = err;
+
+    return map_ptr;
+}
+
 void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
                                        cl_bool blocking_map,
                                        cl_map_flags map_flags, size_t offset,
@@ -3799,23 +3827,10 @@ void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
         return nullptr;
     }
 
-    auto cmd = new cvk_command_map_buffer(command_queue, buffer, offset, size,
-                                          map_flags);
-
-    void* map_ptr;
-    cl_int err = cmd->build(&map_ptr);
-
-    // FIXME This error cannot occur for objects created with
-    // CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
-    if (err != CL_SUCCESS) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_MAP_FAILURE;
-        }
-        return nullptr;
-    }
-
-    err = command_queue->enqueue_command_with_deps(
-        cmd, blocking_map, num_events_in_wait_list, event_wait_list, event);
+    cl_int err;
+    auto map_ptr = cvk_enqueue_map_buffer(
+        command_queue, buffer, blocking_map, offset, size, map_flags,
+        num_events_in_wait_list, event_wait_list, event, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -3849,14 +3864,20 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
 
     if (memobj->is_image_type()) {
         auto image = static_cast<cvk_image*>(memobj);
-        auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(
-            command_queue, image, mapped_ptr, true);
+        if (image->is_backed_by_buffer_view()) {
+            auto buffer = static_cast<cvk_buffer*>(image->buffer());
+            cmd =
+                new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
+        } else {
+            auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(
+                command_queue, image, mapped_ptr, true);
 
-        auto err = cmd_unmap->build();
-        if (err != CL_SUCCESS) {
-            return err;
+            auto err = cmd_unmap->build();
+            if (err != CL_SUCCESS) {
+                return err;
+            }
+            cmd = cmd_unmap.release();
         }
-        cmd = cmd_unmap.release();
     } else {
         auto buffer = static_cast<cvk_buffer*>(memobj);
         cmd = new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
@@ -4820,9 +4841,9 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
             "  buffer : %s",
             vulkan_format_features_string(properties.bufferFeatures).c_str());
 
-        cvk_debug(
-            "Required format features %s",
-            vulkan_format_features_string(required_format_feature_flags).c_str());
+        cvk_debug("Required format features %s",
+                  vulkan_format_features_string(required_format_feature_flags)
+                      .c_str());
         VkFormatFeatureFlags features;
         if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
             features = properties.bufferFeatures;
@@ -4832,11 +4853,10 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
         }
         if ((features & required_format_feature_flags) ==
             required_format_feature_flags) {
-            const cl_image_format& clfmt = clvkfmt.first;
             VkComponentMapping components_sampled, components_storage;
-            get_component_mappings_for_channel_order(
-                clfmt.image_channel_order, &components_sampled,
-                &components_storage);
+            get_component_mappings_for_channel_order(clfmt.image_channel_order,
+                                                     &components_sampled,
+                                                     &components_storage);
             if ((components_sampled != components_storage) &&
                 (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)) {
                 continue;
@@ -4985,10 +5005,23 @@ cl_int CLVK_API_CALL clEnqueueReadImage(
         return CL_INVALID_OPERATION;
     }
 
-    return cvk_enqueue_image_copy(command_queue, CL_COMMAND_READ_IMAGE, image,
-                                  blocking_read, origin, region, row_pitch,
-                                  slice_pitch, ptr, num_events_in_wait_list,
-                                  event_wait_list, event);
+    auto internal_image = static_cast<cvk_image*>(image);
+    if (internal_image->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_buffer_host_copy(
+            command_queue, CL_COMMAND_READ_BUFFER,
+            static_cast<cvk_buffer*>(internal_image->buffer()), ptr,
+            origin[0] * internal_image->element_size(),
+            region[0] * internal_image->element_size());
+        auto err = command_queue->enqueue_command_with_deps(
+            cmd, blocking_read, num_events_in_wait_list, event_wait_list,
+            event);
+        return err;
+    } else {
+        return cvk_enqueue_image_copy(
+            command_queue, CL_COMMAND_READ_IMAGE, image, blocking_read, origin,
+            region, row_pitch, slice_pitch, ptr, num_events_in_wait_list,
+            event_wait_list, event);
+    }
 }
 
 cl_int CLVK_API_CALL clEnqueueWriteImage(
@@ -5048,11 +5081,24 @@ cl_int CLVK_API_CALL clEnqueueWriteImage(
     if (image->has_any_flag(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS)) {
         return CL_INVALID_OPERATION;
     }
-
-    return cvk_enqueue_image_copy(
-        command_queue, CL_COMMAND_WRITE_IMAGE, image, blocking_write, origin,
-        region, input_row_pitch, input_slice_pitch, const_cast<void*>(ptr),
-        num_events_in_wait_list, event_wait_list, event);
+    auto internal_image = static_cast<cvk_image*>(image);
+    if (internal_image->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_buffer_host_copy(
+            command_queue, CL_COMMAND_WRITE_BUFFER,
+            static_cast<cvk_buffer*>(internal_image->buffer()), ptr,
+            origin[0] * internal_image->element_size(),
+            region[0] * internal_image->element_size());
+        auto err = command_queue->enqueue_command_with_deps(
+            cmd, blocking_write, num_events_in_wait_list, event_wait_list,
+            event);
+        return err;
+    } else {
+        return cvk_enqueue_image_copy(
+            command_queue, CL_COMMAND_WRITE_IMAGE, image, blocking_write,
+            origin, region, input_row_pitch, input_slice_pitch,
+            const_cast<void*>(ptr), num_events_in_wait_list, event_wait_list,
+            event);
+    }
 }
 
 cl_int CLVK_API_CALL
@@ -5122,6 +5168,7 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
     if (!src_img->has_same_format(dst_img)) {
         return CL_IMAGE_FORMAT_MISMATCH;
     }
+    assert(src_img->element_size() == dst_img->element_size());
 
     std::array<size_t, 3> src_orig = {src_origin[0], src_origin[1],
                                       src_origin[2]};
@@ -5129,11 +5176,41 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
                                       dst_origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
-    auto cmd = std::make_unique<cvk_command_image_image_copy>(
-        command_queue, src_img, dst_img, src_orig, dst_orig, reg);
+    if (src_img->is_backed_by_buffer_view() &&
+        dst_img->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_copy_buffer(
+            command_queue, CL_COMMAND_COPY_BUFFER,
+            static_cast<cvk_buffer*>(src_img->buffer()),
+            static_cast<cvk_buffer*>(dst_img->buffer()),
+            src_origin[0] * src_img->element_size(),
+            dst_origin[0] * dst_img->element_size(),
+            region[0] * src_img->element_size());
 
-    return command_queue->enqueue_command_with_deps(
-        cmd.release(), num_events_in_wait_list, event_wait_list, event);
+        return command_queue->enqueue_command_with_deps(
+            cmd, num_events_in_wait_list, event_wait_list, event);
+    } else if (src_img->is_backed_by_buffer_view()) {
+        auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue,
+            static_cast<cvk_buffer*>(src_img->buffer()), dst_img,
+            src_origin[0] * src_img->element_size(), dst_orig, reg);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
+    } else if (dst_img->is_backed_by_buffer_view()) {
+        auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue,
+            static_cast<cvk_buffer*>(dst_img->buffer()), src_img,
+            dst_origin[0] * dst_img->element_size(), src_orig, reg);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
+    } else {
+        auto cmd = std::make_unique<cvk_command_image_image_copy>(
+            command_queue, src_img, dst_img, src_orig, dst_orig, reg);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
+    }
 }
 
 cl_int CLVK_API_CALL clEnqueueFillImage(
@@ -5188,11 +5265,27 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     // TODO use Vulkan clear commands when possible
     // TODO use a shader when better
 
+    auto img = static_cast<cvk_image*>(image);
+
+    // Fill
+    cvk_image::fill_pattern_array pattern;
+    size_t pattern_size;
+    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
+
+    if (img->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_fill_buffer(
+            command_queue, static_cast<cvk_buffer*>(img->buffer()),
+            origin[0] * img->element_size(), region[0] * img->element_size(),
+            pattern.data(), pattern_size);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd, num_events_in_wait_list, event_wait_list, event);
+    }
+
     // Create image map command
     std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
-    auto img = static_cast<cvk_image*>(image);
     auto cmd_map = std::make_unique<cvk_command_map_image>(
         command_queue, img, orig, reg, CL_MAP_WRITE_INVALIDATE_REGION);
     void* map_ptr;
@@ -5200,11 +5293,6 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     if (err != CL_SUCCESS) {
         return err;
     }
-
-    // Fill
-    cvk_image::fill_pattern_array pattern;
-    size_t pattern_size;
-    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
 
     auto cmd_fill = std::make_unique<cvk_command_fill_image>(
         command_queue, map_ptr, pattern, pattern_size, reg);
@@ -5299,12 +5387,23 @@ cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
                                     src_origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
-    auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
-        CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, buffer, image,
-        dst_offset, origin, reg);
+    if (image->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_copy_buffer(
+            command_queue, CL_COMMAND_COPY_BUFFER,
+            static_cast<cvk_buffer*>(image->buffer()), buffer,
+            src_origin[0] * image->element_size(), dst_offset,
+            region[0] * image->element_size());
 
-    return command_queue->enqueue_command_with_deps(
-        cmd.release(), num_events_in_wait_list, event_wait_list, event);
+        return command_queue->enqueue_command_with_deps(
+            cmd, num_events_in_wait_list, event_wait_list, event);
+    } else {
+        auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, buffer, image,
+            dst_offset, origin, reg);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
+    }
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
@@ -5375,12 +5474,23 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
                                     dst_origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
-    auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
-        CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue, buffer, image,
-        src_offset, origin, reg);
+    if (image->is_backed_by_buffer_view()) {
+        auto cmd = new cvk_command_copy_buffer(
+            command_queue, CL_COMMAND_COPY_BUFFER, buffer,
+            static_cast<cvk_buffer*>(image->buffer()), src_offset,
+            dst_origin[0] * image->element_size(),
+            region[0] * image->element_size());
 
-    return command_queue->enqueue_command_with_deps(
-        cmd.release(), num_events_in_wait_list, event_wait_list, event);
+        return command_queue->enqueue_command_with_deps(
+            cmd, num_events_in_wait_list, event_wait_list, event);
+    } else {
+        auto cmd = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_BUFFER_TO_IMAGE, command_queue, buffer, image,
+            src_offset, origin, reg);
+
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
+    }
 }
 
 void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
@@ -5519,10 +5629,20 @@ void* CLVK_API_CALL clEnqueueMapImage(
     auto command_queue = icd_downcast(cq);
 
     cl_int err;
-    auto ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
-                                     map_flags, origin, region, image_row_pitch,
-                                     image_slice_pitch, num_events_in_wait_list,
-                                     event_wait_list, event, &err);
+    void* ret;
+    auto img = static_cast<cvk_image*>(image);
+    if (img->is_backed_by_buffer_view()) {
+        ret = cvk_enqueue_map_buffer(
+            command_queue, static_cast<cvk_buffer*>(img->buffer()),
+            blocking_map, origin[0] * img->element_size(),
+            region[0] * img->element_size(), map_flags, num_events_in_wait_list,
+            event_wait_list, event, &err);
+    } else {
+        ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
+                                    map_flags, origin, region, image_row_pitch,
+                                    image_slice_pitch, num_events_in_wait_list,
+                                    event_wait_list, event, &err);
+    }
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
