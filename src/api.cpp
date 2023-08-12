@@ -1681,6 +1681,88 @@ cl_int CLVK_API_CALL clSetCommandQueueProperty(
 }
 
 // Memory Object APIs
+static cl_mem CLVK_API_CALL cvk_create_buffer_with_properties(
+    cl_context context, const cl_mem_properties* properties, cl_mem_flags flags,
+    size_t size, void* host_ptr, cl_int* errcode_ret) {
+    CVK_ASSERT(errcode_ret != nullptr);
+
+    // Validate context
+    if (!is_valid_context(context)) {
+        *errcode_ret = CL_INVALID_CONTEXT;
+        return nullptr;
+    }
+
+    // Validate properties
+    std::vector<cl_mem_properties> props;
+
+    if (properties != nullptr) {
+        while (*properties) {
+            // We dont't currently support any properties so return an error
+            *errcode_ret = CL_INVALID_PROPERTY;
+            return nullptr;
+            props.push_back(*properties);
+            properties++;
+        }
+        props.push_back(0);
+    }
+
+    // Validate flags
+    if ((flags & CL_MEM_READ_WRITE) && (flags & CL_MEM_WRITE_ONLY)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+    if ((flags & CL_MEM_READ_ONLY) &&
+        (flags & (CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE))) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+    if ((flags & (CL_MEM_ALLOC_HOST_PTR | CL_MEM_COPY_HOST_PTR)) &&
+        (flags & CL_MEM_USE_HOST_PTR)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+    if ((flags & CL_MEM_HOST_READ_ONLY) && (flags & CL_MEM_HOST_WRITE_ONLY)) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+    if ((flags & CL_MEM_HOST_NO_ACCESS) &&
+        (flags & (CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_WRITE_ONLY))) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    // Validate size
+    // TODO CL_INVALID_BUFFER_SIZE if CL_MEM_USE_HOST_PTR is set in flags and
+    // host_ptr is a pointer returned by clSVMAlloc and size is greater than the
+    // size passed to clSVMAlloc.
+    if ((size == 0) ||
+        (!icd_downcast(context)->is_mem_alloc_size_valid(size))) {
+        *errcode_ret = CL_INVALID_BUFFER_SIZE;
+        return nullptr;
+    }
+
+    // Validate host_ptr
+    if ((host_ptr == nullptr) &&
+        (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))) {
+        *errcode_ret = CL_INVALID_HOST_PTR;
+        return nullptr;
+    }
+    if ((host_ptr != nullptr) &&
+        !(flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))) {
+        *errcode_ret = CL_INVALID_HOST_PTR;
+        return nullptr;
+    }
+
+    auto buffer = cvk_buffer::create(icd_downcast(context), flags, size,
+                                     host_ptr, std::move(props), errcode_ret);
+
+    if (*errcode_ret != CL_SUCCESS) {
+        return nullptr;
+    } else {
+        return buffer.release();
+    }
+}
+
 cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                                     size_t size, void* host_ptr,
                                     cl_int* errcode_ret) {
@@ -1689,26 +1771,15 @@ cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
                  "errcode_ret = %p",
                  context, flags, size, host_ptr, errcode_ret);
 
-    if (!is_valid_context(context)) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_INVALID_CONTEXT;
-        }
-        return nullptr;
-    }
-
     cl_int err;
-    auto buffer =
-        cvk_buffer::create(icd_downcast(context), flags, size, host_ptr, &err);
+    auto buffer = cvk_create_buffer_with_properties(context, nullptr, flags,
+                                                    size, host_ptr, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
 
-    if (err != CL_SUCCESS) {
-        return nullptr;
-    } else {
-        return buffer.release();
-    }
+    return buffer;
 }
 
 cl_mem CLVK_API_CALL clCreateBufferWithProperties(
@@ -1720,29 +1791,15 @@ cl_mem CLVK_API_CALL clCreateBufferWithProperties(
                  "host_ptr = %p, errcode_ret = %p",
                  context, properties, flags, size, host_ptr, errcode_ret);
 
-    std::vector<cl_mem_properties> props;
-
-    if (properties != nullptr) {
-        while (*properties) {
-            props.push_back(*properties);
-            properties++;
-        }
-        props.push_back(0);
-    }
-
     cl_int err;
-    auto buffer = cvk_buffer::create(icd_downcast(context), flags, size,
-                                     host_ptr, std::move(props), &err);
+    auto buffer = cvk_create_buffer_with_properties(context, properties, flags,
+                                                    size, host_ptr, &err);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
 
-    if (err != CL_SUCCESS) {
-        return nullptr;
-    } else {
-        return buffer.release();
-    }
+    return buffer;
 }
 
 cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,

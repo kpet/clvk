@@ -15,6 +15,7 @@
 #pragma once
 
 #include "cl_headers.hpp"
+#include "context.hpp"
 #include "device.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
