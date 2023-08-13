@@ -954,8 +954,29 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 #if COMPILER_AVAILABLE
     options += " " + config.clspv_options() + " ";
 #endif
+    // split options into a vector
+    std::istringstream iss(options);
+    std::vector<std::string> vector_options;
+    std::string token;
+    while (std::getline(iss, token, ' ')) {
+        vector_options.push_back(token);
+    }
 
-    return options;
+    // loop through the options and quote the ones that need it
+    std::string quoted_options;
+    for (size_t i = 0; i < vector_options.size(); i++) {
+        if (vector_options[i].empty()) {
+            continue;
+        }
+        if (vector_options[i].find("-") == 0) {
+            quoted_options += vector_options[i];
+        } else {
+            quoted_options += "\"" + vector_options[i] + "\"";
+        }
+        quoted_options += " ";
+    }
+
+    return quoted_options;
 }
 
 cl_int cvk_program::parse_user_spec_constants() {
