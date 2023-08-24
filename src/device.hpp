@@ -219,21 +219,24 @@ struct cvk_device : public _cl_device_id,
     }
 
     uint64_t max_mem_alloc_size() const {
-        CVK_ASSERT(global_mem_size() % 4 == 0);
+        auto global_memory_size = global_mem_size();
+        CVK_ASSERT(global_memory_size % 4 == 0);
         // Min memory as per the specs.
         auto specMinAllocSz =
             std::max(std::min((uint64_t)(1024 * 1024 * 1024),
-                              (uint64_t)(global_mem_size() / 4)),
+                              (uint64_t)(global_memory_size / 4)),
                      (uint64_t)(32 * 1024 * 1024));
-        // Max memory allocation for single buffer is set in config.def to 1024
-        // MiB - minimum required by spec. For single allocation this value can
-        // be adjusted with environment variable CLVK_MEM_MAX_ALLOC_SIZE_MB For
-        // multiple allocations(total memory allocations), environment var
+        // Max memory allocation for single buffer can be adjusted with
+        // environment variable CLVK_MEM_MAX_ALLOC_SIZE_MB.
+        // For multiple allocations(total memory allocations), environment var
         // CLVK_PERCENTAGE_OF_AVAILABLE_MEMORY_REPORTED can be adjusted.
-        auto maxAllocSz =
-            std::min(m_maintenance3_properties.maxMemoryAllocationSize,
-                     (uint64_t)config.max_mem_alloc_size_mb() * 1024 * 1024);
-        maxAllocSz = std::min(maxAllocSz, global_mem_size());
+        auto maxAllocSz = m_maintenance3_properties.maxMemoryAllocationSize;
+        if (config.max_mem_alloc_size_mb.set) {
+            maxAllocSz =
+                std::min(maxAllocSz, (uint64_t)config.max_mem_alloc_size_mb() *
+                                         1024 * 1024);
+        }
+        maxAllocSz = std::min(maxAllocSz, global_memory_size);
 
         if (specMinAllocSz > maxAllocSz) {
             cvk_warn("Returning value (%s) for CL_DEVICE_MAX_MEM_ALLOC_SIZE "
