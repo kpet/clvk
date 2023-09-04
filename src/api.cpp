@@ -4712,10 +4712,10 @@ std::unordered_map<cl_image_format, image_format_support, ClFormatMapHash,
         {{CL_RGBA, CL_FLOAT}, VK_FORMAT_R32G32B32A32_SFLOAT},
 
         // BGRA formats
-        {{CL_BGRA, CL_UNORM_INT8}, VK_FORMAT_B8G8R8A8_UNORM},
-        {{CL_BGRA, CL_SNORM_INT8}, VK_FORMAT_B8G8R8A8_SNORM},
-        {{CL_BGRA, CL_UNSIGNED_INT8}, VK_FORMAT_B8G8R8A8_UINT},
-        {{CL_BGRA, CL_SIGNED_INT8}, VK_FORMAT_B8G8R8A8_SINT},
+        {{CL_BGRA, CL_UNORM_INT8}, VK_FORMAT_R8G8B8A8_UNORM},
+        {{CL_BGRA, CL_SNORM_INT8}, VK_FORMAT_R8G8B8A8_SNORM},
+        {{CL_BGRA, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8B8A8_UINT},
+        {{CL_BGRA, CL_SIGNED_INT8}, VK_FORMAT_R8G8B8A8_SINT},
 };
 
 bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
@@ -4736,15 +4736,25 @@ bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
     } else if (clformat.image_channel_order == CL_INTENSITY) {
         *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
                                VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R};
+    } else if (clformat.image_channel_order == CL_BGRA) {
+        *components_sampled = {
+            VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_IDENTITY};
     } else {
         *components_sampled = {
             VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
             VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
     }
 
-    *components_storage = {
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+    if (clformat.image_channel_order == CL_BGRA) {
+        *components_storage = {
+            VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_IDENTITY};
+    } else {
+        *components_storage = {
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+    }
 
     return success;
 }
