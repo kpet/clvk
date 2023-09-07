@@ -126,6 +126,7 @@ enum class pushconstant
     image_metadata,
     module_constants_pointer,
     printf_buffer_pointer,
+    normalized_sampler_mask,
 };
 
 struct pushconstant_desc {
@@ -216,6 +217,10 @@ using kernel_image_metadata_map =
 using image_metadata_map =
     std::unordered_map<std::string, kernel_image_metadata_map>;
 
+using kernel_sampler_metadata_map = std::unordered_map<uint32_t, uint32_t>;
+using sampler_metadata_map =
+    std::unordered_map<std::string, kernel_sampler_metadata_map>;
+
 class spir_binary {
 
     using kernels_arguments_map =
@@ -247,6 +252,9 @@ public:
     CHECK_RETURN bool validate(const spirv_validation_options&) const;
     size_t num_kernels() const { return m_dmaps.size(); }
     const kernels_arguments_map& kernels_arguments() const { return m_dmaps; }
+    const sampler_metadata_map& sampler_metadata() const {
+        return m_sampler_metadata;
+    }
     const image_metadata_map& image_metadata() const {
         return m_image_metadata;
     }
@@ -338,6 +346,11 @@ public:
         m_constant_data_buffer.reset(new constant_data_buffer_info(info));
     }
 
+    void add_sampler_metadata(const std::string& name, uint32_t ordinal,
+                              uint32_t offset) {
+        m_sampler_metadata[name][ordinal] = offset;
+    }
+
     void add_image_channel_order_metadata(const std::string& name,
                                           uint32_t ordinal, uint32_t offset) {
         m_image_metadata[name][ordinal].set_order(offset);
@@ -372,6 +385,7 @@ private:
     std::vector<sampler_desc> m_literal_samplers;
     std::unordered_map<pushconstant, pushconstant_desc> m_push_constants;
     std::unordered_map<spec_constant, uint32_t> m_spec_constants;
+    sampler_metadata_map m_sampler_metadata;
     image_metadata_map m_image_metadata;
     std::unordered_map<uint32_t, printf_descriptor> m_printf_descriptors;
     printf_buffer_desc_info m_printf_buffer_info;
@@ -438,6 +452,10 @@ public:
 
     const std::vector<kernel_argument>& args() const { return m_args; }
 
+    const kernel_sampler_metadata_map* sampler_metadata() const {
+        return m_sampler_metadata;
+    }
+
     const kernel_image_metadata_map* image_metadata() const {
         return m_image_metadata;
     }
@@ -445,6 +463,8 @@ public:
     bool has_pod_arguments() const { return m_has_pod_arguments; }
 
     bool has_pod_buffer_arguments() const { return m_has_pod_buffer_arguments; }
+
+    bool has_sampler_metadata() const { return m_sampler_metadata != nullptr; }
 
     bool has_image_metadata() const { return m_image_metadata != nullptr; }
 
@@ -474,6 +494,7 @@ private:
     bool m_has_pod_arguments;
     bool m_has_pod_buffer_arguments;
     std::vector<kernel_argument> m_args;
+    const kernel_sampler_metadata_map* m_sampler_metadata;
     const kernel_image_metadata_map* m_image_metadata;
     uint32_t m_num_resource_slots;
     VkDescriptorPool m_descriptor_pool;
@@ -655,6 +676,15 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         auto const& args = m_binary.kernels_arguments().find(name);
         if (args != m_binary.kernels_arguments().end()) {
             return &args->second;
+        } else {
+            return nullptr;
+        }
+    }
+
+    const kernel_sampler_metadata_map* sampler_metadata(std::string& name) {
+        auto const& md = m_binary.sampler_metadata().find(name);
+        if (md != m_binary.sampler_metadata().end()) {
+            return &md->second;
         } else {
             return nullptr;
         }

@@ -631,6 +631,14 @@ cl_int cvk_command_kernel::update_global_push_constants(
             }
         }
     }
+    if (const auto* md = m_kernel->get_sampler_metadata()) {
+        for (const auto& md : *md) {
+            auto offset = md.second;
+            image_metadata_pc_start = std::min(image_metadata_pc_start, offset);
+            image_metadata_pc_end = std::max(
+                image_metadata_pc_end, offset + (uint32_t)sizeof(uint32_t));
+        }
+    }
     if (image_metadata_pc_start < image_metadata_pc_end) {
         uint32_t offset = image_metadata_pc_start & ~0x3U;
         uint32_t size = round_up(image_metadata_pc_end - offset, 4);

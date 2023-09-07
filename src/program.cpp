@@ -151,6 +151,8 @@ spv_result_t parse_reflection(void* user_data,
             return pushconstant::module_constants_pointer;
         case NonSemanticClspvReflectionPrintfBufferPointerPushConstant:
             return pushconstant::printf_buffer_pointer;
+        case NonSemanticClspvReflectionNormalizedSamplerMaskPushConstant:
+            return pushconstant::normalized_sampler_mask;
         default:
             cvk_error_fn("Unhandled reflection instruction for push constant");
             break;
@@ -206,6 +208,17 @@ spv_result_t parse_reflection(void* user_data,
                     info.extended_valid = true;
                 }
                 parse_data->arg_infos[inst->result_id] = info;
+                break;
+            }
+            case NonSemanticClspvReflectionNormalizedSamplerMaskPushConstant: {
+                auto kernel = parse_data->strings[inst->words[5]];
+                auto ordinal = parse_data->constants[inst->words[6]];
+                auto offset = parse_data->constants[inst->words[7]];
+                auto size = parse_data->constants[inst->words[8]];
+                parse_data->binary->add_sampler_metadata(kernel, ordinal,
+                                                         offset);
+                auto pc = inst_to_push_constant(ext_inst);
+                parse_data->binary->add_push_constant(pc, {offset, size});
                 break;
             }
             case NonSemanticClspvReflectionImageArgumentInfoChannelOrderPushConstant: {
@@ -1668,8 +1681,9 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_has_pod_buffer_arguments(false), m_image_metadata(nullptr),
-      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE) {}
+      m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
+      m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
+      m_pipeline_layout(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -1883,6 +1897,11 @@ cl_int cvk_entry_point::init() {
         m_image_metadata = md;
     }
 
+    // Get the sampler metadata for this entry point
+    if (auto* md = m_program->sampler_metadata(m_name)) {
+        m_sampler_metadata = md;
+    }
+
     // Get a pointer to the arguments from the program
     auto args = m_program->args_for_kernel(m_name);
 
@@ -1963,32 +1982,49 @@ cl_int cvk_entry_point::init() {
         m_pod_buffer_size = round_up(m_pod_buffer_size, 4);
     }
 
-    // Take the size of image metadata into account for the pod buffer size
-    if (m_image_metadata) {
-        // Find how big the POD buffer should be
+    // Take the size of image & sampler metadata into account for the pod buffer
+    // size
+    {
         uint32_t max_offset = 0;
-        for (const auto& md : *m_image_metadata) {
-            auto order_offset = md.second.order_offset;
-            auto data_type_offset = md.second.data_type_offset;
-            if (md.second.has_valid_order()) {
-                max_offset = std::max(order_offset, max_offset);
-                push_constant_range.offset =
-                    std::min(order_offset, push_constant_range.offset);
-                if (order_offset + sizeof(uint32_t) >
-                    push_constant_range.offset + push_constant_range.size) {
-                    push_constant_range.size = order_offset + sizeof(uint32_t) -
-                                               push_constant_range.offset;
+        if (m_image_metadata) {
+            // Find how big the POD buffer should be
+            for (const auto& md : *m_image_metadata) {
+                auto order_offset = md.second.order_offset;
+                auto data_type_offset = md.second.data_type_offset;
+                if (md.second.has_valid_order()) {
+                    max_offset = std::max(order_offset, max_offset);
+                    push_constant_range.offset =
+                        std::min(order_offset, push_constant_range.offset);
+                    if (order_offset + sizeof(uint32_t) >
+                        push_constant_range.offset + push_constant_range.size) {
+                        push_constant_range.size = order_offset +
+                                                   sizeof(uint32_t) -
+                                                   push_constant_range.offset;
+                    }
+                }
+                if (md.second.has_valid_data_type()) {
+                    max_offset = std::max(data_type_offset, max_offset);
+                    push_constant_range.offset =
+                        std::min(data_type_offset, push_constant_range.offset);
+                    if (data_type_offset + sizeof(uint32_t) >
+                        push_constant_range.offset + push_constant_range.size) {
+                        push_constant_range.size = data_type_offset +
+                                                   sizeof(uint32_t) -
+                                                   push_constant_range.offset;
+                    }
                 }
             }
-            if (md.second.has_valid_data_type()) {
-                max_offset = std::max(data_type_offset, max_offset);
+        }
+        if (m_sampler_metadata) {
+            for (const auto& md : *m_sampler_metadata) {
+                auto offset = md.second;
+                max_offset = std::max(offset, max_offset);
                 push_constant_range.offset =
-                    std::min(data_type_offset, push_constant_range.offset);
-                if (data_type_offset + sizeof(uint32_t) >
+                    std::min(offset, push_constant_range.offset);
+                if (offset + sizeof(uint32_t) >
                     push_constant_range.offset + push_constant_range.size) {
-                    push_constant_range.size = data_type_offset +
-                                               sizeof(uint32_t) -
-                                               push_constant_range.offset;
+                    push_constant_range.size =
+                        offset + sizeof(uint32_t) - push_constant_range.offset;
                 }
             }
         }

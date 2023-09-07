@@ -14,6 +14,8 @@
 
 #include <algorithm>
 
+#include "clspv/Sampler.h"
+
 #include "kernel.hpp"
 #include "memory.hpp"
 
@@ -42,6 +44,10 @@ cl_int cvk_kernel::init() {
 
     if (const auto* md = m_entry_point->image_metadata()) {
         m_image_metadata = md;
+    }
+
+    if (const auto* md = m_entry_point->sampler_metadata()) {
+        m_sampler_metadata = md;
     }
 
     // Init argument values
@@ -100,6 +106,45 @@ void cvk_kernel::set_image_metadata(cl_uint index, const void* image) {
     }
 }
 
+void cvk_kernel::set_sampler_metadata(cl_uint index, const void* sampler) {
+    if (!m_sampler_metadata) {
+        return;
+    }
+    auto md = m_sampler_metadata->find(index);
+    if (md != m_sampler_metadata->end()) {
+        auto apisampler = *reinterpret_cast<const cl_sampler*>(sampler);
+        auto offset = md->second;
+        auto sampler = icd_downcast(apisampler);
+        uint32_t sampler_mask = (sampler->normalized_coords()
+                                     ? clspv::CLK_NORMALIZED_COORDS_TRUE
+                                     : clspv::CLK_NORMALIZED_COORDS_FALSE) |
+                                (sampler->filter_mode() == CL_FILTER_NEAREST
+                                     ? clspv::CLK_FILTER_NEAREST
+                                     : clspv::CLK_FILTER_LINEAR);
+        switch (sampler->addressing_mode()) {
+        case CL_ADDRESS_NONE:
+            sampler_mask |= clspv::CLK_ADDRESS_NONE;
+            break;
+        case CL_ADDRESS_CLAMP:
+            sampler_mask |= clspv::CLK_ADDRESS_CLAMP;
+            break;
+        case CL_ADDRESS_REPEAT:
+            sampler_mask |= clspv::CLK_ADDRESS_REPEAT;
+            break;
+        case CL_ADDRESS_CLAMP_TO_EDGE:
+            sampler_mask |= clspv::CLK_ADDRESS_CLAMP_TO_EDGE;
+            break;
+        case CL_ADDRESS_MIRRORED_REPEAT:
+            sampler_mask |= clspv::CLK_ADDRESS_MIRRORED_REPEAT;
+            break;
+        default:
+            break;
+        }
+        m_argument_values->set_pod_data(offset, sizeof(sampler_mask),
+                                        &sampler_mask);
+    }
+}
+
 cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     std::lock_guard<std::mutex> lock(m_lock);
 
@@ -121,6 +166,10 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     if (arg.kind == kernel_argument_kind::sampled_image ||
         arg.kind == kernel_argument_kind::storage_image) {
         set_image_metadata(index, value);
+    }
+
+    if (arg.kind == kernel_argument_kind::sampler) {
+        set_sampler_metadata(index, value);
     }
 
     return ret;
@@ -264,7 +313,20 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         }
         case kernel_argument_kind::sampler: {
             auto clsampler = static_cast<cvk_sampler*>(get_arg_value(arg));
-            auto sampler = clsampler->vulkan_sampler();
+            bool normalized_coord_sampler_required = false;
+            if (auto md = m_entry_point->sampler_metadata()) {
+                normalized_coord_sampler_required = md->find(i) != md->end();
+            }
+            auto sampler =
+                normalized_coord_sampler_required &&
+                        !clsampler->normalized_coords()
+                    ? clsampler
+                          ->get_or_create_vulkan_sampler_with_normalized_coords()
+                    : clsampler->vulkan_sampler();
+            if (sampler == VK_NULL_HANDLE) {
+                cvk_error_fn("Could not set descriptor for sampler");
+                return false;
+            }
 
             cvk_debug_fn("sampler %p @ set = %u, binding = %u", sampler,
                          arg.descriptorSet, arg.binding);
