@@ -1,17 +1,17 @@
 {
   "system-info": {
     "apiVersion": 4206847,
-    "deviceID": 5710,
-    "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
-    "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
-    "driverID": "VK_DRIVER_ID_MESA_RADV",
+    "deviceID": 22177,
+    "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
+    "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
+    "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
     "driverInfo": "Mesa 23.2.1",
-    "driverName": "radv",
+    "driverName": "Intel open-source Mesa driver",
     "driverVersion": 96477185
   },
   "test-results": {
     "API": {
-      "duration": "00:00:04.376346",
+      "duration": "00:00:07.480444",
       "has_results": true,
       "results": {
         "binary_create": "pass",
@@ -116,13 +116,13 @@
         "set_kernel_arg_by_index": "pass",
         "set_kernel_arg_constant": "pass",
         "set_kernel_arg_struct_array": "pass",
-        "sub_group_dispatch": "pass",
+        "sub_group_dispatch": "fail",
         "zero_sized_enqueue": "pass"
       },
       "retcode": 1
     },
     "Atomics": {
-      "duration": "00:00:01.549736",
+      "duration": "00:00:01.885710",
       "has_results": true,
       "results": {
         "atomic_add": "pass",
@@ -142,7 +142,7 @@
       "retcode": 0
     },
     "Basic": {
-      "duration": "00:02:07.694160",
+      "duration": "00:07:25.228170",
       "has_results": true,
       "results": {
         "arraycopy": "pass",
@@ -228,7 +228,7 @@
         "loop": "pass",
         "mri_multiple": "pass",
         "mri_one": "pass",
-        "parameter_types": "pass",
+        "parameter_types": "fail",
         "pointer_cast": "pass",
         "prefetch": "pass",
         "progvar_func_scope": "skip",
@@ -261,10 +261,10 @@
         "writeimage_fp32": "pass",
         "writeimage_int16": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Buffers": {
-      "duration": "00:00:26.976837",
+      "duration": "00:00:30.779677",
       "has_results": true,
       "results": {
         "array_info_size": "pass",
@@ -364,7 +364,7 @@
       "retcode": 1
     },
     "C11 Atomics": {
-      "duration": "00:02:02.242751",
+      "duration": "00:01:10.159795",
       "has_results": true,
       "results": {
         "atomic_compare_exchange_strong": "pass",
@@ -405,7 +405,7 @@
       "retcode": 0
     },
     "Common Functions": {
-      "duration": "00:00:01.585538",
+      "duration": "00:00:04.055714",
       "has_results": true,
       "results": {
         "clamp": "pass",
@@ -430,7 +430,7 @@
       "retcode": 0
     },
     "Compiler": {
-      "duration": "00:00:24.731810",
+      "duration": "00:00:34.032195",
       "has_results": true,
       "results": {
         "async_build": "pass",
@@ -503,7 +503,7 @@
       "retcode": 0
     },
     "Compute Info": {
-      "duration": "00:00:00.025759",
+      "duration": "00:00:00.032661",
       "has_results": true,
       "results": {
         "computeinfo": "pass",
@@ -515,7 +515,7 @@
       "retcode": 1
     },
     "Contractions": {
-      "duration": "00:00:00.294506",
+      "duration": "00:00:00.404980",
       "has_results": true,
       "results": {
         "contractions_double_0": "pass",
@@ -538,7 +538,7 @@
       "retcode": 0
     },
     "Conversions": {
-      "duration": "00:05:46.161307",
+      "duration": "00:07:32.106025",
       "has_results": true,
       "results": {
         "conversions": "pass"
@@ -546,7 +546,7 @@
       "retcode": 0
     },
     "Device Partitioning": {
-      "duration": "00:00:00.026742",
+      "duration": "00:00:00.028474",
       "has_results": true,
       "results": {
         "partition_all": "pass",
@@ -562,7 +562,7 @@
       "retcode": 0
     },
     "Device execution": {
-      "duration": "00:00:00.023083",
+      "duration": "00:00:00.031938",
       "has_results": true,
       "results": {
         "device_info": "skip",
@@ -581,7 +581,7 @@
       "retcode": 0
     },
     "Device timer": {
-      "duration": "00:00:05.024526",
+      "duration": "00:00:05.028772",
       "has_results": true,
       "results": {
         "device_and_host_timers": "pass",
@@ -590,7 +590,7 @@
       "retcode": 0
     },
     "Events": {
-      "duration": "00:00:03.471434",
+      "duration": "00:00:03.468797",
       "has_results": true,
       "results": {
         "callbacks": "pass",
@@ -625,13 +625,13 @@
       "retcode": 0
     },
     "External memory and synchronisation": {
-      "duration": "00:00:00.031414",
+      "duration": "00:00:00.032055",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "Generic Address Space": {
-      "duration": "00:00:00.024779",
+      "duration": "00:00:00.030833",
       "has_results": true,
       "results": {
         "builtin_functions": "skip",
@@ -659,7 +659,7 @@
       "retcode": 0
     },
     "Geometric Functions": {
-      "duration": "00:00:01.375986",
+      "duration": "00:00:01.597242",
       "has_results": true,
       "results": {
         "geom_cross": "pass",
@@ -674,7 +674,7 @@
       "retcode": 0
     },
     "Half Ops": {
-      "duration": "00:00:07.611946",
+      "duration": "00:00:09.610262",
       "has_results": true,
       "results": {
         "roundTrip": "pass",
@@ -694,7 +694,7 @@
       "retcode": 0
     },
     "Images (API Info)": {
-      "duration": "00:00:39.485530",
+      "duration": "00:00:34.428754",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -706,7 +706,7 @@
       "retcode": 0
     },
     "Images (Kernel Methods)": {
-      "duration": "00:00:20.184035",
+      "duration": "00:00:21.350588",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -718,7 +718,7 @@
       "retcode": 0
     },
     "Images (Samplerless max size)": {
-      "duration": "00:00:03.256462",
+      "duration": "00:00:04.932444",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -731,7 +731,7 @@
       "retcode": 1
     },
     "Images (Samplerless pitch)": {
-      "duration": "00:00:03.167285",
+      "duration": "00:00:04.229965",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -739,12 +739,12 @@
         "1Dbuffer": "fail",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "fail"
+        "3D": "pass"
       },
       "retcode": 1
     },
     "Images (Samplerless)": {
-      "duration": "00:00:03.152858",
+      "duration": "00:00:03.803737",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -757,7 +757,7 @@
       "retcode": 1
     },
     "Images (clFillImage max size)": {
-      "duration": "00:00:12.015982",
+      "duration": "00:00:33.121991",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -769,7 +769,7 @@
       "retcode": 0
     },
     "Images (clFillImage pitch)": {
-      "duration": "00:00:11.917343",
+      "duration": "00:00:30.085097",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -781,7 +781,7 @@
       "retcode": 0
     },
     "Images (clFillImage)": {
-      "duration": "00:00:07.716860",
+      "duration": "00:00:20.839541",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -793,7 +793,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage max size)": {
-      "duration": "00:00:03.865269",
+      "duration": "00:00:09.329494",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -805,7 +805,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage pitch)": {
-      "duration": "00:00:11.402008",
+      "duration": "00:00:15.755588",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -817,7 +817,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage)": {
-      "duration": "00:00:10.064876",
+      "duration": "00:00:14.038255",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -829,7 +829,7 @@
       "retcode": 0
     },
     "Integer Ops": {
-      "duration": "00:01:06.008587",
+      "duration": "00:01:26.158139",
       "has_results": true,
       "results": {
         "integer_abs": "pass",
@@ -900,7 +900,7 @@
       "retcode": 0
     },
     "Math": {
-      "duration": "00:00:10.589714",
+      "duration": "00:00:30.141371",
       "has_results": true,
       "results": {
         "acos": "pass",
@@ -1007,7 +1007,7 @@
       "retcode": 0
     },
     "Mem (Host Flags)": {
-      "duration": "00:00:00.050910",
+      "duration": "00:00:00.110085",
       "has_results": true,
       "results": {
         "mem_host_no_access_buffer": "pass",
@@ -1023,7 +1023,7 @@
       "retcode": 0
     },
     "Multiple Device/Context": {
-      "duration": "00:00:18.810158",
+      "duration": "00:00:21.715722",
       "has_results": true,
       "results": {
         "context_four_contexts_same_device": "pass",
@@ -1037,7 +1037,7 @@
       "retcode": 1
     },
     "Non-uniform work-group": {
-      "duration": "00:00:02.682949",
+      "duration": "00:00:04.547724",
       "has_results": true,
       "results": {
         "non_uniform_1d_atomics": "pass",
@@ -1056,7 +1056,7 @@
       "retcode": 0
     },
     "Pipes": {
-      "duration": "00:00:00.025435",
+      "duration": "00:00:00.030563",
       "has_results": true,
       "results": {
         "pipe_convenience_readwrite_char": "skip",
@@ -1118,7 +1118,7 @@
       "retcode": 0
     },
     "Printf": {
-      "duration": "00:00:01.081761",
+      "duration": "00:00:01.031585",
       "has_results": true,
       "results": {
         "address_space_0": "pass",
@@ -1197,7 +1197,7 @@
       "retcode": 0
     },
     "Profiling": {
-      "duration": "00:00:01.693919",
+      "duration": "00:00:01.908207",
       "has_results": true,
       "results": {
         "copy_array": "pass",
@@ -1235,7 +1235,7 @@
       "retcode": 0
     },
     "Relationals": {
-      "duration": "00:00:58.969091",
+      "duration": "00:02:08.462241",
       "has_results": true,
       "results": {
         "relational_all": "pass",
@@ -1259,13 +1259,13 @@
       "retcode": 0
     },
     "SPIR": {
-      "duration": "00:00:00.024431",
+      "duration": "00:00:00.027097",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "SPIR-V": {
-      "duration": "00:00:05.022041",
+      "duration": "00:00:05.742691",
       "has_results": true,
       "results": {
         "decorate_aliased": "pass",
@@ -1419,7 +1419,7 @@
         "op_spec_constant_double_simple": "skip",
         "op_spec_constant_false_simple": "pass",
         "op_spec_constant_float_simple": "pass",
-        "op_spec_constant_half_simple": "pass",
+        "op_spec_constant_half_simple": "fail",
         "op_spec_constant_true_simple": "pass",
         "op_spec_constant_uchar_simple": "pass",
         "op_spec_constant_uint_simple": "pass",
@@ -1464,7 +1464,7 @@
       "retcode": 1
     },
     "SVM": {
-      "duration": "00:00:00.026051",
+      "duration": "00:00:00.032111",
       "has_results": true,
       "results": {
         "svm_allocate_shared_buffer": "skip",
@@ -1485,7 +1485,7 @@
       "retcode": 0
     },
     "Select": {
-      "duration": "00:00:06.071630",
+      "duration": "00:00:11.514869",
       "has_results": true,
       "results": {
         "select_char_char": "pass",
@@ -1514,18 +1514,18 @@
       "retcode": 0
     },
     "Subgroups": {
-      "duration": "00:00:01.182298",
+      "duration": "00:00:01.162577",
       "has_results": true,
       "results": {
-        "barrier_functions_core": "pass",
+        "barrier_functions_core": "fail",
         "barrier_functions_ext": "skip",
         "ifp_core": "skip",
         "ifp_ext": "skip",
-        "sub_group_info_core": "pass",
+        "sub_group_info_core": "fail",
         "sub_group_info_ext": "skip",
         "subgroup_functions_ballot": "skip",
         "subgroup_functions_clustered_reduce": "skip",
-        "subgroup_functions_core": "pass",
+        "subgroup_functions_core": "fail",
         "subgroup_functions_ext": "skip",
         "subgroup_functions_extended_types": "skip",
         "subgroup_functions_non_uniform_arithmetic": "skip",
@@ -1533,13 +1533,13 @@
         "subgroup_functions_rotate": "skip",
         "subgroup_functions_shuffle": "skip",
         "subgroup_functions_shuffle_relative": "skip",
-        "work_item_functions_core": "pass",
+        "work_item_functions_core": "fail",
         "work_item_functions_ext": "skip"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Thread Dimensions": {
-      "duration": "00:00:27.929199",
+      "duration": "00:00:27.825195",
       "has_results": true,
       "results": {
         "quick_1d_explicit_local": "pass",
@@ -1552,7 +1552,7 @@
       "retcode": 0
     },
     "Vectors": {
-      "duration": "00:02:06.077597",
+      "duration": "00:02:35.735152",
       "has_results": true,
       "results": {
         "step_type": "pass",
@@ -1568,7 +1568,7 @@
       "retcode": 0
     },
     "Workgroups": {
-      "duration": "00:00:00.022503",
+      "duration": "00:00:00.025912",
       "has_results": true,
       "results": {
         "work_group_all": "skip",
@@ -1592,7 +1592,7 @@
       "retcode": 0
     },
     "cl_ext_cxx_for_opencl": {
-      "duration": "00:00:00.023945",
+      "duration": "00:00:00.034576",
       "has_results": true,
       "results": {
         "cxx_for_opencl_ext": "skip",
@@ -1601,7 +1601,7 @@
       "retcode": 0
     },
     "cl_khr_command_buffer": {
-      "duration": "00:00:00.023347",
+      "duration": "00:00:00.027479",
       "has_results": true,
       "results": {
         "barrier_wait_list": "skip",
@@ -1654,7 +1654,7 @@
       "retcode": 0
     },
     "cl_khr_semaphore": {
-      "duration": "00:00:00.021218",
+      "duration": "00:00:00.026319",
       "has_results": true,
       "results": {
         "semaphores_cross_queues_io": "skip",

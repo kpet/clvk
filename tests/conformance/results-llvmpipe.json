@@ -1,11 +1,11 @@
 {
   "system-info": {
-    "apiVersion": 4206838,
+    "apiVersion": 4206847,
     "deviceID": 0,
     "deviceName": "llvmpipe (LLVM 16.0.6, 256 bits)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
     "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
-    "driverInfo": "Mesa 23.1.5 (LLVM 16.0.6)",
+    "driverInfo": "Mesa 23.2.1 (LLVM 16.0.6)",
     "driverName": "llvmpipe",
     "driverVersion": 1
   },
@@ -1626,6 +1626,8 @@
         "explicit_flush": "skip",
         "fill_buffer": "skip",
         "fill_image": "skip",
+        "finalize_empty": "skip",
+        "finalize_invalid": "skip",
         "info_context": "skip",
         "info_prop_array": "skip",
         "info_queues": "skip",
