@@ -51,7 +51,11 @@ void parse_boolean(void* value_ptr, const char* txt) {
 
 void parse_uint32(void* value_ptr, const char* txt) {
     auto cfgval = static_cast<config_value<uint32_t>*>(value_ptr);
-    cfgval->value = atoi(txt);
+    int base = 10;
+    if (strlen(txt) >= 2 && txt[0] == '0' && txt[1] == 'x') {
+        base = 16;
+    }
+    cfgval->value = std::stoul(txt, nullptr, base);
     cfgval->set = true;
 }
 
