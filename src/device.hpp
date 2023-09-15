@@ -133,7 +133,7 @@ struct cvk_device : public _cl_device_id,
             auto k = memory_type_index_for_resource(valid_memory_type_bits,
                                                     supported_memory_types[i]);
             if (k != VK_MAX_MEMORY_TYPES) {
-                cvk_debug_fn("outer returning %u\n", k);
+                cvk_debug_fn("outer returning %u", k);
                 return k;
             }
         }
