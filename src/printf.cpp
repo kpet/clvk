@@ -217,6 +217,13 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             data += size;
         } else {
             // Vector argument
+            if (el_size == 0) {
+                // 'ele_size == 0' means that no modifier has been used.
+                // According to the spec, this is an undefined behavior. Let's
+                // use the size coming from clspv and the vec_len to figure out
+                // the element size then.
+                el_size = size / vec_len;
+            }
             auto* data_start = data;
             for (int i = 0; i < vec_len - 1; i++) {
                 printf_out << print_part(part_fmt, data, size / vec_len) << ",";
