@@ -1802,7 +1802,7 @@ cvk_command_image_init::build_batchable_inner(cvk_command_buffer& cmdbuf) {
 
         extent.width = m_image->width();
         extent.height = m_image->height();
-        extent.depth = 1 /*m_image->depth()*/;
+        extent.depth = m_image->depth();
 
         VkBufferImageCopy copy = {
             0,            // bufferOffset
