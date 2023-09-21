@@ -27,6 +27,8 @@ OPTION(std::string, clspv_library_builtins, "")
 
 OPTION(uint32_t, printf_buffer_size, 1024*1024u)
 
+OPTION(uint32_t, opencl_version, (uint32_t)CL_MAKE_VERSION(3, 0, 0))
+
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER
