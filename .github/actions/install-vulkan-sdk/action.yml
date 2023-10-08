@@ -12,7 +12,7 @@ runs:
   using: "composite"
   steps:
     - name: Install Vulkan SDK
-      uses: kpet/install-vulkan-sdk@fix-macos
+      uses: humbletim/install-vulkan-sdk@main
       with:
         version: ${{ inputs.version }}
         cache: true
