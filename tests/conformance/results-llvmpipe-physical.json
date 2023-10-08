@@ -1,128 +1,23 @@
 {
   "system-info": {
     "apiVersion": 4206847,
-    "deviceID": 5710,
-    "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
-    "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
-    "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 23.2.1",
-    "driverName": "radv",
-    "driverVersion": 96477185
+    "deviceID": 0,
+    "deviceName": "llvmpipe (LLVM 16.0.6, 256 bits)",
+    "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
+    "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
+    "driverInfo": "Mesa 23.2.1 (LLVM 16.0.6)",
+    "driverName": "llvmpipe",
+    "driverVersion": 1
   },
   "test-results": {
     "API": {
-      "duration": "00:00:04.376346",
-      "has_results": true,
-      "results": {
-        "binary_create": "pass",
-        "binary_get": "pass",
-        "bool_type": "pass",
-        "buffer_properties_queries": "pass",
-        "clone_kernel": "pass",
-        "consistency_2d_image_from_buffer": "pass",
-        "consistency_3d_image_writes": "pass",
-        "consistency_depth_images": "pass",
-        "consistency_device_and_host_timer": "pass",
-        "consistency_device_enqueue": "pass",
-        "consistency_il_programs": "pass",
-        "consistency_memory_model": "pass",
-        "consistency_non_uniform_work_group": "pass",
-        "consistency_pipes": "pass",
-        "consistency_prog_ctor_dtor": "pass",
-        "consistency_progvar": "pass",
-        "consistency_read_write_images": "pass",
-        "consistency_subgroups": "pass",
-        "consistency_svm": "pass",
-        "context_destructor_callback": "pass",
-        "create_context_from_type": "pass",
-        "create_kernels_in_program": "pass",
-        "enqueue_task": "pass",
-        "execute_kernel_local_sizes": "pass",
-        "get_buffer_info": "pass",
-        "get_command_queue_info": "pass",
-        "get_command_queue_info_compatibility": "pass",
-        "get_context_info": "pass",
-        "get_device_info": "pass",
-        "get_image1d_array_info": "pass",
-        "get_image1d_info": "pass",
-        "get_image2d_array_info": "pass",
-        "get_image2d_info": "pass",
-        "get_image3d_info": "pass",
-        "get_kernel_arg_info": "pass",
-        "get_kernel_info": "pass",
-        "get_platform_ids": "pass",
-        "get_platform_info": "pass",
-        "get_program_info_kernel_names": "pass",
-        "get_sampler_info": "pass",
-        "get_sampler_info_compatibility": "pass",
-        "image_properties_queries": "pass",
-        "kernel_arg_changes": "pass",
-        "kernel_arg_multi_setup_random": "pass",
-        "kernel_attributes": "pass",
-        "kernel_global_constant": "pass",
-        "kernel_private_memory_size": "pass",
-        "kernel_required_group_size": "pass",
-        "load_single_kernel": "pass",
-        "load_two_kernels": "pass",
-        "load_two_kernels_in_one": "pass",
-        "load_two_kernels_manually": "pass",
-        "mem_object_destructor_callback": "pass",
-        "min_data_type_align_size_alignment": "pass",
-        "min_image_formats": "fail",
-        "min_max_address_bits": "pass",
-        "min_max_compute_units": "pass",
-        "min_max_constant_args": "pass",
-        "min_max_constant_buffer_size": "pass",
-        "min_max_device_version": "pass",
-        "min_max_double_fp_config": "pass",
-        "min_max_execution_capabilities": "pass",
-        "min_max_image_2d_height": "pass",
-        "min_max_image_2d_width": "pass",
-        "min_max_image_3d_depth": "pass",
-        "min_max_image_3d_height": "pass",
-        "min_max_image_3d_width": "pass",
-        "min_max_image_array_size": "pass",
-        "min_max_image_buffer_size": "fail",
-        "min_max_kernel_preferred_work_group_size_multiple": "pass",
-        "min_max_language_version": "pass",
-        "min_max_local_mem_size": "pass",
-        "min_max_mem_alloc_size": "pass",
-        "min_max_parameter_size": "pass",
-        "min_max_queue_properties": "pass",
-        "min_max_read_image_args": "pass",
-        "min_max_samplers": "pass",
-        "min_max_single_fp_config": "pass",
-        "min_max_thread_dimensions": "pass",
-        "min_max_work_group_size": "pass",
-        "min_max_work_items_sizes": "pass",
-        "min_max_write_image_args": "pass",
-        "native_kernel": "pass",
-        "negative_get_platform_ids": "pass",
-        "negative_get_platform_info": "pass",
-        "pipe_properties_queries": "skip",
-        "platform_extensions": "pass",
-        "queue_flush_on_release": "pass",
-        "queue_hint": "pass",
-        "queue_properties": "pass",
-        "queue_properties_queries": "pass",
-        "release_during_execute": "pass",
-        "release_kernel_order": "pass",
-        "repeated_setup_cleanup": "pass",
-        "retain_mem_object_multiple": "pass",
-        "retain_mem_object_set_kernel_arg": "pass",
-        "retain_mem_object_single": "pass",
-        "retain_queue_multiple": "pass",
-        "retain_queue_single": "pass",
-        "set_kernel_arg_by_index": "pass",
-        "set_kernel_arg_constant": "pass",
-        "set_kernel_arg_struct_array": "pass",
-        "sub_group_dispatch": "pass",
-        "zero_sized_enqueue": "pass"
-      },
-      "retcode": 1
+      "duration": "00:00:00.157481",
+      "has_results": false,
+      "results": {},
+      "retcode": -6
     },
     "Atomics": {
-      "duration": "00:00:01.549736",
+      "duration": "00:00:02.459108",
       "has_results": true,
       "results": {
         "atomic_add": "pass",
@@ -142,7 +37,7 @@
       "retcode": 0
     },
     "Basic": {
-      "duration": "00:02:07.694160",
+      "duration": "00:11:32.734185",
       "has_results": true,
       "results": {
         "arraycopy": "pass",
@@ -241,7 +136,7 @@
         "readimage3d_int16": "pass",
         "readimage_fp32": "pass",
         "readimage_int16": "pass",
-        "rw_image_access_qualifier": "pass",
+        "rw_image_access_qualifier": "fail",
         "simple_read_image_pitch": "pass",
         "simple_write_image_pitch": "pass",
         "sizeof": "pass",
@@ -261,10 +156,10 @@
         "writeimage_fp32": "pass",
         "writeimage_int16": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Buffers": {
-      "duration": "00:00:26.976837",
+      "duration": "00:00:28.722816",
       "has_results": true,
       "results": {
         "array_info_size": "pass",
@@ -364,7 +259,7 @@
       "retcode": 1
     },
     "C11 Atomics": {
-      "duration": "00:02:02.242751",
+      "duration": "00:01:46.248788",
       "has_results": true,
       "results": {
         "atomic_compare_exchange_strong": "pass",
@@ -405,7 +300,7 @@
       "retcode": 0
     },
     "Common Functions": {
-      "duration": "00:00:01.585538",
+      "duration": "00:00:07.229879",
       "has_results": true,
       "results": {
         "clamp": "pass",
@@ -430,7 +325,7 @@
       "retcode": 0
     },
     "Compiler": {
-      "duration": "00:00:24.731810",
+      "duration": "00:00:27.595404",
       "has_results": true,
       "results": {
         "async_build": "pass",
@@ -503,19 +398,19 @@
       "retcode": 0
     },
     "Compute Info": {
-      "duration": "00:00:00.025759",
+      "duration": "00:00:00.034509",
       "has_results": true,
       "results": {
         "computeinfo": "pass",
         "conformance_version": "fail",
         "device_uuid": "pass",
         "extended_versioning": "pass",
-        "pci_bus_info": "pass"
+        "pci_bus_info": "skip"
       },
       "retcode": 1
     },
     "Contractions": {
-      "duration": "00:00:00.294506",
+      "duration": "00:00:00.331685",
       "has_results": true,
       "results": {
         "contractions_double_0": "pass",
@@ -526,19 +421,19 @@
         "contractions_double_5": "pass",
         "contractions_double_6": "pass",
         "contractions_double_7": "pass",
-        "contractions_float_0": "pass",
-        "contractions_float_1": "pass",
-        "contractions_float_2": "pass",
-        "contractions_float_3": "pass",
-        "contractions_float_4": "pass",
-        "contractions_float_5": "pass",
-        "contractions_float_6": "pass",
-        "contractions_float_7": "pass"
+        "contractions_float_0": "fail",
+        "contractions_float_1": "fail",
+        "contractions_float_2": "fail",
+        "contractions_float_3": "fail",
+        "contractions_float_4": "fail",
+        "contractions_float_5": "fail",
+        "contractions_float_6": "fail",
+        "contractions_float_7": "fail"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Conversions": {
-      "duration": "00:05:46.161307",
+      "duration": "00:06:31.636689",
       "has_results": true,
       "results": {
         "conversions": "pass"
@@ -546,7 +441,7 @@
       "retcode": 0
     },
     "Device Partitioning": {
-      "duration": "00:00:00.026742",
+      "duration": "00:00:00.028645",
       "has_results": true,
       "results": {
         "partition_all": "pass",
@@ -562,7 +457,7 @@
       "retcode": 0
     },
     "Device execution": {
-      "duration": "00:00:00.023083",
+      "duration": "00:00:00.030527",
       "has_results": true,
       "results": {
         "device_info": "skip",
@@ -581,7 +476,7 @@
       "retcode": 0
     },
     "Device timer": {
-      "duration": "00:00:05.024526",
+      "duration": "00:00:05.030204",
       "has_results": true,
       "results": {
         "device_and_host_timers": "pass",
@@ -590,7 +485,7 @@
       "retcode": 0
     },
     "Events": {
-      "duration": "00:00:03.471434",
+      "duration": "00:00:04.761182",
       "has_results": true,
       "results": {
         "callbacks": "pass",
@@ -625,13 +520,13 @@
       "retcode": 0
     },
     "External memory and synchronisation": {
-      "duration": "00:00:00.031414",
+      "duration": "00:00:00.285015",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "Generic Address Space": {
-      "duration": "00:00:00.024779",
+      "duration": "00:00:00.026949",
       "has_results": true,
       "results": {
         "builtin_functions": "skip",
@@ -659,7 +554,7 @@
       "retcode": 0
     },
     "Geometric Functions": {
-      "duration": "00:00:01.375986",
+      "duration": "00:00:01.587270",
       "has_results": true,
       "results": {
         "geom_cross": "pass",
@@ -674,7 +569,7 @@
       "retcode": 0
     },
     "Half Ops": {
-      "duration": "00:00:07.611946",
+      "duration": "00:00:11.907969",
       "has_results": true,
       "results": {
         "roundTrip": "pass",
@@ -694,7 +589,7 @@
       "retcode": 0
     },
     "Images (API Info)": {
-      "duration": "00:00:39.485530",
+      "duration": "00:00:28.287527",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -706,7 +601,7 @@
       "retcode": 0
     },
     "Images (Kernel Methods)": {
-      "duration": "00:00:20.184035",
+      "duration": "00:00:59.721117",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -718,46 +613,46 @@
       "retcode": 0
     },
     "Images (Samplerless max size)": {
-      "duration": "00:00:03.256462",
+      "duration": "00:00:20.595371",
       "has_results": true,
       "results": {
-        "1D": "pass",
-        "1Darray": "pass",
+        "1D": "fail",
+        "1Darray": "fail",
         "1Dbuffer": "fail",
-        "2D": "pass",
-        "2Darray": "pass",
-        "3D": "pass"
+        "2D": "fail",
+        "2Darray": "fail",
+        "3D": "fail"
       },
       "retcode": 1
     },
     "Images (Samplerless pitch)": {
-      "duration": "00:00:03.167285",
+      "duration": "00:00:17.943150",
       "has_results": true,
       "results": {
-        "1D": "pass",
-        "1Darray": "pass",
+        "1D": "fail",
+        "1Darray": "fail",
         "1Dbuffer": "fail",
-        "2D": "pass",
-        "2Darray": "pass",
+        "2D": "fail",
+        "2Darray": "fail",
         "3D": "fail"
       },
       "retcode": 1
     },
     "Images (Samplerless)": {
-      "duration": "00:00:03.152858",
+      "duration": "00:00:10.530685",
       "has_results": true,
       "results": {
-        "1D": "pass",
-        "1Darray": "pass",
+        "1D": "fail",
+        "1Darray": "fail",
         "1Dbuffer": "fail",
-        "2D": "pass",
-        "2Darray": "pass",
-        "3D": "pass"
+        "2D": "fail",
+        "2Darray": "fail",
+        "3D": "fail"
       },
       "retcode": 1
     },
     "Images (clFillImage max size)": {
-      "duration": "00:00:12.015982",
+      "duration": "00:00:12.542465",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -769,7 +664,7 @@
       "retcode": 0
     },
     "Images (clFillImage pitch)": {
-      "duration": "00:00:11.917343",
+      "duration": "00:00:14.369425",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -781,7 +676,7 @@
       "retcode": 0
     },
     "Images (clFillImage)": {
-      "duration": "00:00:07.716860",
+      "duration": "00:00:10.651987",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -793,7 +688,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage max size)": {
-      "duration": "00:00:03.865269",
+      "duration": "00:00:02.971546",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -805,7 +700,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage pitch)": {
-      "duration": "00:00:11.402008",
+      "duration": "00:00:08.435705",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -817,7 +712,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage)": {
-      "duration": "00:00:10.064876",
+      "duration": "00:00:08.334600",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -829,7 +724,7 @@
       "retcode": 0
     },
     "Integer Ops": {
-      "duration": "00:01:06.008587",
+      "duration": "00:01:44.777908",
       "has_results": true,
       "results": {
         "integer_abs": "pass",
@@ -900,7 +795,7 @@
       "retcode": 0
     },
     "Math": {
-      "duration": "00:00:10.589714",
+      "duration": "00:00:13.687779",
       "has_results": true,
       "results": {
         "acos": "pass",
@@ -986,7 +881,7 @@
         "pown": "pass",
         "powr": "pass",
         "remainder": "pass",
-        "remquo": "pass",
+        "remquo": "fail",
         "rint": "pass",
         "rootn": "pass",
         "round": "pass",
@@ -1004,10 +899,10 @@
         "tanpi": "pass",
         "trunc": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Mem (Host Flags)": {
-      "duration": "00:00:00.050910",
+      "duration": "00:00:00.042624",
       "has_results": true,
       "results": {
         "mem_host_no_access_buffer": "pass",
@@ -1023,7 +918,7 @@
       "retcode": 0
     },
     "Multiple Device/Context": {
-      "duration": "00:00:18.810158",
+      "duration": "00:00:19.484399",
       "has_results": true,
       "results": {
         "context_four_contexts_same_device": "pass",
@@ -1037,7 +932,7 @@
       "retcode": 1
     },
     "Non-uniform work-group": {
-      "duration": "00:00:02.682949",
+      "duration": "00:00:08.702221",
       "has_results": true,
       "results": {
         "non_uniform_1d_atomics": "pass",
@@ -1056,7 +951,7 @@
       "retcode": 0
     },
     "Pipes": {
-      "duration": "00:00:00.025435",
+      "duration": "00:00:00.028534",
       "has_results": true,
       "results": {
         "pipe_convenience_readwrite_char": "skip",
@@ -1118,7 +1013,7 @@
       "retcode": 0
     },
     "Printf": {
-      "duration": "00:00:01.081761",
+      "duration": "00:00:01.567972",
       "has_results": true,
       "results": {
         "address_space_0": "pass",
@@ -1197,7 +1092,7 @@
       "retcode": 0
     },
     "Profiling": {
-      "duration": "00:00:01.693919",
+      "duration": "00:00:02.680957",
       "has_results": true,
       "results": {
         "copy_array": "pass",
@@ -1235,7 +1130,7 @@
       "retcode": 0
     },
     "Relationals": {
-      "duration": "00:00:58.969091",
+      "duration": "00:05:13.812893",
       "has_results": true,
       "results": {
         "relational_all": "pass",
@@ -1259,13 +1154,13 @@
       "retcode": 0
     },
     "SPIR": {
-      "duration": "00:00:00.024431",
+      "duration": "00:00:00.027616",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "SPIR-V": {
-      "duration": "00:00:05.022041",
+      "duration": "00:00:06.929751",
       "has_results": true,
       "results": {
         "decorate_aliased": "pass",
@@ -1464,7 +1359,7 @@
       "retcode": 1
     },
     "SVM": {
-      "duration": "00:00:00.026051",
+      "duration": "00:00:00.029392",
       "has_results": true,
       "results": {
         "svm_allocate_shared_buffer": "skip",
@@ -1485,7 +1380,7 @@
       "retcode": 0
     },
     "Select": {
-      "duration": "00:00:06.071630",
+      "duration": "00:00:09.415128",
       "has_results": true,
       "results": {
         "select_char_char": "pass",
@@ -1514,7 +1409,7 @@
       "retcode": 0
     },
     "Subgroups": {
-      "duration": "00:00:01.182298",
+      "duration": "00:00:01.764144",
       "has_results": true,
       "results": {
         "barrier_functions_core": "pass",
@@ -1533,13 +1428,13 @@
         "subgroup_functions_rotate": "skip",
         "subgroup_functions_shuffle": "skip",
         "subgroup_functions_shuffle_relative": "skip",
-        "work_item_functions_core": "pass",
+        "work_item_functions_core": "fail",
         "work_item_functions_ext": "skip"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Thread Dimensions": {
-      "duration": "00:00:27.929199",
+      "duration": "00:00:25.419595",
       "has_results": true,
       "results": {
         "quick_1d_explicit_local": "pass",
@@ -1552,7 +1447,7 @@
       "retcode": 0
     },
     "Vectors": {
-      "duration": "00:02:06.077597",
+      "duration": "00:02:31.199402",
       "has_results": true,
       "results": {
         "step_type": "pass",
@@ -1568,7 +1463,7 @@
       "retcode": 0
     },
     "Workgroups": {
-      "duration": "00:00:00.022503",
+      "duration": "00:00:00.029523",
       "has_results": true,
       "results": {
         "work_group_all": "skip",
@@ -1592,7 +1487,7 @@
       "retcode": 0
     },
     "cl_ext_cxx_for_opencl": {
-      "duration": "00:00:00.023945",
+      "duration": "00:00:00.256286",
       "has_results": true,
       "results": {
         "cxx_for_opencl_ext": "skip",
@@ -1601,7 +1496,7 @@
       "retcode": 0
     },
     "cl_khr_command_buffer": {
-      "duration": "00:00:00.023347",
+      "duration": "00:00:00.289037",
       "has_results": true,
       "results": {
         "barrier_wait_list": "skip",
@@ -1654,7 +1549,7 @@
       "retcode": 0
     },
     "cl_khr_semaphore": {
-      "duration": "00:00:00.021218",
+      "duration": "00:00:00.295274",
       "has_results": true,
       "results": {
         "semaphores_cross_queues_io": "skip",

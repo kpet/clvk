@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4206838,
+    "apiVersion": 4206847,
     "deviceID": 22177,
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 23.1.4",
+    "driverInfo": "Mesa 23.2.1",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 96473092
+    "driverVersion": 96477185
   },
   "test-results": {
     "API": {
@@ -241,7 +241,7 @@
         "readimage3d_int16": "pass",
         "readimage_fp32": "pass",
         "readimage_int16": "pass",
-        "rw_image_access_qualifier": "fail",
+        "rw_image_access_qualifier": "pass",
         "simple_read_image_pitch": "pass",
         "simple_write_image_pitch": "pass",
         "sizeof": "pass",
@@ -1626,6 +1626,8 @@
         "explicit_flush": "skip",
         "fill_buffer": "skip",
         "fill_image": "skip",
+        "finalize_empty": "skip",
+        "finalize_invalid": "skip",
         "info_context": "skip",
         "info_prop_array": "skip",
         "info_queues": "skip",
@@ -1658,12 +1660,8 @@
         "semaphores_cross_queues_io": "skip",
         "semaphores_cross_queues_ooo": "skip",
         "semaphores_import_export_fd": "skip",
-        "semaphores_invalid_command": "skip",
         "semaphores_multi_signal": "skip",
         "semaphores_multi_wait": "skip",
-        "semaphores_order_1": "skip",
-        "semaphores_order_2": "skip",
-        "semaphores_order_3": "skip",
         "semaphores_queries": "skip",
         "semaphores_reuse": "skip",
         "semaphores_simple_1": "skip",

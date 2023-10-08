@@ -11,14 +11,14 @@
   },
   "test-results": {
     "API": {
-      "duration": "00:00:04.376346",
+      "duration": "00:00:16.089007",
       "has_results": true,
       "results": {
         "binary_create": "pass",
         "binary_get": "pass",
         "bool_type": "pass",
-        "buffer_properties_queries": "pass",
-        "clone_kernel": "pass",
+        "buffer_properties_queries": "fail",
+        "clone_kernel": "fail",
         "consistency_2d_image_from_buffer": "pass",
         "consistency_3d_image_writes": "pass",
         "consistency_depth_images": "pass",
@@ -34,10 +34,10 @@
         "consistency_subgroups": "pass",
         "consistency_svm": "pass",
         "context_destructor_callback": "pass",
-        "create_context_from_type": "pass",
+        "create_context_from_type": "fail",
         "create_kernels_in_program": "pass",
         "enqueue_task": "pass",
-        "execute_kernel_local_sizes": "pass",
+        "execute_kernel_local_sizes": "fail",
         "get_buffer_info": "pass",
         "get_command_queue_info": "pass",
         "get_command_queue_info_compatibility": "pass",
@@ -55,11 +55,11 @@
         "get_program_info_kernel_names": "pass",
         "get_sampler_info": "pass",
         "get_sampler_info_compatibility": "pass",
-        "image_properties_queries": "pass",
-        "kernel_arg_changes": "pass",
-        "kernel_arg_multi_setup_random": "pass",
+        "image_properties_queries": "fail",
+        "kernel_arg_changes": "fail",
+        "kernel_arg_multi_setup_random": "fail",
         "kernel_attributes": "pass",
-        "kernel_global_constant": "pass",
+        "kernel_global_constant": "fail",
         "kernel_private_memory_size": "pass",
         "kernel_required_group_size": "pass",
         "load_single_kernel": "pass",
@@ -71,8 +71,8 @@
         "min_image_formats": "fail",
         "min_max_address_bits": "pass",
         "min_max_compute_units": "pass",
-        "min_max_constant_args": "pass",
-        "min_max_constant_buffer_size": "pass",
+        "min_max_constant_args": "fail",
+        "min_max_constant_buffer_size": "fail",
         "min_max_device_version": "pass",
         "min_max_double_fp_config": "pass",
         "min_max_execution_capabilities": "pass",
@@ -85,44 +85,44 @@
         "min_max_image_buffer_size": "fail",
         "min_max_kernel_preferred_work_group_size_multiple": "pass",
         "min_max_language_version": "pass",
-        "min_max_local_mem_size": "pass",
+        "min_max_local_mem_size": "fail",
         "min_max_mem_alloc_size": "pass",
-        "min_max_parameter_size": "pass",
+        "min_max_parameter_size": "fail",
         "min_max_queue_properties": "pass",
-        "min_max_read_image_args": "pass",
-        "min_max_samplers": "pass",
+        "min_max_read_image_args": "fail",
+        "min_max_samplers": "fail",
         "min_max_single_fp_config": "pass",
-        "min_max_thread_dimensions": "pass",
+        "min_max_thread_dimensions": "fail",
         "min_max_work_group_size": "pass",
         "min_max_work_items_sizes": "pass",
-        "min_max_write_image_args": "pass",
+        "min_max_write_image_args": "fail",
         "native_kernel": "pass",
         "negative_get_platform_ids": "pass",
         "negative_get_platform_info": "pass",
         "pipe_properties_queries": "skip",
         "platform_extensions": "pass",
-        "queue_flush_on_release": "pass",
+        "queue_flush_on_release": "fail",
         "queue_hint": "pass",
-        "queue_properties": "pass",
+        "queue_properties": "fail",
         "queue_properties_queries": "pass",
         "release_during_execute": "pass",
         "release_kernel_order": "pass",
-        "repeated_setup_cleanup": "pass",
+        "repeated_setup_cleanup": "fail",
         "retain_mem_object_multiple": "pass",
         "retain_mem_object_set_kernel_arg": "pass",
         "retain_mem_object_single": "pass",
         "retain_queue_multiple": "pass",
         "retain_queue_single": "pass",
-        "set_kernel_arg_by_index": "pass",
-        "set_kernel_arg_constant": "pass",
-        "set_kernel_arg_struct_array": "pass",
-        "sub_group_dispatch": "pass",
-        "zero_sized_enqueue": "pass"
+        "set_kernel_arg_by_index": "fail",
+        "set_kernel_arg_constant": "fail",
+        "set_kernel_arg_struct_array": "fail",
+        "sub_group_dispatch": "fail",
+        "zero_sized_enqueue": "fail"
       },
       "retcode": 1
     },
     "Atomics": {
-      "duration": "00:00:01.549736",
+      "duration": "00:00:01.570584",
       "has_results": true,
       "results": {
         "atomic_add": "pass",
@@ -142,7 +142,7 @@
       "retcode": 0
     },
     "Basic": {
-      "duration": "00:02:07.694160",
+      "duration": "00:02:37.160765",
       "has_results": true,
       "results": {
         "arraycopy": "pass",
@@ -264,7 +264,7 @@
       "retcode": 0
     },
     "Buffers": {
-      "duration": "00:00:26.976837",
+      "duration": "00:00:28.033983",
       "has_results": true,
       "results": {
         "array_info_size": "pass",
@@ -364,13 +364,13 @@
       "retcode": 1
     },
     "C11 Atomics": {
-      "duration": "00:02:02.242751",
+      "duration": "00:00:40.446060",
       "has_results": true,
       "results": {
         "atomic_compare_exchange_strong": "pass",
         "atomic_compare_exchange_weak": "pass",
         "atomic_exchange": "pass",
-        "atomic_fence": "pass",
+        "atomic_fence": "fail",
         "atomic_fetch_add": "pass",
         "atomic_fetch_and": "pass",
         "atomic_fetch_max": "pass",
@@ -380,7 +380,7 @@
         "atomic_fetch_sub": "pass",
         "atomic_fetch_xor": "pass",
         "atomic_fetch_xor2": "pass",
-        "atomic_flag": "pass",
+        "atomic_flag": "fail",
         "atomic_init": "pass",
         "atomic_load": "pass",
         "atomic_store": "pass",
@@ -402,10 +402,10 @@
         "svm_atomic_load": "pass",
         "svm_atomic_store": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Common Functions": {
-      "duration": "00:00:01.585538",
+      "duration": "00:00:03.650647",
       "has_results": true,
       "results": {
         "clamp": "pass",
@@ -430,7 +430,7 @@
       "retcode": 0
     },
     "Compiler": {
-      "duration": "00:00:24.731810",
+      "duration": "00:00:26.427898",
       "has_results": true,
       "results": {
         "async_build": "pass",
@@ -503,7 +503,7 @@
       "retcode": 0
     },
     "Compute Info": {
-      "duration": "00:00:00.025759",
+      "duration": "00:00:00.034405",
       "has_results": true,
       "results": {
         "computeinfo": "pass",
@@ -515,7 +515,7 @@
       "retcode": 1
     },
     "Contractions": {
-      "duration": "00:00:00.294506",
+      "duration": "00:00:00.357109",
       "has_results": true,
       "results": {
         "contractions_double_0": "pass",
@@ -538,7 +538,7 @@
       "retcode": 0
     },
     "Conversions": {
-      "duration": "00:05:46.161307",
+      "duration": "00:05:51.129715",
       "has_results": true,
       "results": {
         "conversions": "pass"
@@ -546,7 +546,7 @@
       "retcode": 0
     },
     "Device Partitioning": {
-      "duration": "00:00:00.026742",
+      "duration": "00:00:00.029150",
       "has_results": true,
       "results": {
         "partition_all": "pass",
@@ -562,7 +562,7 @@
       "retcode": 0
     },
     "Device execution": {
-      "duration": "00:00:00.023083",
+      "duration": "00:00:00.030338",
       "has_results": true,
       "results": {
         "device_info": "skip",
@@ -581,7 +581,7 @@
       "retcode": 0
     },
     "Device timer": {
-      "duration": "00:00:05.024526",
+      "duration": "00:00:05.030817",
       "has_results": true,
       "results": {
         "device_and_host_timers": "pass",
@@ -590,7 +590,7 @@
       "retcode": 0
     },
     "Events": {
-      "duration": "00:00:03.471434",
+      "duration": "00:00:03.278776",
       "has_results": true,
       "results": {
         "callbacks": "pass",
@@ -625,13 +625,13 @@
       "retcode": 0
     },
     "External memory and synchronisation": {
-      "duration": "00:00:00.031414",
+      "duration": "00:00:00.035435",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "Generic Address Space": {
-      "duration": "00:00:00.024779",
+      "duration": "00:00:00.030022",
       "has_results": true,
       "results": {
         "builtin_functions": "skip",
@@ -659,7 +659,7 @@
       "retcode": 0
     },
     "Geometric Functions": {
-      "duration": "00:00:01.375986",
+      "duration": "00:00:01.391648",
       "has_results": true,
       "results": {
         "geom_cross": "pass",
@@ -674,7 +674,7 @@
       "retcode": 0
     },
     "Half Ops": {
-      "duration": "00:00:07.611946",
+      "duration": "00:00:08.157001",
       "has_results": true,
       "results": {
         "roundTrip": "pass",
@@ -694,7 +694,7 @@
       "retcode": 0
     },
     "Images (API Info)": {
-      "duration": "00:00:39.485530",
+      "duration": "00:00:31.194562",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -706,7 +706,7 @@
       "retcode": 0
     },
     "Images (Kernel Methods)": {
-      "duration": "00:00:20.184035",
+      "duration": "00:00:20.817964",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -718,7 +718,7 @@
       "retcode": 0
     },
     "Images (Samplerless max size)": {
-      "duration": "00:00:03.256462",
+      "duration": "00:00:03.263235",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -726,12 +726,12 @@
         "1Dbuffer": "fail",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "pass"
+        "3D": "fail"
       },
       "retcode": 1
     },
     "Images (Samplerless pitch)": {
-      "duration": "00:00:03.167285",
+      "duration": "00:00:03.399922",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -744,7 +744,7 @@
       "retcode": 1
     },
     "Images (Samplerless)": {
-      "duration": "00:00:03.152858",
+      "duration": "00:00:03.252064",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -752,12 +752,12 @@
         "1Dbuffer": "fail",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "pass"
+        "3D": "fail"
       },
       "retcode": 1
     },
     "Images (clFillImage max size)": {
-      "duration": "00:00:12.015982",
+      "duration": "00:00:12.265941",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -769,7 +769,7 @@
       "retcode": 0
     },
     "Images (clFillImage pitch)": {
-      "duration": "00:00:11.917343",
+      "duration": "00:00:12.036131",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -781,7 +781,7 @@
       "retcode": 0
     },
     "Images (clFillImage)": {
-      "duration": "00:00:07.716860",
+      "duration": "00:00:07.757510",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -793,7 +793,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage max size)": {
-      "duration": "00:00:03.865269",
+      "duration": "00:00:03.535462",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -805,7 +805,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage pitch)": {
-      "duration": "00:00:11.402008",
+      "duration": "00:00:12.608478",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -817,7 +817,7 @@
       "retcode": 0
     },
     "Images (clReadWriteImage)": {
-      "duration": "00:00:10.064876",
+      "duration": "00:00:11.023928",
       "has_results": true,
       "results": {
         "1D": "pass",
@@ -829,7 +829,7 @@
       "retcode": 0
     },
     "Integer Ops": {
-      "duration": "00:01:06.008587",
+      "duration": "00:01:07.156086",
       "has_results": true,
       "results": {
         "integer_abs": "pass",
@@ -900,7 +900,7 @@
       "retcode": 0
     },
     "Math": {
-      "duration": "00:00:10.589714",
+      "duration": "00:00:10.452612",
       "has_results": true,
       "results": {
         "acos": "pass",
@@ -1007,7 +1007,7 @@
       "retcode": 0
     },
     "Mem (Host Flags)": {
-      "duration": "00:00:00.050910",
+      "duration": "00:00:00.059800",
       "has_results": true,
       "results": {
         "mem_host_no_access_buffer": "pass",
@@ -1023,7 +1023,7 @@
       "retcode": 0
     },
     "Multiple Device/Context": {
-      "duration": "00:00:18.810158",
+      "duration": "00:00:19.075986",
       "has_results": true,
       "results": {
         "context_four_contexts_same_device": "pass",
@@ -1037,26 +1037,26 @@
       "retcode": 1
     },
     "Non-uniform work-group": {
-      "duration": "00:00:02.682949",
+      "duration": "00:00:03.225078",
       "has_results": true,
       "results": {
         "non_uniform_1d_atomics": "pass",
         "non_uniform_1d_barriers": "pass",
         "non_uniform_1d_basic": "pass",
         "non_uniform_2d_atomics": "pass",
-        "non_uniform_2d_barriers": "pass",
+        "non_uniform_2d_barriers": "fail",
         "non_uniform_2d_basic": "pass",
         "non_uniform_3d_atomics": "pass",
-        "non_uniform_3d_barriers": "pass",
+        "non_uniform_3d_barriers": "fail",
         "non_uniform_3d_basic": "pass",
         "non_uniform_other_atomics": "pass",
         "non_uniform_other_barriers": "pass",
         "non_uniform_other_basic": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Pipes": {
-      "duration": "00:00:00.025435",
+      "duration": "00:00:00.029505",
       "has_results": true,
       "results": {
         "pipe_convenience_readwrite_char": "skip",
@@ -1118,7 +1118,7 @@
       "retcode": 0
     },
     "Printf": {
-      "duration": "00:00:01.081761",
+      "duration": "00:00:00.994122",
       "has_results": true,
       "results": {
         "address_space_0": "pass",
@@ -1197,7 +1197,7 @@
       "retcode": 0
     },
     "Profiling": {
-      "duration": "00:00:01.693919",
+      "duration": "00:00:01.700302",
       "has_results": true,
       "results": {
         "copy_array": "pass",
@@ -1235,7 +1235,7 @@
       "retcode": 0
     },
     "Relationals": {
-      "duration": "00:00:58.969091",
+      "duration": "00:01:07.052907",
       "has_results": true,
       "results": {
         "relational_all": "pass",
@@ -1259,13 +1259,13 @@
       "retcode": 0
     },
     "SPIR": {
-      "duration": "00:00:00.024431",
+      "duration": "00:00:00.026320",
       "has_results": false,
       "results": {},
       "retcode": 0
     },
     "SPIR-V": {
-      "duration": "00:00:05.022041",
+      "duration": "00:00:05.370930",
       "has_results": true,
       "results": {
         "decorate_aliased": "pass",
@@ -1464,7 +1464,7 @@
       "retcode": 1
     },
     "SVM": {
-      "duration": "00:00:00.026051",
+      "duration": "00:00:00.027954",
       "has_results": true,
       "results": {
         "svm_allocate_shared_buffer": "skip",
@@ -1485,7 +1485,7 @@
       "retcode": 0
     },
     "Select": {
-      "duration": "00:00:06.071630",
+      "duration": "00:00:08.142592",
       "has_results": true,
       "results": {
         "select_char_char": "pass",
@@ -1514,7 +1514,7 @@
       "retcode": 0
     },
     "Subgroups": {
-      "duration": "00:00:01.182298",
+      "duration": "00:00:01.116139",
       "has_results": true,
       "results": {
         "barrier_functions_core": "pass",
@@ -1539,7 +1539,7 @@
       "retcode": 0
     },
     "Thread Dimensions": {
-      "duration": "00:00:27.929199",
+      "duration": "00:00:27.174636",
       "has_results": true,
       "results": {
         "quick_1d_explicit_local": "pass",
@@ -1552,7 +1552,7 @@
       "retcode": 0
     },
     "Vectors": {
-      "duration": "00:02:06.077597",
+      "duration": "00:02:16.348888",
       "has_results": true,
       "results": {
         "step_type": "pass",
@@ -1568,7 +1568,7 @@
       "retcode": 0
     },
     "Workgroups": {
-      "duration": "00:00:00.022503",
+      "duration": "00:00:00.028845",
       "has_results": true,
       "results": {
         "work_group_all": "skip",
@@ -1592,7 +1592,7 @@
       "retcode": 0
     },
     "cl_ext_cxx_for_opencl": {
-      "duration": "00:00:00.023945",
+      "duration": "00:00:00.029683",
       "has_results": true,
       "results": {
         "cxx_for_opencl_ext": "skip",
@@ -1601,7 +1601,7 @@
       "retcode": 0
     },
     "cl_khr_command_buffer": {
-      "duration": "00:00:00.023347",
+      "duration": "00:00:00.027541",
       "has_results": true,
       "results": {
         "barrier_wait_list": "skip",
@@ -1654,7 +1654,7 @@
       "retcode": 0
     },
     "cl_khr_semaphore": {
-      "duration": "00:00:00.021218",
+      "duration": "00:00:00.026958",
       "has_results": true,
       "results": {
         "semaphores_cross_queues_io": "skip",
