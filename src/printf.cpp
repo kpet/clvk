@@ -254,6 +254,13 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
         process_printf(data, descriptors, data_end);
     }
 
+    if (buffer_size < bytes_written) {
+        cvk_warn_fn("Could not print all printfs. Around %.1f%% of them have "
+                    "been skipped.",
+                    100.0 * (float)(bytes_written - buffer_size) /
+                        bytes_written);
+    }
+
     printf_buffer->unmap();
 
     return CL_SUCCESS;
