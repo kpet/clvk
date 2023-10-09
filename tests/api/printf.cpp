@@ -199,4 +199,30 @@ TEST_F(WithCommandQueue, TooLongPrintf2) {
     ASSERT_STREQ(printf_buffer, message);
 }
 
+TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
+    temp_folder_deletion temp;
+    stdoutFileName = getStdoutFileName(temp);
+
+    int fd;
+    ASSERT_TRUE(getStdout(fd));
+
+    const char message[] = "1,2,3,4";
+    char source[512];
+    sprintf(source,
+            "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
+            message);
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    releaseStdout(fd);
+    auto printf_buffer = getStdoutContent();
+    ASSERT_NE(printf_buffer, nullptr);
+
+    ASSERT_STREQ(printf_buffer, message);
+}
+
 #endif
