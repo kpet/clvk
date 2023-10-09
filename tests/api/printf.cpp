@@ -208,7 +208,9 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
 
     const char message[] = "1,2,3,4";
     char source[512];
-    sprintf(source, "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}", message);
+    sprintf(source,
+            "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
+            message);
     auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;
