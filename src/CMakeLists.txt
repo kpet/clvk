@@ -68,6 +68,11 @@ if (CLVK_UNIT_TESTING)
    target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)
    # unit.{cpp|hpp} is using "extern C" to avoid a mangling issue.
    enable_language(C)
+else()
+   # functions in `CLVK_UNIT_TESTING_FCT` (exports.map) won't be defined, thus
+   # we need to tell the linker not to generate errors for undefined-version.
+   set(CMAKE_SHARED_LINKER_FLAGS
+       "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--undefined-version")
 endif()
 
 # Disable deprecation warnings on the file that has the entrypoints.
