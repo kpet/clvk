@@ -1804,6 +1804,21 @@ cvk_command_image_init::build_batchable_inner(cvk_command_buffer& cmdbuf) {
         extent.height = m_image->height();
         extent.depth = m_image->depth();
 
+        switch (m_image->type()) {
+        case CL_MEM_OBJECT_IMAGE2D:
+        case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+            extent.depth = 1;
+            break;
+        case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        case CL_MEM_OBJECT_IMAGE1D:
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            extent.height = 1;
+            extent.depth = 1;
+            break;
+        default:
+            break;
+        }
+
         VkBufferImageCopy copy = {
             0,            // bufferOffset
             row_length,   // bufferRowLength
