@@ -232,7 +232,8 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 
 cl_int cvk_command_queue::end_current_command_batch() {
     if (m_command_batch) {
-        TRACE_FUNCTION("queue", (uintptr_t)this);
+        TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
+                       m_command_batch->batch_size());
 
         if (!m_command_batch->end()) {
             return CL_OUT_OF_RESOURCES;
@@ -412,8 +413,10 @@ void cvk_executor_thread::executor() {
 }
 
 cl_int cvk_command_queue::flush_no_lock() {
-    TRACE_FUNCTION("queue", (uintptr_t)this);
-    cvk_debug_fn("queue = %p", this);
+    TRACE_FUNCTION("queue", (uintptr_t)this, "group_size",
+                   m_groups.front()->commands.size());
+    cvk_debug_fn("queue = %p - group_size = %lu", this,
+                 m_groups.front()->commands.size());
 
     std::unique_ptr<cvk_command_group> group;
 
