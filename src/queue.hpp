@@ -236,9 +236,10 @@ struct cvk_command_queue : public _cl_command_queue,
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
+    void update_batch_parameters(bool from_flush);
     void enqueue_command(cvk_command* cmd);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
-    CHECK_RETURN cl_int end_current_command_batch();
+    CHECK_RETURN cl_int end_current_command_batch(bool from_flush = false);
     void executor();
 
     cvk_device* m_device;
@@ -260,6 +261,18 @@ private:
     cl_uint m_max_first_cmd_batch_size;
     cl_uint m_max_cmd_group_size;
     cl_uint m_max_first_cmd_group_size;
+
+    cl_uint m_max_cmd_batch_size_limit;
+    cl_uint m_max_first_cmd_batch_size_limit;
+    cl_uint m_max_first_cmd_batch_size_limit_hit;
+    cl_uint m_last_batch_size;
+    bool m_no_batch_in_flight_since_last_flush;
+
+    TRACE_CNT_VAR(max_cmd_batch_size_counter);
+    TRACE_CNT_VAR(max_first_cmd_batch_size_counter);
+    TRACE_CNT_VAR(max_first_cmd_batch_size_limit_counter);
+    TRACE_CNT_VAR(max_first_cmd_batch_size_limit_hit_counter);
+    TRACE_CNT_VAR(last_batch_size_counter);
 
     std::atomic<uint64_t> m_nb_batch_in_flight;
     std::atomic<uint64_t> m_nb_group_in_flight;
