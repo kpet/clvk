@@ -10,6 +10,10 @@ jobs:
       matrix:
         os: [ubuntu-20.04, macos-latest, windows-2019]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
       - name: Setup Ninja
         uses: ./.github/actions/setup-ninja
       - name: Fetch sources
