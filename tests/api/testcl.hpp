@@ -406,7 +406,8 @@ protected:
     }
 
     holder<cl_mem> CreateSubBuffer(cl_mem buffer, cl_mem_flags flags,
-                                   const size_t region_origin, const size_t region_size) {
+                                   const size_t region_origin,
+                                   const size_t region_size) {
         cl_int err;
         cl_buffer_region buffer_region = {
             .origin = region_origin,
