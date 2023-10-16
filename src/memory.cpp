@@ -509,6 +509,7 @@ bool cvk_image::init_vulkan_texel_buffer() {
     CVK_ASSERT(buffer()->is_buffer_type());
 
     auto vkbuf = static_cast<cvk_buffer*>(buffer())->vulkan_buffer();
+    auto offset = static_cast<cvk_buffer*>(buffer())->vulkan_buffer_offset();
 
     VkBufferViewCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
@@ -516,7 +517,7 @@ bool cvk_image::init_vulkan_texel_buffer() {
         0,            // flags
         vkbuf,        // buffer
         format,       // format
-        0,            // offset
+        offset,       // offset
         VK_WHOLE_SIZE // range
     };
 

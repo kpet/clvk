@@ -403,17 +403,16 @@ TEST_F(WithCommandQueue, ImageWriteOffset) {
 }
 
 TEST_F(WithContext, Image1DBuffer) {
-    const size_t IMAGE_HEIGHT = 128;
     const size_t IMAGE_WIDTH = 128;
 
-    auto buffer_size = IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer_size = IMAGE_WIDTH * sizeof(cl_float4);
     auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
 
     cl_image_format format = {CL_RGBA, CL_FLOAT};
     cl_image_desc desc = {
         CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
         IMAGE_WIDTH,                  // image_width
-        IMAGE_HEIGHT,                 // image_height
+        1,                            // image_height
         1,                            // image_depth
         1,                            // image_array_size
         0,                            // image_row_pitch
@@ -592,5 +591,57 @@ kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint o
         EXPECT_TRUE((dst[0] == (order + offset)) &&
                     (dst[1] == (data_type + offset)) &&
                     (dst[2] == (offset + magic)));
+    }
+}
+
+TEST_F(WithCommandQueue, 1DBufferImageFromSubBuffer) {
+    const size_t IMAGE_WIDTH = 128;
+
+    auto subbuffer_size = IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer_size = subbuffer_size + 2 * sizeof(cl_float4);
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
+    auto subbuffer =
+        CreateSubBuffer(buffer, 0, sizeof(cl_float4), subbuffer_size);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        0,                            // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        subbuffer,                    // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    const char* source = R"(
+kernel void test(image1d_buffer_t write_only image)
+{
+  int gid = get_global_id(0);
+  write_imagef(image, gid, (float4)(0.0, 0.0, 0.0, 0.0));
+}
+)";
+    auto kernel = CreateKernel(source, "test");
+    SetKernelArg(kernel, 0, image);
+    cl_float pattern = -42.0;
+    EnqueueFillBuffer(buffer, &pattern, sizeof(pattern), buffer_size);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &IMAGE_WIDTH, nullptr);
+
+    cl_float4 output[IMAGE_WIDTH + 2];
+    EnqueueReadBuffer(buffer, CL_TRUE, 0, buffer_size, output);
+    EXPECT_TRUE(output[0].s0 == pattern && output[0].s1 == pattern &&
+                output[0].s2 == pattern && output[0].s3 == pattern &&
+                output[IMAGE_WIDTH + 1].s0 == pattern &&
+                output[IMAGE_WIDTH + 1].s1 == pattern &&
+                output[IMAGE_WIDTH + 1].s2 == pattern &&
+                output[IMAGE_WIDTH + 1].s3 == pattern);
+    for (unsigned i = 0; i < IMAGE_WIDTH; i++) {
+        EXPECT_TRUE(output[i + 1].s0 == 0.0 && output[i + 1].s1 == 0.0 &&
+                    output[i + 1].s2 == 0.0 && output[i + 1].s3 == 0.0);
     }
 }

@@ -405,6 +405,19 @@ protected:
         return mem;
     }
 
+    holder<cl_mem> CreateSubBuffer(cl_mem buffer, cl_mem_flags flags,
+                                   const size_t region_origin, const size_t region_size) {
+        cl_int err;
+        cl_buffer_region buffer_region = {
+            .origin = region_origin,
+            .size = region_size,
+        };
+        auto mem = clCreateSubBuffer(
+            buffer, flags, CL_BUFFER_CREATE_TYPE_REGION, &buffer_region, &err);
+        EXPECT_CL_SUCCESS(err);
+        return mem;
+    }
+
     holder<cl_sampler> CreateSampler(cl_bool normalized_coords,
                                      cl_addressing_mode addressing_mode,
                                      cl_filter_mode filter_mode) {
@@ -654,6 +667,20 @@ protected:
                             size_t offset, size_t size, const void* ptr) {
         EnqueueWriteBuffer(buffer, blocking_write, offset, size, ptr, 0,
                            nullptr, nullptr);
+    }
+
+    void EnqueueFillBuffer(cl_mem buffer, const void* pattern,
+                           size_t pattern_size, size_t offset, size_t size) {
+        auto err = clEnqueueFillBuffer(m_queue, buffer, pattern, pattern_size,
+                                       offset, size, 0, nullptr, nullptr);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void EnqueueFillBuffer(cl_mem buffer, const void* pattern,
+                           size_t pattern_size, size_t size) {
+        auto err = clEnqueueFillBuffer(m_queue, buffer, pattern, pattern_size,
+                                       0, size, 0, nullptr, nullptr);
+        ASSERT_CL_SUCCESS(err);
     }
 
     void EnqueueReadImage(cl_mem image, cl_bool blocking_read,
