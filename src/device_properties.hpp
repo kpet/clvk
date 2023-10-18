@@ -52,6 +52,10 @@ struct cvk_device_properties {
 
     virtual bool is_non_uniform_decoration_broken() const { return false; }
 
+    virtual bool is_bgra_format_not_supported_for_image1d_buffer() const {
+        return false;
+    }
+
     virtual ~cvk_device_properties() {}
 };
 

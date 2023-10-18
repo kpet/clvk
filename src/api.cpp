@@ -14,6 +14,7 @@
 
 #include "cl_headers.hpp"
 #include "icd.hpp"
+#include "image_format.hpp"
 #include "init.hpp"
 #include "kernel.hpp"
 #include "log.hpp"
@@ -4590,195 +4591,47 @@ cl_int CLVK_API_CALL clGetImageInfo(cl_mem image, cl_image_info param_name,
     return ret;
 }
 
-struct ClFormatMapHash {
-    size_t operator()(const cl_image_format& format) const {
-        return format.image_channel_order << 16 |
-               format.image_channel_data_type;
-    }
-};
-
-struct ClFormatMapEqual {
-    bool operator()(const cl_image_format& lhs,
-                    const cl_image_format& rhs) const {
-        return lhs.image_channel_order == rhs.image_channel_order &&
-               lhs.image_channel_data_type == rhs.image_channel_data_type;
-    }
-};
-
-struct image_format_support {
-    static constexpr cl_mem_flags RO = CL_MEM_READ_ONLY;
-    static constexpr cl_mem_flags WO = CL_MEM_WRITE_ONLY;
-    static constexpr cl_mem_flags RW = CL_MEM_KERNEL_READ_AND_WRITE;
-    static constexpr cl_mem_flags ROWO = RO | WO | CL_MEM_READ_WRITE;
-    static constexpr cl_mem_flags ALL = ROWO | RW;
-
-    image_format_support(cl_mem_flags flags, VkFormat fmt)
-        : flags(flags), vkfmt(fmt) {}
-    image_format_support(VkFormat fmt) : flags(ALL), vkfmt(fmt) {}
-
-    cl_mem_flags flags;
-    VkFormat vkfmt;
-};
-
-std::unordered_map<cl_image_format, image_format_support, ClFormatMapHash,
-                   ClFormatMapEqual>
-    gFormatMaps = {
-        // R formats
-        {{CL_R, CL_UNORM_INT8}, VK_FORMAT_R8_UNORM},
-        {{CL_R, CL_SNORM_INT8}, VK_FORMAT_R8_SNORM},
-        {{CL_R, CL_UNSIGNED_INT8}, VK_FORMAT_R8_UINT},
-        {{CL_R, CL_SIGNED_INT8}, VK_FORMAT_R8_SINT},
-        {{CL_R, CL_UNORM_INT16}, VK_FORMAT_R16_UNORM},
-        {{CL_R, CL_SNORM_INT16}, VK_FORMAT_R16_SNORM},
-        {{CL_R, CL_UNSIGNED_INT16}, VK_FORMAT_R16_UINT},
-        {{CL_R, CL_SIGNED_INT16}, VK_FORMAT_R16_SINT},
-        {{CL_R, CL_HALF_FLOAT}, VK_FORMAT_R16_SFLOAT},
-        {{CL_R, CL_UNSIGNED_INT32}, VK_FORMAT_R32_UINT},
-        {{CL_R, CL_SIGNED_INT32}, VK_FORMAT_R32_SINT},
-        {{CL_R, CL_FLOAT}, VK_FORMAT_R32_SFLOAT},
-
-        // LUMINANCE formats
-        {{CL_LUMINANCE, CL_UNORM_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_UNORM}},
-        {{CL_LUMINANCE, CL_SNORM_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_SNORM}},
-        {{CL_LUMINANCE, CL_UNSIGNED_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_UINT}},
-        {{CL_LUMINANCE, CL_SIGNED_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_SINT}},
-        {{CL_LUMINANCE, CL_UNORM_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_UNORM}},
-        {{CL_LUMINANCE, CL_SNORM_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_SNORM}},
-        {{CL_LUMINANCE, CL_UNSIGNED_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_UINT}},
-        {{CL_LUMINANCE, CL_SIGNED_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_SINT}},
-        {{CL_LUMINANCE, CL_HALF_FLOAT},
-         {image_format_support::ROWO, VK_FORMAT_R16_SFLOAT}},
-        {{CL_LUMINANCE, CL_UNSIGNED_INT32},
-         {image_format_support::ROWO, VK_FORMAT_R32_UINT}},
-        {{CL_LUMINANCE, CL_SIGNED_INT32},
-         {image_format_support::ROWO, VK_FORMAT_R32_SINT}},
-        {{CL_LUMINANCE, CL_FLOAT},
-         {image_format_support::ROWO, VK_FORMAT_R32_SFLOAT}},
-
-        // INTENSITY formats
-        {{CL_INTENSITY, CL_UNORM_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_UNORM}},
-        {{CL_INTENSITY, CL_SNORM_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_SNORM}},
-        {{CL_INTENSITY, CL_UNSIGNED_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_UINT}},
-        {{CL_INTENSITY, CL_SIGNED_INT8},
-         {image_format_support::ROWO, VK_FORMAT_R8_SINT}},
-        {{CL_INTENSITY, CL_UNORM_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_UNORM}},
-        {{CL_INTENSITY, CL_SNORM_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_SNORM}},
-        {{CL_INTENSITY, CL_UNSIGNED_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_UINT}},
-        {{CL_INTENSITY, CL_SIGNED_INT16},
-         {image_format_support::ROWO, VK_FORMAT_R16_SINT}},
-        {{CL_INTENSITY, CL_HALF_FLOAT},
-         {image_format_support::ROWO, VK_FORMAT_R16_SFLOAT}},
-        {{CL_INTENSITY, CL_UNSIGNED_INT32},
-         {image_format_support::ROWO, VK_FORMAT_R32_UINT}},
-        {{CL_INTENSITY, CL_SIGNED_INT32},
-         {image_format_support::ROWO, VK_FORMAT_R32_SINT}},
-        {{CL_INTENSITY, CL_FLOAT},
-         {image_format_support::ROWO, VK_FORMAT_R32_SFLOAT}},
-
-        // RG formats
-        {{CL_RG, CL_UNORM_INT8}, VK_FORMAT_R8G8_UNORM},
-        {{CL_RG, CL_SNORM_INT8}, VK_FORMAT_R8G8_SNORM},
-        {{CL_RG, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8_UINT},
-        {{CL_RG, CL_SIGNED_INT8}, VK_FORMAT_R8G8_SINT},
-        {{CL_RG, CL_UNORM_INT16}, VK_FORMAT_R16G16_UNORM},
-        {{CL_RG, CL_SNORM_INT16}, VK_FORMAT_R16G16_SNORM},
-        {{CL_RG, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16_UINT},
-        {{CL_RG, CL_SIGNED_INT16}, VK_FORMAT_R16G16_SINT},
-        {{CL_RG, CL_HALF_FLOAT}, VK_FORMAT_R16G16_SFLOAT},
-        {{CL_RG, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32_UINT},
-        {{CL_RG, CL_SIGNED_INT32}, VK_FORMAT_R32G32_SINT},
-        {{CL_RG, CL_FLOAT}, VK_FORMAT_R32G32_SFLOAT},
-
-        // RGB formats
-        {{CL_RGB, CL_UNORM_INT8}, VK_FORMAT_R8G8B8_UNORM},
-        {{CL_RGB, CL_SNORM_INT8}, VK_FORMAT_R8G8B8_SNORM},
-        {{CL_RGB, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8B8_UINT},
-        {{CL_RGB, CL_SIGNED_INT8}, VK_FORMAT_R8G8B8_SINT},
-        {{CL_RGB, CL_UNORM_INT16}, VK_FORMAT_R16G16B16_UNORM},
-        {{CL_RGB, CL_SNORM_INT16}, VK_FORMAT_R16G16B16_SNORM},
-        {{CL_RGB, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16B16_UINT},
-        {{CL_RGB, CL_SIGNED_INT16}, VK_FORMAT_R16G16B16_SINT},
-        {{CL_RGB, CL_HALF_FLOAT}, VK_FORMAT_R16G16B16_SFLOAT},
-        {{CL_RGB, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32B32_UINT},
-        {{CL_RGB, CL_SIGNED_INT32}, VK_FORMAT_R32G32B32_SINT},
-        {{CL_RGB, CL_FLOAT}, VK_FORMAT_R32G32B32_SFLOAT},
-        {{CL_RGB, CL_UNORM_SHORT_565}, VK_FORMAT_R5G6B5_UNORM_PACK16},
-
-        // RGBA formats
-        {{CL_RGBA, CL_UNORM_INT8}, VK_FORMAT_R8G8B8A8_UNORM},
-        {{CL_RGBA, CL_SNORM_INT8}, VK_FORMAT_R8G8B8A8_SNORM},
-        {{CL_RGBA, CL_UNSIGNED_INT8}, VK_FORMAT_R8G8B8A8_UINT},
-        {{CL_RGBA, CL_SIGNED_INT8}, VK_FORMAT_R8G8B8A8_SINT},
-        {{CL_RGBA, CL_UNORM_INT16}, VK_FORMAT_R16G16B16A16_UNORM},
-        {{CL_RGBA, CL_SNORM_INT16}, VK_FORMAT_R16G16B16A16_SNORM},
-        {{CL_RGBA, CL_UNSIGNED_INT16}, VK_FORMAT_R16G16B16A16_UINT},
-        {{CL_RGBA, CL_SIGNED_INT16}, VK_FORMAT_R16G16B16A16_SINT},
-        {{CL_RGBA, CL_HALF_FLOAT}, VK_FORMAT_R16G16B16A16_SFLOAT},
-        {{CL_RGBA, CL_UNSIGNED_INT32}, VK_FORMAT_R32G32B32A32_UINT},
-        {{CL_RGBA, CL_SIGNED_INT32}, VK_FORMAT_R32G32B32A32_SINT},
-        {{CL_RGBA, CL_FLOAT}, VK_FORMAT_R32G32B32A32_SFLOAT},
-
-        // BGRA formats
-        {{CL_BGRA, CL_UNORM_INT8}, VK_FORMAT_B8G8R8A8_UNORM},
-        {{CL_BGRA, CL_SNORM_INT8}, VK_FORMAT_B8G8R8A8_SNORM},
-        {{CL_BGRA, CL_UNSIGNED_INT8}, VK_FORMAT_B8G8R8A8_UINT},
-        {{CL_BGRA, CL_SIGNED_INT8}, VK_FORMAT_B8G8R8A8_SINT},
-};
-
-static void get_component_mappings_for_channel_order(
-    cl_channel_order order, VkComponentMapping* components_sampled,
-    VkComponentMapping* components_storage) {
-    if (order == CL_LUMINANCE) {
-        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A};
-    } else if (order == CL_INTENSITY) {
-        *components_sampled = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-                               VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R};
-    } else {
-        *components_sampled = {
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
-    }
-
-    *components_storage = {
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
-        VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
-}
-
-bool cl_image_format_to_vulkan_format(const cl_image_format& clformat,
-                                      VkFormat* format,
-                                      VkComponentMapping* components_sampled,
-                                      VkComponentMapping* components_storage) {
-    auto m = gFormatMaps.find(clformat);
-    bool success = false;
-
-    if (m != gFormatMaps.end()) {
-        *format = (*m).second.vkfmt;
-        success = true;
-    }
-
-    get_component_mappings_for_channel_order(
-        clformat.image_channel_order, components_sampled, components_storage);
-
-    return success;
-}
-
 bool operator!=(const VkComponentMapping& lhs, const VkComponentMapping& rhs) {
     return lhs.r != rhs.r || lhs.g != rhs.g || lhs.b != rhs.b || lhs.a != rhs.a;
+}
+
+static bool is_image_format_supported(
+    VkPhysicalDevice& pdev, VkFormat format, cl_mem_object_type image_type,
+    const VkFormatFeatureFlags& required_format_feature_flags,
+    cl_channel_order image_channel_order) {
+    VkFormatProperties properties;
+    vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
+
+    cvk_debug("Vulkan format %d:", format);
+    cvk_debug(
+        "  linear : %s",
+        vulkan_format_features_string(properties.linearTilingFeatures).c_str());
+    cvk_debug("  optimal: %s",
+              vulkan_format_features_string(properties.optimalTilingFeatures)
+                  .c_str());
+    cvk_debug("  buffer : %s",
+              vulkan_format_features_string(properties.bufferFeatures).c_str());
+
+    cvk_debug(
+        "Required format features %s",
+        vulkan_format_features_string(required_format_feature_flags).c_str());
+    VkFormatFeatureFlags features;
+    if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+        features = properties.bufferFeatures;
+    } else {
+        // TODO support linear tiling
+        features = properties.optimalTilingFeatures;
+    }
+    if ((features & required_format_feature_flags) ==
+        required_format_feature_flags) {
+        if ((image_channel_order == CL_LUMINANCE ||
+             image_channel_order == CL_INTENSITY) &&
+            (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)) {
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
@@ -4809,7 +4662,8 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     cl_uint num_formats_found = 0;
 
-    auto pdev = icd_downcast(context)->device()->vulkan_physical_device();
+    auto dev = icd_downcast(context)->device();
+    auto pdev = dev->vulkan_physical_device();
 
     const VkFormatFeatureFlags required_format_feature_flags =
         cvk_image::required_format_feature_flags_for(image_type, flags);
@@ -4820,59 +4674,34 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     // Iterate over all known CL/VK format associations and report the CL
     // formats for which the Vulkan format is supported
-    for (auto const& clvkfmt : gFormatMaps) {
-        const cl_image_format& clfmt = clvkfmt.first;
-        auto const& fmt_support = clvkfmt.second;
+    for (auto mapping : get_format_maps()) {
+        VkComponentMapping components_sampled, components_storage;
+        image_format_support fmt_support;
+        cl_image_format clfmt = mapping.first;
+        if (!cl_image_format_to_vulkan_format(clfmt, image_type, dev,
+                                              &fmt_support, &components_sampled,
+                                              &components_storage)) {
+            continue;
+        }
         if ((fmt_support.flags & flags) != flags) {
             continue;
         }
-        VkFormat format = fmt_support.vkfmt;
-        VkFormatProperties properties;
-        vkGetPhysicalDeviceFormatProperties(pdev, format, &properties);
-
-        cvk_debug("Vulkan format %d:", format);
-        cvk_debug("  linear : %s",
-                  vulkan_format_features_string(properties.linearTilingFeatures)
-                      .c_str());
-        cvk_debug("  optimal: %s", vulkan_format_features_string(
-                                       properties.optimalTilingFeatures)
-                                       .c_str());
-        cvk_debug(
-            "  buffer : %s",
-            vulkan_format_features_string(properties.bufferFeatures).c_str());
-
-        cvk_debug("Required format features %s",
-                  vulkan_format_features_string(required_format_feature_flags)
-                      .c_str());
-        VkFormatFeatureFlags features;
-        if (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
-            features = properties.bufferFeatures;
-        } else {
-            // TODO support linear tiling
-            features = properties.optimalTilingFeatures;
+        if (!is_image_format_supported(pdev, fmt_support.vkfmt, image_type,
+                                       required_format_feature_flags,
+                                       clfmt.image_channel_order)) {
+            continue;
         }
-        if ((features & required_format_feature_flags) ==
-            required_format_feature_flags) {
-            VkComponentMapping components_sampled, components_storage;
-            get_component_mappings_for_channel_order(clfmt.image_channel_order,
-                                                     &components_sampled,
-                                                     &components_storage);
-            if ((components_sampled != components_storage) &&
-                (image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER)) {
-                continue;
-            }
-            if ((image_formats != nullptr) &&
-                (num_formats_found < num_entries)) {
-                image_formats[num_formats_found] = clfmt;
-                cvk_debug_fn(
-                    "reporting image format {%s, %s}",
-                    cl_channel_order_to_string(clfmt.image_channel_order)
-                        .c_str(),
-                    cl_channel_type_to_string(clfmt.image_channel_data_type)
-                        .c_str());
-            }
-            num_formats_found++;
+
+        // image format is supported
+        if ((image_formats != nullptr) && (num_formats_found < num_entries)) {
+            image_formats[num_formats_found] = clfmt;
+            cvk_debug_fn(
+                "reporting image format {%s, %s}",
+                cl_channel_order_to_string(clfmt.image_channel_order).c_str(),
+                cl_channel_type_to_string(clfmt.image_channel_data_type)
+                    .c_str());
         }
+        num_formats_found++;
     }
 
     cvk_debug_fn("reporting %u formats", num_formats_found);
