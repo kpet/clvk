@@ -596,12 +596,16 @@ kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint o
 
 TEST_F(WithCommandQueue, 1DBufferImageFromSubBuffer) {
     const size_t IMAGE_WIDTH = 128;
+    const unsigned long nb_prefix_elements = 16;
+    const unsigned long nb_suffix_elements = 16;
 
     auto subbuffer_size = IMAGE_WIDTH * sizeof(cl_float4);
-    auto buffer_size = subbuffer_size + 2 * sizeof(cl_float4);
+    auto buffer_size =
+        subbuffer_size +
+        (nb_prefix_elements + nb_suffix_elements) * sizeof(cl_float4);
     auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
-    auto subbuffer =
-        CreateSubBuffer(buffer, 0, sizeof(cl_float4), subbuffer_size);
+    auto subbuffer = CreateSubBuffer(
+        buffer, 0, nb_prefix_elements * sizeof(cl_float4), subbuffer_size);
 
     cl_image_format format = {CL_RGBA, CL_FLOAT};
     cl_image_desc desc = {
@@ -632,16 +636,20 @@ kernel void test(image1d_buffer_t write_only image)
     EnqueueFillBuffer(buffer, &pattern, sizeof(pattern), buffer_size);
     EnqueueNDRangeKernel(kernel, 1, nullptr, &IMAGE_WIDTH, nullptr);
 
-    cl_float4 output[IMAGE_WIDTH + 2];
+    cl_float4 output[IMAGE_WIDTH + nb_prefix_elements + nb_suffix_elements];
     EnqueueReadBuffer(buffer, CL_TRUE, 0, buffer_size, output);
-    EXPECT_TRUE(output[0].s0 == pattern && output[0].s1 == pattern &&
-                output[0].s2 == pattern && output[0].s3 == pattern &&
-                output[IMAGE_WIDTH + 1].s0 == pattern &&
-                output[IMAGE_WIDTH + 1].s1 == pattern &&
-                output[IMAGE_WIDTH + 1].s2 == pattern &&
-                output[IMAGE_WIDTH + 1].s3 == pattern);
-    for (unsigned i = 0; i < IMAGE_WIDTH; i++) {
-        EXPECT_TRUE(output[i + 1].s0 == 0.0 && output[i + 1].s1 == 0.0 &&
-                    output[i + 1].s2 == 0.0 && output[i + 1].s3 == 0.0);
+    for (unsigned i = 0; i < nb_prefix_elements; i++) {
+        EXPECT_TRUE(output[i].s0 == pattern && output[i].s1 == pattern &&
+                    output[i].s2 == pattern && output[i].s3 == pattern);
+    }
+    for (unsigned i = nb_prefix_elements; i < IMAGE_WIDTH + nb_prefix_elements;
+         i++) {
+        EXPECT_TRUE(output[i].s0 == 0.0 && output[i].s1 == 0.0 &&
+                    output[i].s2 == 0.0 && output[i].s3 == 0.0);
+    }
+    for (unsigned i = IMAGE_WIDTH + nb_prefix_elements;
+         i < IMAGE_WIDTH + nb_prefix_elements + nb_suffix_elements; i++) {
+        EXPECT_TRUE(output[i].s0 == pattern && output[i].s1 == pattern &&
+                    output[i].s2 == pattern && output[i].s3 == pattern);
     }
 }
