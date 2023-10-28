@@ -409,10 +409,7 @@ protected:
                                    const size_t region_origin,
                                    const size_t region_size) {
         cl_int err;
-        cl_buffer_region buffer_region = {
-            .origin = region_origin,
-            .size = region_size,
-        };
+        cl_buffer_region buffer_region = {region_origin, region_size};
         auto mem = clCreateSubBuffer(
             buffer, flags, CL_BUFFER_CREATE_TYPE_REGION, &buffer_region, &err);
         EXPECT_CL_SUCCESS(err);

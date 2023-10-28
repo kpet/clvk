@@ -594,7 +594,7 @@ kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint o
     }
 }
 
-TEST_F(WithCommandQueue, 1DBufferImageFromSubBuffer) {
+TEST_F(WithCommandQueue, DISABLED_SWIFTSHADER(1DBufferImageFromSubBuffer)) {
     const size_t IMAGE_WIDTH = 128;
     const unsigned long nb_prefix_elements = 16;
     const unsigned long nb_suffix_elements = 16;
