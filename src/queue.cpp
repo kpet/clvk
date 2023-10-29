@@ -1195,9 +1195,11 @@ cl_int cvk_command_buffer_host_copy::do_action() {
     bool success = false;
 
     switch (m_type) {
+    case CL_COMMAND_WRITE_IMAGE:
     case CL_COMMAND_WRITE_BUFFER:
         success = m_buffer->copy_from(m_ptr, m_offset, m_size);
         break;
+    case CL_COMMAND_READ_IMAGE:
     case CL_COMMAND_READ_BUFFER:
         success = m_buffer->copy_to(m_ptr, m_offset, m_size);
         break;
@@ -1672,7 +1674,7 @@ cl_int cvk_command_buffer_image_copy::build_batchable_inner(
     VkBufferImageCopy region =
         prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
 
-    switch (type()) {
+    switch (m_copy_type) {
     case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
     case CL_COMMAND_MAP_IMAGE:
         build_inner_image_to_buffer(cmdbuf, region);

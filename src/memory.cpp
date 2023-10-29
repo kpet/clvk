@@ -243,22 +243,33 @@ bool cvk_sampler::init() {
 VkFormatFeatureFlags
 cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
                                              cl_mem_flags flags) {
-    UNUSED(type); // TODO will be required for 1D buffer images
-    // All images require TRANSFER_SRC, TRANSFER_DST
+    // 1Dbuffer requires
+    //  RW / RaW: STORAGE_TEXEL_BUFFER
+    //  RO: UNIFORM_TEXEL_BUFFER
+    // All other images require TRANSFER_SRC, TRANSFER_DST
     //  read-only: SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
     //  write-only: STORAGE_IMAGE
     //  read-write: STORAGE_IMAGE, SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
     //  read-and-write: STORAGE_IMAGE
     VkFormatFeatureFlags format_feature_flags = 0;
-    format_feature_flags =
-        VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
-
+    if (type != CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+        format_feature_flags = VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
+                               VK_FORMAT_FEATURE_TRANSFER_DST_BIT;
+    }
     VkFormatFeatureFlags format_feature_flags_RO;
-    format_feature_flags_RO = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
-                              VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
-
+    if (type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+        format_feature_flags_RO = VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT;
+    } else {
+        format_feature_flags_RO =
+            VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+            VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+    }
     VkFormatFeatureFlags format_feature_flags_WO;
-    format_feature_flags_WO = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
+    if (type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
+        format_feature_flags_WO = VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT;
+    } else {
+        format_feature_flags_WO = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
+    }
 
     if (flags & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
         format_feature_flags |= format_feature_flags_WO;
@@ -292,7 +303,7 @@ cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
                                  VkComponentMapping* components_sampled,
                                  VkComponentMapping* components_storage);
 
-bool cvk_image::init() {
+bool cvk_image::init_vulkan_image() {
     // Translate image type and size
     VkImageType image_type;
     VkImageViewType view_type;
@@ -320,7 +331,6 @@ bool cvk_image::init() {
     size_t host_ptr_size = 0;
 
     switch (m_desc.image_type) {
-    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
     case CL_MEM_OBJECT_IMAGE1D:
         image_type = VK_IMAGE_TYPE_1D;
         view_type = VK_IMAGE_VIEW_TYPE_1D;
@@ -397,29 +407,24 @@ bool cvk_image::init() {
         return false;
     }
 
-    if (m_desc.image_type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
-        auto buffer = static_cast<cvk_mem*>(m_desc.buffer);
-        m_memory = buffer->memory();
-        buffer->retain();
-    } else {
-        // Select memory type
-        cvk_device::allocation_parameters params =
-            device->select_memory_for(m_image);
-        if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
-            cvk_error_fn("Could not get memory type!");
-            return false;
-        }
+    CVK_ASSERT(m_desc.image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
+    // Select memory type
+    cvk_device::allocation_parameters params =
+        device->select_memory_for(m_image);
+    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
+        cvk_error_fn("Could not get memory type!");
+        return false;
+    }
 
-        // Allocate memory
-        m_memory = std::make_unique<cvk_memory_allocation>(
-            vkdev, params.size, params.memory_type_index);
+    // Allocate memory
+    m_memory = std::make_unique<cvk_memory_allocation>(
+        vkdev, params.size, params.memory_type_index);
 
-        res = m_memory->allocate(device->uses_physical_addressing());
+    res = m_memory->allocate(device->uses_physical_addressing());
 
-        if (res != VK_SUCCESS) {
-            cvk_error_fn("Could not allocate memory!");
-            return false;
-        }
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not allocate memory!");
+        return false;
     }
 
     // Bind the image to memory
@@ -483,6 +488,56 @@ bool cvk_image::init() {
     }
 
     return true;
+}
+
+bool cvk_image::init_vulkan_texel_buffer() {
+    VkResult res;
+
+    auto device = m_context->device();
+    auto vkdev = device->vulkan_device();
+
+    VkFormat format;
+    VkComponentMapping components_sampled, components_storage;
+
+    auto success = cl_image_format_to_vulkan_format(
+        m_format, &format, &components_sampled, &components_storage);
+    if (!success) {
+        return false;
+    }
+
+    CVK_ASSERT(buffer());
+    CVK_ASSERT(buffer()->is_buffer_type());
+
+    auto vkbuf = static_cast<cvk_buffer*>(buffer())->vulkan_buffer();
+    auto offset = static_cast<cvk_buffer*>(buffer())->vulkan_buffer_offset();
+
+    VkBufferViewCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
+        nullptr,
+        0,            // flags
+        vkbuf,        // buffer
+        format,       // format
+        offset,       // offset
+        VK_WHOLE_SIZE // range
+    };
+
+    res = vkCreateBufferView(vkdev, &createInfo, nullptr, &m_buffer_view);
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("Could not create buffer view");
+        return false;
+    }
+
+    buffer()->retain();
+
+    return true;
+}
+
+bool cvk_image::init() {
+    if (is_backed_by_buffer_view()) {
+        return init_vulkan_texel_buffer();
+    } else {
+        return init_vulkan_image();
+    }
 }
 
 void cvk_image::prepare_fill_pattern(const void* input_pattern,

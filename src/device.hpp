@@ -248,6 +248,11 @@ struct cvk_device : public _cl_device_id,
         return maxAllocSz;
     }
 
+    size_t image_max_buffer_size() const {
+        return std::min((uint64_t)vulkan_limits().maxTexelBufferElements,
+                        max_mem_alloc_size());
+    }
+
     cl_uint mem_base_addr_align() const {
         // The OpenCL spec requires at least 1024 bits (long16's alignment)
         uint32_t required_by_vulkan_impl =

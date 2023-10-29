@@ -119,7 +119,9 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     // if the argument is an image, we need to set its metadata
     // (channel_order/channel_data_type).
     if (arg.kind == kernel_argument_kind::sampled_image ||
-        arg.kind == kernel_argument_kind::storage_image) {
+        arg.kind == kernel_argument_kind::storage_image ||
+        arg.kind == kernel_argument_kind::storage_texel_buffer ||
+        arg.kind == kernel_argument_kind::uniform_texel_buffer) {
         set_image_metadata(index, value);
     }
 
@@ -155,9 +157,11 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
+    std::vector<VkBufferView> buffer_views;
     descriptor_writes.reserve(max_descriptor_writes);
     buffer_info.reserve(max_descriptor_writes);
     image_info.reserve(max_descriptor_writes);
+    buffer_views.reserve(max_descriptor_writes);
 
     // Setup module-scope variables
     if (program->module_constant_data_buffer() != nullptr &&
@@ -320,6 +324,36 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
                 &image_info.back(), // pImageInfo
                 nullptr,            // pBufferInfo
                 nullptr,            // pTexelBufferView
+            };
+            descriptor_writes.push_back(writeDescriptorSet);
+            break;
+        }
+        case kernel_argument_kind::storage_texel_buffer:
+        case kernel_argument_kind::uniform_texel_buffer: {
+            auto image = static_cast<cvk_image*>(get_arg_value(arg));
+            bool uniform =
+                arg.kind == kernel_argument_kind::uniform_texel_buffer;
+            auto view = image->vulkan_buffer_view();
+            buffer_views.push_back(view);
+
+            cvk_debug_fn("buffer view %p @ set = %u, binding = %u", view,
+                         arg.descriptorSet, arg.binding);
+
+            VkDescriptorType dtype =
+                uniform ? VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER
+                        : VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                ds[arg.descriptorSet],
+                arg.binding, // dstBinding
+                0,           // dstArrayElement
+                1,           // descriptorCount
+                dtype,
+                nullptr,              // pImageInfo
+                nullptr,              // pBufferInfo
+                &buffer_views.back(), // pTexelBufferView
             };
             descriptor_writes.push_back(writeDescriptorSet);
             break;
