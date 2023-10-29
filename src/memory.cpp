@@ -158,7 +158,7 @@ cvk_sampler::create(cvk_context* context, bool normalized_coords,
     return sampler.release();
 }
 
-bool cvk_sampler::init() {
+bool cvk_sampler::init(bool force_normalized_coordinates) {
     auto vkdev = context()->device()->vulkan_device();
 
     // Translate addressing mode
@@ -199,7 +199,7 @@ bool cvk_sampler::init() {
 
     // Translate coordinate type
     VkBool32 unnormalized_coordinates;
-    if (m_normalized_coords) {
+    if (m_normalized_coords || force_normalized_coordinates) {
         unnormalized_coordinates = VK_FALSE;
     } else {
         unnormalized_coordinates = VK_TRUE;
@@ -235,7 +235,9 @@ bool cvk_sampler::init() {
         unnormalized_coordinates,              // unnormalizedCoordinates
     };
 
-    auto res = vkCreateSampler(vkdev, &create_info, nullptr, &m_sampler);
+    VkSampler* sampler =
+        force_normalized_coordinates ? &m_sampler_norm : &m_sampler;
+    auto res = vkCreateSampler(vkdev, &create_info, nullptr, sampler);
 
     return (res == VK_SUCCESS);
 }

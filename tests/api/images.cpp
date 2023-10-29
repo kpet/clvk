@@ -594,6 +594,56 @@ kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint o
     }
 }
 
+TEST_F(WithCommandQueue, ReadImage3DWithUnormSampler) {
+    const size_t sizes[3] = {7, 7, 7};
+    const unsigned nb_elem = sizes[0] * sizes[1] * sizes[2];
+    cl_uint input[nb_elem];
+    cl_uint output[nb_elem];
+    srand(nb_elem);
+    for (unsigned i = 0; i < nb_elem; i++) {
+        input[i] = rand();
+    }
+
+    const cl_image_desc desc = {CL_MEM_OBJECT_IMAGE3D,
+                                sizes[0],
+                                sizes[1],
+                                sizes[2],
+                                0,
+                                0,
+                                0,
+                                0,
+                                0,
+                                nullptr};
+    const cl_image_format format = {CL_R, CL_UNSIGNED_INT32};
+    auto image = CreateImage(CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, &format,
+                             &desc, input);
+    auto dst_buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(output), nullptr);
+    auto sampler = CreateSampler(CL_FALSE, CL_ADDRESS_NONE, CL_FILTER_NEAREST);
+
+    const char* source = R"(
+kernel void test(global uint* dst, read_only image3d_t img, sampler_t sampler)
+{
+  unsigned x = get_global_id(0);
+  unsigned y = get_global_id(1);
+  unsigned z = get_global_id(2);
+  unsigned offset = x + get_image_width(img) * (y + get_image_height(img) * z);
+  dst[offset] = read_imageui(img, sampler, (int4)(x, y, z, 0))[0];
+}
+)";
+
+    auto kernel = CreateKernel(source, "test");
+    SetKernelArg(kernel, 0, dst_buffer);
+    SetKernelArg(kernel, 1, image);
+    SetKernelArg(kernel, 2, sampler);
+
+    EnqueueNDRangeKernel(kernel, 3, nullptr, sizes, nullptr);
+    EnqueueReadBuffer(dst_buffer, CL_TRUE, 0, sizeof(output), output);
+
+    for (unsigned i = 0; i < nb_elem; i++) {
+        EXPECT_TRUE(input[i] == output[i]);
+    }
+}
+
 TEST_F(WithCommandQueue, DISABLED_SWIFTSHADER(1DBufferImageFromSubBuffer)) {
     const size_t IMAGE_WIDTH = 128;
     const unsigned long nb_prefix_elements = 16;

@@ -31,7 +31,8 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program),
-          m_entry_point(nullptr), m_name(name), m_image_metadata(nullptr) {}
+          m_entry_point(nullptr), m_name(name), m_sampler_metadata(nullptr),
+          m_image_metadata(nullptr) {}
 
     CHECK_RETURN cl_int init();
     std::unique_ptr<cvk_kernel> clone(cl_int* errcode_ret) const;
@@ -42,9 +43,15 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
         return m_argument_values;
     }
 
+    const kernel_sampler_metadata_map* get_sampler_metadata() const {
+        return m_sampler_metadata;
+    }
+
     const kernel_image_metadata_map* get_image_metadata() const {
         return m_image_metadata;
     }
+
+    void set_sampler_metadata(cl_uint index, const void* sampler);
 
     void set_image_metadata(cl_uint index, const void* image);
 
@@ -158,6 +165,7 @@ private:
     std::string m_name;
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
+    const kernel_sampler_metadata_map* m_sampler_metadata;
     const kernel_image_metadata_map* m_image_metadata;
 };
 
@@ -237,7 +245,8 @@ struct cvk_kernel_argument_values {
         }
 
         if (m_entry_point->has_pod_arguments() ||
-            m_entry_point->has_image_metadata()) {
+            m_entry_point->has_image_metadata() ||
+            m_entry_point->has_sampler_metadata()) {
             // TODO(#101): host out-of-memory errors are currently unhandled.
             auto buffer = std::make_unique<std::vector<uint8_t>>(
                 m_entry_point->pod_buffer_size());

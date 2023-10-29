@@ -431,12 +431,16 @@ struct cvk_sampler : public _cl_sampler, api_object<object_magic::sampler> {
                 std::vector<cl_sampler_properties>&& properties)
         : api_object(context), m_normalized_coords(normalized_coords),
           m_addressing_mode(addressing_mode), m_filter_mode(filter_mode),
-          m_properties(std::move(properties)), m_sampler(VK_NULL_HANDLE) {}
+          m_properties(std::move(properties)), m_sampler(VK_NULL_HANDLE),
+          m_sampler_norm(VK_NULL_HANDLE) {}
 
     ~cvk_sampler() {
+        auto vkdev = context()->device()->vulkan_device();
         if (m_sampler != VK_NULL_HANDLE) {
-            auto vkdev = context()->device()->vulkan_device();
             vkDestroySampler(vkdev, m_sampler, nullptr);
+        }
+        if (m_sampler_norm != VK_NULL_HANDLE) {
+            vkDestroySampler(vkdev, m_sampler_norm, nullptr);
         }
     }
 
@@ -456,17 +460,26 @@ struct cvk_sampler : public _cl_sampler, api_object<object_magic::sampler> {
     cl_addressing_mode addressing_mode() const { return m_addressing_mode; }
     cl_filter_mode filter_mode() const { return m_filter_mode; }
     VkSampler vulkan_sampler() const { return m_sampler; }
+    VkSampler get_or_create_vulkan_sampler_with_normalized_coords() {
+        if (m_sampler_norm == VK_NULL_HANDLE) {
+            if (!init(true)) {
+                return VK_NULL_HANDLE;
+            }
+        }
+        return m_sampler_norm;
+    }
     const std::vector<cl_sampler_properties>& properties() const {
         return m_properties;
     }
 
 private:
-    bool init();
+    bool init(bool force_normalized_coordinates = false);
     bool m_normalized_coords;
     cl_addressing_mode m_addressing_mode;
     cl_filter_mode m_filter_mode;
     const std::vector<cl_sampler_properties> m_properties;
     VkSampler m_sampler;
+    VkSampler m_sampler_norm;
 };
 
 static inline cvk_sampler* icd_downcast(cl_sampler sampler) {
