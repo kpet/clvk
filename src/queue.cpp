@@ -232,7 +232,8 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 
 cl_int cvk_command_queue::end_current_command_batch() {
     if (m_command_batch) {
-        TRACE_FUNCTION("queue", (uintptr_t)this);
+        TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
+                       m_command_batch->batch_size());
 
         if (!m_command_batch->end()) {
             return CL_OUT_OF_RESOURCES;
@@ -412,8 +413,10 @@ void cvk_executor_thread::executor() {
 }
 
 cl_int cvk_command_queue::flush_no_lock() {
-    TRACE_FUNCTION("queue", (uintptr_t)this);
-    cvk_debug_fn("queue = %p", this);
+    TRACE_FUNCTION("queue", (uintptr_t)this, "group_size",
+                   m_groups.front()->commands.size());
+    cvk_debug_fn("queue = %p - group_size = %lu", this,
+                 m_groups.front()->commands.size());
 
     std::unique_ptr<cvk_command_group> group;
 
@@ -1200,9 +1203,11 @@ cl_int cvk_command_buffer_host_copy::do_action() {
     bool success = false;
 
     switch (m_type) {
+    case CL_COMMAND_WRITE_IMAGE:
     case CL_COMMAND_WRITE_BUFFER:
         success = m_buffer->copy_from(m_ptr, m_offset, m_size);
         break;
+    case CL_COMMAND_READ_IMAGE:
     case CL_COMMAND_READ_BUFFER:
         success = m_buffer->copy_to(m_ptr, m_offset, m_size);
         break;
@@ -1677,7 +1682,7 @@ cl_int cvk_command_buffer_image_copy::build_batchable_inner(
     VkBufferImageCopy region =
         prepare_buffer_image_copy(m_image, m_offset, m_origin, m_region);
 
-    switch (type()) {
+    switch (m_copy_type) {
     case CL_COMMAND_COPY_IMAGE_TO_BUFFER:
     case CL_COMMAND_MAP_IMAGE:
         build_inner_image_to_buffer(cmdbuf, region);

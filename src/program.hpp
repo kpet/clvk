@@ -47,6 +47,8 @@ enum class kernel_argument_kind
     pointer_pushconstant,
     sampled_image,
     storage_image,
+    storage_texel_buffer,
+    uniform_texel_buffer,
     sampler,
     local,
     unused,
@@ -101,7 +103,9 @@ struct kernel_argument {
         return (kind == kernel_argument_kind::buffer) ||
                (kind == kernel_argument_kind::buffer_ubo) ||
                (kind == kernel_argument_kind::sampled_image) ||
-               (kind == kernel_argument_kind::storage_image);
+               (kind == kernel_argument_kind::storage_image) ||
+               (kind == kernel_argument_kind::storage_texel_buffer) ||
+               (kind == kernel_argument_kind::uniform_texel_buffer);
     }
 
     bool is_unused() const { return kind == kernel_argument_kind::unused; }

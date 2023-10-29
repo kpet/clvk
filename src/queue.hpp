@@ -627,9 +627,8 @@ struct cvk_command_fill_buffer final : public cvk_command_buffer_base_region {
 
     cvk_command_fill_buffer(cvk_command_queue* q, cvk_buffer* buffer,
                             size_t offset, size_t size, const void* pattern,
-                            size_t pattern_size)
-        : cvk_command_buffer_base_region(q, CL_COMMAND_FILL_BUFFER, buffer,
-                                         offset, size),
+                            size_t pattern_size, cl_command_type type)
+        : cvk_command_buffer_base_region(q, type, buffer, offset, size),
           m_pattern_size(pattern_size) {
         memcpy(m_pattern.data(), pattern, pattern_size);
     }
@@ -883,9 +882,9 @@ private:
 struct cvk_command_map_buffer final : public cvk_command_buffer_base_region {
 
     cvk_command_map_buffer(cvk_command_queue* queue, cvk_buffer* buffer,
-                           size_t offset, size_t size, cl_map_flags flags)
-        : cvk_command_buffer_base_region(queue, CL_COMMAND_MAP_BUFFER, buffer,
-                                         offset, size),
+                           size_t offset, size_t size, cl_map_flags flags,
+                           cl_command_type type)
+        : cvk_command_buffer_base_region(queue, type, buffer, offset, size),
           m_flags(flags), m_mapping_needs_releasing_on_destruction(false) {}
     ~cvk_command_map_buffer() {
         if (m_mapping_needs_releasing_on_destruction) {
@@ -937,7 +936,18 @@ struct cvk_command_buffer_image_copy final : public cvk_command_batchable {
                                   const std::array<size_t, 3>& origin,
                                   const std::array<size_t, 3>& region)
         : cvk_command_batchable(type, queue), m_buffer(buffer), m_image(image),
-          m_offset(offset), m_origin(origin), m_region(region) {}
+          m_offset(offset), m_origin(origin), m_region(region),
+          m_copy_type(type) {}
+
+    cvk_command_buffer_image_copy(cl_command_type type,
+                                  cl_command_type copy_type,
+                                  cvk_command_queue* queue, cvk_buffer* buffer,
+                                  cvk_image* image, size_t offset,
+                                  const std::array<size_t, 3>& origin,
+                                  const std::array<size_t, 3>& region)
+        : cvk_command_batchable(type, queue), m_buffer(buffer), m_image(image),
+          m_offset(offset), m_origin(origin), m_region(region),
+          m_copy_type(copy_type) {}
 
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
@@ -957,6 +967,7 @@ private:
     size_t m_offset;
     std::array<size_t, 3> m_origin;
     std::array<size_t, 3> m_region;
+    cl_command_type m_copy_type;
 };
 
 struct cvk_command_combine final : public cvk_command {
@@ -1141,7 +1152,9 @@ struct cvk_command_image_init final : public cvk_command_batchable {
 
     cvk_command_image_init(cvk_command_queue* queue, cvk_image* image)
         : cvk_command_batchable(CLVK_COMMAND_IMAGE_INIT, queue),
-          m_image(image) {}
+          m_image(image) {
+        CVK_ASSERT(!m_image->is_backed_by_buffer_view());
+    }
     bool is_data_movement() const override { return true; }
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
