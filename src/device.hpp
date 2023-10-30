@@ -542,8 +542,7 @@ struct cvk_device : public _cl_device_id,
 
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
                                               cl_ulong* host_ts) const;
-    cl_ulong device_timer_to_host(cl_ulong dev, cl_ulong sync_dev,
-                                  cl_ulong sync_host) const;
+    cl_ulong device_timer_to_host(cl_ulong dev);
 
     uint64_t timestamp_to_ns(uint64_t ts) const {
         double ns_per_tick = vulkan_limits().timestampPeriod;
@@ -737,6 +736,9 @@ private:
     bool m_physical_addressing;
 
     cl_uint m_preferred_subgroup_size{};
+
+    cl_ulong m_sync_host{};
+    cl_ulong m_sync_dev{};
 
     spv_target_env m_vulkan_spirv_env;
 

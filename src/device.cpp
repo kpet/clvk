@@ -1249,11 +1249,15 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     return CL_SUCCESS;
 }
 
-cl_ulong cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong sync_dev,
-                                          cl_ulong sync_host) const {
-    if (sync_host > sync_dev) {
-        return (sync_host - sync_dev) + dev;
+cl_ulong cvk_device::device_timer_to_host(cl_ulong dev) {
+    if (dev > m_sync_dev) {
+        if (get_device_host_timer(&m_sync_dev, &m_sync_host) != CL_SUCCESS) {
+            return dev;
+        }
+    }
+    if (m_sync_host > m_sync_dev) {
+        return (m_sync_host - m_sync_dev) + dev;
     } else {
-        return dev - (sync_dev - sync_host);
+        return dev - (m_sync_dev - m_sync_host);
     }
 }
