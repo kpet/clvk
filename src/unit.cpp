@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef CLVK_UNIT_TESTING_ENABLED
-
 #include "device.hpp"
 #include "log.hpp"
 
@@ -22,6 +20,7 @@
 extern "C" {
 void CL_API_CALL clvk_override_device_max_compute_work_group_count(
     cl_device_id device, uint32_t x, uint32_t y, uint32_t z) {
+#ifdef CLVK_UNIT_TESTING_ENABLED
     cvk_debug_fn("x: %u, y: %u, z: %u\n", x, y, z);
     assert(device != nullptr && icd_downcast(device)->is_valid());
     auto& vklimits = icd_downcast(device)->vulkan_limits_writable();
@@ -29,21 +28,24 @@ void CL_API_CALL clvk_override_device_max_compute_work_group_count(
     vklimits.maxComputeWorkGroupCount[0] = x;
     vklimits.maxComputeWorkGroupCount[1] = y;
     vklimits.maxComputeWorkGroupCount[2] = z;
+#endif
 }
 
 void CL_API_CALL clvk_restore_device_properties(cl_device_id device) {
+#ifdef CLVK_UNIT_TESTING_ENABLED
     cvk_debug_fn("device: %p\n", (void*)device);
     assert(device != nullptr && icd_downcast(device)->is_valid());
 
     icd_downcast(device)->restore_device_properties();
+#endif
 }
 
 void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size) {
+#ifdef CLVK_UNIT_TESTING_ENABLED
     auto printf_buffer_size =
         (config_value<uint32_t>*)&config.printf_buffer_size;
     printf_buffer_size->value = size;
     printf_buffer_size->set = true;
-}
-}
-
 #endif
+}
+}
