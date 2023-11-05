@@ -110,7 +110,7 @@ endif()
 
 # clspv
 if(MSVC)
-    add_compile_options(/wd4574)
+    add_compile_options(/wd4574 /wd4668)
 endif()
 
 if (CLVK_COMPILER_AVAILABLE)
