@@ -595,8 +595,8 @@ kernel void test(global uint* dst, uint magic, image2d_t read_only image, uint o
 }
 
 TEST_F(WithCommandQueue, ReadImage3DWithUnormSampler) {
-    const size_t sizes[3] = {7, 7, 7};
-    const unsigned nb_elem = sizes[0] * sizes[1] * sizes[2];
+    constexpr size_t sizes[3] = {7, 7, 7};
+    constexpr unsigned nb_elem = sizes[0] * sizes[1] * sizes[2];
     cl_uint input[nb_elem];
     cl_uint output[nb_elem];
     srand(nb_elem);
