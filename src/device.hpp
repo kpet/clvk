@@ -548,6 +548,11 @@ struct cvk_device : public _cl_device_id,
 
     const cvk_vulkan_extension_functions& vkfns() const { return m_vkfns; }
 
+    bool is_bgra_format_not_supported_for_image1d_buffer() const {
+        return m_clvk_properties
+            ->is_bgra_format_not_supported_for_image1d_buffer();
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";

@@ -105,7 +105,12 @@ struct cvk_device_properties_intel : public cvk_device_properties {
         });
     }
     std::string get_compile_options() const override final {
-        return "-hack-mul-extended -hack-convert-to-float";
+        return "-hack-mul-extended -hack-convert-to-float "
+               "-hack-image1d-buffer-bgra";
+    }
+    bool
+    is_bgra_format_not_supported_for_image1d_buffer() const override final {
+        return true;
     }
 };
 

@@ -14,6 +14,7 @@
 
 #include <cmath>
 
+#include "image_format.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
 
@@ -299,12 +300,6 @@ cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
     return image.release();
 }
 
-extern bool
-cl_image_format_to_vulkan_format(const cl_image_format& clfmt,
-                                 VkFormat* format,
-                                 VkComponentMapping* components_sampled,
-                                 VkComponentMapping* components_storage);
-
 bool cvk_image::init_vulkan_image() {
     // Translate image type and size
     VkImageType image_type;
@@ -372,11 +367,14 @@ bool cvk_image::init_vulkan_image() {
     }
 
     // Translate format
-    VkFormat format;
+    image_format_support fmt;
     VkComponentMapping components_sampled, components_storage;
 
+    auto device = m_context->device();
+
     auto success = cl_image_format_to_vulkan_format(
-        m_format, &format, &components_sampled, &components_storage);
+        m_format, m_desc.image_type, device, &fmt, &components_sampled,
+        &components_storage);
     if (!success) {
         return false; // TODO error code
     }
@@ -387,7 +385,7 @@ bool cvk_image::init_vulkan_image() {
         nullptr,                   // pNext
         0,                         // flags
         image_type,                // imageType
-        format,                    // format
+        fmt.vkfmt,                 // format
         extent,                    // extent
         1,                         // mipLevels
         array_layers,              // arrayLayers
@@ -400,7 +398,6 @@ bool cvk_image::init_vulkan_image() {
         VK_IMAGE_LAYOUT_UNDEFINED, // initialLayout
     };
 
-    auto device = m_context->device();
     auto vkdev = device->vulkan_device();
 
     auto res = vkCreateImage(vkdev, &imageCreateInfo, nullptr, &m_image);
@@ -451,7 +448,7 @@ bool cvk_image::init_vulkan_image() {
         0,                  // flags
         m_image,            // image
         view_type,          // viewType;
-        format,             // format
+        fmt.vkfmt,          // format
         components_sampled, // components
         subresource,        // subresourceRange
     };
@@ -498,11 +495,12 @@ bool cvk_image::init_vulkan_texel_buffer() {
     auto device = m_context->device();
     auto vkdev = device->vulkan_device();
 
-    VkFormat format;
+    image_format_support fmt;
     VkComponentMapping components_sampled, components_storage;
 
     auto success = cl_image_format_to_vulkan_format(
-        m_format, &format, &components_sampled, &components_storage);
+        m_format, m_desc.image_type, device, &fmt, &components_sampled,
+        &components_storage);
     if (!success) {
         return false;
     }
@@ -518,7 +516,7 @@ bool cvk_image::init_vulkan_texel_buffer() {
         nullptr,
         0,            // flags
         vkbuf,        // buffer
-        format,       // format
+        fmt.vkfmt,    // format
         offset,       // offset
         VK_WHOLE_SIZE // range
     };
