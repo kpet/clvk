@@ -427,7 +427,11 @@ struct cvk_command {
             TRACE_END();
         }
 
+        // When executing batch with many commands, "set_event_status" can take
+        // a while. Trace it to be able to understand it easily.
+        TRACE_BEGIN("set_event_status");
         set_event_status(status);
+        TRACE_END();
         return status;
     }
 
