@@ -302,7 +302,11 @@ cl_int cvk_command_group::execute_cmds() {
 
         commands.pop_front();
 
+        // Deleting batch with many commands can take a while. Trace it to be
+        // able to understand it easily.
+        TRACE_BEGIN("delete_cmd");
         delete cmd;
+        TRACE_END();
     }
     return global_status;
 }
