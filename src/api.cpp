@@ -5799,10 +5799,10 @@ cl_semaphore_khr cvk_create_semaphore_with_properties_khr(
                 type = value;
                 sema_props += 2;
                 has_type = true;
-            } else if (key == CL_DEVICE_HANDLE_LIST_KHR) {
+            } else if (key == CL_SEMAPHORE_DEVICE_HANDLE_LIST_KHR) {
                 properties.push_back(key);
                 sema_props++;
-                while (*sema_props != CL_DEVICE_HANDLE_LIST_END_KHR) {
+                while (*sema_props != CL_SEMAPHORE_DEVICE_HANDLE_LIST_END_KHR) {
                     auto devapi = reinterpret_cast<cl_device_id>(*sema_props);
                     if (!is_valid_device(devapi)) {
                         *errcode_ret = CL_INVALID_DEVICE;
@@ -6039,7 +6039,7 @@ cl_int clGetSemaphoreInfoKHR(const cl_semaphore_khr sema_object,
         ret_size =
             sem->properties().size() * sizeof(cl_semaphore_properties_khr);
         break;
-    case CL_DEVICE_HANDLE_LIST_KHR:
+    case CL_SEMAPHORE_DEVICE_HANDLE_LIST_KHR:
         copy_ptr = sem->devices().data();
         ret_size = sem->devices().size() * sizeof(cl_device_id);
         break;
