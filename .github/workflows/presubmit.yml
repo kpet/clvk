@@ -139,7 +139,7 @@ jobs:
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
       - name: Install
         run: cmake --install '${{ env.builddir }}'
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: clvk-${{ matrix.os }}-${{ matrix.android }}-${{ matrix.android-abi }}-compiler-${{ matrix.compiler-available }}-online-${{ matrix.online-compiler }}
           path: ${{ env.builddir }}/install
