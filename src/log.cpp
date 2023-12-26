@@ -710,7 +710,7 @@ const char* spirv_capability_to_string(spv::Capability capability) {
         CASE(spv::CapabilityGroupNonUniformRotateKHR);
         CASE(spv::CapabilityAtomicFloat32AddEXT);
         CASE(spv::CapabilityAtomicFloat64AddEXT);
-        CASE(spv::CapabilityLongConstantCompositeINTEL);
+        CASE(spv::CapabilityLongCompositesINTEL);
         CASE(spv::CapabilityOptNoneINTEL);
         CASE(spv::CapabilityAtomicFloat16AddEXT);
         CASE(spv::CapabilityDebugInfoModuleINTEL);
