@@ -1,11 +1,11 @@
 {
   "system-info": {
-    "apiVersion": 4206847,
+    "apiVersion": 4206859,
     "deviceID": 0,
-    "deviceName": "llvmpipe (LLVM 16.0.6, 256 bits)",
+    "deviceName": "llvmpipe (LLVM 17.0.6, 256 bits)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
     "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
-    "driverInfo": "Mesa 23.2.1 (LLVM 16.0.6)",
+    "driverInfo": "Mesa 23.3.1 (LLVM 17.0.6)",
     "driverName": "llvmpipe",
     "driverVersion": 1
   },
@@ -67,16 +67,7 @@
         "enqueue_map_buffer": "pass",
         "enqueue_map_image": "pass",
         "enqueued_local_size": "pass",
-        "explicit_s2v_char": "pass",
-        "explicit_s2v_double": "pass",
-        "explicit_s2v_float": "pass",
-        "explicit_s2v_int": "pass",
-        "explicit_s2v_long": "pass",
-        "explicit_s2v_short": "pass",
-        "explicit_s2v_uchar": "pass",
-        "explicit_s2v_uint": "pass",
-        "explicit_s2v_ulong": "pass",
-        "explicit_s2v_ushort": "pass",
+        "explicit_s2v": "pass",
         "fp2int": "pass",
         "fpmath": "pass",
         "get_global_offset": "pass",
@@ -136,7 +127,7 @@
         "readimage3d_int16": "pass",
         "readimage_fp32": "pass",
         "readimage_int16": "pass",
-        "rw_image_access_qualifier": "fail",
+        "rw_image_access_qualifier": "pass",
         "simple_read_image_pitch": "pass",
         "simple_write_image_pitch": "pass",
         "sizeof": "pass",
@@ -156,7 +147,7 @@
         "writeimage_fp32": "pass",
         "writeimage_int16": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Buffers": {
       "duration": "00:00:28.722816",
@@ -881,7 +872,7 @@
         "pown": "pass",
         "powr": "pass",
         "remainder": "pass",
-        "remquo": "fail",
+        "remquo": "pass",
         "rint": "pass",
         "rootn": "pass",
         "round": "pass",
@@ -899,7 +890,7 @@
         "tanpi": "pass",
         "trunc": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Mem (Host Flags)": {
       "duration": "00:00:00.042624",
@@ -1513,6 +1504,7 @@
         "copy_buffer_to_image": "skip",
         "copy_image": "skip",
         "copy_image_to_buffer": "skip",
+        "copy_svm_buffer": "skip",
         "event_info_command_queue": "skip",
         "event_info_command_type": "skip",
         "event_info_context": "skip",
@@ -1521,6 +1513,7 @@
         "explicit_flush": "skip",
         "fill_buffer": "skip",
         "fill_image": "skip",
+        "fill_svm_buffer": "skip",
         "finalize_empty": "skip",
         "finalize_invalid": "skip",
         "info_context": "skip",

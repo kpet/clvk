@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4206847,
+    "apiVersion": 4206859,
     "deviceID": 5710,
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 23.2.1",
+    "driverInfo": "Mesa 23.3.1",
     "driverName": "radv",
-    "driverVersion": 96477185
+    "driverVersion": 96481281
   },
   "test-results": {
     "API": {
@@ -82,7 +82,7 @@
         "min_max_image_3d_height": "pass",
         "min_max_image_3d_width": "pass",
         "min_max_image_array_size": "pass",
-        "min_max_image_buffer_size": "fail",
+        "min_max_image_buffer_size": "pass",
         "min_max_kernel_preferred_work_group_size_multiple": "pass",
         "min_max_language_version": "pass",
         "min_max_local_mem_size": "fail",
@@ -172,16 +172,7 @@
         "enqueue_map_buffer": "pass",
         "enqueue_map_image": "pass",
         "enqueued_local_size": "pass",
-        "explicit_s2v_char": "pass",
-        "explicit_s2v_double": "pass",
-        "explicit_s2v_float": "pass",
-        "explicit_s2v_int": "pass",
-        "explicit_s2v_long": "pass",
-        "explicit_s2v_short": "pass",
-        "explicit_s2v_uchar": "pass",
-        "explicit_s2v_uint": "pass",
-        "explicit_s2v_ulong": "pass",
-        "explicit_s2v_ushort": "pass",
+        "explicit_s2v": "pass",
         "fp2int": "pass",
         "fpmath": "pass",
         "get_global_offset": "pass",
@@ -723,12 +714,12 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
-        "1Dbuffer": "fail",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "fail"
+        "3D": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Images (Samplerless pitch)": {
       "duration": "00:00:03.399922",
@@ -736,12 +727,12 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
-        "1Dbuffer": "fail",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "fail"
+        "3D": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Images (Samplerless)": {
       "duration": "00:00:03.252064",
@@ -749,12 +740,12 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
-        "1Dbuffer": "fail",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
-        "3D": "fail"
+        "3D": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Images (clFillImage max size)": {
       "duration": "00:00:12.265941",
@@ -1618,6 +1609,7 @@
         "copy_buffer_to_image": "skip",
         "copy_image": "skip",
         "copy_image_to_buffer": "skip",
+        "copy_svm_buffer": "skip",
         "event_info_command_queue": "skip",
         "event_info_command_type": "skip",
         "event_info_context": "skip",
@@ -1626,6 +1618,7 @@
         "explicit_flush": "skip",
         "fill_buffer": "skip",
         "fill_image": "skip",
+        "fill_svm_buffer": "skip",
         "finalize_empty": "skip",
         "finalize_invalid": "skip",
         "info_context": "skip",
