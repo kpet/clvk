@@ -45,6 +45,7 @@
 #include "init.hpp"
 #include "log.hpp"
 #include "program.hpp"
+#include "tracing.hpp"
 
 struct membuf : public std::streambuf {
     membuf(const unsigned char* begin, const unsigned char* end) {
@@ -1097,6 +1098,8 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                                                     bool build_from_il,
                                                     std::string& build_options,
                                                     std::string& tmp_folder) {
+    TRACE_FUNCTION("build_to_ir", build_to_ir, "build_from_il", build_from_il,
+                   "build_options", TRACE_STRING(build_options.c_str()));
     // Compose clspv command-line
     std::string cmd{config.clspv_path};
     cmd += " ";
@@ -1266,6 +1269,8 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
                                                    bool build_from_il,
                                                    std::string& build_options) {
+    TRACE_FUNCTION("build_to_ir", build_to_ir, "build_from_il", build_from_il,
+                   "build_options", TRACE_STRING(build_options.c_str()));
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
     if (build_from_il) {
