@@ -160,9 +160,15 @@ struct cvk_device : public _cl_device_id,
             valid_memory_type_bits, num_supported, supported_memory_types);
     }
 
+    CHECK_RETURN bool memory_index_is_coherent(uint32_t index) const {
+        return m_mem_properties.memoryTypes[index].propertyFlags &
+               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    }
+
     struct allocation_parameters {
         VkDeviceSize size;
         uint32_t memory_type_index;
+        bool memory_coherent;
     };
 
     static constexpr VkMemoryPropertyFlags image_supported_memory_types[] = {
@@ -173,6 +179,9 @@ struct cvk_device : public _cl_device_id,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_CACHED_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+            VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
 
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -193,6 +202,7 @@ struct cvk_device : public _cl_device_id,
         ret.size = memreqs.size;
         ret.memory_type_index =
             memory_type_index_for_image(memreqs.memoryTypeBits);
+        ret.memory_coherent = memory_index_is_coherent(ret.memory_type_index);
 
         return ret;
     }
@@ -214,6 +224,7 @@ struct cvk_device : public _cl_device_id,
         ret.size = memreqs.size;
         ret.memory_type_index =
             memory_type_index_for_buffer(memreqs.memoryTypeBits);
+        ret.memory_coherent = memory_index_is_coherent(ret.memory_type_index);
 
         return ret;
     }
