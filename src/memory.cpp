@@ -18,23 +18,28 @@
 #include "memory.hpp"
 #include "queue.hpp"
 
-bool cvk_mem::map() {
+bool cvk_mem::map_and_invalidate(VkDeviceSize offset, VkDeviceSize size) {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::map", this);
 
-    if (m_map_count == 0) {
-        if (m_parent != nullptr) {
-            if (!m_parent->map()) {
-                return false;
-            }
+    if (m_parent != nullptr) {
+        if (!m_parent->map_and_invalidate(m_parent_offset + offset, size)) {
+            return false;
+        }
+        if (m_map_count == 0) {
             m_map_ptr = pointer_offset(m_parent->host_va(), m_parent_offset);
             cvk_debug("%p::map, sub-buffer, map_ptr = %p", this, m_map_ptr);
-        } else {
+        }
+    } else {
+        if (m_map_count == 0) {
             auto res = m_memory->map(&m_map_ptr);
             if (res != VK_SUCCESS) {
                 return false;
             }
             cvk_debug("%p::map, map_ptr = %p", this, m_map_ptr);
+        }
+        if (size != 0) {
+            m_memory->invalidate(offset, size);
         }
     }
 
@@ -45,18 +50,23 @@ bool cvk_mem::map() {
     return true;
 }
 
-void cvk_mem::unmap() {
+void cvk_mem::unmap_and_flush(VkDeviceSize offset, VkDeviceSize size) {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::unmap", this);
 
     CVK_ASSERT(m_map_count > 0);
     m_map_count--;
     release();
-    if (m_map_count == 0) {
-        if (m_parent != nullptr) {
-            m_parent->unmap();
+    if (m_parent != nullptr) {
+        m_parent->unmap_and_flush(offset, size);
+        if (m_map_count == 0) {
             cvk_debug("%p::unmap, sub-buffer", this);
-        } else {
+        }
+    } else {
+        if (size != 0) {
+            m_memory->flush(offset, size);
+        }
+        if (m_map_count == 0) {
             m_memory->unmap();
             m_map_ptr = nullptr;
         }
@@ -111,7 +121,7 @@ bool cvk_buffer::init() {
 
     // Allocate memory
     m_memory = std::make_shared<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        vkdev, params.size, params.memory_type_index, params.memory_coherent);
     res = m_memory->allocate(device->uses_physical_addressing());
 
     if (res != VK_SUCCESS) {
@@ -417,7 +427,7 @@ bool cvk_image::init_vulkan_image() {
 
     // Allocate memory
     m_memory = std::make_unique<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        vkdev, params.size, params.memory_type_index, params.memory_coherent);
 
     res = m_memory->allocate(device->uses_physical_addressing());
 
