@@ -192,10 +192,7 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
 
     m_is_enqueued = true;
 
-    // Allocate descriptor sets
-    if (!m_entry_point->allocate_descriptor_sets(descriptor_sets())) {
-        return false;
-    }
+    // Get descriptor sets
     VkDescriptorSet* ds = descriptor_sets();
 
     // Make enough space to store all descriptor write structures

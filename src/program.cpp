@@ -1687,14 +1687,14 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     return true;
 }
 
-cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
+cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
                                  const std::string& name)
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
       m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE) {}
+      m_pipeline_layout(VK_NULL_HANDLE), m_descriptor_sets{VK_NULL_HANDLE} {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -1708,7 +1708,7 @@ cvk_entry_point* cvk_program::get_entry_point(std::string& name,
 
     // Create and initialize entry point
     cvk_entry_point* entry_point =
-        new cvk_entry_point(m_context->device()->vulkan_device(), this, name);
+        new cvk_entry_point(m_context->device(), this, name);
     *errcode_ret = entry_point->init();
     if (*errcode_ret != CL_SUCCESS) {
         delete entry_point;
@@ -1734,7 +1734,8 @@ bool cvk_entry_point::build_descriptor_set_layout(
     VkResult res;
     if (bindings.size() > 0) {
         VkDescriptorSetLayout setLayout;
-        res = vkCreateDescriptorSetLayout(m_device, &createInfo, 0, &setLayout);
+        res = vkCreateDescriptorSetLayout(m_device->vulkan_device(),
+                                          &createInfo, 0, &setLayout);
         if (res != VK_SUCCESS) {
             cvk_error("Could not create descriptor set layout");
             return false;
@@ -2083,7 +2084,8 @@ cl_int cvk_entry_point::init() {
         num_push_constant_ranges,
         &push_constant_range};
 
-    res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
+    res = vkCreatePipelineLayout(m_device->vulkan_device(),
+                                 &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);
     if (res != VK_SUCCESS) {
         cvk_error("Could not create pipeline layout.");
@@ -2096,7 +2098,7 @@ cl_int cvk_entry_point::init() {
     int bidx = 0;
     for (auto& bt : bindingTypes) {
         poolSizes[bidx].type = bt.first;
-        poolSizes[bidx].descriptorCount = bt.second * MAX_INSTANCES;
+        poolSizes[bidx].descriptorCount = bt.second;
         bidx++;
     }
 
@@ -2106,17 +2108,36 @@ cl_int cvk_entry_point::init() {
             VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             nullptr,
             VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // flags
-            MAX_INSTANCES * spir_binary::MAX_DESCRIPTOR_SETS,  // maxSets
-            static_cast<uint32_t>(poolSizes.size()),           // poolSizeCount
-            poolSizes.data(),                                  // pPoolSizes
+            m_device->num_queues() *
+                spir_binary::MAX_DESCRIPTOR_SETS,    // maxSets
+            static_cast<uint32_t>(poolSizes.size()), // poolSizeCount
+            poolSizes.data(),                        // pPoolSizes
         };
 
-        res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
+        res = vkCreateDescriptorPool(m_device->vulkan_device(),
+                                     &descriptorPoolCreateInfo, 0,
                                      &m_descriptor_pool);
 
         if (res != VK_SUCCESS) {
             cvk_error("Could not create descriptor pool.");
             return CL_INVALID_VALUE;
+        }
+
+        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
+            m_descriptor_pool,
+            static_cast<uint32_t>(
+                m_descriptor_set_layouts.size()), // descriptorSetCount
+            m_descriptor_set_layouts.data()};
+
+        VkResult res = vkAllocateDescriptorSets(m_device->vulkan_device(),
+                                                &descriptorSetAllocateInfo,
+                                                m_descriptor_sets.data());
+
+        if (res != VK_SUCCESS) {
+            cvk_error_fn("could not allocate descriptor sets: %s",
+                         vulkan_error_string(res));
+            return false;
         }
     }
 
@@ -2171,9 +2192,9 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     };
 
     VkPipeline pipeline;
-    VkResult res =
-        vkCreateComputePipelines(m_device, m_program->pipeline_cache(), 1,
-                                 &createInfo, nullptr, &pipeline);
+    VkResult res = vkCreateComputePipelines(m_device->vulkan_device(),
+                                            m_program->pipeline_cache(), 1,
+                                            &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create compute pipeline for kernel %s: %s",
@@ -2189,31 +2210,8 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     return pipeline;
 }
 
-bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
-
-    if (m_descriptor_set_layouts.size() == 0) {
-        return true;
-    }
-
-    std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
-
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
-        m_descriptor_pool,
-        static_cast<uint32_t>(
-            m_descriptor_set_layouts.size()), // descriptorSetCount
-        m_descriptor_set_layouts.data()};
-
-    VkResult res =
-        vkAllocateDescriptorSets(m_device, &descriptorSetAllocateInfo, ds);
-
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("could not allocate descriptor sets: %s",
-                     vulkan_error_string(res));
-        return false;
-    }
-
-    return true;
+VkDescriptorSet* cvk_entry_point::get_descriptor_sets() {
+    return m_descriptor_sets.data();
 }
 
 std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {

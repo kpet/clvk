@@ -408,6 +408,8 @@ struct cvk_device : public _cl_device_id,
         return queue;
     }
 
+    uint32_t num_queues() const { return m_vulkan_queues.size(); }
+
     cl_device_fp_config fp_config(cl_device_info fptype) const {
         if ((fptype == CL_DEVICE_HALF_FP_CONFIG) && supports_fp16()) {
             return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
