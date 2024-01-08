@@ -179,7 +179,8 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
 
 bool cvk_kernel::args_valid() const { return m_argument_values->args_valid(); }
 
-bool cvk_kernel_argument_values::setup_descriptor_sets() {
+bool cvk_kernel_argument_values::setup_descriptor_sets(
+    cvk_vulkan_queue_wrapper* queue) {
     std::lock_guard<std::mutex> lock(m_lock);
 
     auto program = m_entry_point->program();
@@ -193,7 +194,10 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     m_is_enqueued = true;
 
     // Get descriptor sets
-    VkDescriptorSet* ds = descriptor_sets();
+    VkDescriptorSet* ds = descriptor_sets(queue);
+    if (ds == nullptr) {
+        return false;
+    }
 
     // Make enough space to store all descriptor write structures
     size_t max_descriptor_writes =

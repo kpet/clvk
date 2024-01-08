@@ -1694,7 +1694,7 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
       m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_descriptor_sets{VK_NULL_HANDLE} {}
+      m_pipeline_layout(VK_NULL_HANDLE) {}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -2122,23 +2122,6 @@ cl_int cvk_entry_point::init() {
             cvk_error("Could not create descriptor pool.");
             return CL_INVALID_VALUE;
         }
-
-        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
-            VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
-            m_descriptor_pool,
-            static_cast<uint32_t>(
-                m_descriptor_set_layouts.size()), // descriptorSetCount
-            m_descriptor_set_layouts.data()};
-
-        VkResult res = vkAllocateDescriptorSets(m_device->vulkan_device(),
-                                                &descriptorSetAllocateInfo,
-                                                m_descriptor_sets.data());
-
-        if (res != VK_SUCCESS) {
-            cvk_error_fn("could not allocate descriptor sets: %s",
-                         vulkan_error_string(res));
-            return false;
-        }
     }
 
     return CL_SUCCESS;
@@ -2210,8 +2193,38 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     return pipeline;
 }
 
-VkDescriptorSet* cvk_entry_point::get_descriptor_sets() {
-    return m_descriptor_sets.data();
+VkDescriptorSet*
+cvk_entry_point::get_descriptor_sets(cvk_vulkan_queue_wrapper* queue) {
+    std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
+    VkDescriptorSet* ds;
+    if (m_descriptor_sets.count(queue) != 0) {
+        ds = m_descriptor_sets[queue].data();
+        return ds;
+    }
+    m_descriptor_sets[queue] = {VK_NULL_HANDLE};
+    ds = m_descriptor_sets[queue].data();
+
+    if (m_descriptor_set_layouts.size() == 0) {
+        return ds;
+    }
+
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
+        m_descriptor_pool,
+        static_cast<uint32_t>(
+            m_descriptor_set_layouts.size()), // descriptorSetCount
+        m_descriptor_set_layouts.data()};
+
+    VkResult res = vkAllocateDescriptorSets(m_device->vulkan_device(),
+                                            &descriptorSetAllocateInfo, ds);
+
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("could not allocate descriptor sets: %s",
+                     vulkan_error_string(res));
+        return nullptr;
+    }
+
+    return ds;
 }
 
 std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {

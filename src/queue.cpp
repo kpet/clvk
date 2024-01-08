@@ -969,7 +969,8 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     m_argument_values->retain_resources();
 
     // Setup descriptors
-    if (!m_argument_values->setup_descriptor_sets()) {
+    auto queue = command_buffer.vulkan_queue();
+    if (!m_argument_values->setup_descriptor_sets(queue)) {
         return CL_OUT_OF_RESOURCES;
     }
 
@@ -989,7 +990,10 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
                                                  0, // offset
                                                  VK_WHOLE_SIZE};
 
-            auto* ds = m_argument_values->descriptor_sets();
+            auto* ds = m_argument_values->descriptor_sets(queue);
+            if (ds == nullptr) {
+                return CL_OUT_OF_RESOURCES;
+            }
             VkWriteDescriptorSet writeDescriptorSet = {
                 VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                 nullptr,
@@ -1010,10 +1014,13 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
     // Bind descriptors and update push constants
     if (m_kernel->num_set_layouts() > 0) {
+        auto ds = m_argument_values->descriptor_sets(queue);
+        if (ds == nullptr) {
+            return CL_OUT_OF_RESOURCES;
+        }
         vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                                 m_kernel->pipeline_layout(), 0,
-                                m_kernel->num_set_layouts(),
-                                m_argument_values->descriptor_sets(), 0, 0);
+                                m_kernel->num_set_layouts(), ds, 0, 0);
     }
 
     auto err = update_global_push_constants(command_buffer);

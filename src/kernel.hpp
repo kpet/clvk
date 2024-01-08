@@ -342,10 +342,11 @@ struct cvk_kernel_argument_values {
         return m_specialization_constants;
     }
 
-    CHECK_RETURN bool setup_descriptor_sets();
+    CHECK_RETURN bool
+    setup_descriptor_sets(cvk_vulkan_queue_wrapper* queue_index);
 
-    VkDescriptorSet* descriptor_sets() {
-        return m_entry_point->get_descriptor_sets();
+    VkDescriptorSet* descriptor_sets(cvk_vulkan_queue_wrapper* queue) {
+        return m_entry_point->get_descriptor_sets(queue);
     }
 
     // Take ownership of resources and retain them.

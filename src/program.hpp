@@ -422,12 +422,14 @@ public:
                     const std::string& name);
 
     ~cvk_entry_point() {
-        for (auto ds : m_descriptor_sets) {
-            if (ds == VK_NULL_HANDLE) {
-                continue;
+        for (auto& [queue_index, descriptor_set_array] : m_descriptor_sets) {
+            for (auto ds : descriptor_set_array) {
+                if (ds == VK_NULL_HANDLE) {
+                    continue;
+                }
+                vkFreeDescriptorSets(m_device->vulkan_device(),
+                                     m_descriptor_pool, 1, &ds);
             }
-            vkFreeDescriptorSets(m_device->vulkan_device(), m_descriptor_pool,
-                                 1, &ds);
         }
         for (auto pipeline : m_pipelines) {
             cvk_info("destroying pipeline %p for kernel %s", pipeline.second,
@@ -454,7 +456,7 @@ public:
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
-    VkDescriptorSet* get_descriptor_sets();
+    VkDescriptorSet* get_descriptor_sets(cvk_vulkan_queue_wrapper* queue);
 
     uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
 
@@ -509,7 +511,8 @@ private:
     std::vector<VkDescriptorSetLayout> m_descriptor_set_layouts;
     VkPipelineLayout m_pipeline_layout;
 
-    std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
+    std::map<cvk_vulkan_queue_wrapper*,
+             std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>>
         m_descriptor_sets;
 
     std::mutex m_pipeline_cache_lock;

@@ -356,6 +356,10 @@ struct cvk_command_buffer {
 
     operator VkCommandBuffer() { return m_command_buffer; }
 
+    cvk_vulkan_queue_wrapper* vulkan_queue() const {
+        return &m_queue->vulkan_queue();
+    }
+
 protected:
     cvk_command_queue_holder m_queue;
     VkCommandBuffer m_command_buffer;
