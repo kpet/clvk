@@ -2193,8 +2193,8 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     return pipeline;
 }
 
-VkDescriptorSet*
-cvk_entry_point::get_descriptor_sets(cvk_vulkan_queue_wrapper* queue) {
+VkDescriptorSet* cvk_entry_point::get_or_allocate_descriptor_sets(
+    cvk_vulkan_queue_wrapper* queue) {
     std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
     VkDescriptorSet* ds;
     if (m_descriptor_sets.count(queue) != 0) {

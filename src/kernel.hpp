@@ -346,7 +346,7 @@ struct cvk_kernel_argument_values {
     setup_descriptor_sets(cvk_vulkan_queue_wrapper* queue_index);
 
     VkDescriptorSet* descriptor_sets(cvk_vulkan_queue_wrapper* queue) {
-        return m_entry_point->get_descriptor_sets(queue);
+        return m_entry_point->get_or_allocate_descriptor_sets(queue);
     }
 
     // Take ownership of resources and retain them.

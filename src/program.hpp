@@ -456,7 +456,8 @@ public:
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
-    VkDescriptorSet* get_descriptor_sets(cvk_vulkan_queue_wrapper* queue);
+    VkDescriptorSet*
+    get_or_allocate_descriptor_sets(cvk_vulkan_queue_wrapper* queue);
 
     uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
 
