@@ -5526,6 +5526,13 @@ clSetProgramSpecializationConstant(cl_program prog, cl_uint spec_id,
     LOG_API_CALL("program = %p, spec_id = %u, spec_size = %zu, spec_value = %p",
                  prog, spec_id, spec_size, spec_value);
 
+#if !ENABLE_SPIRV_IL
+    // If the SPIRV Intermediate Language is not enabled, the OpenCL
+    // specification requires clSetProgramSpecializationConstant to return
+    // CL_INVALID_OPERATION.
+    return CL_INVALID_OPERATION;
+#endif
+
     auto program = icd_downcast(prog);
 
     if (!is_valid_program(program)) {
