@@ -1697,7 +1697,11 @@ cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
       m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE) {}
+      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0) {
+    TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
+                       "clvk-entry_point_" + std::to_string((uintptr_t)this));
+    TRACE_CNT(descriptor_set_allocated_counter, 0);
+}
 
 cvk_entry_point* cvk_program::get_entry_point(std::string& name,
                                               cl_int* errcode_ret) {
@@ -2193,6 +2197,7 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
 }
 
 bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
+    TRACE_FUNCTION();
 
     if (m_descriptor_set_layouts.size() == 0) {
         return true;
@@ -2215,6 +2220,9 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
                      vulkan_error_string(res));
         return false;
     }
+
+    m_nb_descriptor_set_allocated += m_descriptor_set_layouts.size();
+    TRACE_CNT(descriptor_set_allocated_counter, m_nb_descriptor_set_allocated);
 
     return true;
 }
