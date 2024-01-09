@@ -15,9 +15,12 @@
 #pragma once
 
 #include "cl_headers.hpp"
-#include "device.hpp"
+
+#include <unordered_map>
 
 #include <vulkan/vulkan.h>
+
+struct cvk_device;
 
 struct ClFormatMapHash {
     size_t operator()(const cl_image_format& format) const {

@@ -560,6 +560,11 @@ struct cvk_device : public _cl_device_id,
             ->is_bgra_format_not_supported_for_image1d_buffer();
     }
 
+    bool is_image_format_disabled(cl_image_format format) const {
+        return m_clvk_properties->get_unsupported_image_format().count(
+                   format) != 0;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";

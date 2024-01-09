@@ -56,6 +56,17 @@ struct cvk_device_properties {
         return false;
     }
 
+    struct ClFormatSetCompare {
+        int operator()(const cl_image_format& lhs,
+                       const cl_image_format& rhs) const {
+            return lhs.image_channel_order > rhs.image_channel_order ||
+                   (lhs.image_channel_order == rhs.image_channel_order &&
+                    lhs.image_channel_data_type > rhs.image_channel_data_type);
+        }
+    };
+    using image_format_set = std::set<cl_image_format, ClFormatSetCompare>;
+    virtual image_format_set get_unsupported_image_format() const { return {}; }
+
     virtual ~cvk_device_properties() {}
 };
 
