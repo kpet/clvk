@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if !defined(WIN32) && !defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 #include <unordered_set>
 
 #include "config.hpp"
@@ -382,6 +386,9 @@ cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
 }
 
 void cvk_executor_thread::executor() {
+#if !defined(WIN32) && !defined(__APPLE__)
+    pthread_setname_np(pthread_self(), "clvk-executor");
+#endif
 
     std::unique_lock<std::mutex> lock(m_lock);
 
