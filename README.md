@@ -454,6 +454,16 @@ variables. Here's a quick guide:
   * `2`: `VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR`
   * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
 
+* `CLVK_MAX_ENTRY_POINTS_INSTANCES` specifies the number of instances of a
+  kernel that can be in flight at the same time. Increasing this value have an
+  impact on the memory usage as it will allocate more descriptor sets per
+  kernel (default: `2048`).
+
+* `CLVK_ENQUEUE_COMMAND_RETRY_SLEEP_US` specifies the time to wait between two
+  attempts to enqueue a command. It is disabled by default, meaning that if an
+  enqueue fails, it returns an error. When specified, it will retry as long as
+  there are groups in flight (commands being processed).
+
 # Limitations
 
 * Only one device per CL context

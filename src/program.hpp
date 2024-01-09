@@ -559,6 +559,8 @@ private:
 
     uint32_t m_nb_descriptor_set_allocated;
     TRACE_CNT_VAR(descriptor_set_allocated_counter);
+
+    bool m_first_allocation_failure;
 };
 
 struct cvk_program : public _cl_program, api_object<object_magic::program> {
