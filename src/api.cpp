@@ -726,6 +726,13 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS:
+        if (!device->supports_read_write_images()) {
+            val_uint = 0;
+            copy_ptr = &val_uint;
+            size_ret = sizeof(val_uint);
+            break;
+        }
+        [[fallthrough]];
     case CL_DEVICE_MAX_WRITE_IMAGE_ARGS:
         val_uint = device->vulkan_limits().maxPerStageDescriptorStorageImages;
         copy_ptr = &val_uint;
@@ -4664,6 +4671,14 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
 
     auto dev = icd_downcast(context)->device();
     auto pdev = dev->vulkan_physical_device();
+
+    if (!dev->supports_read_write_images() &&
+        (flags & CL_MEM_KERNEL_READ_AND_WRITE)) {
+        if (num_image_formats != nullptr) {
+            *num_image_formats = 0;
+        }
+        return CL_SUCCESS;
+    }
 
     const VkFormatFeatureFlags required_format_feature_flags =
         cvk_image::required_format_feature_flags_for(image_type, flags);
