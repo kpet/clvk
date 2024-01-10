@@ -730,6 +730,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
             val_uint = 0;
             copy_ptr = &val_uint;
             size_ret = sizeof(val_uint);
+            break;
         }
         [[fallthrough]];
     case CL_DEVICE_MAX_WRITE_IMAGE_ARGS:
