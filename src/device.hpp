@@ -300,7 +300,9 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_read_write_images() const {
         return supports_capability(
-            spv::CapabilityStorageImageReadWithoutFormat);
+                   spv::CapabilityStorageImageReadWithoutFormat) &&
+               supports_capability(
+                   spv::CapabilityStorageImageWriteWithoutFormat);
     }
 
     bool supports_fp16() const { return m_has_fp16_support; }
