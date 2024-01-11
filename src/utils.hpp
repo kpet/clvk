@@ -58,7 +58,7 @@ void cvk_set_thread_name_if_supported(const std::thread::native_handle_type&,
 
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(X[0]))
 
-    static inline void* pointer_offset(const void* ptr, size_t offset) {
+static inline void* pointer_offset(const void* ptr, size_t offset) {
     auto ptrint = reinterpret_cast<uintptr_t>(ptr);
     return reinterpret_cast<void*>(ptrint + offset);
 }
