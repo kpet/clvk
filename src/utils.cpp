@@ -26,6 +26,10 @@
 #include <io.h>
 #endif
 
+#if !defined(WIN32) && !defined(__APPLE__)
+#include <pthread.h>
+#endif
+
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32
     if (_mktemp_s(&tmpl.front(), tmpl.size() + 1) != 0) {
@@ -74,5 +78,13 @@ int cvk_exec(const std::string& cmd, std::string* output) {
 #ifdef WIN32
 #undef popen
 #undef pclose
+#endif
+}
+
+void cvk_set_thread_name_if_supported(
+    const std::thread::native_handle_type& target_thread,
+    const std::string& name) {
+#if !defined(WIN32) && !defined(__APPLE__)
+    pthread_setname_np(target_thread, name.c_str());
 #endif
 }

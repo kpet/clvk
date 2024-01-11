@@ -19,6 +19,7 @@
 #include "memory.hpp"
 #include "queue.hpp"
 #include "tracing.hpp"
+#include "utils.hpp"
 
 static cvk_executor_thread_pool* get_thread_pool() {
     auto state = get_or_init_global_state();
@@ -382,6 +383,8 @@ cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
 }
 
 void cvk_executor_thread::executor() {
+    cvk_set_thread_name_if_supported(m_thread->native_handle(),
+                                     "clvk-executor");
 
     std::unique_lock<std::mutex> lock(m_lock);
 
