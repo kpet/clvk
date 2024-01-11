@@ -29,7 +29,8 @@
 
 char* cvk_mkdtemp(std::string& tmpl);
 int cvk_exec(const std::string& cmd, std::string* output = nullptr);
-void cvk_set_thread_name_if_supported(const std::thread::native_handle_type&, const std::string&)
+void cvk_set_thread_name_if_supported(const std::thread::native_handle_type&,
+                                      const std::string&)
 
 #define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \
     do {                                                                       \
@@ -57,7 +58,7 @@ void cvk_set_thread_name_if_supported(const std::thread::native_handle_type&, co
 
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(X[0]))
 
-static inline void* pointer_offset(const void* ptr, size_t offset) {
+    static inline void* pointer_offset(const void* ptr, size_t offset) {
     auto ptrint = reinterpret_cast<uintptr_t>(ptr);
     return reinterpret_cast<void*>(ptrint + offset);
 }
