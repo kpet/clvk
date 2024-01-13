@@ -48,6 +48,7 @@ jobs:
           - os: ubuntu-22.04
             online-compiler: false
             unit: true
+            perfetto: true
           - os: macos-latest
             online-compiler: true
             unit: true
@@ -112,6 +113,17 @@ jobs:
         if: ${{ matrix.android-abi != '' }}
         run: |
           echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33/libvulkan.so" >> $GITHUB_ENV
+      - name: Build Perfetto
+        if: ${{ matrix.perfetto }}
+        shell: bash
+        env:
+          PERFETTO_DIR: '${{ github.workspace }}/external/perfetto'
+        run: |
+          echo "${PERFETTO_DIR}" >> $GITHUB_ENV
+          git clone --depth 1 --branch v39.0 https://android.googlesource.com/platform/external/perfetto ${PERFETTO_DIR}
+          ${PERFETTO_DIR}/tools/install-build-deps
+          ${PERFETTO_DIR}/tools/setup_all_configs.py
+          ${PERFETTO_DIR}/tools/ninja -C ${PERFETTO_DIR}/out/linux_clang_release trace_processor_shell
       - name: Configure
         shell: bash
         run: |
@@ -128,6 +140,8 @@ jobs:
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
               -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
+              -DCLVK_PERFETTO_ENABLE=${{ matrix.perfetto }} \
+              -DCLVK_PERFETTO_SDK_DIR=${{ matrix.perfettodir }}/sdk \
               ${{ env.android-cmake-args }} \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
@@ -240,3 +254,11 @@ jobs:
           CLVK_VALIDATION_LAYERS: 1
           VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
           LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}
+      - name: Perfetto test
+        if: ${{ matrix.perfetto }}
+        run: |
+          ${{ env.testbindir }}/simple_test
+          ./tests/perfetto/check-perfetto-trace.sh ${CLVK_PERFETTO_TRACE_DEST}
+        env:
+          CLVK_PERFETTO_TRACE_DEST: ${{ env.testbindir }}/simple_test.trace
+          TRACE_PROCESSOR_SHELL: ${{ env.perfettodir }}/out/linux_clang_release/trace_processor_shell
