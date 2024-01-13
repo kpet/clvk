@@ -25,6 +25,7 @@
 #include <vulkan/vulkan.h>
 
 #include "clspv/Sampler.h"
+#include "utils.hpp"
 
 #ifdef CLSPV_ONLINE_COMPILER
 #ifdef ENABLE_SPIRV_IL
@@ -1514,6 +1515,8 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 }
 
 void cvk_program::do_build() {
+    cvk_set_thread_name_if_supported(m_thread->native_handle(), "clvk-build");
+
     // Destroy entry points from previous build
     m_entry_points.clear();
 
