@@ -117,7 +117,7 @@ jobs:
         if: ${{ matrix.perfetto }}
         shell: bash
         env:
-          PERFETTO_DIR: '${{ github.workspace }}/external/perfetto'
+          PERFETTO_DIR: ${{ github.workspace }}/external/perfetto
         run: |
           echo "${PERFETTO_DIR}" >> $GITHUB_ENV
           git clone --depth 1 --branch v39.0 https://android.googlesource.com/platform/external/perfetto ${PERFETTO_DIR}
