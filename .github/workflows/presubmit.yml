@@ -141,7 +141,7 @@ jobs:
               -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
               -DCLVK_PERFETTO_ENABLE=${{ matrix.perfetto }} \
-              -DCLVK_PERFETTO_SDK_DIR=${{ matrix.perfettodir }}/sdk \
+              -DCLVK_PERFETTO_SDK_DIR=${{ env.perfettodir }}/sdk \
               ${{ env.android-cmake-args }} \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
