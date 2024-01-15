@@ -21,6 +21,5 @@ echo "SELECT name FROM slice WHERE slice.category='clvk'" \
 # Also sort the expectation to make sure to apply the same sort algorithm to the output and the expectation.
 sort "${SCRIPT_DIR}/expectation.txt" > "${EXPECTATION_SORTED}"
 
-diff "${OUTPUT_FILE}" "${SCRIPT_DIR}/expectation.txt" "${EXPECTATION_SORTED}"
-
+diff "${OUTPUT_FILE}" "${EXPECTATION_SORTED}"
 rm "${OUTPUT_FILE}" "${EXPECTATION_SORTED}"
