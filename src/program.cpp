@@ -1690,7 +1690,7 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     return true;
 }
 
-cvk_entry_point::cvk_entry_point(VkDevice dev, cvk_program* program,
+cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
                                  const std::string& name)
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
@@ -1715,7 +1715,7 @@ cvk_entry_point* cvk_program::get_entry_point(std::string& name,
 
     // Create and initialize entry point
     cvk_entry_point* entry_point =
-        new cvk_entry_point(m_context->device()->vulkan_device(), this, name);
+        new cvk_entry_point(m_context->device(), this, name);
     *errcode_ret = entry_point->init();
     if (*errcode_ret != CL_SUCCESS) {
         delete entry_point;
@@ -1741,7 +1741,8 @@ bool cvk_entry_point::build_descriptor_set_layout(
     VkResult res;
     if (bindings.size() > 0) {
         VkDescriptorSetLayout setLayout;
-        res = vkCreateDescriptorSetLayout(m_device, &createInfo, 0, &setLayout);
+        res = vkCreateDescriptorSetLayout(m_device->vulkan_device(),
+                                          &createInfo, 0, &setLayout);
         if (res != VK_SUCCESS) {
             cvk_error("Could not create descriptor set layout");
             return false;
@@ -2090,7 +2091,8 @@ cl_int cvk_entry_point::init() {
         num_push_constant_ranges,
         &push_constant_range};
 
-    res = vkCreatePipelineLayout(m_device, &pipelineLayoutCreateInfo, 0,
+    res = vkCreatePipelineLayout(m_device->vulkan_device(),
+                                 &pipelineLayoutCreateInfo, 0,
                                  &m_pipeline_layout);
     if (res != VK_SUCCESS) {
         cvk_error("Could not create pipeline layout.");
@@ -2118,7 +2120,8 @@ cl_int cvk_entry_point::init() {
             poolSizes.data(),                                  // pPoolSizes
         };
 
-        res = vkCreateDescriptorPool(m_device, &descriptorPoolCreateInfo, 0,
+        res = vkCreateDescriptorPool(m_device->vulkan_device(),
+                                     &descriptorPoolCreateInfo, 0,
                                      &m_descriptor_pool);
 
         if (res != VK_SUCCESS) {
@@ -2159,13 +2162,29 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
         specConstantData.data(),
     };
 
+    void* pipelineShaderStageCreateInfoPNext = nullptr;
+    VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
+        reqdSubgroupSizeCreateInfo;
+    if (m_device->supports_controled_subgroups()) {
+        auto reqdSubgroupSize = m_program->required_sub_group_size(m_name);
+        if (reqdSubgroupSize > m_device->max_sub_group_size() ||
+            reqdSubgroupSize < m_device->min_sub_group_size()) {
+            reqdSubgroupSize = m_device->sub_group_size();
+        }
+        reqdSubgroupSizeCreateInfo.sType =
+            VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO;
+        reqdSubgroupSizeCreateInfo.pNext = nullptr;
+        reqdSubgroupSizeCreateInfo.requiredSubgroupSize = reqdSubgroupSize;
+        pipelineShaderStageCreateInfoPNext = &reqdSubgroupSizeCreateInfo;
+    }
+
     const VkComputePipelineCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO, // sType
         nullptr,                                        // pNext
         0,                                              // flags
         {
             VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, // sType
-            nullptr,                                             // pNext
+            pipelineShaderStageCreateInfoPNext,                  // pNext
             0,                                                   // flags
             VK_SHADER_STAGE_COMPUTE_BIT,                         // stage
             m_program->shader_module(),                          // module
@@ -2178,9 +2197,9 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     };
 
     VkPipeline pipeline;
-    VkResult res =
-        vkCreateComputePipelines(m_device, m_program->pipeline_cache(), 1,
-                                 &createInfo, nullptr, &pipeline);
+    VkResult res = vkCreateComputePipelines(m_device->vulkan_device(),
+                                            m_program->pipeline_cache(), 1,
+                                            &createInfo, nullptr, &pipeline);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create compute pipeline for kernel %s: %s",
@@ -2212,8 +2231,8 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
             m_descriptor_set_layouts.size()), // descriptorSetCount
         m_descriptor_set_layouts.data()};
 
-    VkResult res =
-        vkAllocateDescriptorSets(m_device, &descriptorSetAllocateInfo, ds);
+    VkResult res = vkAllocateDescriptorSets(m_device->vulkan_device(),
+                                            &descriptorSetAllocateInfo, ds);
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("could not allocate descriptor sets: %s",

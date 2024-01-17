@@ -436,6 +436,13 @@ variables. Here's a quick guide:
   conformance on devices that do not support linear filtering with all the image formats
   required for conformance.
 
+* `CLVK_PREFERED_SUBGROUP_SIZE` specifies the subgroup size to use if nothing
+  is specified in the kernel. When not set use the default value reported by
+  the Vulkan driver.
+
+* `CLVK_FORCE_SUBGROUP_SIZE` specifies the subgroup size to use, overriding
+  everything.
+
 # Limitations
 
 * Only one device per CL context

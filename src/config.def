@@ -39,6 +39,9 @@ OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif // !CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
+OPTION(uint32_t, force_subgroup_size, 0u) // 0 meaning not forced
+OPTION(uint32_t, prefered_subgroup_size, 0u) // 0 meaning no preference
+
 //
 // Command execution
 //

@@ -30,6 +30,7 @@
 
 #include "config.hpp"
 #include "init.hpp"
+#include "log.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 #include "printf.hpp"
@@ -418,23 +419,27 @@ struct cvk_program;
 
 class cvk_entry_point {
 public:
-    cvk_entry_point(VkDevice dev, cvk_program* program,
+    cvk_entry_point(cvk_device* dev, cvk_program* program,
                     const std::string& name);
 
     ~cvk_entry_point() {
         for (auto pipeline : m_pipelines) {
             cvk_info("destroying pipeline %p for kernel %s", pipeline.second,
                      m_name.c_str());
-            vkDestroyPipeline(m_device, pipeline.second, nullptr);
+            vkDestroyPipeline(m_device->vulkan_device(), pipeline.second,
+                              nullptr);
         }
         if (m_descriptor_pool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(m_device, m_descriptor_pool, nullptr);
+            vkDestroyDescriptorPool(m_device->vulkan_device(),
+                                    m_descriptor_pool, nullptr);
         }
         if (m_pipeline_layout != VK_NULL_HANDLE) {
-            vkDestroyPipelineLayout(m_device, m_pipeline_layout, nullptr);
+            vkDestroyPipelineLayout(m_device->vulkan_device(),
+                                    m_pipeline_layout, nullptr);
         }
         for (auto layout : m_descriptor_set_layouts) {
-            vkDestroyDescriptorSetLayout(m_device, layout, nullptr);
+            vkDestroyDescriptorSetLayout(m_device->vulkan_device(), layout,
+                                         nullptr);
         }
     }
 
@@ -448,7 +453,8 @@ public:
     void free_descriptor_set(VkDescriptorSet ds) {
         TRACE_FUNCTION();
         std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
-        vkFreeDescriptorSets(m_device, m_descriptor_pool, 1, &ds);
+        vkFreeDescriptorSets(m_device->vulkan_device(), m_descriptor_pool, 1,
+                             &ds);
         m_nb_descriptor_set_allocated--;
         TRACE_CNT(descriptor_set_allocated_counter,
                   m_nb_descriptor_set_allocated);
@@ -493,7 +499,7 @@ public:
 private:
     const uint32_t MAX_INSTANCES = config.max_entry_points_instances;
 
-    VkDevice m_device;
+    cvk_device* m_device;
     cvk_context* m_context;
     cvk_program* m_program;
     std::string m_name;
@@ -757,6 +763,43 @@ public:
     const std::array<uint32_t, 3>&
     required_work_group_size(const std::string& kernel) const {
         return m_binary.required_work_group_size(kernel);
+    }
+
+    uint32_t required_sub_group_size(std::string& kernel) const {
+        auto forced_subgroup_size_or_zero = []() {
+            if (config.force_subgroup_size.set) {
+                return config.force_subgroup_size();
+            }
+            return 0u;
+        };
+
+        const char* sub_group_size_attr = "intel_reqd_sub_group_size(";
+        auto attrs = kernel_attributes(kernel);
+        auto it = attrs.find(sub_group_size_attr);
+
+        if (it == std::string::npos) {
+            return forced_subgroup_size_or_zero();
+        }
+        it += strlen(sub_group_size_attr);
+        auto it2 = attrs.substr(it).find(")");
+        if (it2 == std::string::npos) {
+            return forced_subgroup_size_or_zero();
+        }
+
+        uint32_t kernel_subgroup_size = atoi(attrs.substr(it, it2).c_str());
+
+        if (config.force_subgroup_size.set) {
+            uint32_t force_subgroup_size = config.force_subgroup_size();
+            if (force_subgroup_size != kernel_subgroup_size) {
+                cvk_warn_fn("overriding subgroup size specified inside kernel "
+                            "'%s', using '%u' instead of '%u'",
+                            kernel.c_str(), force_subgroup_size,
+                            kernel_subgroup_size);
+            }
+            return config.force_subgroup_size();
+        }
+
+        return kernel_subgroup_size;
     }
 
     const VkPipelineCache& pipeline_cache() const { return m_pipeline_cache; }

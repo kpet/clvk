@@ -283,7 +283,26 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_uint sub_group_size() const {
+        if (supports_controled_subgroups()) {
+            cl_uint force_subgroup_size = config.force_subgroup_size();
+            if (config.force_subgroup_size.set &&
+                force_subgroup_size >= min_sub_group_size() &&
+                force_subgroup_size <= max_sub_group_size()) {
+                return force_subgroup_size;
+            }
+            if (m_prefered_subgroup_size != 0 &&
+                m_prefered_subgroup_size >= min_sub_group_size() &&
+                m_prefered_subgroup_size <= max_sub_group_size()) {
+                return m_prefered_subgroup_size;
+            }
+        }
         return m_subgroup_properties.subgroupSize;
+    }
+    cl_uint min_sub_group_size() const {
+        return m_subgroup_size_control_properties.minSubgroupSize;
+    }
+    cl_uint max_sub_group_size() const {
+        return m_subgroup_size_control_properties.maxSubgroupSize;
     }
 
     cl_uint max_num_sub_groups() const {
@@ -312,6 +331,15 @@ struct cvk_device : public _cl_device_id,
     bool supports_int8() const { return m_has_int8_support; }
 
     bool supports_subgroups() const { return m_has_subgroups_support; }
+
+    bool supports_controled_subgroups() const {
+        return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 3, 0) ||
+                is_vulkan_extension_enabled(
+                    VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME)) &&
+               m_features_subgroup_size_control.subgroupSizeControl &&
+               (m_subgroup_size_control_properties.requiredSubgroupSizeStages &
+                VK_SHADER_STAGE_COMPUTE_BIT);
+    }
 
     bool supports_non_uniform_decoration() const {
         return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
@@ -601,6 +629,8 @@ private:
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
     VkPhysicalDeviceSubgroupProperties m_subgroup_properties{};
+    VkPhysicalDeviceSubgroupSizeControlProperties
+        m_subgroup_size_control_properties{};
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
@@ -612,6 +642,8 @@ private:
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
     VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
         m_features_shader_subgroup_extended_types{};
+    VkPhysicalDeviceSubgroupSizeControlFeatures
+        m_features_subgroup_size_control{};
     VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
         m_features_vulkan_memory_model{};
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
@@ -666,6 +698,8 @@ private:
 
     std::string m_spirv_arch;
     bool m_physical_addressing;
+
+    cl_uint m_prefered_subgroup_size{};
 
     spv_target_env m_vulkan_spirv_env;
 

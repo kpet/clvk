@@ -52,6 +52,10 @@ struct cvk_device_properties {
         return std::set<std::string>();
     }
 
+    virtual uint32_t get_prefered_subgroup_size() const {
+        return config.prefered_subgroup_size();
+    }
+
     virtual bool is_non_uniform_decoration_broken() const { return false; }
 
     virtual bool is_bgra_format_not_supported_for_image1d_buffer() const {
