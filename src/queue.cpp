@@ -383,8 +383,7 @@ cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
 }
 
 void cvk_executor_thread::executor() {
-    cvk_set_thread_name_if_supported(m_thread->native_handle(),
-                                     "clvk-executor");
+    cvk_set_current_thread_name_if_supported("clvk-executor");
 
     std::unique_lock<std::mutex> lock(m_lock);
 

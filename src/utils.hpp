@@ -29,8 +29,7 @@
 
 char* cvk_mkdtemp(std::string& tmpl);
 int cvk_exec(const std::string& cmd, std::string* output = nullptr);
-void cvk_set_thread_name_if_supported(const std::thread::native_handle_type&,
-                                      const std::string&);
+void cvk_set_current_thread_name_if_supported(const std::string&);
 
 #define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \
     do {                                                                       \

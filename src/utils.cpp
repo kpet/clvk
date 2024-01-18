@@ -81,10 +81,8 @@ int cvk_exec(const std::string& cmd, std::string* output) {
 #endif
 }
 
-void cvk_set_thread_name_if_supported(
-    const std::thread::native_handle_type& target_thread,
-    const std::string& name) {
+void cvk_set_current_thread_name_if_supported(const std::string& name) {
 #if !defined(WIN32) && !defined(__APPLE__)
-    pthread_setname_np(target_thread, name.c_str());
+    pthread_setname_np(pthread_self(), name.c_str());
 #endif
 }
