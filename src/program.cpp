@@ -1515,7 +1515,7 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 }
 
 void cvk_program::do_build() {
-    cvk_set_thread_name_if_supported(m_thread->native_handle(), "clvk-build");
+    cvk_set_current_thread_name_if_supported("clvk-build");
 
     // Destroy entry points from previous build
     m_entry_points.clear();
