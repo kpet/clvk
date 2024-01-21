@@ -14,6 +14,11 @@ EXPECTATION_SORTED="${EXPECTATION_FILE}.sorted"
 # Either it is in your path, or you need to define the environment variable
 TRACE_PROCESSOR_SHELL=${TRACE_PROCESSOR_SHELL:-"trace_processor_shell"}
 
+function clean() {
+    rm -f "${OUTPUT_FILE}" "${EXPECTATION_SORTED}"
+}
+trap clean EXIT
+
 echo "SELECT name FROM slice WHERE slice.category='clvk'" \
     | "${TRACE_PROCESSOR_SHELL}" -q /dev/stdin "${TRACE_FILE}" \
     | sort \
@@ -24,4 +29,3 @@ echo "SELECT name FROM slice WHERE slice.category='clvk'" \
 sort "${EXPECTATION_FILE}" > "${EXPECTATION_SORTED}"
 
 diff "${OUTPUT_FILE}" "${EXPECTATION_SORTED}"
-rm "${OUTPUT_FILE}" "${EXPECTATION_SORTED}"
