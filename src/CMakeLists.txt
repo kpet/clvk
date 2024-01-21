@@ -32,17 +32,27 @@ if (UNIX AND NOT APPLE)
         "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-Bsymbolic")
 endif()
 
-if (CLVK_COMPILER_AVAILABLE)
-    add_compile_options(-DCOMPILER_AVAILABLE=1)
-    if (CLVK_ENABLE_SPIRV_IL)
-        add_compile_options(-DENABLE_SPIRV_IL=1)
-    endif()
-endif()
-
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
     add_compile_options(-DUSING_SWIFTSHADER=1)
 endif()
 
+# Config macros
+# These are made available to all targets linking against OpenCL so they can
+# correctly use the config in config.def
+add_library(clvk-config-definitions INTERFACE)
+
+if (CLVK_CLSPV_ONLINE_COMPILER)
+  target_compile_definitions(clvk-config-definitions CLSPV_ONLINE_COMPILER=1)
+endif()
+
+if (CLVK_COMPILER_AVAILABLE)
+    target_compile_definitions(clvk-config-definitions INTERFACE COMPILER_AVAILABLE=1)
+    if (CLVK_ENABLE_SPIRV_IL)
+        target_compile_definitions(clvk-config-definitions INTERFACE ENABLE_SPIRV_IL=1)
+    endif()
+endif()
+
+# Core objects
 add_library(OpenCL-objects OBJECT
   api.cpp
   config.cpp
@@ -64,6 +74,7 @@ add_library(OpenCL-objects OBJECT
   utils.cpp
   exports.map
 )
+target_link_libraries(OpenCL-objects clvk-config-definitions)
 
 if (CLVK_UNIT_TESTING)
    target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)
@@ -107,7 +118,7 @@ if (CLVK_PERFETTO_ENABLE)
   )
   set_property(CACHE CLVK_PERFETTO_BACKEND PROPERTY STRINGS ${CLVK_PERFETTO_BACKEND_OPTIONS})
   if (${CLVK_PERFETTO_BACKEND} STREQUAL InProcess)
-    target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_BACKEND_INPROCESS)
+      target_compile_definitions(clvk-config-definitions INTERFACE CLVK_PERFETTO_BACKEND_INPROCESS)
   endif()
 
   target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_ENABLE)
@@ -133,6 +144,8 @@ if (CLVK_COMPILER_AVAILABLE)
   set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-link)
 endif()
 
+
+
 # The reflection parser requires the headers.
 target_include_directories(OpenCL-objects PRIVATE
   "${CLSPV_SOURCE_DIR}/include")
@@ -146,8 +159,8 @@ if (CLVK_CLSPV_ONLINE_COMPILER)
 else()
   if (CLVK_COMPILER_AVAILABLE)
     add_dependencies(OpenCL-objects clspv)
-    target_compile_definitions(OpenCL-objects PRIVATE
-    DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+    target_compile_definitions(clvk-config-definitions INTERFACE
+      DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
   endif()
 endif()
 
@@ -157,7 +170,7 @@ if (CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
   add_dependencies(OpenCL-objects llvm-spirv)
   set_target_properties(llvm-spirv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
     ${CMAKE_BINARY_DIR})
-  target_compile_definitions(OpenCL-objects PRIVATE
+  target_compile_definitions(clvk-config-definitions INTERFACE
     DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
@@ -173,7 +186,8 @@ endif()
 
 function(CLLibrary target type)
   add_library(${target} ${type} $<TARGET_OBJECTS:OpenCL-objects>)
-  target_link_libraries(${target} ${OpenCL-dependencies})
+  target_link_libraries(${target} ${OpenCL-dependencies}
+      clvk-config-definitions)
   set_target_properties(${target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
       ${CMAKE_BINARY_DIR})
 endfunction(CLLibrary)

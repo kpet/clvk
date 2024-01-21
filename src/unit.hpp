@@ -16,6 +16,8 @@
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
+#include "config.hpp"
+
 #include <CL/cl.h>
 
 extern "C" {
@@ -25,7 +27,26 @@ void CL_API_CALL clvk_override_device_max_compute_work_group_count(
 
 void CL_API_CALL clvk_restore_device_properties(cl_device_id device);
 
-void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size);
+const config_struct* CL_API_CALL clvk_get_config();
 }
+
+template <typename T> struct clvk_config_scoped_override {
+    clvk_config_scoped_override(config_value<T>* cfgval, const T& newval,
+                                bool user_set)
+        : m_value_ptr(cfgval), m_old_value(*cfgval) {
+        cfgval->value = newval;
+        cfgval->set = user_set;
+    }
+    ~clvk_config_scoped_override() { *m_value_ptr = m_old_value; }
+
+private:
+    config_value<T>* m_value_ptr;
+    config_value<T> m_old_value;
+};
+
+#define CLVK_CONFIG_SCOPED_OVERRIDE(opt, type, newval, user_set)               \
+    clvk_config_scoped_override<type>(                                         \
+        const_cast<config_value<type>*>(&clvk_get_config()->opt), newval,      \
+        user_set)
 
 #endif
