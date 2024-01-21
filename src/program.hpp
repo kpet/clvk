@@ -446,8 +446,12 @@ public:
     CHECK_RETURN bool allocate_descriptor_sets(VkDescriptorSet* ds);
 
     void free_descriptor_set(VkDescriptorSet ds) {
+        TRACE_FUNCTION();
         std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
         vkFreeDescriptorSets(m_device, m_descriptor_pool, 1, &ds);
+        m_nb_descriptor_set_allocated--;
+        TRACE_CNT(descriptor_set_allocated_counter,
+                  m_nb_descriptor_set_allocated);
     }
 
     uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
@@ -549,6 +553,9 @@ private:
     std::unordered_map<cvk_spec_constant_map, VkPipeline, SpecConstantMapHash,
                        SpecConstantMapEqual>
         m_pipelines;
+
+    uint32_t m_nb_descriptor_set_allocated;
+    TRACE_CNT_VAR(descriptor_set_allocated_counter);
 };
 
 struct cvk_program : public _cl_program, api_object<object_magic::program> {

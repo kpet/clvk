@@ -1,3 +1,4 @@
+"allocate_descriptor_sets"
 "clBuildProgram"
 "CL_COMMAND_MAP_BUFFER"
 "CL_COMMAND_UNMAP_MEM_OBJECT"
@@ -29,6 +30,7 @@
 "executor_wait"
 "extract_cmds_required_by"
 "flush_no_lock"
+"free_descriptor_set"
 "name"
 "set_event_status"
 "vkQueueSubmit"
