@@ -62,6 +62,8 @@ void term_tracing() {
     output.open(config.perfetto_trace_dest, std::ios::out | std::ios::binary);
     output.write(&trace_data[0], trace_data.size());
     output.close();
+#else
+    perfetto::TrackEvent::Flush();
 #endif
 #endif // CLVK_PERFETTO_ENABLE
 }
