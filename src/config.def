@@ -49,6 +49,8 @@ OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
 
 OPTION(uint32_t, max_entry_points_instances, 2*1024u) // FIXME find a better definition
 
+OPTION(bool, supports_filter_linear, true)
+
 //
 // Logging
 //
