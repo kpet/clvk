@@ -42,7 +42,7 @@ endif()
 add_library(clvk-config-definitions INTERFACE)
 
 if (CLVK_CLSPV_ONLINE_COMPILER)
-  target_compile_definitions(clvk-config-definitions CLSPV_ONLINE_COMPILER=1)
+  target_compile_definitions(clvk-config-definitions INTERFACE CLSPV_ONLINE_COMPILER=1)
 endif()
 
 if (CLVK_COMPILER_AVAILABLE)
