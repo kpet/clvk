@@ -51,6 +51,10 @@ if (CLVK_ENABLE_UBSAN)
   add_link_options(-fsanitize=undefined)
 endif()
 
+if(WIN32)
+  add_compile_definitions(NOMINMAX)
+endif()
+
 # Options
 option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
 

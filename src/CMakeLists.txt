@@ -174,11 +174,6 @@ if (CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
     DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
 endif()
 
-if(WIN32)
-	target_compile_definitions(OpenCL-objects PRIVATE
-		NOMINMAX)
-endif()
-
 option(CLVK_ENABLE_TIMING "Enable timing of clvk internals" OFF)
 if (CLVK_ENABLE_TIMING)
 	target_compile_definitions(OpenCL-objects PRIVATE CVK_ENABLE_TIMING)
