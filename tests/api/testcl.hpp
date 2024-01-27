@@ -35,6 +35,15 @@
 #define CL_USE_DEPRECATED_OPENCL_2_2_APIS
 #include "CL/cl.h"
 
+#ifdef CLVK_UNIT_TESTING_ENABLED
+#include "unit.hpp"
+
+#define CLVK_CONFIG_ASSERT_GT(opt, val)                                        \
+    ASSERT_GT(clvk_get_config()->opt.value, val)
+#else
+#define CLVK_CONFIG_ASSERT_GT(opt, val)
+#endif
+
 // clang-format off
 static inline const char* cl_code_to_string(cl_int code) {
 #define code_case(X)                                                           \

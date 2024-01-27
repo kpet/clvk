@@ -131,7 +131,8 @@ TEST_F(WithCommandQueue, SimplePrintf) {
 TEST_F(WithCommandQueue, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-    clvk_override_printf_buffer_size(28);
+    auto cfg1 =
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
 
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
@@ -167,7 +168,8 @@ TEST_F(WithCommandQueue, TooLongPrintf2) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter + 8 which are not enough for
     // the third print, but should not cause any issue in clvk
-    clvk_override_printf_buffer_size(36);
+    auto cfg1 =
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 36, true);
 
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);

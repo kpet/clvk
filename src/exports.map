@@ -2,7 +2,7 @@ CLVK_UNIT_TESTING_FCT {
 global:
     clvk_override_device_max_compute_work_group_count;
     clvk_restore_device_properties;
-    clvk_override_printf_buffer_size;
+    clvk_get_config;
 local:
     *;
 };

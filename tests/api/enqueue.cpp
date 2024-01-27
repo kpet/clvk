@@ -29,6 +29,8 @@ TEST_F(WithCommandQueue, ManyInstancesInFlight) {
     }
     )";
 
+    CLVK_CONFIG_ASSERT_GT(max_entry_points_instances, NUM_INSTANCES);
+
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");
 

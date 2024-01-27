@@ -40,12 +40,11 @@ void CL_API_CALL clvk_restore_device_properties(cl_device_id device) {
 #endif
 }
 
-void CL_API_CALL clvk_override_printf_buffer_size(uint32_t size) {
+const config_struct* CL_API_CALL clvk_get_config() {
 #ifdef CLVK_UNIT_TESTING_ENABLED
-    auto printf_buffer_size =
-        (config_value<uint32_t>*)&config.printf_buffer_size;
-    printf_buffer_size->value = size;
-    printf_buffer_size->set = true;
+    return &config;
+#else
+    return nullptr;
 #endif
 }
-}
+} // extern "C"

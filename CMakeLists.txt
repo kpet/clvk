@@ -51,11 +51,12 @@ if (CLVK_ENABLE_UBSAN)
   add_link_options(-fsanitize=undefined)
 endif()
 
+if(WIN32)
+  add_compile_definitions(NOMINMAX)
+endif()
+
 # Options
 option(CLVK_CLSPV_ONLINE_COMPILER "Use the Clspv C++ API for compilation of kernels")
-if (CLVK_CLSPV_ONLINE_COMPILER)
-  add_compile_options(-DCLSPV_ONLINE_COMPILER)
-endif()
 
 option(CLVK_COMPILER_AVAILABLE "Enable compiler support" ON)
 if (NOT CLVK_COMPILER_AVAILABLE AND CLVK_CLSPV_ONLINE_COMPILER)
