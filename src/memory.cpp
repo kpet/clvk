@@ -185,7 +185,7 @@ bool cvk_sampler::init(bool force_normalized_coordinates) {
 
     if (!config.supports_filter_linear && m_filter_mode == CL_FILTER_LINEAR) {
         m_filter_mode = CL_FILTER_NEAREST;
-        cvk_info_fn(
+        cvk_warn_fn(
             "linear filter is not supported, using nearest filter instead");
     }
 
