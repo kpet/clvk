@@ -430,7 +430,7 @@ variables. Here's a quick guide:
     * `0x00c00000`: meaning `CL3.0` (default)
     * `0x00402000`: meaning `CL1.2`
 
-* `CLVK_SUPPORTS_LINEAR_FILTER` specifies if using sampler with
+* `CLVK_SUPPORTS_LINEAR_FILTER` specifies whether using samplers with
   `CL_FILTER_LINEAR` is supported (default: `true`). Note that this is not
   required by the OpenCL-CTS, thus can be switch to false to have a conformant
   implementation on some platform.
