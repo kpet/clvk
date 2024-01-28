@@ -658,11 +658,14 @@ void cvk_device::build_extension_ils_list() {
     // Build list of supported OpenCL C features
     m_opencl_c_features = {
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_images"),
-        MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_read_write_images"),
         MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_3d_image_writes"),
         // TODO(#216) re-enable when clspv ready
         // MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_generic_address_space"),
     };
+    if (supports_read_write_images()) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_read_write_images"));
+    }
     if (supports_atomic_order_acq_rel()) {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_atomic_order_acq_rel"));
