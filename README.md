@@ -432,8 +432,9 @@ variables. Here's a quick guide:
 
 * `CLVK_SUPPORTS_LINEAR_FILTER` specifies whether using samplers with
   `CL_FILTER_LINEAR` is supported (default: `true`). Note that this is not
-  required by the OpenCL-CTS, thus can be switch to false to have a conformant
-  implementation on some platform.
+  required for OpenCL conformance on GPU devices and thus can be disabled to pass
+  conformance on devices that do not support linear filtering with all the image formats
+  required for conformance.
 
 # Limitations
 
