@@ -430,6 +430,12 @@ variables. Here's a quick guide:
     * `0x00c00000`: meaning `CL3.0` (default)
     * `0x00402000`: meaning `CL1.2`
 
+* `CLVK_SUPPORTS_LINEAR_FILTER` specifies whether using samplers with
+  `CL_FILTER_LINEAR` is supported (default: `true`). Note that this is not
+  required for OpenCL conformance on GPU devices and thus can be disabled to pass
+  conformance on devices that do not support linear filtering with all the image formats
+  required for conformance.
+
 # Limitations
 
 * Only one device per CL context

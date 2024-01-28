@@ -183,6 +183,11 @@ bool cvk_sampler::init(bool force_normalized_coordinates) {
         break;
     }
 
+    if (!config.supports_filter_linear && m_filter_mode == CL_FILTER_LINEAR) {
+        cvk_error_fn("linear filter is not supported");
+        return false;
+    }
+
     // Translate filtering
     VkFilter filter;
     VkSamplerMipmapMode mipmap_mode;
@@ -263,9 +268,11 @@ cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
     if (type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
         format_feature_flags_RO = VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT;
     } else {
-        format_feature_flags_RO =
-            VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
-            VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+        format_feature_flags_RO = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
+        if (config.supports_filter_linear()) {
+            format_feature_flags_RO |=
+                VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+        }
     }
     VkFormatFeatureFlags format_feature_flags_WO;
     if (type == CL_MEM_OBJECT_IMAGE1D_BUFFER) {
