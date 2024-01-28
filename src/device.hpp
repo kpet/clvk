@@ -561,8 +561,8 @@ struct cvk_device : public _cl_device_id,
     }
 
     bool is_image_format_disabled(cl_image_format format) const {
-        return m_clvk_properties->get_unsupported_image_format().count(
-                   format) != 0;
+        return m_clvk_properties->get_disabled_image_formats().count(format) !=
+               0;
     }
 
 private:

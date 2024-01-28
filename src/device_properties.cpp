@@ -112,8 +112,10 @@ struct cvk_device_properties_intel : public cvk_device_properties {
         return true;
     }
 
-    image_format_set get_unsupported_image_format() const override final {
-        return image_format_set({{CL_RGB, CL_UNORM_SHORT_565}});
+    const image_format_set& get_disabled_image_formats() const override final {
+        static image_format_set disabled_formats(
+            {{CL_RGB, CL_UNORM_SHORT_565}});
+        return disabled_formats;
     }
 };
 
