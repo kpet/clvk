@@ -111,6 +111,10 @@ struct cvk_device_properties_intel : public cvk_device_properties {
     is_bgra_format_not_supported_for_image1d_buffer() const override final {
         return true;
     }
+
+    image_format_set get_unsupported_image_format() const override final {
+        return image_format_set({{CL_RGB, CL_UNORM_SHORT_565}});
+    }
 };
 
 static bool isIntelDevice(const char* name, const uint32_t vendorID) {

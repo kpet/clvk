@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "image_format.hpp"
-#include "CL/cl.h"
-#include <unordered_map>
+#include "cl_headers.hpp"
+#include "device.hpp"
 
 format_mapping_map FormatMaps = {
     // R formats
@@ -180,13 +180,15 @@ bool cl_image_format_to_vulkan_format(cl_image_format clformat,
                                       image_format_support* fmt_support,
                                       VkComponentMapping* components_sampled,
                                       VkComponentMapping* components_storage) {
-    auto m = FormatMaps.find(clformat);
-    bool success = false;
-
-    if (m != FormatMaps.end()) {
-        *fmt_support = (*m).second;
-        success = true;
+    if (device->is_image_format_disabled(clformat)) {
+        return false;
     }
+
+    auto m = FormatMaps.find(clformat);
+    if (m == FormatMaps.end()) {
+        return false;
+    }
+    *fmt_support = (*m).second;
 
     get_component_mappings_for_channel_order(
         clformat.image_channel_order, components_sampled, components_storage);
@@ -198,5 +200,5 @@ bool cl_image_format_to_vulkan_format(cl_image_format clformat,
             fmt_support->vkfmt, components_sampled, components_storage);
     }
 
-    return success;
+    return true;
 }
