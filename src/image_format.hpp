@@ -22,14 +22,14 @@
 
 struct cvk_device;
 
-struct ClFormatMapHash {
+struct ClFormatHash {
     size_t operator()(const cl_image_format& format) const {
         return format.image_channel_order << 16 |
                format.image_channel_data_type;
     }
 };
 
-struct ClFormatMapEqual {
+struct ClFormatEqual {
     bool operator()(const cl_image_format& lhs,
                     const cl_image_format& rhs) const {
         return lhs.image_channel_order == rhs.image_channel_order &&
@@ -54,8 +54,8 @@ struct image_format_support {
 };
 
 using format_mapping_map =
-    std::unordered_map<cl_image_format, image_format_support, ClFormatMapHash,
-                       ClFormatMapEqual>;
+    std::unordered_map<cl_image_format, image_format_support, ClFormatHash,
+                       ClFormatEqual>;
 
 const format_mapping_map& get_format_maps();
 

@@ -17,9 +17,11 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 
 #include "cl_headers.hpp"
 #include "config.hpp"
+#include "image_format.hpp"
 
 struct cvk_device_properties {
     virtual std::string vendor() const { return "Unknown vendor"; }
@@ -56,16 +58,12 @@ struct cvk_device_properties {
         return false;
     }
 
-    struct ClFormatSetCompare {
-        int operator()(const cl_image_format& lhs,
-                       const cl_image_format& rhs) const {
-            return lhs.image_channel_order > rhs.image_channel_order ||
-                   (lhs.image_channel_order == rhs.image_channel_order &&
-                    lhs.image_channel_data_type > rhs.image_channel_data_type);
-        }
-    };
-    using image_format_set = std::set<cl_image_format, ClFormatSetCompare>;
-    virtual image_format_set get_unsupported_image_format() const { return {}; }
+    using image_format_set =
+        std::unordered_set<cl_image_format, ClFormatHash, ClFormatEqual>;
+    virtual const image_format_set& get_disabled_image_formats() const {
+        static image_format_set no_disabled_formats{};
+        return no_disabled_formats;
+    }
 
     virtual ~cvk_device_properties() {}
 };
