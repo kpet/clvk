@@ -866,7 +866,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_atomic_capabilities);
         break;
     case CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED:
-        val_string = "FIXME";
+        val_string = "v2023-12-12-00";
         copy_ptr = val_string.c_str();
         size_ret = val_string.size_with_null();
         break;
