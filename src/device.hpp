@@ -283,7 +283,37 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_uint sub_group_size() const {
+        if (supports_subgroup_size_selection()) {
+            if (config.force_subgroup_size.set &&
+                config.force_subgroup_size() >= min_sub_group_size() &&
+                config.force_subgroup_size() <= max_sub_group_size()) {
+                return config.force_subgroup_size();
+            } else if (config.force_subgroup_size.set) {
+                cvk_warn_fn("CLVK_FORCE_SUBGROUP_SIZE as been set to '%u', "
+                            "which is out of the supported range [%u, %u], "
+                            "thus it will be ignored",
+                            config.force_subgroup_size(), min_sub_group_size(),
+                            max_sub_group_size());
+            }
+            if (m_preferred_subgroup_size != 0 &&
+                m_preferred_subgroup_size >= min_sub_group_size() &&
+                m_preferred_subgroup_size <= max_sub_group_size()) {
+                return m_preferred_subgroup_size;
+            } else if (config.preferred_subgroup_size.set) {
+                cvk_warn_fn("CLVK_PREFERRED_SUBGROUP_SIZE as been set to '%u', "
+                            "which is out of the supported range [%u, %u], "
+                            "thus it will be ignored",
+                            m_preferred_subgroup_size, min_sub_group_size(),
+                            max_sub_group_size());
+            }
+        }
         return m_subgroup_properties.subgroupSize;
+    }
+    cl_uint min_sub_group_size() const {
+        return m_subgroup_size_control_properties.minSubgroupSize;
+    }
+    cl_uint max_sub_group_size() const {
+        return m_subgroup_size_control_properties.maxSubgroupSize;
     }
 
     cl_uint max_num_sub_groups() const {
@@ -312,6 +342,10 @@ struct cvk_device : public _cl_device_id,
     bool supports_int8() const { return m_has_int8_support; }
 
     bool supports_subgroups() const { return m_has_subgroups_support; }
+
+    bool supports_subgroup_size_selection() const {
+        return m_has_subgroup_size_selection;
+    }
 
     bool supports_non_uniform_decoration() const {
         return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
@@ -601,6 +635,8 @@ private:
     VkPhysicalDeviceDriverPropertiesKHR m_driver_properties;
     VkPhysicalDeviceIDPropertiesKHR m_device_id_properties;
     VkPhysicalDeviceSubgroupProperties m_subgroup_properties{};
+    VkPhysicalDeviceSubgroupSizeControlProperties
+        m_subgroup_size_control_properties{};
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
@@ -612,6 +648,8 @@ private:
     VkPhysicalDevice16BitStorageFeaturesKHR m_features_16bit_storage{};
     VkPhysicalDeviceShaderSubgroupExtendedTypesFeatures
         m_features_shader_subgroup_extended_types{};
+    VkPhysicalDeviceSubgroupSizeControlFeatures
+        m_features_subgroup_size_control{};
     VkPhysicalDeviceVulkanMemoryModelFeaturesKHR
         m_features_vulkan_memory_model{};
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
@@ -658,6 +696,7 @@ private:
     bool m_has_fp64_support{};
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
+    bool m_has_subgroup_size_selection{};
 
     cl_uint m_max_cmd_batch_size;
     cl_uint m_max_first_cmd_batch_size;
@@ -666,6 +705,8 @@ private:
 
     std::string m_spirv_arch;
     bool m_physical_addressing;
+
+    cl_uint m_preferred_subgroup_size{};
 
     spv_target_env m_vulkan_spirv_env;
 

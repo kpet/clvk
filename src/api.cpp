@@ -430,6 +430,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
     cl_device_pci_bus_info_khr val_pci_bus_info;
     cl_device_atomic_capabilities val_atomic_capabilities;
+    std::vector<size_t> val_subgroup_sizes;
 
     auto device = icd_downcast(dev);
 
@@ -904,6 +905,18 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_pci_bus_info;
         size_ret = sizeof(val_pci_bus_info);
         break;
+    case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
+        if (device->supports_subgroup_size_selection()) {
+            uint32_t size = device->min_sub_group_size();
+            while (size <= device->max_sub_group_size()) {
+                val_subgroup_sizes.push_back((size_t)size);
+                size *= 2;
+            }
+            copy_ptr = val_subgroup_sizes.data();
+            size_ret = sizeof(size_t) * val_subgroup_sizes.size();
+            break;
+        }
+        [[fallthrough]];
     default:
         ret = CL_INVALID_VALUE;
         break;

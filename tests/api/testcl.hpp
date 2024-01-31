@@ -744,6 +744,13 @@ protected:
         EnqueueFillImage(image, fill_color, origin, region, 0, nullptr,
                          nullptr);
     }
+
+    void GetDeviceInfo(cl_device_info param_name, size_t param_value_size,
+                       void* param_value, size_t* param_value_size_ret) {
+        auto err = clGetDeviceInfo(device(), param_name, param_value_size,
+                                   param_value, param_value_size_ret);
+        ASSERT_CL_SUCCESS(err);
+    }
 };
 
 class WithProfiledCommandQueue : public WithCommandQueue {

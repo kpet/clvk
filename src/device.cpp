@@ -49,6 +49,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT;
     m_subgroup_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+    m_subgroup_size_control_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES;
     m_float_controls_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
 
@@ -73,6 +75,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_pci_bus_info_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_subgroup_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 3, 0), nullptr,
+                         m_subgroup_size_control_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 1, 0), nullptr,
                          m_maintenance3_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0), nullptr,
@@ -130,6 +134,8 @@ void cvk_device::init_clvk_runtime_behaviors() {
 
     SET_DEVICE_PROPERTY_U(physical_addressing);
     SET_DEVICE_PROPERTY_S(spirv_arch);
+
+    SET_DEVICE_PROPERTY_U(preferred_subgroup_size);
 
 #undef PRINT_U
 #undef PRINT_S
@@ -305,6 +311,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES;
     m_features_buffer_device_address.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
+    m_features_subgroup_size_control.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -328,6 +336,9 @@ void cvk_device::init_features(VkInstance instance) {
             VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
                          m_features_shader_subgroup_extended_types),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 3, 0),
+                         VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME,
+                         m_features_subgroup_size_control),
             VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
                          m_features_vulkan_memory_model),
@@ -623,6 +634,17 @@ void cvk_device::build_extension_ils_list() {
     if (is_vulkan_extension_enabled(VK_EXT_PCI_BUS_INFO_EXTENSION_NAME)) {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_pci_bus_info"));
+    }
+
+    if ((m_properties.apiVersion >= VK_MAKE_VERSION(1, 3, 0) ||
+         is_vulkan_extension_enabled(
+             VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME)) &&
+        m_features_subgroup_size_control.subgroupSizeControl &&
+        (m_subgroup_size_control_properties.requiredSubgroupSizeStages &
+         VK_SHADER_STAGE_COMPUTE_BIT)) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 0, "cl_intel_required_subgroup_size"));
+        m_has_subgroup_size_selection = true;
     }
 
     // Build extension string
