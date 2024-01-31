@@ -42,7 +42,7 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
         cl_int expected_num_sub_groups = max_work_group_size / subgroup_size;
         size_t work_size = expected_num_sub_groups * subgroup_size;
         char source[512];
-        sprintf(source, program_source, kernel_prefix);
+        sprintf(source, sizeof(source), program_source, kernel_prefix);
         auto kernel = CreateKernel(source, "test");
         SetKernelArg(kernel, 0, buffer);
         EnqueueNDRangeKernel(kernel, 1, nullptr, &work_size, &work_size);
