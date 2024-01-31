@@ -636,9 +636,15 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_pci_bus_info"));
     }
 
-    if (supports_subgroup_size_selection()) {
+    if ((m_properties.apiVersion >= VK_MAKE_VERSION(1, 3, 0) ||
+         is_vulkan_extension_enabled(
+             VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME)) &&
+        m_features_subgroup_size_control.subgroupSizeControl &&
+        (m_subgroup_size_control_properties.requiredSubgroupSizeStages &
+         VK_SHADER_STAGE_COMPUTE_BIT)) {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_intel_required_subgroup_size"));
+        m_has_subgroup_size_selection = true;
     }
 
     // Build extension string

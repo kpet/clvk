@@ -344,12 +344,7 @@ struct cvk_device : public _cl_device_id,
     bool supports_subgroups() const { return m_has_subgroups_support; }
 
     bool supports_subgroup_size_selection() const {
-        return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 3, 0) ||
-                is_vulkan_extension_enabled(
-                    VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME)) &&
-               m_features_subgroup_size_control.subgroupSizeControl &&
-               (m_subgroup_size_control_properties.requiredSubgroupSizeStages &
-                VK_SHADER_STAGE_COMPUTE_BIT);
+        return m_has_subgroup_size_selection;
     }
 
     bool supports_non_uniform_decoration() const {
@@ -701,6 +696,7 @@ private:
     bool m_has_fp64_support{};
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
+    bool m_has_subgroup_size_selection{};
 
     cl_uint m_max_cmd_batch_size;
     cl_uint m_max_first_cmd_batch_size;
