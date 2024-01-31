@@ -14,6 +14,8 @@
 
 #include "testcl.hpp"
 
+#ifdef CLVK_UNIT_TESTING_ENABLED
+
 static const char* program_source = R"(
 #pragma OPENCL EXTENSION cl_khr_subgroups : enable
 %s__kernel void test(__global int *output)
@@ -22,7 +24,6 @@ static const char* program_source = R"(
 }
 )";
 
-#ifdef CLVK_UNIT_TESTING_ENABLED
 TEST_F(WithCommandQueue, SubgroupSizes) {
     std::vector<size_t> subgroup_sizes;
     size_t raw_size;
@@ -42,7 +43,7 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
         cl_int expected_num_sub_groups = max_work_group_size / subgroup_size;
         size_t work_size = expected_num_sub_groups * subgroup_size;
         char source[512];
-        sprintf(source, sizeof(source), program_source, kernel_prefix);
+        snprintf(source, sizeof(source), program_source, kernel_prefix);
         auto kernel = CreateKernel(source, "test");
         SetKernelArg(kernel, 0, buffer);
         EnqueueNDRangeKernel(kernel, 1, nullptr, &work_size, &work_size);
@@ -61,8 +62,9 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
 
     for (auto subgroup_size : subgroup_sizes) {
         char attribute[64];
-        snprintf(attribute, sizeof(attribute), "__attribute__((intel_reqd_sub_group_size(%lu))) ",
-                subgroup_size);
+        snprintf(attribute, sizeof(attribute),
+                 "__attribute__((intel_reqd_sub_group_size(%lu))) ",
+                 subgroup_size);
         run(attribute, subgroup_size, max_work_group_size, buffer);
     }
     for (auto subgroup_size : subgroup_sizes) {
