@@ -61,7 +61,7 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
 
     for (auto subgroup_size : subgroup_sizes) {
         char attribute[64];
-        sprintf(attribute, "__attribute__((intel_reqd_sub_group_size(%lu))) ",
+        snprintf(attribute, sizeof(attribute), "__attribute__((intel_reqd_sub_group_size(%lu))) ",
                 subgroup_size);
         run(attribute, subgroup_size, max_work_group_size, buffer);
     }
