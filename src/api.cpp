@@ -906,7 +906,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_pci_bus_info);
         break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
-        if (device->supports_controled_subgroups()) {
+        if (device->supports_subgroup_size_selection()) {
             uint32_t size = device->min_sub_group_size();
             while (size <= device->max_sub_group_size()) {
                 subgroup_sizes.push_back((size_t)size);
