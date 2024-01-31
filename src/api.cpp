@@ -909,11 +909,11 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         if (device->supports_subgroup_size_selection()) {
             uint32_t size = device->min_sub_group_size();
             while (size <= device->max_sub_group_size()) {
-                subgroup_sizes.push_back((size_t)size);
+                val_subgroup_sizes.push_back((size_t)size);
                 size *= 2;
             }
-            copy_ptr = subgroup_sizes.data();
-            size_ret = sizeof(size_t) * subgroup_sizes.size();
+            copy_ptr = val_subgroup_sizes.data();
+            size_ret = sizeof(size_t) * val_subgroup_sizes.size();
             break;
         }
         [[fallthrough]];

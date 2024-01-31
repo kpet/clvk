@@ -2165,10 +2165,18 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     void* pipelineShaderStageCreateInfoPNext = nullptr;
     VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
         reqdSubgroupSizeCreateInfo;
-    if (m_device->supports_controled_subgroups()) {
+    if (m_device->supports_subgroup_size_selection()) {
         auto reqdSubgroupSize = m_program->required_sub_group_size(m_name);
         if (reqdSubgroupSize > m_device->max_sub_group_size() ||
             reqdSubgroupSize < m_device->min_sub_group_size()) {
+            if (reqdSubgroupSize != 0) {
+                cvk_error_fn("required subgroup size '%u' for '%s' is out of "
+                             "the supported range [%u, %u]",
+                             reqdSubgroupSize, m_name.c_str(),
+                             m_device->min_sub_group_size(),
+                             m_device->max_sub_group_size());
+                return VK_NULL_HANDLE;
+            }
             reqdSubgroupSize = m_device->sub_group_size();
         }
         reqdSubgroupSizeCreateInfo.sType =

@@ -423,23 +423,20 @@ public:
                     const std::string& name);
 
     ~cvk_entry_point() {
+        VkDevice vkdev = m_device->vulkan_device();
         for (auto pipeline : m_pipelines) {
             cvk_info("destroying pipeline %p for kernel %s", pipeline.second,
                      m_name.c_str());
-            vkDestroyPipeline(m_device->vulkan_device(), pipeline.second,
-                              nullptr);
+            vkDestroyPipeline(vkdev, pipeline.second, nullptr);
         }
         if (m_descriptor_pool != VK_NULL_HANDLE) {
-            vkDestroyDescriptorPool(m_device->vulkan_device(),
-                                    m_descriptor_pool, nullptr);
+            vkDestroyDescriptorPool(vkdev, m_descriptor_pool, nullptr);
         }
         if (m_pipeline_layout != VK_NULL_HANDLE) {
-            vkDestroyPipelineLayout(m_device->vulkan_device(),
-                                    m_pipeline_layout, nullptr);
+            vkDestroyPipelineLayout(vkdev, m_pipeline_layout, nullptr);
         }
         for (auto layout : m_descriptor_set_layouts) {
-            vkDestroyDescriptorSetLayout(m_device->vulkan_device(), layout,
-                                         nullptr);
+            vkDestroyDescriptorSetLayout(vkdev, layout, nullptr);
         }
     }
 

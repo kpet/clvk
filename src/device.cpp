@@ -135,7 +135,7 @@ void cvk_device::init_clvk_runtime_behaviors() {
     SET_DEVICE_PROPERTY_U(physical_addressing);
     SET_DEVICE_PROPERTY_S(spirv_arch);
 
-    SET_DEVICE_PROPERTY_U(prefered_subgroup_size);
+    SET_DEVICE_PROPERTY_U(preferred_subgroup_size);
 
 #undef PRINT_U
 #undef PRINT_S
@@ -636,7 +636,7 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_pci_bus_info"));
     }
 
-    if (supports_controled_subgroups()) {
+    if (supports_subgroup_size_selection()) {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_intel_required_subgroup_size"));
     }
