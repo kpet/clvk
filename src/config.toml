@@ -35,5 +35,5 @@ spirv_validation = 2
 queue_profiling_use_timestamp_queries = false
 
 # conditional: Perfetto Backend
-perfetto_trace_max_size = 1024 
-perfetto_trace_dest = "clvk.perfetto-trace" 
+perfetto_trace_max_size = 1024
+perfetto_trace_dest = "clvk.perfetto-trace"
