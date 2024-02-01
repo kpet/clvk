@@ -62,11 +62,11 @@ void parse_uint32(void* value_ptr, const char* txt) {
 // Helper function to trim whitespace and remove quotations
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\n\""); // Also include quotes
-    size_t last = str.find_last_not_of(" \t\n\"");  // Also include quotes
+    size_t last = str.find_last_not_of(" \t\n\"");
 
-    // Check for valid range 
+    // Check for valid range
     if (first == std::string::npos || last == std::string::npos) {
-      return str; // Empty or only whitespace/quotes
+        return str; // Empty or only whitespace/quotes
     }
 
     // Extract the trimmed and unquoted substring
@@ -76,7 +76,7 @@ std::string trim(const std::string& str) {
     if (trimmed.front() == '"' && trimmed.back() == '"') {
         return trimmed.substr(1, trimmed.size() - 2); // Remove the quotes
     } else {
-        return trimmed; 
+        return trimmed;
     }
 }
 
@@ -104,14 +104,14 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
     // Get current working directory
     auto current_path = std::filesystem::current_path();
     // Create the full path to the config file
-    std::string full_config_path = current_path / config_file; 
+    std::string full_config_path = current_path / config_file;
     config_stream.open(full_config_path);
     if (!config_stream.is_open()) {
         std::cerr << "Error opening config.toml" << std::endl;
         return;
     }
 
-    while (std::getline(config_stream, line)) {       
+    while (std::getline(config_stream, line)) {
         // Ignore comments and empty lines
         if (line.empty() || line[0] == '#') {
             continue;
@@ -127,8 +127,8 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
                 std::string key = trim(line.substr(0, pos));
                 std::string value = trim(line.substr(pos + 1));
 
-                // Store values (if any)                
-                if (value != ""){
+                // Store values (if any)
+                if (value != "") {
                     umap[key] = value;
                 }
             }
@@ -148,14 +148,14 @@ void parse_env() {
         var_name += optname_upper;
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
-            if (fileConfigValues.find(opt.name) == fileConfigValues.end() || 
-                fileConfigValues[opt.name].length() == 0 ) {
+            if (fileConfigValues.find(opt.name) == fileConfigValues.end() ||
+                fileConfigValues[opt.name].length() == 0) {
                 continue;
             }
             auto curr_val = fileConfigValues[opt.name];
             config_option_type optType = infer_type(fileConfigValues[opt.name]);
             void* optval = const_cast<void*>(opt.value);
-            switch (optType) { 
+            switch (optType) {
             case config_option_type::string:
                 parse_string(optval, curr_val.c_str());
                 continue;
@@ -163,7 +163,7 @@ void parse_env() {
                 parse_boolean(optval, curr_val.c_str());
                 continue;
             case config_option_type::uint32:
-                parse_uint32(optval,curr_val.c_str());
+                parse_uint32(optval, curr_val.c_str());
                 continue;
             }
         } else {
