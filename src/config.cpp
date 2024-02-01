@@ -127,7 +127,7 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
                 std::string key = trim(line.substr(0, pos));
                 std::string value = trim(line.substr(pos + 1));
 
-                // Store values with sections (if any)                
+                // Store values (if any)                
                 if (value != ""){
                     umap[key] = value;
                 }
