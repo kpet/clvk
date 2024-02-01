@@ -1,0 +1,39 @@
+# compiler 
+cache_dir = ""
+compiler_temp_dir = ""
+skip_spirv_capability_check = false
+keep_temporaries = false
+spirv_arch = "spir"
+physical_addressing = false
+
+# compiler.options 
+clspv_native_builtins = ""
+clspv_library_builtins = ""
+printf_buffer_size = 1048576 
+opencl_version = 300  # Representation of CL_MAKE_VERSION(3, 0, 0)
+
+# command_execution
+max_cmd_batch_size = 10000
+max_first_cmd_batch_size = 10000 
+max_cmd_group_size = 4294967295 # UINT32_MAX
+max_first_cmd_group_size = 4294967295 # UINT32_MAX
+max_entry_points_instances = 2048 
+
+# logging
+log = 0
+log_colour = false
+log_dest = ""
+log_groups = ""
+
+# debug
+validation_layers = false
+percentage_of_available_memory_reported = 100 
+max_mem_alloc_size_mb = 1024 
+spirv_validation = 2 
+
+# instrumentation
+queue_profiling_use_timestamp_queries = false
+
+# conditional: Perfetto Backend
+perfetto_trace_max_size = 1024 
+perfetto_trace_dest = "clvk.perfetto-trace" 

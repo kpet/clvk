@@ -197,6 +197,9 @@ endif ()
 message(STATUS "Vulkan_INCLUDE_DIRS = '${Vulkan_INCLUDE_DIRS}'")
 message(STATUS "Vulkan_LIBRARIES = '${Vulkan_LIBRARIES}'")
 
+set(CONFIG_FILE_PATH "${PROJECT_SOURCE_DIR}/src/config.toml")
+configure_file(${CONFIG_FILE_PATH} ${CMAKE_BINARY_DIR}/config.toml COPYONLY)
+
 # libOpenCL
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 

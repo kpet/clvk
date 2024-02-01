@@ -59,31 +59,126 @@ void parse_uint32(void* value_ptr, const char* txt) {
     cfgval->set = true;
 }
 
+// Helper function to trim whitespace and remove quotations
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\n\""); // Also include quotes
+    size_t last = str.find_last_not_of(" \t\n\"");  // Also include quotes
+
+    // Check for valid range 
+    if (first == std::string::npos || last == std::string::npos) {
+      return str; // Empty or only whitespace/quotes
+    }
+
+    // Extract the trimmed and unquoted substring
+    std::string trimmed = str.substr(first, (last - first + 1));
+
+    // Check if the trimmed string still starts and ends with quotes
+    if (trimmed.front() == '"' && trimmed.back() == '"') {
+        return trimmed.substr(1, trimmed.size() - 2); // Remove the quotes
+    } else {
+        return trimmed; 
+    }
+}
+
+config_option_type infer_type(const std::string& valueStr) {
+    // 1. Check for boolean values
+    if (valueStr == "true" || valueStr == "false") {
+        return config_option_type::boolean;
+    }
+
+    // 2. Attempt integer conversion
+    try {
+        std::stoul(valueStr); // Test if conversion is possible
+        return config_option_type::uint32;
+    } catch (const std::invalid_argument&) {
+        // Fall through to string if integer conversion fails
+    }
+
+    // 3. If all else fails, assume it's a string
+    return config_option_type::string;
+}
+
+void read_config_file(std::unordered_map<std::string, std::string>& umap) {
+    std::string line;
+    std::ifstream config_stream;
+    // Get current working directory
+    auto current_path = std::filesystem::current_path();
+    // Create the full path to the config file
+    std::string full_config_path = current_path / config_file; 
+    config_stream.open(full_config_path);
+    if (!config_stream.is_open()) {
+        std::cerr << "Error opening config.toml" << std::endl;
+        return;
+    }
+
+    while (std::getline(config_stream, line)) {       
+        // Ignore comments and empty lines
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+        line = trim(line);
+        // Check for section headers
+        if (line[0] == '[' && line[line.size() - 1] == ']') {
+            continue;
+        } else {
+            // Parse key-value pairs
+            size_t pos = line.find('=');
+            if (pos != std::string::npos) {
+                std::string key = trim(line.substr(0, pos));
+                std::string value = trim(line.substr(pos + 1));
+
+                // Store values with sections (if any)                
+                if (value != ""){
+                    umap[key] = value;
+                }
+            }
+        }
+    }
+    config_stream.close();
+}
+
 void parse_env() {
+    std::unordered_map<std::string, std::string> fileConfigValues;
+    read_config_file(fileConfigValues);
     for (auto& opt : gConfigOptions) {
         std::string var_name = "CLVK_";
         std::string optname_upper(opt.name);
         std::transform(optname_upper.begin(), optname_upper.end(),
                        optname_upper.begin(), ::toupper);
         var_name += optname_upper;
-        // printf("var_name = '%s' ", var_name.c_str());
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
-            //    printf("is not set\n");
-            continue;
-        }
-        // printf("is set\n");
-        void* optval = const_cast<void*>(opt.value);
-        switch (opt.type) {
-        case config_option_type::string:
-            parse_string(optval, txt);
-            break;
-        case config_option_type::boolean:
-            parse_boolean(optval, txt);
-            break;
-        case config_option_type::uint32:
-            parse_uint32(optval, txt);
-            break;
+            if (fileConfigValues.find(opt.name) == fileConfigValues.end() || 
+                fileConfigValues[opt.name].length() == 0 ) {
+                continue;
+            }
+            auto curr_val = fileConfigValues[opt.name];
+            config_option_type optType = infer_type(fileConfigValues[opt.name]);
+            void* optval = const_cast<void*>(opt.value);
+            switch (optType) { 
+            case config_option_type::string:
+                parse_string(optval, curr_val.c_str());
+                continue;
+            case config_option_type::boolean:
+                parse_boolean(optval, curr_val.c_str());
+                continue;
+            case config_option_type::uint32:
+                parse_uint32(optval,curr_val.c_str());
+                continue;
+            }
+        } else {
+            void* optval = const_cast<void*>(opt.value);
+            switch (opt.type) {
+            case config_option_type::string:
+                parse_string(optval, txt);
+                break;
+            case config_option_type::boolean:
+                parse_boolean(optval, txt);
+                break;
+            case config_option_type::uint32:
+                parse_uint32(optval, txt);
+                break;
+            }
         }
     }
 }
