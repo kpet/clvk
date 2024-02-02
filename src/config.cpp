@@ -15,6 +15,11 @@
 #include "config.hpp"
 
 #include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <unordered_map>
+#include <vector>
 
 const config_struct config;
 
@@ -80,26 +85,9 @@ std::string trim(const std::string& str) {
     }
 }
 
-config_option_type infer_type(const std::string& valueStr) {
-    // 1. Check for boolean values
-    if (valueStr == "true" || valueStr == "false") {
-        return config_option_type::boolean;
-    }
-
-    // 2. Attempt integer conversion
-    try {
-        std::stoul(valueStr); // Test if conversion is possible
-        return config_option_type::uint32;
-    } catch (const std::invalid_argument&) {
-        // Fall through to string if integer conversion fails
-    }
-
-    // 3. If all else fails, assume it's a string
-    return config_option_type::string;
-}
-
-void read_config_file(std::unordered_map<std::string, std::string>& umap) {
+void read_config_file(std::unordered_map<std::string, std::string>& umap, std::ifstream& config_stream) {
     std::string line;
+<<<<<<< HEAD
     std::ifstream config_stream;
     // Get current working directory
     auto current_path = std::filesystem::current_path();
@@ -111,6 +99,8 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
         return;
     }
 
+=======
+>>>>>>> 318d484 (Add in tests and rework logic to use env vars and other dirs for .conf file.)
     while (std::getline(config_stream, line)) {
         // Ignore comments and empty lines
         if (line.empty() || line[0] == '#') {
@@ -137,56 +127,118 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
     config_stream.close();
 }
 
+void parse_config_file() {
+    std::unordered_map<std::string, std::string> file_config_values;
+    std::string conf_file = "clvk.conf";
+    std::ifstream config_stream;
+
+    // First check if env var has file
+    std::string conv_file_env_var = "CLVK_CONFIG_FILE";
+    const char* conf_file_env_path = getenv(conv_file_env_var.c_str());
+    std::vector<std::string> config_file_paths;
+    if (conf_file_env_path != nullptr) {
+        config_file_paths.push_back(conf_file_env_path);
+    }
+    config_file_paths.push_back("/etc/clvk.conf");
+    config_file_paths.push_back("~/config/clvk.conf");
+    config_file_paths.push_back((std::filesystem::current_path() / conf_file).string());
+
+    bool config_found = false;
+    for (auto& curr_path : config_file_paths) {
+        if (!std::filesystem::exists(curr_path))
+            continue;
+
+        config_stream.open(curr_path);
+        if (!config_stream.is_open()) {
+            std::cerr << "Error opening config file -" << curr_path << std::endl;
+        }
+        config_found = true;
+        break;
+    }
+
+    if (!config_found) {
+        std::cerr << "Error: No valid configuration file found. "
+                  << "Please check the following locations:\n";
+        for (auto& path : config_file_paths) {
+            std::cerr << " - " << path << std::endl;
+        }
+        return;
+    }
+
+    read_config_file(file_config_values, config_stream);
+    for (auto& opt : gConfigOptions) {
+        if (file_config_values.find(opt.name) == file_config_values.end() ||
+            file_config_values[opt.name].length() == 0) {
+                    continue;
+        }
+        auto curr_conf = (file_config_values[opt.name]).c_str();
+        void* optval = const_cast<void*>(opt.value);
+        switch (opt.type) {
+        case config_option_type::string:
+            parse_string(optval, curr_conf);
+            break;
+        case config_option_type::boolean:
+            parse_boolean(optval, curr_conf);
+            break;
+        case config_option_type::uint32:
+            parse_uint32(optval, curr_conf);
+            break;
+        }
+    }
+}
+
 void parse_env() {
-    std::unordered_map<std::string, std::string> fileConfigValues;
-    read_config_file(fileConfigValues);
     for (auto& opt : gConfigOptions) {
         std::string var_name = "CLVK_";
         std::string optname_upper(opt.name);
         std::transform(optname_upper.begin(), optname_upper.end(),
                        optname_upper.begin(), ::toupper);
         var_name += optname_upper;
+        // printf("var_name = '%s' ", var_name.c_str());
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
-            if (fileConfigValues.find(opt.name) == fileConfigValues.end() ||
-                fileConfigValues[opt.name].length() == 0) {
-                continue;
-            }
-            auto curr_val = fileConfigValues[opt.name];
-            config_option_type optType = infer_type(fileConfigValues[opt.name]);
-            void* optval = const_cast<void*>(opt.value);
-            switch (optType) {
-            case config_option_type::string:
-                parse_string(optval, curr_val.c_str());
-                continue;
-            case config_option_type::boolean:
-                parse_boolean(optval, curr_val.c_str());
-                continue;
-            case config_option_type::uint32:
-                parse_uint32(optval, curr_val.c_str());
-                continue;
-            }
-        } else {
-            void* optval = const_cast<void*>(opt.value);
-            switch (opt.type) {
-            case config_option_type::string:
-                parse_string(optval, txt);
-                break;
-            case config_option_type::boolean:
-                parse_boolean(optval, txt);
-                break;
-            case config_option_type::uint32:
-                parse_uint32(optval, txt);
-                break;
-            }
+            //    printf("is not set\n");
+            continue;
         }
+        // printf("is set\n");
+        void* optval = const_cast<void*>(opt.value);
+        switch (opt.type) {
+        case config_option_type::string:
+            parse_string(optval, txt);
+            break;
+        case config_option_type::boolean:
+            parse_boolean(optval, txt);
+            break;
+        case config_option_type::uint32:
+            parse_uint32(optval, txt);
+            break;
+        }
+    }
+}
+
+void gen_config_file() {
+    std::unordered_map<std::string, std::string> file_config_values;
+    std::ifstream config_def("config.def");
+    std::ofstream config_file("clvk.conf");
+    if (!config_def.is_open()) {
+        std::cerr << "Error opening config.def\n";
+        return;
+    }
+    if (!config_file.is_open()) {
+        std::cerr << "Error opening clvk.conf\n";
+        return;
+    }
+    read_config_file(file_config_values, config_def);
+    for (auto& key_val : file_config_values ) {
+        config_file << key_val.first << "=" << key_val.second << "\n" ;
     }
 }
 
 } // namespace
 
 void init_config() {
-    // TODO Parse config file
-    // Parse environment
+    // make a default config file from config.def
+    gen_config_file();
+    parse_config_file();
     parse_env();
 }

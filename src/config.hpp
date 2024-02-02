@@ -20,9 +20,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
-#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -60,5 +57,3 @@ struct config_struct {
 extern const config_struct config;
 
 extern void init_config();
-
-const std::string config_file = "config.toml";
