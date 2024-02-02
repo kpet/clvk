@@ -104,7 +104,7 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap) {
     // Get current working directory
     auto current_path = std::filesystem::current_path();
     // Create the full path to the config file
-    std::string full_config_path = (current_path / config_file).string(); 
+    std::string full_config_path = (current_path / config_file).string();
     config_stream.open(full_config_path);
     if (!config_stream.is_open()) {
         std::cerr << "Error opening config.toml" << std::endl;
