@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include "config.cpp"
+#include "log.cpp"
 
 // Test for finding file through env.
 TEST(ConfigTest, FileFromEnvVar) {

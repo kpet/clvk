@@ -13,11 +13,13 @@
 // limitations under the License.
 
 #include "config.hpp"
+#include "log.hpp"
 
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <stdlib.h>
 #include <unordered_map>
 #include <vector>
 
@@ -127,10 +129,10 @@ void parse_config_file() {
     if (conf_file_env_path != nullptr) {
         config_file_paths.push_back(conf_file_env_path);
     }
-    config_file_paths.push_back("/etc/clvk.conf");
-    config_file_paths.push_back("~/config/clvk.conf");
     config_file_paths.push_back(
         (std::filesystem::current_path() / conf_file).string());
+    config_file_paths.push_back("~/config/clvk.conf");
+    config_file_paths.push_back("/etc/clvk.conf");
 
     bool config_found = false;
     for (auto& curr_path : config_file_paths) {
@@ -139,18 +141,17 @@ void parse_config_file() {
         }
         config_stream.open(curr_path);
         if (!config_stream.is_open()) {
-            std::cerr << "Error opening config file -" << curr_path
-                      << std::endl;
+            cvk_error("Error opening config file - %s", curr_path.c_str());
         }
         config_found = true;
         break;
     }
 
     if (!config_found) {
-        std::cerr << "Error: No valid configuration file found. "
-                  << "Please check the following locations:\n";
+        cvk_error("Error: No valid configuration file found."
+                  "Please check the following locations:");
         for (auto& path : config_file_paths) {
-            std::cerr << " - " << path << std::endl;
+            cvk_error("File path %s", path.c_str());
         }
         return;
     }
@@ -211,11 +212,11 @@ void gen_config_file() {
     std::ifstream config_def("config.def");
     std::ofstream config_file("clvk.conf");
     if (!config_def.is_open()) {
-        std::cerr << "Error opening config.def\n";
+        cvk_error("Error opening config.def");
         return;
     }
     if (!config_file.is_open()) {
-        std::cerr << "Error opening clvk.conf\n";
+        cvk_error("Error opening clvk.conf");
         return;
     }
     read_config_file(file_config_values, config_def);
