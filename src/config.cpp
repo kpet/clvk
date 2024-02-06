@@ -141,7 +141,7 @@ void parse_config_file() {
         if (!config_stream.is_open()) {
             std::cerr << "Error opening config file -" << curr_path
                       << std::endl;
-}
+        }
         config_found = true;
         break;
     }
