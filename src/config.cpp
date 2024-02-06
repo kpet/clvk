@@ -87,20 +87,6 @@ std::string trim(const std::string& str) {
 
 void read_config_file(std::unordered_map<std::string, std::string>& umap, std::ifstream& config_stream) {
     std::string line;
-<<<<<<< HEAD
-    std::ifstream config_stream;
-    // Get current working directory
-    auto current_path = std::filesystem::current_path();
-    // Create the full path to the config file
-    std::string full_config_path = (current_path / config_file).string();
-    config_stream.open(full_config_path);
-    if (!config_stream.is_open()) {
-        std::cerr << "Error opening config.toml" << std::endl;
-        return;
-    }
-
-=======
->>>>>>> 318d484 (Add in tests and rework logic to use env vars and other dirs for .conf file.)
     while (std::getline(config_stream, line)) {
         // Ignore comments and empty lines
         if (line.empty() || line[0] == '#') {
