@@ -85,7 +85,7 @@ std::string trim(const std::string& str) {
     }
 }
 
-void read_config_file(std::unordered_map<std::string, std::string>& umap, 
+void read_config_file(std::unordered_map<std::string, std::string>& umap,
                       std::ifstream& config_stream) {
 
     std::string line;
