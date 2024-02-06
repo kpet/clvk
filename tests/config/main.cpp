@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
 
-#include "config.cpp" 
+#include "config.cpp"
 
 // Test for finding file through env.
 TEST(ConfigTest, FileFromEnvVar) {
@@ -46,7 +46,7 @@ TEST(ConfigTest, ParseConfigFile) {
     config_stream.close();
 }
 
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

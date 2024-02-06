@@ -85,7 +85,9 @@ std::string trim(const std::string& str) {
     }
 }
 
-void read_config_file(std::unordered_map<std::string, std::string>& umap, std::ifstream& config_stream) {
+void read_config_file(std::unordered_map<std::string, std::string>& umap, 
+                      std::ifstream& config_stream) {
+
     std::string line;
     while (std::getline(config_stream, line)) {
         // Ignore comments and empty lines
@@ -127,17 +129,19 @@ void parse_config_file() {
     }
     config_file_paths.push_back("/etc/clvk.conf");
     config_file_paths.push_back("~/config/clvk.conf");
-    config_file_paths.push_back((std::filesystem::current_path() / conf_file).string());
+    config_file_paths.push_back(
+        (std::filesystem::current_path() / conf_file).string());
 
     bool config_found = false;
     for (auto& curr_path : config_file_paths) {
-        if (!std::filesystem::exists(curr_path))
+        if (!std::filesystem::exists(curr_path)) {
             continue;
-
+        }
         config_stream.open(curr_path);
         if (!config_stream.is_open()) {
-            std::cerr << "Error opening config file -" << curr_path << std::endl;
-        }
+            std::cerr << "Error opening config file -" << curr_path
+                      << std::endl;
+}
         config_found = true;
         break;
     }
@@ -155,7 +159,7 @@ void parse_config_file() {
     for (auto& opt : gConfigOptions) {
         if (file_config_values.find(opt.name) == file_config_values.end() ||
             file_config_values[opt.name].length() == 0) {
-                    continue;
+            continue;
         }
         auto curr_conf = (file_config_values[opt.name]).c_str();
         void* optval = const_cast<void*>(opt.value);
@@ -215,9 +219,6 @@ void gen_config_file() {
         return;
     }
     read_config_file(file_config_values, config_def);
-    for (auto& key_val : file_config_values ) {
-        config_file << key_val.first << "=" << key_val.second << "\n" ;
-    }
 }
 
 } // namespace
