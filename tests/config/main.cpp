@@ -14,7 +14,7 @@ TEST(ConfigTest, FileFromEnvVar) {
     EXPECT_TRUE(temp_config_file.is_open());
 
     auto original_config_val = gConfigOptions[0].name;
-    auto config_to_mod = gConfigOptions[0].name+ "=" + expected_val + "\n";
+    auto config_to_mod = gConfigOptions[0].name + "=" + expected_val + "\n";
     temp_config_file << config_to_mod;
     temp_config_file.close();
 
@@ -26,10 +26,10 @@ TEST(ConfigTest, FileFromEnvVar) {
     if (original_env != nullptr) {
         setenv("CLVK_CONFIG_FILE", original_env, 1);
     }
-    auto val_to_test = (*reinterpret_cast<const config_value<std::string>*>(gConfigOptions[0].value));
-
+    auto val_to_test = (*reinterpret_cast<const config_value<std::string>*>(
+        gConfigOptions[0].value));
     EXPECT_EQ(err, 0);
-    EXPECT_EQ(val_to_test.value,expected_val);
+    EXPECT_EQ(val_to_test.value, expected_val);
 }
 
 // Test for checking if file is being read properly
