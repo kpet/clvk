@@ -106,7 +106,6 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
             if (pos != std::string::npos) {
                 std::string key = trim(line.substr(0, pos));
                 std::string value = trim(line.substr(pos + 1));
-
                 // Store values (if any)
                 if (value != "") {
                     umap[key] = value;
@@ -117,7 +116,7 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
     config_stream.close();
 }
 
-void parse_config_file() {
+int parse_config_file() {
     std::unordered_map<std::string, std::string> file_config_values;
     std::string conf_file = "clvk.conf";
     std::ifstream config_stream;
@@ -142,6 +141,7 @@ void parse_config_file() {
         config_stream.open(curr_path);
         if (!config_stream.is_open()) {
             cvk_error("Error opening config file - %s", curr_path.c_str());
+            return 1;
         }
         config_found = true;
         break;
@@ -153,7 +153,7 @@ void parse_config_file() {
         for (auto& path : config_file_paths) {
             cvk_error("File path %s", path.c_str());
         }
-        return;
+        return 1;
     }
 
     read_config_file(file_config_values, config_stream);
@@ -176,6 +176,7 @@ void parse_config_file() {
             break;
         }
     }
+    return 0;
 }
 
 void parse_env() {
