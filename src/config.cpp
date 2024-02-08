@@ -25,7 +25,7 @@
 
 const config_struct config;
 
-namespace {
+namespace configs {
 
 template <typename T> constexpr config_option_type option_type() = delete;
 
@@ -116,10 +116,11 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
     config_stream.close();
 }
 
-int parse_config_file() {
+std::string parse_config_file() {
     std::unordered_map<std::string, std::string> file_config_values;
     std::string conf_file = "clvk.conf";
     std::ifstream config_stream;
+    std::string used_file = "";
 
     // First check if env var has file
     std::string conv_file_env_var = "CLVK_CONFIG_FILE";
@@ -133,7 +134,6 @@ int parse_config_file() {
     config_file_paths.push_back("~/config/clvk.conf");
     config_file_paths.push_back("/etc/clvk.conf");
 
-    bool config_found = false;
     for (auto& curr_path : config_file_paths) {
         if (!std::filesystem::exists(curr_path)) {
             continue;
@@ -141,19 +141,19 @@ int parse_config_file() {
         config_stream.open(curr_path);
         if (!config_stream.is_open()) {
             cvk_error("Error opening config file - %s", curr_path.c_str());
-            return 1;
+            return used_file;
         }
-        config_found = true;
+        used_file = curr_path;
         break;
     }
 
-    if (!config_found) {
+    if (!used_file.length()) {
         cvk_error("Error: No valid configuration file found."
                   "Please check the following locations:");
         for (auto& path : config_file_paths) {
             cvk_error("File path %s", path.c_str());
         }
-        return 1;
+        return used_file;
     }
 
     read_config_file(file_config_values, config_stream);
@@ -176,7 +176,7 @@ int parse_config_file() {
             break;
         }
     }
-    return 0;
+    return used_file;
 }
 
 void parse_env() {
@@ -207,27 +207,9 @@ void parse_env() {
         }
     }
 }
-
-void gen_config_file() {
-    std::unordered_map<std::string, std::string> file_config_values;
-    std::ifstream config_def("config.def");
-    std::ofstream config_file("clvk.conf");
-    if (!config_def.is_open()) {
-        cvk_error("Error opening config.def");
-        return;
-    }
-    if (!config_file.is_open()) {
-        cvk_error("Error opening clvk.conf");
-        return;
-    }
-    read_config_file(file_config_values, config_def);
-}
-
-} // namespace
+} // namespace configs
 
 void init_config() {
-    // make a default config file from config.def
-    gen_config_file();
-    parse_config_file();
-    parse_env();
+    configs::parse_config_file();
+    configs::parse_env();
 }
