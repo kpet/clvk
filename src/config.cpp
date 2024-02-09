@@ -16,10 +16,10 @@
 #include "log.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <stdlib.h>
 #include <unordered_map>
 #include <vector>
 
