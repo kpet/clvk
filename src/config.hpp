@@ -17,6 +17,7 @@
 #include "cl_headers.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -55,9 +56,5 @@ extern const config_struct config;
 
 extern void init_config();
 
-namespace configs {
 extern void read_config_file(std::unordered_map<std::string, std::string>& umap,
                              std::ifstream& config_stream);
-// Tries to read configs from pre-defined places and returns the path used.
-extern std::string parse_config_file();
-} // namespace configs

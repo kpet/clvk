@@ -12,58 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef _WIN32
+#include <stdlib.h>
+#else
 #include <cstdlib>
+#endif
+#include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
-#include "config.hpp"
+#include "unit.hpp"
 
 // Test for finding file through env.
 // Note : make sure the other paths dont have config files.
 TEST(ConfigTest, FileFromEnvVar) {
-
-    std::string conf_file = "/tmp/tmp-test-config.conf";
-    std::ofstream temp_config_file(conf_file);
-    temp_config_file << "option1=value1\n";
-    std::string expected_val = "test";
+    std::filesystem::path conf_file =
+        std::filesystem::temp_directory_path() / "temp_config_clvk_2.conf";
+    std::ofstream temp_config_file("/tmp/temp_config_clvk_2.conf");
+    temp_config_file << "cache_dir=testing\n";
     EXPECT_TRUE(temp_config_file.is_open());
     temp_config_file.close();
-
     const std::string var_name = "CLVK_CONFIG_FILE";
     auto original_env = getenv(var_name.c_str());
-
-    setenv("CLVK_CONFIG_FILE", conf_file.c_str(), 1);
-    std::string used_file = configs::parse_config_file();
+    const char* path_as_cstr = conf_file.c_str();
+    setenv("CLVK_CONFIG_FILE", path_as_cstr, 1);
+    clGetPlatformIDs(1, nullptr, nullptr);
     if (original_env != nullptr) {
         setenv("CLVK_CONFIG_FILE", original_env, 1);
     }
-    EXPECT_EQ(used_file, conf_file);
-}
-
-// Test for checking if file is being read properly
-TEST(ConfigTest, ParseConfigFile) {
-    std::unordered_map<std::string, std::string> configs;
-    // Create file with desired content
-
-    std::ofstream temp_config_file("/tmp/tmp-test-config1.conf");
-    EXPECT_TRUE(temp_config_file.is_open());
-
-    temp_config_file << "option1=value1\n";
-    temp_config_file << "option2=false\n";
-    temp_config_file << "option3=100\n";
-    temp_config_file.close();
-    std::ifstream config_stream("/tmp/tmp-test-config1.conf");
-    EXPECT_TRUE(config_stream.is_open());
-
-    configs::read_config_file(configs, config_stream);
-    EXPECT_EQ(configs["option1"], "value1");
-    EXPECT_EQ(configs["option2"], "false");
-    EXPECT_EQ(configs["option3"], "100");
-    config_stream.close();
+    EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
 }
 
 int main(int argc, char** argv) {
+
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -14,8 +14,4 @@
 
 add_gtest_executable(config_test
     main.cpp
-    ${CLVK_PROJECT_SOURCE_DIR}/src/config.cpp
-    ${CLVK_PROJECT_SOURCE_DIR}/src/log.cpp
 )
-
-include_directories(${CLVK_PROJECT_SOURCE_DIR}/src)

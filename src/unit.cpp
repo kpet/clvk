@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "device.hpp"
-#include "log.hpp"
 
 #include <vulkan/vulkan.h>
 

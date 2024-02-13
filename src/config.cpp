@@ -14,6 +14,7 @@
 
 #include "config.hpp"
 #include "log.hpp"
+#include "unit.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -25,7 +26,7 @@
 
 const config_struct config;
 
-namespace configs {
+namespace {
 
 template <typename T> constexpr config_option_type option_type() = delete;
 
@@ -116,23 +117,22 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
     config_stream.close();
 }
 
-std::string parse_config_file() {
+void parse_config_file() {
     std::unordered_map<std::string, std::string> file_config_values;
     std::string conf_file = "clvk.conf";
     std::ifstream config_stream;
-    std::string used_file = "";
 
+    std::vector<std::string> config_file_paths;
+    config_file_paths.push_back("/etc/clvk.conf");
+    config_file_paths.push_back("~/.config/clvk.conf");
+    config_file_paths.push_back(
+        (std::filesystem::current_path() / conf_file).string());
     // First check if env var has file
     std::string conv_file_env_var = "CLVK_CONFIG_FILE";
     const char* conf_file_env_path = getenv(conv_file_env_var.c_str());
-    std::vector<std::string> config_file_paths;
     if (conf_file_env_path != nullptr) {
         config_file_paths.push_back(conf_file_env_path);
     }
-    config_file_paths.push_back(
-        (std::filesystem::current_path() / conf_file).string());
-    config_file_paths.push_back("~/config/clvk.conf");
-    config_file_paths.push_back("/etc/clvk.conf");
 
     for (auto& curr_path : config_file_paths) {
         if (!std::filesystem::exists(curr_path)) {
@@ -141,22 +141,10 @@ std::string parse_config_file() {
         config_stream.open(curr_path);
         if (!config_stream.is_open()) {
             cvk_error("Error opening config file - %s", curr_path.c_str());
-            return used_file;
         }
-        used_file = curr_path;
-        break;
+        read_config_file(file_config_values, config_stream);
     }
 
-    if (!used_file.length()) {
-        cvk_error("Error: No valid configuration file found."
-                  "Please check the following locations:");
-        for (auto& path : config_file_paths) {
-            cvk_error("File path %s", path.c_str());
-        }
-        return used_file;
-    }
-
-    read_config_file(file_config_values, config_stream);
     for (auto& opt : gConfigOptions) {
         if (file_config_values.find(opt.name) == file_config_values.end() ||
             file_config_values[opt.name].length() == 0) {
@@ -176,7 +164,7 @@ std::string parse_config_file() {
             break;
         }
     }
-    return used_file;
+    return;
 }
 
 void parse_env() {
@@ -207,9 +195,9 @@ void parse_env() {
         }
     }
 }
-} // namespace configs
+} // namespace
 
 void init_config() {
-    configs::parse_config_file();
-    configs::parse_env();
+    parse_config_file();
+    parse_env();
 }
