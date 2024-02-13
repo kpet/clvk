@@ -196,7 +196,7 @@ jobs:
             cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
-      - name: config tests
+      - name: Config tests
         if: ${{ matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/config_test${{ env.exe-ext }}
       - name: SHA-1 tests
