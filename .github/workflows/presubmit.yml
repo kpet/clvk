@@ -197,7 +197,7 @@ jobs:
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
       - name: Config tests
-        if: ${{ matrix.android-abi == '' }}
+        if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/config_test${{ env.exe-ext }}
       - name: SHA-1 tests
         if: ${{ matrix.android-abi == '' }}
