@@ -14,9 +14,12 @@
 
 #ifdef _WIN32
 #include <stdlib.h>
+#define set_env(name, value) _putenv_s(name, value)
 #else
 #include <cstdlib>
+#define set_env(name, value) setenv(name, value, 1)
 #endif
+
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
@@ -37,15 +40,12 @@ TEST(ConfigTest, FileFromEnvVar) {
     std::string var_name = "CLVK_CONFIG_FILE";
     std::string org_val = "";
     const char* original_env = getenv(var_name.c_str());
-    if (original_env != nullptr) {
-        org_val = std::string(original_env);
-    }
     const char* path_as_cstr = conf_file.c_str();
-    setenv(var_name.c_str(), path_as_cstr, 1);
+    set_env(var_name.c_str(), path_as_cstr);
     clGetPlatformIDs(1, nullptr, nullptr);
     std::string org_config = var_name.append(org_val);
     if (original_env != nullptr) {
-        putenv(org_config.data());
+        set_env(var_name.c_str(), original_env);
     }
     EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
 }
