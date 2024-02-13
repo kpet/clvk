@@ -20,11 +20,6 @@ set(CLVK_PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR}/..)
 set(CLVK_BUILD_STATIC_TESTS ON CACHE BOOL
     "Set to OFF to disable the build of tests with static OpenCL library")
 
-if (CMAKE_VERSION VERSION_LESS "3.21")
-    # https://cmake.org/cmake/help/latest/variable/PROJECT_IS_TOP_LEVEL.html
-    string(COMPARE EQUAL ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR} PROJECT_IS_TOP_LEVEL)
-endif()
-
 set(CLVK_GTEST_LIBRARIES "llvm_gtest;llvm_gtest_main" CACHE STRING "gtest libraries to link with")
 
 macro(add_gtest_executable name)
