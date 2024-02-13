@@ -33,13 +33,19 @@ TEST(ConfigTest, FileFromEnvVar) {
     temp_config_file << "cache_dir=testing\n";
     EXPECT_TRUE(temp_config_file.is_open());
     temp_config_file.close();
-    const std::string var_name = "CLVK_CONFIG_FILE";
-    auto original_env = getenv(var_name.c_str());
-    const char* path_as_cstr = conf_file.c_str();
-    setenv("CLVK_CONFIG_FILE", path_as_cstr, 1);
-    clGetPlatformIDs(1, nullptr, nullptr);
+
+    std::string var_name = "CLVK_CONFIG_FILE";
+    std::string org_val = "";
+    const char* original_env = getenv(var_name.c_str());
     if (original_env != nullptr) {
-        setenv("CLVK_CONFIG_FILE", original_env, 1);
+        org_val = std::string(original_env);
+    }
+    const char* path_as_cstr = conf_file.c_str();
+    setenv(var_name.c_str(), path_as_cstr, 1);
+    clGetPlatformIDs(1, nullptr, nullptr);
+    std::string org_config = var_name.append(org_val);
+    if (original_env != nullptr) {
+        putenv(org_config.data());
     }
     EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
 }
