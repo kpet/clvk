@@ -14,7 +14,6 @@
 
 #include "config.hpp"
 #include "log.hpp"
-#include "unit.hpp"
 
 #include <cassert>
 #include <cstdlib>

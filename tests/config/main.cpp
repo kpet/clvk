@@ -28,8 +28,8 @@
 // Note : make sure the other paths dont have config files.
 TEST(ConfigTest, FileFromEnvVar) {
     std::filesystem::path conf_file =
-        std::filesystem::temp_directory_path() / "temp_config_clvk_2.conf";
-    std::ofstream temp_config_file("/tmp/temp_config_clvk_2.conf");
+        std::filesystem::temp_directory_path() / "temp_config_clvk.conf";
+    std::ofstream temp_config_file(conf_file);
     temp_config_file << "cache_dir=testing\n";
     EXPECT_TRUE(temp_config_file.is_open());
     temp_config_file.close();
