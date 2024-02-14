@@ -27,31 +27,14 @@
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
 
-// Test for finding file through env.
-// Note : make sure the other paths dont have config files.
+// Test for making sure the configs from env var are read
+// and overwrite configs from other paths.
 TEST(ConfigTest, FileFromEnvVar) {
-    std::filesystem::path conf_file =
-        std::filesystem::temp_directory_path() / "temp_config_clvk.conf";
-    std::ofstream temp_config_file(conf_file);
-    temp_config_file << "cache_dir=testing\n";
-    EXPECT_TRUE(temp_config_file.is_open());
-    temp_config_file.close();
-
-    std::string var_name = "CLVK_CONFIG_FILE";
-    std::string org_val = "";
-    const char* original_env = getenv(var_name.c_str());
-    const char* path_as_cstr = conf_file.c_str();
-    set_env(var_name.c_str(), path_as_cstr);
     clGetPlatformIDs(1, nullptr, nullptr);
-    std::string org_config = var_name.append(org_val);
-    if (original_env != nullptr) {
-        set_env(var_name.c_str(), original_env);
-    }
     EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
 }
 
 int main(int argc, char** argv) {
-
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

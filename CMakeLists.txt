@@ -197,9 +197,6 @@ endif ()
 message(STATUS "Vulkan_INCLUDE_DIRS = '${Vulkan_INCLUDE_DIRS}'")
 message(STATUS "Vulkan_LIBRARIES = '${Vulkan_LIBRARIES}'")
 
-set(CONFIG_FILE_PATH "${PROJECT_SOURCE_DIR}/src/config.def")
-configure_file(${CONFIG_FILE_PATH} ${CMAKE_BINARY_DIR}/default.conf COPYONLY)
-
 # libOpenCL
 add_subdirectory(${PROJECT_SOURCE_DIR}/src)
 
