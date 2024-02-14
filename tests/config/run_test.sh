@@ -19,5 +19,5 @@ echo "cache_dir=testing" >> $base_path/clvk.conf
 
 export CLVK_CONFIG_FILE=$base_path/clvk.conf
 
-# Run test test
+# Run test
 $base_path/config_test
