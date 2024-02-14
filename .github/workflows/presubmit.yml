@@ -198,7 +198,8 @@ jobs:
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
       - name: Config tests
         if: ${{ matrix.unit }}
-        run: ./tests/config/run_test.sh ${{ env.testbindir }}
+        run: |
+            ./tests/check-format.sh ${{ env.testbindir }}
       - name: SHA-1 tests
         if: ${{ matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
