@@ -24,6 +24,10 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef _WIN32
+#include <windows.h> // For Windows environment variables
+#endif
+
 const config_struct config;
 
 namespace {
@@ -130,6 +134,7 @@ void parse_config_file() {
     // First check if env var has file
     std::string conv_file_env_var = "CLVK_CONFIG_FILE";
     const char* conf_file_env_path = getenv(conv_file_env_var.c_str());
+
     if (conf_file_env_path != nullptr) {
         config_file_paths.push_back(conf_file_env_path);
     }

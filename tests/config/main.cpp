@@ -12,26 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef _WIN32
-#include <stdlib.h>
-#define set_env(name, value) _putenv_s(name, value)
-#else
-#include <cstdlib>
-#define set_env(name, value) setenv(name, value, 1)
-#endif
-
-#include <filesystem>
-#include <fstream>
-#include <gtest/gtest.h>
-
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
+
+#include <gtest/gtest.h>
 
 // Test for making sure the configs from env var are read
 // and overwrite configs from other paths.
 TEST(ConfigTest, FileFromEnvVar) {
     clGetPlatformIDs(1, nullptr, nullptr);
     EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
+    EXPECT_EQ(clvk_get_config()->compiler_temp_dir.value, "not/overwritten/");
 }
 
 int main(int argc, char** argv) {
