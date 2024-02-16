@@ -21,8 +21,8 @@ base_path=$1
 echo "cache_dir=testing" > "${base_path}/conf_test.conf"
 
 # Create the second file with the base path
-echo "cache_dir=failed" > "${base_path}/clvk.conf"
-echo "compiler_temp_dir=not/overwritten/" > "${base_path}/clvk.conf"
+echo "cache_dir=failed" > "clvk.conf"
+echo "compiler_temp_dir=not/overwritten/" > "clvk.conf"
 
 
 export CLVK_CONFIG_FILE="${base_path}/conf_test.conf"
