@@ -1,6 +1,6 @@
 #!/bin/bash
 
-##set -xe
+set -xe
 
 # Check for a command-line argument
 if [ $# -eq 0 ]; then

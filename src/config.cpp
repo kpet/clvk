@@ -138,7 +138,6 @@ void parse_config_file() {
     if (conf_file_env_path != nullptr) {
         config_file_paths.push_back(conf_file_env_path);
     }
-
     for (auto& curr_path : config_file_paths) {
         if (!std::filesystem::exists(curr_path)) {
             continue;
