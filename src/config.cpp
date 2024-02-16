@@ -24,10 +24,6 @@
 #include <unordered_map>
 #include <vector>
 
-#ifdef _WIN32
-#include <windows.h> // For Windows environment variables
-#endif
-
 const config_struct config;
 
 namespace {
