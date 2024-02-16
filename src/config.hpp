@@ -20,7 +20,6 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <unordered_map>
 
 enum class config_option_type
 {
@@ -55,6 +54,3 @@ struct config_struct {
 extern const config_struct config;
 
 extern void init_config();
-
-extern void read_config_file(std::unordered_map<std::string, std::string>& umap,
-                             std::ifstream& config_stream);
