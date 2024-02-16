@@ -11,20 +11,16 @@ TEMP_DIR="$(mktemp -d)"
 pushd "${TEMP_DIR}"
 
 function clean() {
-    rm -f "conf_test.conf"
-    rm -f "clvk.conf"
+    rm -r "${TEMP_DIR}"
 }
-##trap clean EXIT
+#trap clean EXIT
 
 # Assign the base path from the argument
 binary_path=$1
 
-# Create the first file with the base path
-echo "cache_dir=testing" > "conf_test.conf"
+cp "${binary_path}/clvk.conf" "${TEMP_DIR}"
+cp "${binary_path}/conf_test.conf" "${TEMP_DIR}"
 
-# Create the second file with the base path
-echo "cache_dir=failed" > "clvk.conf"
-echo "compiler_temp_dir=not/overwritten/" > "clvk.conf"
 
 # Run test
 CLVK_CONFIG_FILE="${TEMP_DIR}/conf_test.conf" \
