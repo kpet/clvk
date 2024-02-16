@@ -21,7 +21,6 @@ binary_path=$1
 cp "${binary_path}/clvk.conf" "${TEMP_DIR}"
 cp "${binary_path}/conf_test.conf" "${TEMP_DIR}"
 
-
 # Run test
 CLVK_CONFIG_FILE="${TEMP_DIR}/conf_test.conf" \
 "${binary_path}/config_test"
