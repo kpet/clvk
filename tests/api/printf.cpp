@@ -234,7 +234,7 @@ TEST_F(WithCommandQueue, TooLongPrintf) {
 }
 
 TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
-    const char message[] = "1,2,3,4";
+    const char message[] = "1,2,3,4\n";
     char source[512];
     sprintf(source,
             "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
