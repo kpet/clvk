@@ -655,6 +655,8 @@ private:
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
         m_features_buffer_device_address{};
     VkPhysicalDeviceFloatControlsProperties m_float_controls_properties{};
+    VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
+        m_features_queue_global_priority{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

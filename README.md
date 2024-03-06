@@ -446,6 +446,14 @@ variables. Here's a quick guide:
 * `CLVK_FORCE_SUBGROUP_SIZE` specifies the subgroup size to use, overriding
   everything.
 
+* `CLVK_QUEUE_GLOBAL_PRIORITY` specifies the queue global priority to use if it
+  is supported by the driver:
+
+  * `0`: `VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR`
+  * `1`: `VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR` (default)
+  * `2`: `VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR`
+  * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
+
 # Limitations
 
 * Only one device per CL context
