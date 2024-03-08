@@ -174,11 +174,21 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
+    size_t get_printf_buffer_size() {
+        auto& properties = m_context->properties();
+        for (unsigned i = 0; i < properties.size(); i += 2) {
+            if (properties[i] == CL_PRINTF_BUFFERSIZE_ARM) {
+                return properties[i + 1];
+            }
+        }
+        return config.printf_buffer_size;
+    }
+
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
             cl_int status;
             m_printf_buffer = cvk_buffer::create(
-                context(), 0, config.printf_buffer_size, nullptr, &status);
+                context(), 0, get_printf_buffer_size(), nullptr, &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();
@@ -235,6 +245,7 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
+    bool get_printf_callback(printf_callback_func& callback);
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
@@ -772,6 +783,12 @@ struct cvk_command_kernel final : public cvk_command_batchable {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
                        const cvk_ndrange& ndrange)
+        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
+          m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
+          m_argument_values(nullptr) {}
+    cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
+                       const cvk_ndrange& ndrange,
+                       std::function<void(const char*, size_t)> callback)
         : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
           m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}
