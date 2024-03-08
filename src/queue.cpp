@@ -103,9 +103,10 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         auto downcastev = icd_downcast(initev);
         tracker.set_event(downcastev);
 
-        // The event has been retained by `enqueue_command` to give its user
-        // a refcount on the event. The tracker will request a refcount so we
-        // need to give up the one we got from `enqueue_command`.
+        // The event has been retained by `enqueue_command` to give its
+        // user a refcount on the event. The tracker will request a
+        // refcount so we need to give up the one we got from
+        // `enqueue_command`.
         downcastev->release();
     }
 
@@ -115,9 +116,9 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
 void cvk_command_queue::enqueue_command(cvk_command* cmd) {
     TRACE_FUNCTION("queue", (uintptr_t)this, "cmd", (uintptr_t)cmd);
     // clvk only supports inorder queues at the moment.
-    // But as the commands can be executed by 2 threads (1 executor and the main
-    // thread), we need to explicit the dependency to ensure it will be
-    // respected.
+    // But as the commands can be executed by 2 threads (1 executor and
+    // the main thread), we need to explicit the dependency to ensure it
+    // will be respected.
     if (!m_groups.back()->commands.empty()) {
         cmd->add_dependency(m_groups.back()->commands.back()->event());
     } else if (m_finish_event != nullptr) {
@@ -166,8 +167,8 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         if (!cmd->is_built_before_enqueue()) {
-            // Build batchable command as non-batched (in its own command
-            // buffer)
+            // Build batchable command as non-batched (in its own
+            // command buffer)
             err = static_cast<cvk_command_batchable*>(cmd)->build();
             if (err != CL_SUCCESS) {
                 return err;
@@ -272,8 +273,9 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     if (queues_to_flush.size() == 1) {
         for (auto q : queues_to_flush) {
             auto status = q->execute_cmds_required_by(num_events, event_list);
-            if (status != CL_SUCCESS)
+            if (status != CL_SUCCESS) {
                 return status;
+            }
         }
     }
 
@@ -297,19 +299,34 @@ cl_int cvk_command_group::execute_cmds() {
                      cl_command_type_to_string(cmd->type()), cmd->event());
 
         cl_int status = cmd->execute();
-        if (status != CL_COMPLETE && global_status == CL_SUCCESS)
+        if (status != CL_COMPLETE && global_status == CL_SUCCESS) {
             global_status = status;
+        }
         cvk_debug_fn("command returned %d", status);
 
         commands.pop_front();
 
-        // Deleting batch with many commands can take a while. Trace it to be
-        // able to understand it easily.
+        // Deleting batch with many commands can take a while. Trace it
+        // to be able to understand it easily.
         TRACE_BEGIN("delete_cmd");
         delete cmd;
         TRACE_END();
     }
     return global_status;
+}
+
+bool cvk_command_queue::get_printf_callback(printf_callback_func& callback) {
+    auto& properties = m_context->properties();
+    for (unsigned i = 0; i < properties.size(); i += 2) {
+        if (properties[i] == CL_PRINTF_CALLBACK_ARM) {
+            void (*func_ptr)(const char*, long unsigned int) =
+                reinterpret_cast<void (*)(const char*, long unsigned int)>(
+                    (properties[i + 1]));
+            callback = func_ptr;
+            return true;
+        }
+    }
+    return false;
 }
 
 cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
@@ -664,8 +681,9 @@ cl_int cvk_command_kernel::update_global_push_constants(
                 CVK_ASSERT(arg.offset + arg.size <=
                            m_argument_values->pod_data().size());
 
-                // Vulkan valid usage states push constants can only be updated
-                // in chunks whose offset and size are a multiple of 4.
+                // Vulkan valid usage states push constants can only be
+                // updated in chunks whose offset and size are a
+                // multiple of 4.
                 uint32_t size = round_up(arg.size, 4);
                 uint32_t offset = arg.offset & ~0x3U;
                 vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
@@ -696,9 +714,10 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
 
     auto program = m_kernel->program();
     auto constants = program->spec_constants();
-    // TODO: if all kernels in the module use the same reqd_workgroup_size ,
-    // clspv will not generate specialization constants for workgroup size, but
-    // these values should be error checked.
+    // TODO: if all kernels in the module use the same
+    // reqd_workgroup_size , clspv will not generate specialization
+    // constants for workgroup size, but these values should be error
+    // checked.
     uint32_t wgsize_x_id = 0;
     auto where = constants.find(spec_constant::workgroup_size_x);
     if (where != constants.end()) {
@@ -724,8 +743,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
          m_argument_values->specialization_constants()) {
         specConstants[spec_value.first] = spec_value.second;
     }
-    // Clspv allocates a spec constant for work dimensions if get_work_dim() is
-    // used.
+    // Clspv allocates a spec constant for work dimensions if
+    // get_work_dim() is used.
     where = constants.find(spec_constant::work_dim);
     if (where != constants.end()) {
         uint32_t dim_id = where->second;
@@ -791,9 +810,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
     vkCmdDispatch(command_buffer, num_workgroups[0], num_workgroups[1],
                   num_workgroups[2]);
 
-    // If we have a kernel that requires serial execution (i.e. regions are not
-    // executed in parallel with other regions or other kernels) then serialize
-    // the command buffer
+    // If we have a kernel that requires serial execution (i.e. regions
+    // are not executed in parallel with other regions or other kernels)
+    // then serialize the command buffer
     if (m_kernel->requires_serialized_execution()) {
         VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                                          nullptr, VK_ACCESS_SHADER_WRITE_BIT,
@@ -849,8 +868,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
                 dim - 1, region, region_lws, region_gws, region_offset,
                 command_buffer, num_workgroups);
         }
-        if (err != CL_SUCCESS)
+        if (err != CL_SUCCESS) {
             return err;
+        }
     }
 
     return CL_SUCCESS;
@@ -879,10 +899,11 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
                              vklimits.maxComputeWorkGroupCount[0],
                              vklimits.maxComputeWorkGroupCount[1],
                              vklimits.maxComputeWorkGroupCount[2]);
-                cvk_error_fn(
-                    "Splitting this region is required, but it is not possible "
-                    "because the support has been disabled (most probably by "
-                    "'-uniform-workgroup-size').");
+                cvk_error_fn("Splitting this region is required, but "
+                             "it is not possible "
+                             "because the support has been disabled "
+                             "(most probably by "
+                             "'-uniform-workgroup-size').");
 
                 return CL_INVALID_WORK_ITEM_SIZE;
             }
@@ -964,8 +985,8 @@ cl_int
 cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
     // TODO check against the size specified at compile time, if any
-    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
-    // specified.
+    // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have
+    // not been specified.
 
     m_argument_values = m_kernel->argument_values();
     m_argument_values->retain_resources();
@@ -1063,7 +1084,11 @@ cl_int cvk_command_kernel::do_post_action() {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
         }
-        return cvk_printf(buffer, m_kernel->program()->printf_descriptors());
+        printf_callback_func printf_cb;
+        m_queue->get_printf_callback(printf_cb);
+
+        return cvk_printf(buffer, m_kernel->program()->printf_descriptors(),
+                          printf_cb);
     }
 
     return CL_SUCCESS;
@@ -1467,9 +1492,9 @@ cl_int cvk_command_unmap_image::do_action() {
     return CL_COMPLETE;
 }
 
-VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
-                                             const std::array<size_t, 3>& origin,
-                                             const std::array<size_t, 3>& region) {
+VkImageSubresourceLayers
+prepare_subresource(const cvk_image* image, const std::array<size_t, 3>& origin,
+                    const std::array<size_t, 3>& region) {
     uint32_t baseArrayLayer = 0;
     uint32_t layerCount = 1;
 
@@ -1491,7 +1516,8 @@ VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
     return ret;
 }
 
-VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
+VkOffset3D prepare_offset(const cvk_image* image,
+                          const std::array<size_t, 3>& origin) {
 
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
@@ -1514,7 +1540,8 @@ VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& o
     return offset;
 }
 
-VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& region) {
+VkExtent3D prepare_extent(const cvk_image* image,
+                          const std::array<size_t, 3>& region) {
     uint32_t extentHeight = region[1];
     uint32_t extentDepth = region[2];
 
@@ -1537,12 +1564,13 @@ VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& r
     return extent;
 }
 
-VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
-                                            size_t bufferOffset,
-                                            const std::array<size_t, 3>& origin,
-                                            const std::array<size_t, 3>& region) {
+VkBufferImageCopy
+prepare_buffer_image_copy(const cvk_image* image, size_t bufferOffset,
+                          const std::array<size_t, 3>& origin,
+                          const std::array<size_t, 3>& region) {
 
-    VkImageSubresourceLayers subResource = prepare_subresource(image, origin, region);
+    VkImageSubresourceLayers subResource =
+        prepare_subresource(image, origin, region);
 
     VkOffset3D offset = prepare_offset(image, origin);
 
@@ -1706,17 +1734,17 @@ cl_int cvk_command_buffer_image_copy::build_batchable_inner(
         VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT,
         VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
 
-    vkCmdPipelineBarrier(
-        cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        // TODO HOST only when the dest buffer is an image mapping buffer
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        0, // dependencyFlags
-        1, // memoryBarrierCount
-        &memoryBarrier,
-        0,        // bufferMemoryBarrierCount
-        nullptr,  // pBufferMemoryBarriers
-        0,        // imageMemoryBarrierCount
-        nullptr); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         // TODO HOST only when the dest buffer is an
+                         // image mapping buffer
+                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         0, // dependencyFlags
+                         1, // memoryBarrierCount
+                         &memoryBarrier,
+                         0,        // bufferMemoryBarrierCount
+                         nullptr,  // pBufferMemoryBarriers
+                         0,        // imageMemoryBarrierCount
+                         nullptr); // pImageMemoryBarriers
 
     return CL_SUCCESS;
 }

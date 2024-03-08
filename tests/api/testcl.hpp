@@ -1,7 +1,7 @@
 // Copyright 2018 The clvk authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
+// you may not use this file except in compliance with the License.co
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -756,4 +756,21 @@ protected:
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
     void SetUp() override { SetUpQueue(CL_QUEUE_PROFILING_ENABLE); }
+};
+
+class WithPrintfEnabled : public WithCommandQueue {
+protected:
+    void SetUp() override {};
+    void TearDown() override {
+        cl_int err = clReleaseContext(m_context);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void SetupPrintfCallback(const cl_context_properties* props) {
+        cl_int err;
+        m_context = clCreateContext(props, 1, &gDevice, nullptr, nullptr, &err);
+        ASSERT_CL_SUCCESS(err);
+        m_queue = clCreateCommandQueue(m_context, gDevice, 0, &err);
+        ASSERT_CL_SUCCESS(err);
+    }
 };

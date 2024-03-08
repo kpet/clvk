@@ -16,6 +16,7 @@
 
 #include "memory.hpp"
 
+#include <functional>
 #include <vector>
 
 struct printf_descriptor {
@@ -25,7 +26,9 @@ struct printf_descriptor {
 };
 
 using printf_descriptor_map_t = std::unordered_map<uint32_t, printf_descriptor>;
+typedef std::function<void(const char*, size_t)> printf_callback_func;
 
 // Process the contents of the printf buffer and print the results to stdout
 cl_int cvk_printf(cvk_mem* printf_buffer,
-                  const printf_descriptor_map_t& descriptors);
+                  const printf_descriptor_map_t& descriptors,
+                  printf_callback_func = nullptr);

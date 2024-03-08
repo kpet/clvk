@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sstream>
-
 #include "printf.hpp"
+
+#include <cstring>
+#include <sstream>
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
@@ -111,30 +112,32 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'e':
         case 'g':
         case 'a': {
-            if (size == 2)
+            if (size == 2) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    cl_half_to_float(read_buff<cl_half>(data)));
-            else if (size == 4)
+            } else if (size == 4) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<float>(data));
-            else
+            } else {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<double>(data));
+            }
             break;
         }
         default: {
-            if (size == 1)
+            if (size == 1) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint8_t>(data));
-            else if (size == 2)
+            } else if (size == 2) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint16_t>(data));
-            else if (size == 4)
+            } else if (size == 4) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint32_t>(data));
-            else
+            } else {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint64_t>(data));
+            }
             break;
         }
         }
@@ -157,7 +160,8 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
 }
 
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
-                    char* data_end) {
+                    char* data_end, printf_callback_func& printf_cb,
+                    size_t buffer_size) {
 
     uint32_t printf_id = read_inc_buff<uint32_t>(data);
     auto& format_string = descs.at(printf_id).format_string;
@@ -238,12 +242,17 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
-
-    printf("%s", printf_out.str().c_str());
+    auto output = printf_out.str().c_str();
+    if (printf_cb != nullptr) {
+        printf_cb(output, buffer_size);
+    } else {
+        printf("%s", output);
+    }
 }
 
 cl_int cvk_printf(cvk_mem* printf_buffer,
-                  const printf_descriptor_map_t& descriptors) {
+                  const printf_descriptor_map_t& descriptors,
+                  printf_callback_func printf_cb) {
     CVK_ASSERT(printf_buffer);
     if (!printf_buffer->map()) {
         cvk_error("Could not map printf buffer");
@@ -258,7 +267,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     auto* data_end = data + limit;
 
     while (data < data_end) {
-        process_printf(data, descriptors, data_end);
+        process_printf(data, descriptors, data_end, printf_cb, buffer_size);
     }
 
     if (buffer_size < bytes_written) {
