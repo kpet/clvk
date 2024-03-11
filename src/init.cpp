@@ -255,20 +255,14 @@ clvk_global_state::~clvk_global_state() {
     term_logging();
 }
 
-static clvk_global_state* gGlobalState;
+static clvk_global_state* gGlobalState = nullptr;
 static std::once_flag gInitOnceFlag;
 
-static void destroy_global_state() { delete gGlobalState; }
+static struct global_state_deleter {
+    ~global_state_deleter() { delete gGlobalState; }
+} gs_deleter;
 
-static void init_global_state() {
-    gGlobalState = new clvk_global_state();
-#ifndef WIN32
-    if (atexit(destroy_global_state) != 0) {
-        cvk_fatal(
-            "Could not register global state destructor using atexit()\n");
-    }
-#endif
-}
+static void init_global_state() { gGlobalState = new clvk_global_state(); }
 
 clvk_global_state* get_or_init_global_state() {
     std::call_once(gInitOnceFlag, init_global_state);
