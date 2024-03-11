@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4206859,
+    "apiVersion": 4206866,
     "deviceID": 5710,
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 23.3.1",
+    "driverInfo": "Mesa 24.0.2",
     "driverName": "radv",
-    "driverVersion": 96481281
+    "driverVersion": 100663298
   },
   "test-results": {
     "API": {
@@ -498,12 +498,12 @@
       "has_results": true,
       "results": {
         "computeinfo": "pass",
-        "conformance_version": "fail",
+        "conformance_version": "pass",
         "device_uuid": "pass",
         "extended_versioning": "pass",
         "pci_bus_info": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Contractions": {
       "duration": "00:00:00.294506",
@@ -1259,25 +1259,32 @@
       "duration": "00:00:05.022041",
       "has_results": true,
       "results": {
+        "basic_versions": "fail",
         "decorate_aliased": "pass",
         "decorate_alignment": "pass",
         "decorate_constant": "pass",
         "decorate_cpacked": "pass",
         "decorate_fp_rounding_mode_rte_double_long": "pass",
         "decorate_fp_rounding_mode_rte_float_int": "pass",
+        "decorate_fp_rounding_mode_rte_half_short": "fail",
         "decorate_fp_rounding_mode_rtn_double_long": "pass",
         "decorate_fp_rounding_mode_rtn_float_int": "pass",
+        "decorate_fp_rounding_mode_rtn_half_short": "fail",
         "decorate_fp_rounding_mode_rtp_double_long": "pass",
         "decorate_fp_rounding_mode_rtp_float_int": "pass",
+        "decorate_fp_rounding_mode_rtp_half_short": "fail",
         "decorate_fp_rounding_mode_rtz_double_long": "pass",
         "decorate_fp_rounding_mode_rtz_float_int": "pass",
+        "decorate_fp_rounding_mode_rtz_half_short": "fail",
         "decorate_restrict": "pass",
-        "decorate_saturated_conversion_char": "pass",
-        "decorate_saturated_conversion_int": "pass",
-        "decorate_saturated_conversion_short": "pass",
-        "decorate_saturated_conversion_uchar": "pass",
-        "decorate_saturated_conversion_uint": "pass",
-        "decorate_saturated_conversion_ushort": "pass",
+        "decorate_saturated_conversion_double_to_int": "pass",
+        "decorate_saturated_conversion_double_to_uint": "pass",
+        "decorate_saturated_conversion_float_to_char": "fail",
+        "decorate_saturated_conversion_float_to_short": "fail",
+        "decorate_saturated_conversion_float_to_uchar": "fail",
+        "decorate_saturated_conversion_float_to_ushort": "fail",
+        "decorate_saturated_conversion_half_to_char": "fail",
+        "decorate_saturated_conversion_half_to_uchar": "fail",
         "ext_cl_khr_spirv_no_integer_wrap_decoration_fadd_int": "pass",
         "ext_cl_khr_spirv_no_integer_wrap_decoration_fadd_uint": "pass",
         "ext_cl_khr_spirv_no_integer_wrap_decoration_fmul_int": "pass",
@@ -1297,6 +1304,8 @@
         "linkage_export_function_compile": "pass",
         "linkage_import_function_compile": "pass",
         "linkage_import_function_link": "pass",
+        "linkage_linkonce_odr": "skip",
+        "op_assume": "skip",
         "op_atomic_dec_global": "pass",
         "op_atomic_inc_global": "pass",
         "op_branch_conditional": "pass",
@@ -1338,6 +1347,7 @@
         "op_copy_uint_simple": "pass",
         "op_copy_ulong_simple": "pass",
         "op_copy_ushort_simple": "pass",
+        "op_expect": "skip",
         "op_fadd_double2_fast": "pass",
         "op_fadd_double2_regular": "pass",
         "op_fadd_double_fast": "pass",
