@@ -237,6 +237,8 @@ struct cvk_command_queue : public _cl_command_queue,
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     void enqueue_command(cvk_command* cmd);
+    CHECK_RETURN cl_int enqueue_command_with_retry(cvk_command*,
+                                                   _cl_event** event);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
     CHECK_RETURN cl_int end_current_command_batch();
     void executor();
@@ -821,11 +823,15 @@ struct cvk_command_batch : public cvk_command {
             m_queue->command_pool_lock();
         }
 
+        cl_int ret = cmd->build(*m_command_buffer);
+        if (ret != CL_SUCCESS) {
+            m_queue->command_pool_unlock();
+            return ret;
+        }
+
         cvk_debug_fn("add command %p (%s) to batch %p", cmd,
                      cl_command_type_to_string(cmd->type()), this);
         m_commands.emplace_back(cmd);
-
-        cl_int ret = cmd->build(*m_command_buffer);
 
         m_queue->command_pool_unlock();
 

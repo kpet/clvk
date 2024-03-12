@@ -190,8 +190,6 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         return true;
     }
 
-    m_is_enqueued = true;
-
     // Allocate descriptor sets
     if (!m_entry_point->allocate_descriptor_sets(descriptor_sets())) {
         return false;
@@ -463,6 +461,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         };
         descriptor_writes.push_back(writeDescriptorSet);
     }
+
+    m_is_enqueued = true;
 
     // Write descriptors to device
     vkUpdateDescriptorSets(dev, static_cast<uint32_t>(descriptor_writes.size()),

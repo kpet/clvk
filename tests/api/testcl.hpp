@@ -40,8 +40,13 @@
 
 #define CLVK_CONFIG_ASSERT_GT(opt, val)                                        \
     ASSERT_GT(clvk_get_config()->opt.value, val)
+#define CLVK_CONFIG_ASSERT_EQ(opt, val)                                        \
+    ASSERT_EQ(clvk_get_config()->opt.value, val)
+#define CLVK_CONFIG_GET(opt) clvk_get_config()->opt.value
 #else
 #define CLVK_CONFIG_ASSERT_GT(opt, val)
+#define CLVK_CONFIG_ASSERT_EQ(opt, val)
+#define CLVK_CONFIG_GET(opt)
 #endif
 
 // clang-format off
