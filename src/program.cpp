@@ -1697,7 +1697,8 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
       m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
       m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0) {
+      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0),
+      m_first_allocation_failure(true) {
     TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
                        "clvk-entry_point_" + std::to_string((uintptr_t)this));
     TRACE_CNT(descriptor_set_allocated_counter, 0);
@@ -2232,6 +2233,14 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
 
     std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
 
+#if CLVK_UNIT_TESTING_ENABLED
+    if (config.force_descriptor_set_allocation_failure() &&
+        m_nb_descriptor_set_allocated + m_descriptor_set_layouts.size() >
+            config.max_entry_points_instances()) {
+        return false;
+    }
+#endif
+
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr,
         m_descriptor_pool,
@@ -2243,8 +2252,19 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
                                             &descriptorSetAllocateInfo, ds);
 
     if (res != VK_SUCCESS) {
-        cvk_error_fn("could not allocate descriptor sets: %s",
-                     vulkan_error_string(res));
+        if (config.enqueue_command_retry_sleep_us == UINT32_MAX) {
+            cvk_error_fn("could not allocate descriptor sets: %s",
+                         vulkan_error_string(res));
+        } else if (m_first_allocation_failure) {
+            cvk_warn_fn(
+                "could not allocate descriptor sets: %s, retry in %u us",
+                vulkan_error_string(res),
+                config.enqueue_command_retry_sleep_us());
+        } else {
+            cvk_info_fn("could not allocate descriptor sets: %s",
+                        vulkan_error_string(res));
+        }
+        m_first_allocation_failure = false;
         return false;
     }
 

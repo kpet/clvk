@@ -1,7 +1,11 @@
 # clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++) [![Discord Shield](https://discordapp.com/api/guilds/1002628585250631681/widget.png?style=shield)](https://discord.gg/xsVdjmhFM9)
 
-clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
+clvk is a [conformant](https://www.khronos.org/conformance/adopters/conformant-products/opencl)
+implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
+
+![OpenCL Logo](./docs/opencl-light.svg#gh-light-mode-only)
+![OpenCL Logo](./docs/opencl-dark.svg#gh-dark-mode-only)
 
 # Supported applications
 
@@ -442,6 +446,24 @@ variables. Here's a quick guide:
 
 * `CLVK_FORCE_SUBGROUP_SIZE` specifies the subgroup size to use, overriding
   everything.
+
+* `CLVK_QUEUE_GLOBAL_PRIORITY` specifies the queue global priority to use if it
+  is supported by the driver:
+
+  * `0`: `VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR`
+  * `1`: `VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR` (default)
+  * `2`: `VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR`
+  * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
+
+* `CLVK_MAX_ENTRY_POINTS_INSTANCES` specifies the number of instances of a
+  kernel that can be in flight at the same time. Increasing this value has an
+  impact on the memory usage as it will allocate more descriptor sets per
+  kernel (default: `2048`).
+
+* `CLVK_ENQUEUE_COMMAND_RETRY_SLEEP_US` specifies the time to wait between two
+  attempts to enqueue a command. It is disabled by default, meaning that if an
+  enqueue fails, it returns an error. When specified, it will retry as long as
+  there are groups in flight (commands being processed).
 
 # Limitations
 

@@ -725,3 +725,14 @@ const char* spirv_capability_to_string(spv::Capability capability) {
         return "unknown SPIRV Capability";
     }
 }
+
+const char* queue_global_priority_to_string(VkQueueGlobalPriorityKHR priority) {
+    switch (priority) {
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR);
+    default:
+        return "VK_QUEUE_GLOBAL_PRIORITY_UNKNOWN";
+    }
+}
