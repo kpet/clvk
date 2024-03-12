@@ -455,7 +455,7 @@ variables. Here's a quick guide:
   * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
 
 * `CLVK_MAX_ENTRY_POINTS_INSTANCES` specifies the number of instances of a
-  kernel that can be in flight at the same time. Increasing this value have an
+  kernel that can be in flight at the same time. Increasing this value has an
   impact on the memory usage as it will allocate more descriptor sets per
   kernel (default: `2048`).
 
