@@ -1571,7 +1571,6 @@ VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
 
 VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
 
-
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
     auto z = static_cast<int32_t>(origin[2]);
@@ -1608,8 +1607,8 @@ VkExtent3D prepare_extent(const cvk_image* image,
         break;
     }
 
-    VkExtent3D extent = {static_cast<uint32_t>(region[0]), extentHeight,
-                         extentDepth};
+VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& region) {
+
 
     cvk_debug_fn("extent: %u, %u, %u", extent.width, extent.height,
                  extent.depth);
@@ -1622,8 +1621,8 @@ VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
                                             const std::array<size_t, 3>& origin,
                                             const std::array<size_t, 3>& region) {
 
-    VkImageSubresourceLayers subResource =
-        prepare_subresource(image, origin, region);
+    VkImageSubresourceLayers subResource = prepare_subresource(image, origin, region);
+
 
     VkOffset3D offset = prepare_offset(image, origin);
 
