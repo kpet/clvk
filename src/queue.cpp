@@ -1560,8 +1560,8 @@ VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
     return ret;
 }
 
-VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
-    auto x = static_cast<int32_t>(origin[0]);
+VkOffset3D prepare_offset(const cvk_image* image,
+                          const std::array<size_t, 3>& origin) {    auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
     auto z = static_cast<int32_t>(origin[2]);
 
