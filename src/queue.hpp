@@ -176,7 +176,7 @@ struct cvk_command_queue : public _cl_command_queue,
         if (!m_printf_buffer) {
             cl_int status = CL_SUCCESS;
             auto buff_size_prop_index =
-                get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+                m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
             if (buff_size_prop_index == -1) {
                 cvk_error_fn("Could not get printf buffer size");
                 status = CL_INVALID_BUFFER_SIZE;
