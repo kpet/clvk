@@ -1660,17 +1660,15 @@ void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
         subresourceRange,
     };
 
-    vkCmdPipelineBarrier(
-        cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
-        // TODO HOST only when the dest buffer is an image mapping buffer
-        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-        0, // dependencyFlags
-        1, // memoryBarrierCount
-        &memoryBarrier,
-        0,        // bufferMemoryBarrierCount
-        nullptr,  // pBufferMemoryBarriers
-        0,        // imageMemoryBarrierCount
-        nullptr); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                         VK_PIPELINE_STAGE_TRANSFER_BIT,
+                         0,              // dependencyFlags
+                         0,              // memoryBarrierCount
+                         nullptr,        // pMemoryBarriers
+                         0,              // bufferMemoryBarrierCount
+                         nullptr,        // pBufferMemoryBarriers
+                         1,              // imageMemoryBarrierCount
+                         &imageBarrier); // pImageMemoryBarriers
 
     vkCmdCopyImageToBuffer(cmdbuf, m_image->vulkan_image(),
                            VK_IMAGE_LAYOUT_GENERAL, m_buffer->vulkan_buffer(),
@@ -1729,17 +1727,17 @@ cl_int cvk_command_buffer_image_copy::build_batchable_inner(
         VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT,
         VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT};
 
-    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         // TODO HOST only when the dest buffer is an
-                         // image mapping buffer
-                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                         0, // dependencyFlags
-                         1, // memoryBarrierCount
-                         &memoryBarrier,
-                         0,        // bufferMemoryBarrierCount
-                         nullptr,  // pBufferMemoryBarriers
-                         0,        // imageMemoryBarrierCount
-                         nullptr); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(
+        cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        // TODO HOST only when the dest buffer is an image mapping buffer
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0, // dependencyFlags
+        1, // memoryBarrierCount
+        &memoryBarrier,
+        0,        // bufferMemoryBarrierCount
+        nullptr,  // pBufferMemoryBarriers
+        0,        // imageMemoryBarrierCount
+        nullptr); // pImageMemoryBarriers
 
     return CL_SUCCESS;
 }
