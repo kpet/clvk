@@ -106,12 +106,12 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
             // Store values (if any)
             if (value != "") {
                 umap[key] = value;
-                cvk_info_group(loggroup::cfg, "%s = %s", key.c_str(),
-                               value.c_str());
+                cvk_info_group_fn(loggroup::cfg, "%s = %s", key.c_str(),
+                                  value.c_str());
             }
         } else {
-            cvk_warn_group(loggroup::cfg, "The following line is malformed.",
-                           line);
+            cvk_warn_group(loggroup::cfg, "%s , %s",
+                           "The following line is malformed", line.c_str());
         }
     }
     config_stream.close();
