@@ -523,7 +523,6 @@ protected:
     void SetUp() override { SetUpQueue(0); }
 
     void TearDown() override {
-
 #ifdef COMPILER_AVAILABLE 
         ReleaseCommandQueue(m_queue);
         WithContext::TearDown();
