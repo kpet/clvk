@@ -183,24 +183,24 @@ bool cvk_sampler::init(bool force_normalized_coordinates) {
         break;
     }
 
-    if (!config.supports_filter_linear && m_filter_mode == CL_FILTER_LINEAR) {
-        m_filter_mode = CL_FILTER_NEAREST;
-        cvk_warn_fn(
-            "linear filter is not supported, using nearest filter instead");
-    }
-
     // Translate filtering
     VkFilter filter;
     VkSamplerMipmapMode mipmap_mode;
     switch (m_filter_mode) {
+    case CL_FILTER_LINEAR:
+        if (config.supports_filter_linear) {
+            filter = VK_FILTER_LINEAR;
+            mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            break;
+        } else {
+            cvk_warn_fn(
+                "linear filter is not supported, using nearest filter instead");
+        }
+        [[fallthrough]];
     default:
     case CL_FILTER_NEAREST:
         filter = VK_FILTER_NEAREST;
         mipmap_mode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
-        break;
-    case CL_FILTER_LINEAR:
-        filter = VK_FILTER_LINEAR;
-        mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         break;
     }
 
