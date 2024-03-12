@@ -4,7 +4,8 @@ clvk is a [conformant](https://www.khronos.org/conformance/adopters/conformant-p
 implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
 
-![OpenCL Logo](./docs/opencl.svg)
+![OpenCL Logo](./docs/opencl-light.svg#gh-light-mode-only)
+![OpenCL Logo](./docs/opencl-dark.svg#gh-dark-mode-only)
 
 # Supported applications
 
