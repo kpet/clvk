@@ -115,3 +115,5 @@ const char* cl_device_type_to_string(cl_device_type type);
 const char* cl_command_execution_status_to_string(cl_int status);
 
 const char* spirv_capability_to_string(spv::Capability capability);
+
+const char* queue_global_priority_to_string(VkQueueGlobalPriorityKHR priority);
