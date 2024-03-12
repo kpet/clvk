@@ -35,6 +35,7 @@ enum loggroup : uint64_t
     api = (1ULL << 1),
     event = (1ULL << 2),
     validation = (1ULL << 3),
+    cfg = (1ULL << 4),
     none = (1ULL << 63),
     all = ~0ULL
 };

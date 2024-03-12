@@ -68,8 +68,8 @@ void parse_uint32(void* value_ptr, const char* txt) {
 
 // Helper function to trim whitespace and remove quotations
 std::string trim(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\n\""); // Also include quotes
-    size_t last = str.find_last_not_of(" \t\n\"");
+    size_t first = str.find_first_not_of(" \t\n"); // Also include quotes
+    size_t last = str.find_last_not_of(" \t\n");
 
     // Check for valid range
     if (first == std::string::npos || last == std::string::npos) {
@@ -93,24 +93,25 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
     std::string line;
     while (std::getline(config_stream, line)) {
         // Ignore comments and empty lines
+        line = trim(line);
         if (line.empty() || line[0] == '#') {
             continue;
         }
-        line = trim(line);
-        // Check for section headers
-        if (line[0] == '[' && line[line.size() - 1] == ']') {
-            continue;
-        } else {
-            // Parse key-value pairs
-            size_t pos = line.find('=');
-            if (pos != std::string::npos) {
-                std::string key = trim(line.substr(0, pos));
-                std::string value = trim(line.substr(pos + 1));
-                // Store values (if any)
-                if (value != "") {
-                    umap[key] = value;
-                }
+
+        // Parse key-value pairs
+        size_t pos = line.find('=');
+        if (pos != std::string::npos) {
+            std::string key = trim(line.substr(0, pos));
+            std::string value = trim(line.substr(pos + 1));
+            // Store values (if any)
+            if (value != "") {
+                umap[key] = value;
+                cvk_info_group(loggroup::cfg, "%s = %s", key.c_str(),
+                               value.c_str());
             }
+        } else {
+            cvk_warn_group(loggroup::cfg, "The following line is malformed.",
+                           line);
         }
     }
     config_stream.close();
@@ -141,6 +142,8 @@ void parse_config_file() {
         if (!config_stream.is_open()) {
             cvk_error("Error opening config file - %s", curr_path.c_str());
         }
+        cvk_info_group(loggroup::cfg, "Parsing config file '%s'",
+                       curr_path.c_str());
         read_config_file(file_config_values, config_stream);
     }
 
