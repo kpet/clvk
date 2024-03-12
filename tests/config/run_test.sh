@@ -16,7 +16,7 @@ function clean() {
 trap clean EXIT
 
 # Assign the base path from the argument
-binary_path=$1
+binary_path="$1"
 
 cp "${binary_path}/clvk.conf" "${TEMP_DIR}"
 
