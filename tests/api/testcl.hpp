@@ -773,7 +773,7 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override {};
+    void SetUp() override{};
     void TearDown() override {
         cl_int err = clReleaseContext(m_context);
         ASSERT_CL_SUCCESS(err);
