@@ -1,7 +1,7 @@
 // Copyright 2018 The clvk authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.co
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -210,6 +210,12 @@ protected:
         cl_int err;
         m_context =
             clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void SetUpContext(const cl_context_properties* props) {
+        cl_int err;
+        m_context = clCreateContext(props, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -510,7 +516,6 @@ protected:
 #ifndef COMPILER_AVAILABLE
         GTEST_SKIP();
 #endif
-        WithContext::SetUp();
         auto queue = CreateCommandQueue(device(), properties);
         m_queue = queue.release();
     }
@@ -518,8 +523,8 @@ protected:
     void SetUp() override { SetUpQueue(0); }
 
     void TearDown() override {
-#ifdef COMPILER_AVAILABLE
-        ReleaseCommandQueue(m_queue);
+
+#ifdef COMPILER_AVAILABLE ReleaseCommandQueue(m_queue);
         WithContext::TearDown();
 #endif
     }
@@ -760,22 +765,28 @@ protected:
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
-    void SetUp() override { SetUpQueue(CL_QUEUE_PROFILING_ENABLE); }
+    void SetUp() override {
+        WithContext::SetUp();
+        SetUpQueue(CL_QUEUE_PROFILING_ENABLE);
+    }
 };
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override{};
+    void SetUp() override {};
     void TearDown() override {
         cl_int err = clReleaseContext(m_context);
         ASSERT_CL_SUCCESS(err);
+        if (m_queue != nullptr) {
+            WithCommandQueue::TearDown();
+        }
+        if (m_context != nullptr) {
+            WithContext::TearDown();
+        }
     }
 
     void SetupPrintfCallback(const cl_context_properties* props) {
-        cl_int err;
-        m_context = clCreateContext(props, 1, &gDevice, nullptr, nullptr, &err);
-        ASSERT_CL_SUCCESS(err);
-        m_queue = clCreateCommandQueue(m_context, gDevice, 0, &err);
-        ASSERT_CL_SUCCESS(err);
+        SetUpContext(props);
+        SetUpQueue(0);
     }
 };
