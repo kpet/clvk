@@ -27,7 +27,7 @@ struct printf_descriptor {
 
 using printf_descriptor_map_t = std::unordered_map<uint32_t, printf_descriptor>;
 typedef void(printf_callback_func)(const char* buffer, size_t len,
-                                   +size_t complete, void* user_data);
+                                   size_t complete, void* user_data);
 
 // Process the contents of the printf buffer and print the results to stdout
 cl_int cvk_printf(cvk_mem* printf_buffer,

@@ -228,7 +228,7 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
 }
 
 void printf_callback(const char* buffer, size_t len, size_t complete,
-                     +void* user_data) {
+                     void* user_data) {
     ASSERT_EQ(strlen(buffer), len);
     printf("Received data: %s (length: %zu)\n", buffer, len);
 }
