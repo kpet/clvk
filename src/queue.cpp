@@ -122,6 +122,7 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
 
 void cvk_command_queue::enqueue_command(cvk_command* cmd) {
     TRACE_FUNCTION("queue", (uintptr_t)this, "cmd", (uintptr_t)cmd);
+    // clvk only supports inorder queues at the moment.
     // But as the commands can be executed by 2 threads (1 executor and the main
     // thread), we need to explicit the dependency to ensure it will be
     // respected.
@@ -329,9 +330,8 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     if (queues_to_flush.size() == 1) {
         for (auto q : queues_to_flush) {
             auto status = q->execute_cmds_required_by(num_events, event_list);
-            if (status != CL_SUCCESS) {
+            if (status != CL_SUCCESS)
                 return status;
-            }
         }
     }
 
@@ -355,9 +355,8 @@ cl_int cvk_command_group::execute_cmds() {
                      cl_command_type_to_string(cmd->type()), cmd->event());
 
         cl_int status = cmd->execute();
-        if (status != CL_COMPLETE && global_status == CL_SUCCESS) {
+        if (status != CL_COMPLETE && global_status == CL_SUCCESS)
             global_status = status;
-        }
         cvk_debug_fn("command returned %d", status);
 
         commands.pop_front();
@@ -918,9 +917,8 @@ cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
                 dim - 1, region, region_lws, region_gws, region_offset,
                 command_buffer, num_workgroups);
         }
-        if (err != CL_SUCCESS) {
+        if (err != CL_SUCCESS)
             return err;
-        }
     }
 
     return CL_SUCCESS;
@@ -1547,9 +1545,9 @@ cl_int cvk_command_unmap_image::do_action() {
     return CL_COMPLETE;
 }
 
-VkImageSubresourceLayers
-prepare_subresource(const cvk_image* image, const std::array<size_t, 3>& origin,
-                    const std::array<size_t, 3>& region) {
+VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
+                                             const std::array<size_t, 3>& origin,
+                                             const std::array<size_t, 3>& region) {
     uint32_t baseArrayLayer = 0;
     uint32_t layerCount = 1;
 
@@ -1571,8 +1569,8 @@ prepare_subresource(const cvk_image* image, const std::array<size_t, 3>& origin,
     return ret;
 }
 
-VkOffset3D prepare_offset(const cvk_image* image,
-                          const std::array<size_t, 3>& origin) {
+VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
+
 
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
@@ -1619,10 +1617,10 @@ VkExtent3D prepare_extent(const cvk_image* image,
     return extent;
 }
 
-VkBufferImageCopy
-prepare_buffer_image_copy(const cvk_image* image, size_t bufferOffset,
-                          const std::array<size_t, 3>& origin,
-                          const std::array<size_t, 3>& region) {
+VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
+                                            size_t bufferOffset,
+                                            const std::array<size_t, 3>& origin,
+                                            const std::array<size_t, 3>& region) {
 
     VkImageSubresourceLayers subResource =
         prepare_subresource(image, origin, region);
@@ -1722,15 +1720,17 @@ void cvk_command_buffer_image_copy::build_inner_image_to_buffer(
         subresourceRange,
     };
 
-    vkCmdPipelineBarrier(cmdbuf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         0,              // dependencyFlags
-                         0,              // memoryBarrierCount
-                         nullptr,        // pMemoryBarriers
-                         0,              // bufferMemoryBarrierCount
-                         nullptr,        // pBufferMemoryBarriers
-                         1,              // imageMemoryBarrierCount
-                         &imageBarrier); // pImageMemoryBarriers
+    vkCmdPipelineBarrier(
+        cmdbuf, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        // TODO HOST only when the dest buffer is an image mapping buffer
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        0, // dependencyFlags
+        1, // memoryBarrierCount
+        &memoryBarrier,
+        0,        // bufferMemoryBarrierCount
+        nullptr,  // pBufferMemoryBarriers
+        0,        // imageMemoryBarrierCount
+        nullptr); // pImageMemoryBarriers
 
     vkCmdCopyImageToBuffer(cmdbuf, m_image->vulkan_image(),
                            VK_IMAGE_LAYOUT_GENERAL, m_buffer->vulkan_buffer(),

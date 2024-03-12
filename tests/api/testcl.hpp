@@ -524,7 +524,8 @@ protected:
 
     void TearDown() override {
 
-#ifdef COMPILER_AVAILABLE ReleaseCommandQueue(m_queue);
+#ifdef COMPILER_AVAILABLE 
+        ReleaseCommandQueue(m_queue);
         WithContext::TearDown();
 #endif
     }
