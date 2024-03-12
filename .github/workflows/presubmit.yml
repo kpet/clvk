@@ -196,7 +196,7 @@ jobs:
             cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
-      - name: Config tests.
+      - name: Config tests
         shell: bash
         if: ${{ matrix.unit }}
         run: ./tests/config/run_test.sh ${{ env.testbindir }}
