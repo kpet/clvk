@@ -184,9 +184,18 @@ struct cvk_command_queue : public _cl_command_queue,
 
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
-            cl_int status;
-            m_printf_buffer = cvk_buffer::create(
-                context(), 0, get_printf_buffer_size(), nullptr, &status);
+            cl_int status = CL_SUCCESS;
+            auto buff_size_prop_index =
+                get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+            if (buff_size_prop_index == -1) {
+                cvk_error_fn("Could not get printf buffer size");
+                status = CL_INVALID_BUFFER_SIZE;
+            }
+            auto all_props = m_context->properties();
+            auto buff_size = all_props[buff_size_prop_index];
+            CVK_ASSERT(status == CL_SUCCESS);
+            m_printf_buffer =
+                cvk_buffer::create(context(), 0, buff_size, nullptr, &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();
@@ -243,7 +252,7 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
-    bool get_printf_callback(printf_callback_func& callback);
+    int get_property_index(const int prop);
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
@@ -765,12 +774,6 @@ struct cvk_command_kernel final : public cvk_command_batchable {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
                        const cvk_ndrange& ndrange)
-        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
-          m_argument_values(nullptr) {}
-    cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
-                       const cvk_ndrange& ndrange,
-                       std::function<void(const char*, size_t)> callback)
         : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
           m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}

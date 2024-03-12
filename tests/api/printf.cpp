@@ -17,7 +17,6 @@
 #include "testcl.hpp"
 #include "unit.hpp"
 #include "utils.hpp"
-
 #include <cstring>
 #include <filesystem>
 
@@ -56,9 +55,8 @@ static char* getStdoutContent() {
     memset(stdoutBuffer, 0, BUFFER_SIZE);
     fflush(stdout);
     f = fopen(stdoutFileName.c_str(), "r");
-    if (f == nullptr) {
+    if (f == nullptr)
         return nullptr;
-    }
 
     char* ptr = stdoutBuffer;
     do {
@@ -72,9 +70,8 @@ static char* getStdoutContent() {
 
 struct temp_folder_deletion {
     ~temp_folder_deletion() {
-        if (!m_path.empty()) {
+        if (!m_path.empty())
             std::filesystem::remove_all(m_path.c_str());
-        }
     }
     void set_path(std::string path) { m_path = path; }
 
@@ -230,9 +227,10 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
     ASSERT_STREQ(printf_buffer, message);
 }
 
-void printf_callback(const char* buffer, size_t len) {
+void printf_callback(const char* buffer, size_t len, size_t complete,
+                     +void* user_data) {
     ASSERT_EQ(strlen(buffer), len);
-    printf("%.*s", len, buffer);
+    printf("Received data: %s (length: %zu)\n", buffer, len);
 }
 
 TEST_F(WithPrintfEnabled, PrintSimple) {

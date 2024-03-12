@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "printf.hpp"
-
 #include <cstring>
 #include <sstream>
 
@@ -112,16 +111,15 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'e':
         case 'g':
         case 'a': {
-            if (size == 2) {
+            if (size == 2)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    cl_half_to_float(read_buff<cl_half>(data)));
-            } else if (size == 4) {
+            else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<float>(data));
-            } else {
+            else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<double>(data));
-            }
             break;
         }
         default: {
@@ -160,7 +158,7 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
 }
 
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
-                    char* data_end, printf_callback_func& printf_cb,
+                    char* data_end, printf_callback_func printf_cb,
                     size_t buffer_size) {
 
     uint32_t printf_id = read_inc_buff<uint32_t>(data);
@@ -244,7 +242,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     }
     auto output = printf_out.str().c_str();
     if (printf_cb != nullptr) {
-        printf_cb(output, buffer_size);
+        printf_cb(output, buffer_size, true, nullptr);
     } else {
         printf("%s", output);
     }
