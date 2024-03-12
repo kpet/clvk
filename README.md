@@ -1,7 +1,10 @@
 # clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++) [![Discord Shield](https://discordapp.com/api/guilds/1002628585250631681/widget.png?style=shield)](https://discord.gg/xsVdjmhFM9)
 
-clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
+clvk is a [conformant](https://www.khronos.org/conformance/adopters/conformant-products/opencl)
+implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
+
+![OpenCL Logo](./docs/opencl.svg)
 
 # Supported applications
 
