@@ -172,16 +172,6 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
-    size_t get_printf_buffer_size() {
-        auto& properties = m_context->properties();
-        for (unsigned i = 0; i < properties.size(); i += 2) {
-            if (properties[i] == CL_PRINTF_BUFFERSIZE_ARM) {
-                return properties[i + 1];
-            }
-        }
-        return config.printf_buffer_size;
-    }
-
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
             cl_int status = CL_SUCCESS;
