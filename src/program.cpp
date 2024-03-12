@@ -967,8 +967,8 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    auto buff_size = config.printf_buffer_size;
-    auto buff_size_prop_index = get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+    size_t buff_size = config.printf_buffer_size;
+    auto buff_size_prop_index = m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
 
     if (buff_size_prop_index != -1) {
         auto props = m_context->properties();

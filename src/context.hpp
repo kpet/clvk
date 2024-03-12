@@ -73,6 +73,15 @@ struct cvk_context : public _cl_context,
         return size <= m_device->max_mem_alloc_size();
     }
 
+    int get_property_index(const int prop) {
+        for (unsigned i = 0; i < m_properties.size(); i += 2) {
+            if (m_properties[i] == prop) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
 private:
     cvk_device* m_device;
     std::mutex m_callbacks_lock;

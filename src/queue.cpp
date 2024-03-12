@@ -370,16 +370,6 @@ cl_int cvk_command_group::execute_cmds() {
     return global_status;
 }
 
-int cvk_command_queue::get_property_index(const int prop) {
-    auto& properties = m_context->properties();
-    for (unsigned i = 0; i < properties.size(); i += 2) {
-        if (properties[i] == prop) {
-            return i + 1;
-        }
-    }
-    return -1;
-}
-
 cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
     cl_uint num_events, _cl_event* const* event_list) {
     auto* exec = m_executor;
@@ -1133,7 +1123,8 @@ cl_int cvk_command_kernel::do_post_action() {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
         }
-        auto cb_index = m_queue->get_property_index(CL_PRINTF_CALLBACK_ARM);
+        auto cb_index =
+            m_queue->context()->get_property_index(CL_PRINTF_CALLBACK_ARM);
         if (cb_index == -1) {
             cvk_error_fn("failed to get printf callback function");
             return CL_INVALID_PROPERTY;
@@ -1571,6 +1562,7 @@ VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
 
 VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
 
+
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
     auto z = static_cast<int32_t>(origin[2]);
@@ -1592,8 +1584,8 @@ VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& o
     return offset;
 }
 
-VkExtent3D prepare_extent(const cvk_image* image,
-                          const std::array<size_t, 3>& region) {
+VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& region) {
+
     uint32_t extentHeight = region[1];
     uint32_t extentDepth = region[2];
 
@@ -1607,8 +1599,8 @@ VkExtent3D prepare_extent(const cvk_image* image,
         break;
     }
 
-VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& region) {
-
+    VkExtent3D extent = {static_cast<uint32_t>(region[0]), extentHeight,
+                         extentDepth};
 
     cvk_debug_fn("extent: %u, %u, %u", extent.width, extent.height,
                  extent.depth);
