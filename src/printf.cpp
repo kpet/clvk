@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "printf.hpp"
 #include <cstring>
 #include <sstream>
+
+#include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
@@ -123,19 +124,18 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
             break;
         }
         default: {
-            if (size == 1) {
+            if (size == 1)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint8_t>(data));
-            } else if (size == 2) {
+            else if (size == 2)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint16_t>(data));
-            } else if (size == 4) {
+            else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint32_t>(data));
-            } else {
+            else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint64_t>(data));
-            }
             break;
         }
         }
