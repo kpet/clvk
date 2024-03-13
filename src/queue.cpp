@@ -562,7 +562,7 @@ bool cvk_command_buffer::begin() {
         return false;
     }
 
-    m_queue->command_pool_lock();
+    cvk_command_pool_lock_holder lock(m_queue);
 
     VkCommandBufferBeginInfo beginInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr,
