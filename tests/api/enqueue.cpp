@@ -456,10 +456,9 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
     auto cfg_force_descriptor_set_allocation_failure =
         CLVK_CONFIG_SCOPED_OVERRIDE(force_descriptor_set_allocation_failure,
                                     bool, true, true);
+    auto cfg_early_flush_enabled =
+        CLVK_CONFIG_SCOPED_OVERRIDE(early_flush_enabled, bool, false, true);
     CLVK_CONFIG_ASSERT_EQ(enqueue_command_retry_sleep_us, UINT32_MAX);
-    // We need to make sure that the kernel don't start executing before we
-    // enqueue one too many
-    CLVK_CONFIG_ASSERT_GT(max_first_cmd_batch_size, NUM_INSTANCES);
 
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");
@@ -504,9 +503,8 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommandsWithRetry) {
                                     bool, true, true);
     auto cfg_enqueue_command_retry_sleep_us = CLVK_CONFIG_SCOPED_OVERRIDE(
         enqueue_command_retry_sleep_us, uint32_t, 100, true);
-    // We need to make sure that the kernel don't start executing before we
-    // enqueue one too many
-    CLVK_CONFIG_ASSERT_GT(max_first_cmd_batch_size, NUM_INSTANCES);
+    auto cfg_early_flush_enabled =
+        CLVK_CONFIG_SCOPED_OVERRIDE(early_flush_enabled, bool, false, true);
 
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");

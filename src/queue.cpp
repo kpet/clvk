@@ -231,6 +231,12 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         cvk_debug_fn("returning event %p", *event);
     }
 
+#ifdef CLVK_UNIT_TESTING_ENABLED
+    if (!config.early_flush_enabled) {
+        return CL_SUCCESS;
+    }
+#endif
+
     auto group_size = m_groups.back()->commands.size();
     if (group_size >= m_max_cmd_group_size ||
         (m_nb_group_in_flight == 0 &&
