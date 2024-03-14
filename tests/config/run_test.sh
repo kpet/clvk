@@ -20,16 +20,9 @@ binary_path="$1"
 
 cp "${binary_path}/clvk.conf" "${TEMP_DIR}"
 
-# Assing an env var for testing
-default_color_val=$(echo CLVK_LOG_COLOUR)
-export CLVK_LOG_COLOUR=1
-
-
 # Run test
 CLVK_CONFIG_FILE="${binary_path}/conf_test.conf" \
+CLVK_LOG_COLOUR=1 \
 "${binary_path}/config_test"
-
-# Restore old vals
-export CLVK_LOG_COLOUR=${default_color_val}
 
 popd

@@ -68,15 +68,14 @@ void parse_uint32(void* value_ptr, const char* txt) {
 
 // Helper function to trim whitespace.
 std::string trim(const std::string& str) {
-    size_t first = str.find_first_not_of(" \t\n"); // Also include quotes
+    size_t first = str.find_first_not_of(" \t\n");
     size_t last = str.find_last_not_of(" \t\n");
 
     // Check for valid range
     if (first == std::string::npos || last == std::string::npos) {
-        return str; // Empty or only whitespace/quotes
     }
 
-    // Extract the trimmed and unquoted substring
+    // Extract the trimmed string
     std::string trimmed = str.substr(first, (last - first + 1));
     return trimmed;
 }
