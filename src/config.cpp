@@ -73,6 +73,7 @@ std::string trim(const std::string& str) {
 
     // Check for valid range
     if (first == std::string::npos || last == std::string::npos) {
+        return str; // Empty or only whitespace
     }
 
     // Extract the trimmed string
