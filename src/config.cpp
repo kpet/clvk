@@ -81,6 +81,15 @@ std::string trim(const std::string& str) {
     return trimmed;
 }
 
+std::string get_clvk_env_name(const std::string& name) {
+    std::string var_name = "CLVK_";
+    std::string optname_upper(name);
+    std::transform(optname_upper.begin(), optname_upper.end(),
+                   optname_upper.begin(), ::toupper);
+    var_name += optname_upper;
+    return var_name;
+}
+
 void read_config_file(std::unordered_map<std::string, std::string>& umap,
                       std::ifstream& config_stream) {
 
@@ -97,10 +106,14 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
         if (pos != std::string::npos) {
             std::string key = trim(line.substr(0, pos));
             std::string value = trim(line.substr(pos + 1));
+            // Skip if an env var with the same name exists.
+            if (getenv(get_clvk_env_name(key).c_str()) != nullptr) {
+                continue;
+            }
             // Store values (if any)
             if (value != "") {
                 umap[key] = value;
-                cvk_debug_group_fn(loggroup::api, "%s = %s", key.c_str(),
+                cvk_debug_group_fn(loggroup::cfg, "'%s' = '%s'", key.c_str(),
                                    value.c_str());
             }
         } else {
@@ -165,12 +178,8 @@ void parse_config_file() {
 
 void parse_env() {
     for (auto& opt : gConfigOptions) {
-        std::string var_name = "CLVK_";
-        std::string optname_upper(opt.name);
-        std::transform(optname_upper.begin(), optname_upper.end(),
-                       optname_upper.begin(), ::toupper);
-        var_name += optname_upper;
         // printf("var_name = '%s' ", var_name.c_str());
+        auto var_name = get_clvk_env_name(opt.name);
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
             //    printf("is not set\n");
@@ -194,7 +203,6 @@ void parse_env() {
 
 } // namespace
 
-void init_config() {
-    parse_config_file();
-    parse_env();
-}
+void init_config_from_env_only() { parse_env(); }
+
+void init_config() { parse_config_file(); }
