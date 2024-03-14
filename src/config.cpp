@@ -66,7 +66,7 @@ void parse_uint32(void* value_ptr, const char* txt) {
     cfgval->set = true;
 }
 
-// Helper function to trim whitespace and remove quotations
+// Helper function to trim whitespace.
 std::string trim(const std::string& str) {
     size_t first = str.find_first_not_of(" \t\n"); // Also include quotes
     size_t last = str.find_last_not_of(" \t\n");
@@ -78,13 +78,7 @@ std::string trim(const std::string& str) {
 
     // Extract the trimmed and unquoted substring
     std::string trimmed = str.substr(first, (last - first + 1));
-
-    // Check if the trimmed string still starts and ends with quotes
-    if (trimmed.front() == '"' && trimmed.back() == '"') {
-        return trimmed.substr(1, trimmed.size() - 2); // Remove the quotes
-    } else {
-        return trimmed;
-    }
+    return trimmed;
 }
 
 void read_config_file(std::unordered_map<std::string, std::string>& umap,
@@ -106,11 +100,11 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
             // Store values (if any)
             if (value != "") {
                 umap[key] = value;
-                cvk_info_group_fn(loggroup::cfg, "%s = %s", key.c_str(),
-                                  value.c_str());
+                cvk_debug_group_fn(loggroup::api, "%s = %s", key.c_str(),
+                                   value.c_str());
             }
         } else {
-            cvk_warn_group(loggroup::cfg, "%s , %s",
+            cvk_warn_group_fn(loggroup::cfg, "%s , %s",
                            "The following line is malformed", line.c_str());
         }
     }
@@ -142,8 +136,8 @@ void parse_config_file() {
         if (!config_stream.is_open()) {
             cvk_error("Error opening config file - %s", curr_path.c_str());
         }
-        cvk_info_group(loggroup::cfg, "Parsing config file '%s'",
-                       curr_path.c_str());
+        cvk_info_group_fn(loggroup::cfg, "Parsing config file '%s'",
+                          curr_path.c_str());
         read_config_file(file_config_values, config_stream);
     }
 

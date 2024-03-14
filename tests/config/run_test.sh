@@ -24,8 +24,6 @@ cp "${binary_path}/clvk.conf" "${TEMP_DIR}"
 default_color_val=$(echo CLVK_LOG_COLOUR)
 export CLVK_LOG_COLOUR=1
 
-# Also get the default conf file in case a user has it set
-default_cofig_file=$(echo CLVK_CONFIG_FILE)
 
 # Run test
 CLVK_CONFIG_FILE="${binary_path}/conf_test.conf" \
@@ -33,6 +31,5 @@ CLVK_CONFIG_FILE="${binary_path}/conf_test.conf" \
 
 # Restore old vals
 export CLVK_LOG_COLOUR=${default_color_val}
-export CLVK_CONFIG_FILE=${default_cofig_file}
 
 popd
