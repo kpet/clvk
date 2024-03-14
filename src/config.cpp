@@ -105,7 +105,7 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
             }
         } else {
             cvk_warn_group_fn(loggroup::cfg, "%s , %s",
-                           "The following line is malformed", line.c_str());
+                              "The following line is malformed", line.c_str());
         }
     }
     config_stream.close();
