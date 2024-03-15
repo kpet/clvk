@@ -106,10 +106,6 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
         if (pos != std::string::npos) {
             std::string key = trim(line.substr(0, pos));
             std::string value = trim(line.substr(pos + 1));
-            // Skip if an env var with the same name exists.
-            if (getenv(get_clvk_env_name(key).c_str()) != nullptr) {
-                continue;
-            }
             // Store values (if any)
             if (value != "") {
                 umap[key] = value;
@@ -205,4 +201,7 @@ void parse_env() {
 
 void init_config_from_env_only() { parse_env(); }
 
-void init_config() { parse_config_file(); }
+void init_config() {
+    parse_config_file();
+    parse_env();
+}
