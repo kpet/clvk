@@ -407,6 +407,11 @@ variables. Here's a quick guide:
   folder to store compiled program data used in a single run. This folder shall
   have write permission (default: current directory).
 
+* `CLVK_CONFIG_FILE` specifies the path to a configuration file. You can see a
+  sample of the file under test/config/conf_test.conf. The file specified by env
+  var takes precedence over all other config files but does not take precedence
+  over env variable defined values.
+
 * `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of commands in a group.
   When a group reaches this number, it is automatically flushed.
 

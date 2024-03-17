@@ -54,4 +54,6 @@ struct config_struct {
 
 extern const config_struct config;
 
+extern void init_config_from_env_only();
+
 extern void init_config();

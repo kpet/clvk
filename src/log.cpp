@@ -48,6 +48,7 @@ static uint64_t init_logging_groups() {
         {"api", loggroup::api},
         {"event", loggroup::event},
         {"validation", loggroup::validation},
+        {"cfg", loggroup::cfg},
         {"none", loggroup::none},
         {"all", loggroup::all},
     };
