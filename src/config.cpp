@@ -15,6 +15,7 @@
 #include "config.hpp"
 #include "log.hpp"
 #include "unit.hpp"
+#include "utils.hpp"
 
 #include <cassert>
 #include <cstdlib>
@@ -151,10 +152,10 @@ void parse_config_file() {
     }
 
     for (auto& opt : gConfigOptions) {
-        if (file_config_values.find(opt.name) == file_config_values.end() ||
-            file_config_values[opt.name].length() == 0) {
+        if (file_config_values.find(opt.name) == file_config_values.end()) {
             continue;
         }
+        CVK_ASSERT(file_config_values[opt.name].length() > 0);
         auto curr_conf = (file_config_values[opt.name]).c_str();
         void* optval = const_cast<void*>(opt.value);
         switch (opt.type) {

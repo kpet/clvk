@@ -312,10 +312,37 @@ The size of those batches can be controlled using the following two variables:
    - `CLVK_MAX_FIRST_CMD_BATCH_SIZE`
 
 
-# Environment variables
+# Configuration
 
-The behaviour of a few things in clvk can be controlled by environment
-variables. Here's a quick guide:
+Many aspects of clvk's behaviour can be configured using configuration files
+and/or environment variables. clvk attempts to get its configuration from the
+following sources (in the order documented here). Values obtained from each
+source take precedence over previously obtained values.
+
+1. System-wide configuration in `/etc/clvk.conf`
+2. Per-user configuration in `~/.config/clvk.conf`
+3. `clvk.conf` in the current directory
+4. An additional configuration file specified using the `CLVK_CONFIG_FILE`
+  environment variable, if provided
+5. Environment variables for individual configuration options
+
+Configuration files use a key-value format and allow comments beginning with `#`:
+
+```
+# Here's a comment
+option = value
+
+other_option = 42
+```
+
+Options names are lowercase (e.g `myoption`) in configuration files
+but uppercase and prefixed with `CLVK_` in environment variables
+(e.g. `CLVK_MYOPTION`).
+
+Here is a list of all the configuration options that clvk supports documented
+using the name of the corresponding environment variable.
+
+* `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
 * `CLVK_LOG` controls the level of logging
 
@@ -406,11 +433,6 @@ variables. Here's a quick guide:
 * `CLVK_COMPLIER_TEMP_DIR` specifies a directory used to create a temporary
   folder to store compiled program data used in a single run. This folder shall
   have write permission (default: current directory).
-
-* `CLVK_CONFIG_FILE` specifies the path to a configuration file. You can see a
-  sample of the file under test/config/conf_test.conf. The file specified by env
-  var takes precedence over all other config files but does not take precedence
-  over env variable defined values.
 
 * `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of commands in a group.
   When a group reaches this number, it is automatically flushed.
