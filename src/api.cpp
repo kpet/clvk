@@ -2068,7 +2068,10 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         ret_size = sizeof(val_sizet);
         break;
     case CL_MEM_HOST_PTR:
-        val_ptr = memobj->host_ptr();
+        val_ptr = nullptr;
+        if (memobj->flags() & CL_MEM_USE_HOST_PTR) {
+            val_ptr = memobj->host_ptr();
+        }
         copy_ptr = &val_ptr;
         ret_size = sizeof(val_ptr);
         break;
