@@ -21,8 +21,8 @@ trap clean EXIT
 
 echo "SELECT name FROM slice WHERE slice.category='clvk'" \
     | "${TRACE_PROCESSOR_SHELL}" -q /dev/stdin "${TRACE_FILE}" \
-    | sort \
-    | uniq \
+    | sort --unique \
+    | sed "/event_wait/d" \
           > "${OUTPUT_FILE}"
 
 # Also sort the expectation to make sure to apply the same sort algorithm to the output and the expectation.
