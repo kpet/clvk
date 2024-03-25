@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <array>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <sstream>
 
@@ -183,6 +185,16 @@ void cvk_device::init_driver_behaviors() {
 #undef PRINT_BEHAVIOR
 }
 
+static bool queue_flags_contains_compute(VkQueueFlags flags) {
+    return flags & VK_QUEUE_COMPUTE_BIT;
+}
+static bool queue_flags_contains_compute_not_graphics(VkQueueFlags flags) {
+    if (flags & VK_QUEUE_GRAPHICS_BIT) {
+        return false;
+    }
+    return queue_flags_contains_compute(flags);
+}
+
 bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     // Get number of queue families
     uint32_t num_families;
@@ -198,19 +210,25 @@ bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
     vkGetPhysicalDeviceQueueFamilyProperties(m_pdev, &num_families,
                                              families.data());
 
+    std::array<std::function<bool(VkQueueFlags)>, 2> queue_flags_tests = {
+        queue_flags_contains_compute_not_graphics,
+        queue_flags_contains_compute};
+
     // Look for suitable queues
     bool found_queues = false;
     *num_queues = 0;
-    for (uint32_t i = 0; i < num_families; i++) {
+    for (auto queue_flags_test : queue_flags_tests) {
+        for (uint32_t i = 0; i < num_families; i++) {
 
-        cvk_info("  queue family %u: %2u queues | %s", i,
-                 families[i].queueCount,
-                 vulkan_queue_flags_string(families[i].queueFlags).c_str());
+            cvk_info("  queue family %u: %2u queues | %s", i,
+                     families[i].queueCount,
+                     vulkan_queue_flags_string(families[i].queueFlags).c_str());
 
-        if (!found_queues && (families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)) {
-            *queue_family = i;
-            *num_queues = families[i].queueCount;
-            found_queues = true;
+            if (!found_queues && queue_flags_test(families[i].queueFlags)) {
+                *queue_family = i;
+                *num_queues = families[i].queueCount;
+                found_queues = true;
+            }
         }
     }
 
@@ -218,6 +236,9 @@ bool cvk_device::init_queues(uint32_t* num_queues, uint32_t* queue_family) {
         cvk_error("Could not find a suitable queue family for this device");
         return false;
     }
+    cvk_info(
+        "  selecting queue %u: %2u queues | %s", *queue_family, *num_queues,
+        vulkan_queue_flags_string(families[*queue_family].queueFlags).c_str());
 
     // Initialise the queue allocator
     m_vulkan_queue_alloc_index = 0;
