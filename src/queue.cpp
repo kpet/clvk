@@ -279,7 +279,7 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 }
 
 cl_int cvk_command_queue::end_current_command_batch() {
-    if (m_command_batch) {
+    if (m_command_batch && m_command_batch->batch_size() > 0) {
         TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
                        m_command_batch->batch_size());
 
