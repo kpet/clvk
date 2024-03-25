@@ -319,12 +319,13 @@ and/or environment variables. clvk attempts to get its configuration from the
 following sources (in the order documented here). Values obtained from each
 source take precedence over previously obtained values.
 
-1. System-wide configuration in `/etc/clvk.conf`
-2. Per-user configuration in `~/.config/clvk.conf`
-3. `clvk.conf` in the current directory
-4. An additional configuration file specified using the `CLVK_CONFIG_FILE`
+1. Configuration file in `/usr/local/etc/clvk.conf`
+2. System-wide configuration in `/etc/clvk.conf`
+3. Per-user configuration in `~/.config/clvk.conf`
+4. `clvk.conf` in the current directory
+5. An additional configuration file specified using the `CLVK_CONFIG_FILE`
   environment variable, if provided
-5. Environment variables for individual configuration options
+6. Environment variables for individual configuration options
 
 Configuration files use a key-value format and allow comments beginning with `#`:
 
