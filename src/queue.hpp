@@ -174,9 +174,18 @@ struct cvk_command_queue : public _cl_command_queue,
 
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
-            cl_int status;
-            m_printf_buffer = cvk_buffer::create(
-                context(), 0, config.printf_buffer_size, nullptr, &status);
+            cl_int status = CL_SUCCESS;
+            auto buff_size_prop_index =
+                m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+            if (buff_size_prop_index == -1) {
+                cvk_error_fn("Could not get printf buffer size");
+                status = CL_INVALID_BUFFER_SIZE;
+            }
+            auto all_props = m_context->properties();
+            auto buff_size = all_props[buff_size_prop_index];
+            CVK_ASSERT(status == CL_SUCCESS);
+            m_printf_buffer =
+                cvk_buffer::create(context(), 0, buff_size, nullptr, &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();
@@ -233,6 +242,7 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
+    int get_property_index(const int prop);
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
