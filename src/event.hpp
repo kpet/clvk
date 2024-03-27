@@ -37,17 +37,49 @@ struct cvk_event_callback {
 
 struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
-    cvk_event(cvk_context* ctx, cvk_command* cmd, cvk_command_queue* queue);
+    cvk_event(cvk_context* ctx, cvk_command_queue* queue)
+        : api_object(ctx), m_command_type(0), m_queue(queue) {}
 
-    bool completed() { return m_status == CL_COMPLETE; }
+    virtual cl_int get_status() const = 0;
 
-    bool terminated() { return m_status < 0; }
+    bool completed() { return get_status() == CL_COMPLETE; }
 
-    void set_status(cl_int status);
+    bool terminated() { return get_status() < 0; }
+
+    virtual void set_status(cl_int status) = 0;
+
+    virtual void register_callback(cl_int callback_type,
+                                   cvk_event_callback_pointer_type ptr,
+                                   void* user_data) = 0;
+
+    cl_command_type command_type() const { return m_command_type; }
+
+    bool is_user_event() const { return m_command_type == CL_COMMAND_USER; }
+
+    cvk_command_queue* queue() const {
+        CVK_ASSERT(!is_user_event());
+        return m_queue;
+    }
+
+    virtual cl_int wait() = 0;
+
+    virtual uint64_t get_profiling_info(cl_profiling_info pinfo) const = 0;
+
+protected:
+    cl_command_type m_command_type;
+    cvk_command_queue* m_queue;
+};
+
+struct cvk_event_command : public cvk_event {
+
+    cvk_event_command(cvk_context* ctx, cvk_command* cmd,
+                      cvk_command_queue* queue);
+
+    void set_status(cl_int status) override final;
 
     void register_callback(cl_int callback_type,
                            cvk_event_callback_pointer_type ptr,
-                           void* user_data) {
+                           void* user_data) override final {
         std::lock_guard<std::mutex> lock(m_lock);
 
         cvk_event_callback cb = {ptr, user_data};
@@ -59,17 +91,9 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         }
     }
 
-    cl_int get_status() const { return m_status; }
-    cl_command_type command_type() const { return m_command_type; }
+    cl_int get_status() const override final { return m_status; }
 
-    bool is_user_event() const { return m_command_type == CL_COMMAND_USER; }
-
-    cvk_command_queue* queue() const {
-        CVK_ASSERT(!is_user_event());
-        return m_queue;
-    }
-
-    cl_int wait() {
+    cl_int wait() override final {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug_group(loggroup::event,
                         "cvk_event::wait: event = %p, status = %d", this,
@@ -93,7 +117,7 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         set_profiling_info(info, val);
     }
 
-    uint64_t get_profiling_info(cl_profiling_info pinfo) const {
+    uint64_t get_profiling_info(cl_profiling_info pinfo) const override final {
         return m_profiling_data[pinfo - CL_PROFILING_COMMAND_QUEUED];
     }
 
@@ -117,10 +141,59 @@ private:
     std::condition_variable m_cv;
     cl_int m_status;
     cl_ulong m_profiling_data[4]{};
-    cl_command_type m_command_type;
     cvk_command* m_cmd;
-    cvk_command_queue* m_queue;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
+};
+
+struct cvk_event_combine : public cvk_event {
+
+    cvk_event_combine(cvk_context* ctx, cl_command_type command_type,
+                      cvk_command_queue* queue, cvk_event* start_event,
+                      cvk_event* end_event)
+        : cvk_event(ctx, queue), m_start_event(start_event),
+          m_end_event(end_event) {
+        m_command_type = command_type;
+        start_event->retain();
+        end_event->retain();
+    }
+
+    ~cvk_event_combine() {
+        m_start_event->release();
+        m_end_event->release();
+    }
+
+    void set_status(cl_int status) override final {
+        UNUSED(status);
+        CVK_ASSERT(false && "Should never be called");
+    }
+
+    void register_callback(cl_int callback_type,
+                           cvk_event_callback_pointer_type ptr,
+                           void* user_data) override final {
+        if (callback_type == CL_COMPLETE) {
+            m_end_event->register_callback(callback_type, ptr, user_data);
+        } else {
+            m_start_event->register_callback(callback_type, ptr, user_data);
+        }
+    }
+
+    cl_int get_status() const override final {
+        return std::min(m_end_event->get_status(), m_start_event->get_status());
+    }
+
+    cl_int wait() override final { return m_end_event->wait(); }
+
+    uint64_t get_profiling_info(cl_profiling_info pinfo) const override final {
+        if (pinfo == CL_PROFILING_COMMAND_END) {
+            return m_end_event->get_profiling_info(pinfo);
+        } else {
+            return m_start_event->get_profiling_info(pinfo);
+        }
+    }
+
+private:
+    cvk_event* m_start_event;
+    cvk_event* m_end_event;
 };
 
 using cvk_event_holder = refcounted_holder<cvk_event>;
