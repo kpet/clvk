@@ -45,12 +45,14 @@ OPTION(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
 //
 // Command execution
 //
+OPTION(uint32_t, queue_global_priority, 1u)
 OPTION(uint32_t, max_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
 OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
 
 OPTION(uint32_t, max_entry_points_instances, 2*1024u) // FIXME find a better definition
+OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meaning no retry
 
 OPTION(bool, supports_filter_linear, true)
 
@@ -79,3 +81,11 @@ OPTION(bool, queue_profiling_use_timestamp_queries, false)
 OPTION(uint32_t, perfetto_trace_max_size, 1024u)
 OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS
+
+//
+// Test
+//
+#if CLVK_UNIT_TESTING_ENABLED
+OPTION(bool, force_descriptor_set_allocation_failure, false)
+OPTION(bool, early_flush_enabled, true)
+#endif

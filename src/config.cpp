@@ -13,8 +13,16 @@
 // limitations under the License.
 
 #include "config.hpp"
+#include "log.hpp"
+#include "unit.hpp"
+#include "utils.hpp"
 
 #include <cassert>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <unordered_map>
+#include <vector>
 
 const config_struct config;
 
@@ -59,14 +67,116 @@ void parse_uint32(void* value_ptr, const char* txt) {
     cfgval->set = true;
 }
 
+// Helper function to trim whitespace.
+std::string trim(const std::string& str) {
+    size_t first = str.find_first_not_of(" \t\n");
+    size_t last = str.find_last_not_of(" \t\n");
+
+    // Check for valid range
+    if (first == std::string::npos || last == std::string::npos) {
+        return str; // Empty or only whitespace
+    }
+
+    // Extract the trimmed string
+    std::string trimmed = str.substr(first, (last - first + 1));
+    return trimmed;
+}
+
+std::string get_clvk_env_name(const std::string& name) {
+    std::string var_name = "CLVK_";
+    std::string optname_upper(name);
+    std::transform(optname_upper.begin(), optname_upper.end(),
+                   optname_upper.begin(), ::toupper);
+    var_name += optname_upper;
+    return var_name;
+}
+
+void read_config_file(std::unordered_map<std::string, std::string>& umap,
+                      std::ifstream& config_stream) {
+
+    std::string line;
+    while (std::getline(config_stream, line)) {
+        // Ignore comments and empty lines
+        line = trim(line);
+        if (line.empty() || line[0] == '#') {
+            continue;
+        }
+
+        // Parse key-value pairs
+        size_t pos = line.find('=');
+        if (pos != std::string::npos) {
+            std::string key = trim(line.substr(0, pos));
+            std::string value = trim(line.substr(pos + 1));
+            // Store values (if any)
+            if (value != "") {
+                umap[key] = value;
+                cvk_debug_group_fn(loggroup::cfg, "'%s' = '%s'", key.c_str(),
+                                   value.c_str());
+            }
+        } else {
+            cvk_warn_group_fn(loggroup::cfg, "%s , %s",
+                              "The following line is malformed", line.c_str());
+        }
+    }
+    config_stream.close();
+}
+
+void parse_config_file() {
+    std::unordered_map<std::string, std::string> file_config_values;
+    std::string conf_file = "clvk.conf";
+    std::ifstream config_stream;
+
+    std::vector<std::string> config_file_paths;
+    config_file_paths.push_back("/etc/clvk.conf");
+    config_file_paths.push_back("~/.config/clvk.conf");
+    config_file_paths.push_back(
+        (std::filesystem::current_path() / conf_file).string());
+    // First check if env var has file
+    std::string conv_file_env_var = "CLVK_CONFIG_FILE";
+    const char* conf_file_env_path = getenv(conv_file_env_var.c_str());
+
+    if (conf_file_env_path != nullptr) {
+        config_file_paths.push_back(conf_file_env_path);
+    }
+    for (auto& curr_path : config_file_paths) {
+        if (!std::filesystem::exists(curr_path)) {
+            continue;
+        }
+        config_stream.open(curr_path);
+        if (!config_stream.is_open()) {
+            cvk_error("Error opening config file - %s", curr_path.c_str());
+        }
+        cvk_info_group_fn(loggroup::cfg, "Parsing config file '%s'",
+                          curr_path.c_str());
+        read_config_file(file_config_values, config_stream);
+    }
+
+    for (auto& opt : gConfigOptions) {
+        if (file_config_values.find(opt.name) == file_config_values.end()) {
+            continue;
+        }
+        CVK_ASSERT(file_config_values[opt.name].length() > 0);
+        auto curr_conf = (file_config_values[opt.name]).c_str();
+        void* optval = const_cast<void*>(opt.value);
+        switch (opt.type) {
+        case config_option_type::string:
+            parse_string(optval, curr_conf);
+            break;
+        case config_option_type::boolean:
+            parse_boolean(optval, curr_conf);
+            break;
+        case config_option_type::uint32:
+            parse_uint32(optval, curr_conf);
+            break;
+        }
+    }
+    return;
+}
+
 void parse_env() {
     for (auto& opt : gConfigOptions) {
-        std::string var_name = "CLVK_";
-        std::string optname_upper(opt.name);
-        std::transform(optname_upper.begin(), optname_upper.end(),
-                       optname_upper.begin(), ::toupper);
-        var_name += optname_upper;
         // printf("var_name = '%s' ", var_name.c_str());
+        auto var_name = get_clvk_env_name(opt.name);
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
             //    printf("is not set\n");
@@ -90,8 +200,9 @@ void parse_env() {
 
 } // namespace
 
+void init_config_from_env_only() { parse_env(); }
+
 void init_config() {
-    // TODO Parse config file
-    // Parse environment
+    parse_config_file();
     parse_env();
 }

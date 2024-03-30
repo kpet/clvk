@@ -1,7 +1,11 @@
 # clvk [![CI badge](https://github.com/kpet/clvk/actions/workflows/presubmit.yml/badge.svg?branch=main)](https://github.com/kpet/clvk/actions/workflows/presubmit.yml?query=branch%3Amain++) [![Discord Shield](https://discordapp.com/api/guilds/1002628585250631681/widget.png?style=shield)](https://discord.gg/xsVdjmhFM9)
 
-clvk is a prototype implementation of OpenCL 3.0 on top of Vulkan using
+clvk is a [conformant](https://www.khronos.org/conformance/adopters/conformant-products/opencl)
+implementation of OpenCL 3.0 on top of Vulkan using
 [clspv](https://github.com/google/clspv) as the compiler.
+
+![OpenCL Logo](./docs/opencl-light.svg#gh-light-mode-only)
+![OpenCL Logo](./docs/opencl-dark.svg#gh-dark-mode-only)
 
 # Supported applications
 
@@ -308,10 +312,37 @@ The size of those batches can be controlled using the following two variables:
    - `CLVK_MAX_FIRST_CMD_BATCH_SIZE`
 
 
-# Environment variables
+# Configuration
 
-The behaviour of a few things in clvk can be controlled by environment
-variables. Here's a quick guide:
+Many aspects of clvk's behaviour can be configured using configuration files
+and/or environment variables. clvk attempts to get its configuration from the
+following sources (in the order documented here). Values obtained from each
+source take precedence over previously obtained values.
+
+1. System-wide configuration in `/etc/clvk.conf`
+2. Per-user configuration in `~/.config/clvk.conf`
+3. `clvk.conf` in the current directory
+4. An additional configuration file specified using the `CLVK_CONFIG_FILE`
+  environment variable, if provided
+5. Environment variables for individual configuration options
+
+Configuration files use a key-value format and allow comments beginning with `#`:
+
+```
+# Here's a comment
+option = value
+
+other_option = 42
+```
+
+Options names are lowercase (e.g `myoption`) in configuration files
+but uppercase and prefixed with `CLVK_` in environment variables
+(e.g. `CLVK_MYOPTION`).
+
+Here is a list of all the configuration options that clvk supports documented
+using the name of the corresponding environment variable.
+
+* `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
 * `CLVK_LOG` controls the level of logging
 
@@ -442,6 +473,24 @@ variables. Here's a quick guide:
 
 * `CLVK_FORCE_SUBGROUP_SIZE` specifies the subgroup size to use, overriding
   everything.
+
+* `CLVK_QUEUE_GLOBAL_PRIORITY` specifies the queue global priority to use if it
+  is supported by the driver:
+
+  * `0`: `VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR`
+  * `1`: `VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR` (default)
+  * `2`: `VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR`
+  * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
+
+* `CLVK_MAX_ENTRY_POINTS_INSTANCES` specifies the number of instances of a
+  kernel that can be in flight at the same time. Increasing this value has an
+  impact on the memory usage as it will allocate more descriptor sets per
+  kernel (default: `2048`).
+
+* `CLVK_ENQUEUE_COMMAND_RETRY_SLEEP_US` specifies the time to wait between two
+  attempts to enqueue a command. It is disabled by default, meaning that if an
+  enqueue fails, it returns an error. When specified, it will retry as long as
+  there are groups in flight (commands being processed).
 
 # Limitations
 

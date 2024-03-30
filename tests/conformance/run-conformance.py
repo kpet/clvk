@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright 2018-2022 The clvk authors.
+# Copyright 2018-2024 The clvk authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ from __future__ import print_function
 import argparse
 import datetime
 import json
+import multiprocessing
 import os
 import pprint
 import re
@@ -165,14 +166,18 @@ def load_json(path):
     with open(path) as f:
         return json.load(f)
 
-def run_conformance_binary(path, args):
+def run_conformance_binary(path, results_dir, args):
     start = datetime.datetime.utcnow()
     dirname = os.path.dirname(path)
     binary = os.path.basename(path)
     path = os.path.join(dirname, os.path.basename(binary))
     workdir = os.path.dirname(path)
-    result_json = os.path.join(workdir, 'conf.json')
-    os.environ['CL_CONFORMANCE_RESULTS_FILENAME'] = result_json
+    results_base_name = '_'.join([binary] + args)
+    results_base_name = results_base_name.replace('/','_')
+    results_json = os.path.join(results_dir, results_base_name + '.json')
+    results_stdout = os.path.join(results_dir, results_base_name + '.out')
+    results_stderr = os.path.join(results_dir, results_base_name + '.err')
+    os.environ['CL_CONFORMANCE_RESULTS_FILENAME'] = results_json
     p = subprocess.Popen(
         [path] + args,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -182,6 +187,11 @@ def run_conformance_binary(path, args):
     stdout = stdout.decode('utf-8')
     stderr = stderr.decode('utf-8')
     end = datetime.datetime.utcnow()
+    with open(results_stdout, 'w') as f:
+        f.write(stdout)
+    with open(results_stderr, 'w') as f:
+        f.write(stderr)
+
     #print(stdout)
     duration = end - start
 
@@ -189,8 +199,7 @@ def run_conformance_binary(path, args):
     results = {}
 
     try:
-        data = load_json(result_json)
-        os.remove(result_json)
+        data = load_json(results_json)
 
         for test, result in data['results'].items():
             if result not in ('pass', 'skip', 'fail'):
@@ -235,10 +244,10 @@ def gather_system_info():
         'driverVersion': info_props['VkPhysicalDeviceProperties']['driverVersion'],
         'apiVersion': info_props['VkPhysicalDeviceProperties']['apiVersion'],
     }
-    if 'VkPhysicalDeviceDriverProperties' in info_props:
-        infos['driverID'] = info_props['VkPhysicalDeviceDriverProperties']['driverID']
-        infos['driverName'] = info_props['VkPhysicalDeviceDriverProperties']['driverName']
-        infos['driverInfo'] = info_props['VkPhysicalDeviceDriverProperties']['driverInfo']
+    if 'VkPhysicalDeviceVulkan12Properties' in info_props:
+        infos['driverID'] = info_props['VkPhysicalDeviceVulkan12Properties']['driverID']
+        infos['driverName'] = info_props['VkPhysicalDeviceVulkan12Properties']['driverName']
+        infos['driverInfo'] = info_props['VkPhysicalDeviceVulkan12Properties']['driverInfo']
     print("System information:")
     pprint.pprint(infos, indent=2)
     print("")
@@ -255,23 +264,39 @@ def check_system_info(system_info, reference_results_path):
             success = False
     return success
 
-def run_tests(args):
-    test_set = TEST_SETS[args.test_set]
-    results = {}
+def run_test(results_dir, test):
+    name = test[0]
+    binary = test[1]
+    test_args = test[2:]
+    print("Running", name, "...")
+    status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), results_dir, list(test_args))
+    totals = get_suite_totals(status)
+    msg = "Finished {} recode = {} [{}], {}/{} passed, {} skipped"
+    msg = msg.format(name, status['retcode'], status['duration'], totals['pass'], totals['total'], totals['skip'])
+    print(msg)
+    return name, status
 
-    for test in test_set:
-        name = test[0]
-        binary = test[1]
-        test_args = test[2:]
-        if args.filter and not re.match(args.filter, name):
+def run_tests(args):
+    results = {}
+    test_set = []
+
+    results_dir = tempfile.mkdtemp()
+    print("Saving results to {}".format(results_dir))
+
+    for test in TEST_SETS[args.test_set]:
+        if args.filter and not re.match(args.filter, test[0]):
             continue
-        print("Running", name, "...")
-        status = run_conformance_binary(os.path.join(CTS_BUILD_DIR, os.path.basename(binary)), list(test_args))
-        results[name] = status
-        totals = get_suite_totals(status)
-        print("Done, retcode = %d [%s]." % (status['retcode'], status['duration']))
-        print(totals['pass'], "test(s) out of", totals['total'], "passed. ", totals['skip'], "were skipped.")
-        print("")
+        test_set.append(test)
+
+    if args.jobs == 1:
+        for test in test_set:
+            name, status = run_test(results_dir, test)
+            results[name] = status
+    else:
+        workers = multiprocessing.Pool(args.jobs)
+        res = workers.starmap(run_test, zip([results_dir]*len(test_set),test_set))
+        for name, status in res:
+            results[name] = status
 
     return results
 
@@ -426,6 +451,11 @@ def main():
     parser.add_argument(
         '--filter',
         help="Only run tests that match this regexp",
+    )
+
+    parser.add_argument(
+        '--jobs', type=int, default=1,
+        help="Run suites in parallel",
     )
 
     args = parser.parse_args()

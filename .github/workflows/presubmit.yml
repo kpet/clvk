@@ -196,6 +196,10 @@ jobs:
             cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
+      - name: Config tests
+        shell: bash
+        if: ${{ matrix.unit }}
+        run: ./tests/config/run_test.sh ${{ env.testbindir }}
       - name: SHA-1 tests
         if: ${{ matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
@@ -259,6 +263,8 @@ jobs:
         run: |
           ${{ env.testbindir }}/simple_test
           ./tests/perfetto/check-perfetto-trace.sh ${CLVK_PERFETTO_TRACE_DEST} ./tests/perfetto/simple_test-expectation.txt
+          ${{ env.testbindir}}/api_tests --gtest_filter=WithCommandQueue.EnqueueTooManyCommandsWithRetry
+          ./tests/perfetto/check-perfetto-trace.sh ${CLVK_PERFETTO_TRACE_DEST} ./tests/perfetto/api_tests.EnqueueTooManyCommandWithRetry-expectation.txt
         env:
-          CLVK_PERFETTO_TRACE_DEST: ${{ env.testbindir }}/simple_test.trace
+          CLVK_PERFETTO_TRACE_DEST: ${{ env.testbindir }}/perfetto.trace
           TRACE_PROCESSOR_SHELL: ${{ env.perfettodir }}/out/linux_clang_release/trace_processor_shell

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <chrono>
+#include <thread>
 #include <unordered_set>
 
 #include "config.hpp"
@@ -96,7 +98,7 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
         auto initcmd =
             new cvk_command_image_init(this, static_cast<cvk_image*>(mem));
         _cl_event* initev;
-        cl_int err = enqueue_command(initcmd, &initev);
+        cl_int err = enqueue_command_with_retry(initcmd, &initev);
         if (err != CL_SUCCESS) {
             return err;
         }
@@ -124,6 +126,45 @@ void cvk_command_queue::enqueue_command(cvk_command* cmd) {
         cmd->add_dependency(m_finish_event);
     }
     m_groups.back()->commands.push_back(cmd);
+}
+
+cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
+                                                     _cl_event** event) {
+    cl_int err = enqueue_command(cmd, event);
+    if (config.enqueue_command_retry_sleep_us == UINT32_MAX ||
+        err != CL_OUT_OF_RESOURCES) {
+        if (err != CL_SUCCESS) {
+            delete cmd;
+        }
+        return err;
+    }
+    if (m_nb_group_in_flight == 0) {
+        err = end_current_command_batch();
+        if (err != CL_SUCCESS) {
+            delete cmd;
+            return err;
+        }
+        err = flush_no_lock();
+        if (err != CL_SUCCESS) {
+            delete cmd;
+            return err;
+        }
+    }
+    // Retry every 'config.descriptor_set_allocate_retry_sleep_us' us until
+    // we have no more batch in flight, which would mean that all the
+    // descriptor should have been freed, thus the error is not about not
+    // having enough descriptors.
+    do {
+        TRACE_BEGIN("descriptor_sets_allocate_retry_sleep");
+        std::this_thread::sleep_for(
+            std::chrono::microseconds(config.enqueue_command_retry_sleep_us));
+        TRACE_END();
+        err = enqueue_command(cmd, event);
+    } while (err == CL_OUT_OF_RESOURCES && m_nb_group_in_flight != 0);
+    if (err != CL_SUCCESS) {
+        delete cmd;
+    }
+    return err;
 }
 
 cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
@@ -190,6 +231,12 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         cvk_debug_fn("returning event %p", *event);
     }
 
+#ifdef CLVK_UNIT_TESTING_ENABLED
+    if (!config.early_flush_enabled) {
+        return CL_SUCCESS;
+    }
+#endif
+
     auto group_size = m_groups.back()->commands.size();
     if (group_size >= m_max_cmd_group_size ||
         (m_nb_group_in_flight == 0 &&
@@ -204,7 +251,7 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     cvk_command* cmd, cl_uint num_dep_events, _cl_event* const* dep_events,
     _cl_event** event) {
     cmd->set_dependencies(num_dep_events, dep_events);
-    return enqueue_command(cmd, event);
+    return enqueue_command_with_retry(cmd, event);
 }
 
 cl_int cvk_command_queue::enqueue_command_with_deps(
@@ -213,7 +260,7 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     cmd->set_dependencies(num_dep_events, dep_events);
 
     _cl_event* evt;
-    cl_int err = enqueue_command(cmd, &evt);
+    cl_int err = enqueue_command_with_retry(cmd, &evt);
     if (err != CL_SUCCESS) {
         return err;
     }
@@ -515,7 +562,7 @@ bool cvk_command_buffer::begin() {
         return false;
     }
 
-    m_queue->command_pool_lock();
+    cvk_command_pool_lock_holder lock(m_queue);
 
     VkCommandBufferBeginInfo beginInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr,
@@ -972,6 +1019,8 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
     // Setup descriptors
     if (!m_argument_values->setup_descriptor_sets()) {
+        m_argument_values->release_resources();
+        m_argument_values = nullptr;
         return CL_OUT_OF_RESOURCES;
     }
 

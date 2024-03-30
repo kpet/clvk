@@ -439,3 +439,108 @@ TEST_F(WithCommandQueue, FinishAfterFlush) {
         thread->join();
     }
 }
+
+#ifdef CLVK_UNIT_TESTING_ENABLED
+TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
+
+    static const unsigned NUM_INSTANCES =
+        CLVK_CONFIG_GET(max_entry_points_instances);
+
+    static const char* program_source = R"(
+    kernel void test_simple(global uint* out, uint id)
+    {
+        out[id] = id;
+    }
+    )";
+
+    auto cfg_force_descriptor_set_allocation_failure =
+        CLVK_CONFIG_SCOPED_OVERRIDE(force_descriptor_set_allocation_failure,
+                                    bool, true, true);
+    auto cfg_early_flush_enabled =
+        CLVK_CONFIG_SCOPED_OVERRIDE(early_flush_enabled, bool, false, true);
+    CLVK_CONFIG_ASSERT_EQ(enqueue_command_retry_sleep_us, UINT32_MAX);
+
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "test_simple");
+
+    // Create buffer
+    size_t buffer_size = NUM_INSTANCES * sizeof(cl_uint);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+
+    // Dispatch kernel
+    size_t gws = 1;
+    size_t lws = 1;
+
+    SetKernelArg(kernel, 0, buffer);
+    cl_uint i;
+    for (i = 0; i < NUM_INSTANCES; i++) {
+        SetKernelArg(kernel, 1, &i);
+        EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
+    }
+    SetKernelArg(kernel, 1, &i);
+    cl_uint err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws,
+                                         &lws, 0, nullptr, nullptr);
+    ASSERT_EQ(err, CL_OUT_OF_RESOURCES);
+}
+
+TEST_F(WithCommandQueue, EnqueueTooManyCommandsWithRetry) {
+
+    // Make sure that we will have to retry
+    static const unsigned NUM_INSTANCES =
+        CLVK_CONFIG_GET(max_entry_points_instances);
+    static const unsigned NUM_INSTANCES_RETRY = NUM_INSTANCES + 16;
+
+    static const char* program_source = R"(
+    kernel void test_simple(global uint* out, uint id)
+    {
+        out[id] = id;
+    }
+    )";
+
+    auto cfg_force_descriptor_set_allocation_failure =
+        CLVK_CONFIG_SCOPED_OVERRIDE(force_descriptor_set_allocation_failure,
+                                    bool, true, true);
+    auto cfg_enqueue_command_retry_sleep_us = CLVK_CONFIG_SCOPED_OVERRIDE(
+        enqueue_command_retry_sleep_us, uint32_t, 100, true);
+    auto cfg_early_flush_enabled =
+        CLVK_CONFIG_SCOPED_OVERRIDE(early_flush_enabled, bool, false, true);
+
+    // Create kernel
+    auto kernel = CreateKernel(program_source, "test_simple");
+
+    // Create buffer
+    size_t buffer_size = NUM_INSTANCES_RETRY * sizeof(cl_uint);
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
+                               buffer_size, nullptr);
+
+    // Dispatch kernel
+    size_t gws = 1;
+    size_t lws = 1;
+
+    SetKernelArg(kernel, 0, buffer);
+    for (cl_uint i = 0; i < NUM_INSTANCES_RETRY; i++) {
+        SetKernelArg(kernel, 1, &i);
+        EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws);
+    }
+    // Complete execution
+    Finish();
+
+    // Map the buffer
+    auto data =
+        EnqueueMapBuffer<cl_uint>(buffer, CL_TRUE, CL_MAP_READ, 0, buffer_size);
+
+    // Check the expected result
+    for (cl_uint i = 0; i < NUM_INSTANCES_RETRY; ++i) {
+        EXPECT_EQ(data[i], static_cast<cl_uint>(i));
+        if (data[i] != static_cast<cl_uint>(i)) {
+            printf("Failed comparison at data[%u]: expected %u != got %u\n", i,
+                   i, data[i]);
+        }
+    }
+
+    // Unmap the buffer
+    EnqueueUnmapMemObject(buffer, data);
+    Finish();
+}
+#endif

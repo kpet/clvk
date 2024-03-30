@@ -237,8 +237,11 @@ void clvk_global_state::init_executors() {
 void clvk_global_state::term_executors() { delete m_thread_pool; }
 
 clvk_global_state::clvk_global_state() {
-    init_config();
+    // Init the configuration using environment variables before logging so
+    // we can enable full logging support before parsing configuration files.
+    init_config_from_env_only();
     init_logging();
+    init_config();
     cvk_info("Starting initialisation");
     init_tracing();
     init_vulkan();

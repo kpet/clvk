@@ -247,6 +247,8 @@ struct cvk_command_queue : public _cl_command_queue,
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     void enqueue_command(cvk_command* cmd);
+    CHECK_RETURN cl_int enqueue_command_with_retry(cvk_command*,
+                                                   _cl_event** event);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
     CHECK_RETURN cl_int end_current_command_batch();
     void executor();
@@ -283,6 +285,16 @@ private:
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
     return static_cast<cvk_command_queue*>(queue);
 }
+
+struct cvk_command_pool_lock_holder {
+    cvk_command_pool_lock_holder(cvk_command_queue* queue) : m_queue(queue) {
+        m_queue->command_pool_lock();
+    }
+    ~cvk_command_pool_lock_holder() { m_queue->command_pool_unlock(); }
+
+private:
+    cvk_command_queue* m_queue;
+};
 
 struct cvk_executor_thread_pool {
 
@@ -358,7 +370,6 @@ struct cvk_command_buffer {
 
     CHECK_RETURN bool end() {
         auto res = vkEndCommandBuffer(m_command_buffer);
-        m_queue->command_pool_unlock();
         return res == VK_SUCCESS;
     }
 
@@ -822,29 +833,27 @@ struct cvk_command_batch : public cvk_command {
     cl_int add_command(cvk_command_batchable* cmd) {
         if (!m_command_buffer) {
             // Create command buffer and start recording on first call
-            // Command pool is locked on exit from cvk_command_buffer::begin()
             m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
             if (!m_command_buffer->begin()) {
                 return CL_OUT_OF_RESOURCES;
             }
-        } else {
-            m_queue->command_pool_lock();
+        }
+        cvk_command_pool_lock_holder lock(m_queue);
+
+        cl_int ret = cmd->build(*m_command_buffer);
+        if (ret != CL_SUCCESS) {
+            return ret;
         }
 
         cvk_debug_fn("add command %p (%s) to batch %p", cmd,
                      cl_command_type_to_string(cmd->type()), this);
         m_commands.emplace_back(cmd);
 
-        cl_int ret = cmd->build(*m_command_buffer);
-
-        m_queue->command_pool_unlock();
-
         return ret;
     }
 
     CHECK_RETURN bool end() {
-        // cvk_command_buffer::end() expects command pool to be locked
-        m_queue->command_pool_lock();
+        cvk_command_pool_lock_holder lock(m_queue);
         return m_command_buffer->end();
     }
 

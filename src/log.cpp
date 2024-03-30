@@ -48,6 +48,7 @@ static uint64_t init_logging_groups() {
         {"api", loggroup::api},
         {"event", loggroup::event},
         {"validation", loggroup::validation},
+        {"cfg", loggroup::cfg},
         {"none", loggroup::none},
         {"all", loggroup::all},
     };
@@ -723,5 +724,16 @@ const char* spirv_capability_to_string(spv::Capability capability) {
         CASE(spv::CapabilityMax);
     default:
         return "unknown SPIRV Capability";
+    }
+}
+
+const char* queue_global_priority_to_string(VkQueueGlobalPriorityKHR priority) {
+    switch (priority) {
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR);
+        CASE(VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR);
+    default:
+        return "VK_QUEUE_GLOBAL_PRIORITY_UNKNOWN";
     }
 }

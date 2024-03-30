@@ -35,6 +35,7 @@ enum loggroup : uint64_t
     api = (1ULL << 1),
     event = (1ULL << 2),
     validation = (1ULL << 3),
+    cfg = (1ULL << 4),
     none = (1ULL << 63),
     all = ~0ULL
 };
@@ -115,3 +116,5 @@ const char* cl_device_type_to_string(cl_device_type type);
 const char* cl_command_execution_status_to_string(cl_int status);
 
 const char* spirv_capability_to_string(spv::Capability capability);
+
+const char* queue_global_priority_to_string(VkQueueGlobalPriorityKHR priority);

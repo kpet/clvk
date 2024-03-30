@@ -254,6 +254,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -313,6 +314,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
     m_features_subgroup_size_control.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES;
+    m_features_queue_global_priority.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -345,6 +348,8 @@ void cvk_device::init_features(VkInstance instance) {
             VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
                          m_features_buffer_device_address),
+            VER_EXT_FEAT(0, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
+                         m_features_queue_global_priority),
 
 #undef VER_EXT_FEAT
         };
@@ -597,6 +602,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_suggested_local_work_size"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
         // MAKE_NAME_VERSION(0, 9, 0, "cl_khr_semaphore"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_linkonce_odr"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -717,10 +723,36 @@ bool cvk_device::create_vulkan_queues_and_device(uint32_t num_queues,
     cvk_info("Creating Vulkan device and queues");
     // Give all queues the same priority
     std::vector<float> queuePriorities(num_queues, 1.0f);
+    void* pNext = nullptr;
+    VkDeviceQueueGlobalPriorityCreateInfoKHR globalPriorityCreateInfo;
+    cvk_info_fn("queue global priority: %u",
+                m_features_queue_global_priority.globalPriorityQuery);
+    if (m_features_queue_global_priority.globalPriorityQuery) {
+        const uint32_t num_priorities = 4;
+        static const VkQueueGlobalPriorityKHR priorities[num_priorities] = {
+            VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR,
+            VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR,
+            VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR,
+            VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR};
+        uint32_t queue_priority =
+            std::min(config.queue_global_priority(), num_priorities - 1);
+
+        globalPriorityCreateInfo.sType =
+            VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_KHR;
+        globalPriorityCreateInfo.pNext = nullptr;
+        globalPriorityCreateInfo.globalPriority = priorities[queue_priority];
+        pNext = &globalPriorityCreateInfo;
+
+        cvk_info_fn("setting queue global priority to '%u': '%s' (%u)",
+                    queue_priority,
+                    queue_global_priority_to_string(
+                        globalPriorityCreateInfo.globalPriority),
+                    globalPriorityCreateInfo.globalPriority);
+    }
 
     VkDeviceQueueCreateInfo queueCreateInfo = {
         VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        nullptr,
+        pNext,
         0, // flags
         queue_family,
         num_queues, // queueCount
