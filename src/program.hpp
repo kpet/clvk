@@ -614,12 +614,12 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
                  (binary_type(dev) == CL_PROGRAM_BINARY_TYPE_LIBRARY)));
     }
 
-    CHECK_RETURN bool build(build_operation operation, cl_uint num_devices,
-                            const cl_device_id* device_list,
-                            const char* options, cl_uint num_input_programs,
-                            const cl_program* input_programs,
-                            const char** header_include_names,
-                            cvk_program_callback cb, void* data);
+    CHECK_RETURN cl_int build(build_operation operation, cl_uint num_devices,
+                              const cl_device_id* device_list,
+                              const char* options, cl_uint num_input_programs,
+                              const cl_program* input_programs,
+                              const char** header_include_names,
+                              cvk_program_callback cb, void* data);
 
     cl_int set_user_spec_constant(uint32_t spec_id, size_t spec_size,
                                   const void* spec_value) {
@@ -666,11 +666,6 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     }
 
     VkShaderModule shader_module() const { return m_shader_module; }
-
-    void wait_for_operation() {
-        CVK_ASSERT(m_thread->joinable());
-        m_thread->join();
-    }
 
     void complete_operation(cvk_device* device, cl_build_status status) {
         m_dev_status[device] = status;
