@@ -5,9 +5,9 @@
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 24.0.2",
+    "driverInfo": "Mesa 24.0.5",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 100663298
+    "driverVersion": 100663301
   },
   "test-results": {
     "API": {
@@ -117,6 +117,9 @@
         "set_kernel_arg_constant": "pass",
         "set_kernel_arg_struct_array": "pass",
         "sub_group_dispatch": "pass",
+        "work_group_suggested_local_size_1D": "pass",
+        "work_group_suggested_local_size_2D": "pass",
+        "work_group_suggested_local_size_3D": "pass",
         "zero_sized_enqueue": "pass"
       },
       "retcode": 1
@@ -690,6 +693,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -702,6 +706,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -753,6 +758,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -777,6 +783,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -789,6 +796,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -801,6 +809,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -813,6 +822,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -1585,10 +1595,7 @@
         "work_group_scan_exclusive_min": "skip",
         "work_group_scan_inclusive_add": "skip",
         "work_group_scan_inclusive_max": "skip",
-        "work_group_scan_inclusive_min": "skip",
-        "work_group_suggested_local_size_1D": "skip",
-        "work_group_suggested_local_size_2D": "skip",
-        "work_group_suggested_local_size_3D": "skip"
+        "work_group_scan_inclusive_min": "skip"
       },
       "retcode": 0
     },
@@ -1638,6 +1645,23 @@
         "info_state": "skip",
         "interleaved_enqueue": "skip",
         "mixed_commands": "skip",
+        "negative_create_command_buffer_device_does_not_support_out_of_order_queue": "skip",
+        "negative_create_command_buffer_not_supported_properties": "skip",
+        "negative_create_command_buffer_null_queues": "skip",
+        "negative_create_command_buffer_num_queues": "skip",
+        "negative_create_command_buffer_queue_without_min_properties": "skip",
+        "negative_create_command_buffer_repeated_properties": "skip",
+        "negative_finalize_command_buffer_invalid_command_buffer": "skip",
+        "negative_finalize_command_buffer_not_recording_state": "skip",
+        "negative_get_command_buffer_info_context": "skip",
+        "negative_get_command_buffer_info_invalid_command_buffer": "skip",
+        "negative_get_command_buffer_info_not_supported_param_name": "skip",
+        "negative_get_command_buffer_info_prop_array": "skip",
+        "negative_get_command_buffer_info_queues": "skip",
+        "negative_get_command_buffer_info_ref_count": "skip",
+        "negative_get_command_buffer_info_state": "skip",
+        "negative_release_command_buffer_invalid_command_buffer": "skip",
+        "negative_retain_command_buffer_invalid_command_buffer": "skip",
         "out_of_order": "skip",
         "pending_set_kernel_arg": "skip",
         "properties_queue_substitution": "skip",
