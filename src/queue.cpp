@@ -1450,8 +1450,8 @@ cl_int cvk_command_fill_buffer::do_action() {
 
 cl_int cvk_command_map_buffer::build(void** map_ptr) {
 
-    if (!m_buffer->find_or_create_mapping(m_mapping, m_offset, m_size,
-                                          m_flags)) {
+    if (!m_buffer->find_or_create_mapping(m_mapping, m_offset, m_size, m_flags,
+                                          m_image)) {
         return CL_OUT_OF_RESOURCES;
     }
 

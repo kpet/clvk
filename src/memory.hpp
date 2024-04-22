@@ -270,6 +270,9 @@ static inline cvk_mem* icd_downcast(cl_mem mem) {
 }
 
 struct cvk_buffer;
+struct cvk_image;
+
+using cvk_image_holder = refcounted_holder<cvk_image>;
 
 struct cvk_memobj_mappping {
     cvk_buffer* buffer;
@@ -280,6 +283,10 @@ struct cvk_memobj_mappping {
 struct cvk_buffer_mapping : public cvk_memobj_mappping {
     size_t offset;
     size_t size;
+
+    // Needed for buffer mapped through clEnqueueMapImage with a
+    // CL_MEM_OBJECT_IMAGE1D_BUFFER.
+    cvk_image_holder image;
 };
 
 struct cvk_buffer : public cvk_mem {
@@ -354,7 +361,8 @@ struct cvk_buffer : public cvk_mem {
     }
 
     bool find_or_create_mapping(cvk_buffer_mapping& mapping, size_t offset,
-                                size_t size, cl_map_flags flags) {
+                                size_t size, cl_map_flags flags,
+                                cvk_image* image) {
 
         if (!map()) {
             return false;
@@ -365,6 +373,7 @@ struct cvk_buffer : public cvk_mem {
         mapping.size = size;
         mapping.ptr = this->map_ptr(offset);
         mapping.flags = flags;
+        mapping.image.reset(image);
 
         return true;
     }
@@ -377,7 +386,7 @@ struct cvk_buffer : public cvk_mem {
             return false;
         }
 
-        m_mappings[mapping.ptr] = mapping;
+        m_mappings.insert({mapping.ptr, mapping});
 
         return true;
     }
@@ -388,6 +397,7 @@ struct cvk_buffer : public cvk_mem {
         auto mapping = m_mappings.at(ptr);
         m_mappings.erase(ptr);
         mapping.buffer->unmap();
+        mapping.image.reset(nullptr);
         return mapping;
     }
 
@@ -795,5 +805,3 @@ private:
     std::mutex m_mappings_lock;
     std::unique_ptr<cvk_buffer> m_init_data;
 };
-
-using cvk_image_holder = refcounted_holder<cvk_image>;
