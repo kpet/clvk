@@ -703,3 +703,89 @@ kernel void test(image1d_buffer_t write_only image)
                     output[i].s2 == pattern && output[i].s3 == pattern);
     }
 }
+
+static void set_boolean_to_true(cl_mem memobj, void* bool_ptr) {
+    ((std::atomic<bool>*)bool_ptr)->store(true);
+}
+
+TEST_F(WithCommandQueue, 1DBufferImageUnmapAfterRelease) {
+    const size_t IMAGE_WIDTH = 128;
+    auto buffer_size = IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        0,                            // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    std::atomic<bool> destructor_called = false;
+    clSetMemObjectDestructorCallback(image, set_boolean_to_true,
+                                     (void*)&destructor_called);
+
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    auto map_ptr = EnqueueMapImage<cl_uchar>(image, CL_TRUE, 0, origin, region,
+                                             nullptr, nullptr);
+
+    cl_mem released_image = image.release();
+    clReleaseMemObject(released_image);
+    EXPECT_FALSE(destructor_called);
+
+    EnqueueUnmapMemObject(released_image, map_ptr);
+    EXPECT_FALSE(destructor_called);
+
+    Finish();
+    EXPECT_TRUE(destructor_called);
+}
+
+TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
+    const size_t IMAGE_WIDTH = 128;
+    auto buffer_size = IMAGE_WIDTH * sizeof(cl_float4);
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, buffer_size, nullptr);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        0,                            // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    std::atomic<bool> destructor_called = false;
+    clSetMemObjectDestructorCallback(image, set_boolean_to_true,
+                                     (void*)&destructor_called);
+
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    auto map_ptr = EnqueueMapImage<cl_uchar>(image, CL_TRUE, 0, origin, region,
+                                             nullptr, nullptr);
+
+    EnqueueUnmapMemObject(image, map_ptr);
+    EXPECT_FALSE(destructor_called);
+
+    cl_mem released_image = image.release();
+    clReleaseMemObject(released_image);
+    EXPECT_FALSE(destructor_called);
+
+    Finish();
+    EXPECT_TRUE(destructor_called);
+}

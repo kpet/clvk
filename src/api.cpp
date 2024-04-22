@@ -3704,9 +3704,10 @@ void* cvk_enqueue_map_buffer(cvk_command_queue* cq, cvk_buffer* buffer,
                              cl_map_flags map_flags,
                              cl_uint num_events_in_wait_list,
                              const cl_event* event_wait_list, cl_event* event,
-                             cl_int* errcode_ret, cl_command_type type) {
-    auto cmd =
-        new cvk_command_map_buffer(cq, buffer, offset, size, map_flags, type);
+                             cl_int* errcode_ret, cl_command_type type,
+                             cvk_image* image = nullptr) {
+    auto cmd = new cvk_command_map_buffer(cq, buffer, offset, size, map_flags,
+                                          type, image);
 
     void* map_ptr;
     cl_int err = cmd->build(&map_ptr);
@@ -5435,7 +5436,7 @@ void* CLVK_API_CALL clEnqueueMapImage(
             command_queue, static_cast<cvk_buffer*>(img->buffer()),
             blocking_map, origin[0] * img->element_size(),
             region[0] * img->element_size(), map_flags, num_events_in_wait_list,
-            event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE);
+            event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE, img);
     } else {
         ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
                                     map_flags, origin, region, image_row_pitch,
