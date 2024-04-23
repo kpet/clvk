@@ -23,11 +23,13 @@
 #include "kernel.hpp"
 #include "objects.hpp"
 #include "printf.hpp"
+#include "queue_controller.hpp"
 #include "tracing.hpp"
 
 struct cvk_command;
 struct cvk_command_queue;
 struct cvk_command_batch;
+struct cvk_queue_controller;
 using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 struct cvk_command_group {
@@ -240,7 +242,7 @@ private:
     CHECK_RETURN cl_int enqueue_command_with_retry(cvk_command*,
                                                    _cl_event** event);
     CHECK_RETURN cl_int enqueue_command(cvk_command* cmd, _cl_event** event);
-    CHECK_RETURN cl_int end_current_command_batch();
+    CHECK_RETURN cl_int end_current_command_batch(bool from_flush = false);
     void executor();
 
     cvk_device* m_device;
@@ -270,6 +272,11 @@ private:
     TRACE_CNT_VAR(group_in_flight_counter);
 
     std::unique_ptr<cvk_buffer> m_printf_buffer;
+
+    std::vector<std::unique_ptr<cvk_queue_controller>> m_controllers;
+
+    friend struct cvk_queue_controller;
+    friend struct cvk_queue_controller_batch_parameters;
 };
 
 static inline cvk_command_queue* icd_downcast(cl_command_queue queue) {
