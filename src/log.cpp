@@ -396,8 +396,10 @@ std::string vulkan_vendor_id_string(VkVendorId vid) {
         return "Codeplay Software Ltd.";
     case VK_VENDOR_ID_MESA:
         return "Mesa";
+#ifdef VK_VENDOR_ID_POCL
     case VK_VENDOR_ID_POCL:
         return "PoCL";
+#endif
 #ifdef VK_VENDOR_ID_MOBILEYE
     case VK_VENDOR_ID_MOBILEYE:
         return "Mobileye";
