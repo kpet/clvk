@@ -74,6 +74,7 @@ OPTION(bool, validation_layers, false)
 OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
 OPTION(uint32_t, max_mem_alloc_size_mb, 1024u)
 OPTION(uint32_t, spirv_validation, 2u)
+OPTION(bool, destroy_global_state, true)
 
 //
 // Instrumentation
