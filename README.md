@@ -493,6 +493,13 @@ using the name of the corresponding environment variable.
   enqueue fails, it returns an error. When specified, it will retry as long as
   there are groups in flight (commands being processed).
 
+* `CLVK_DESTROY_GLOBAL_STATE` specifies whether global state should be destructed
+  in a global destructor (default: true). Some applications incorrectly use
+  OpenCL API calls in global destructors which is [not guaranteed to work](https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_API.html#_global_constructors_and_destructors).
+  This option can be used to disable destroying global state which allows these
+  applications to work with the downside of not cleanly terminating clvk. Use
+  with caution.
+
 # Limitations
 
 * Only one device per CL context
