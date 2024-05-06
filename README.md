@@ -527,6 +527,11 @@ using the name of the corresponding environment variable.
 * `CLVK_DEVICE_EXTENSIONS` specifies extensions to be added to the list of
   exposed extensions. It expects a whitespace separated list of extensions.
 
+* `CLVK_BUILD_IN_SEPARATE_THREAD` force to build kernels in a separate thread
+  (default: false). It brings a slight overhead when creating the thread, but
+  can be a work-around when having issues with clang compiling in the
+  application thread.
+
 # Limitations
 
 * Only one device per CL context
