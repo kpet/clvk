@@ -635,6 +635,10 @@ void cvk_device::build_extension_ils_list() {
             (m_features_shader_subgroup_extended_types
                  .shaderSubgroupExtendedTypes == VK_TRUE)) {
             m_has_subgroups_support = true;
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_extended_types"));
         }
     }
 
