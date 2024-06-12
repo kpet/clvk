@@ -679,6 +679,7 @@ void cvk_device::build_extension_ils_list() {
         m_extension_string += ext.name;
         m_extension_string += " ";
     }
+    m_extension_string += config.device_extensions();
 
     // Build list of ILs
     m_ils = {
