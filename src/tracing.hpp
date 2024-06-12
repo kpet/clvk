@@ -51,7 +51,8 @@ PERFETTO_DEFINE_CATEGORIES(
     std::unique_ptr<perfetto::CounterTrack> name
 #define TRACE_CNT_VAR_INIT(name, value)                                        \
     string_##name = value;                                                     \
-    name = std::make_unique<perfetto::CounterTrack>(string_##name.c_str())
+    name = std::make_unique<perfetto::CounterTrack>(                           \
+        perfetto::DynamicString(string_##name))
 
 #elif CVK_ENABLE_TIMING
 
