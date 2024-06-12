@@ -674,6 +674,26 @@ void cvk_device::build_extension_ils_list() {
         m_has_subgroup_size_selection = true;
     }
 
+    auto split_string = [](std::string input, char delimiter) {
+        std::vector<std::string> outputs;
+        size_t pos = 0;
+        while ((pos = input.find(delimiter)) != std::string::npos) {
+            outputs.push_back(input.substr(0, pos));
+            input.erase(0, pos + 1);
+        }
+        outputs.push_back(input);
+        return outputs;
+    };
+    auto config_extensions = split_string(config.device_extensions(), ',');
+    for (auto& config_extension : config_extensions) {
+        cl_name_version extension;
+        extension.version = CL_MAKE_VERSION(0, 0, 0);
+        memcpy(extension.name, config_extension.c_str(),
+               std::min(config_extension.size(),
+                        (size_t)CL_NAME_VERSION_MAX_NAME_SIZE));
+        m_extensions.push_back(extension);
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
