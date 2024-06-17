@@ -188,13 +188,13 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 
 > Perfetto is a production-grade open-source stack for performance instrumentation and trace analysis. It offers services and libraries and for recording system-level and app-level traces, native + java heap profiling, a library for analyzing traces using SQL and a web-based UI to visualize and explore multi-GB traces.
 >
-> -- https://github.com/google/perfetto/tree/v39.0#perfetto---system-profiling-app-tracing-and-trace-analysis
+> -- https://github.com/google/perfetto/tree/v46.0#perfetto---system-profiling-app-tracing-and-trace-analysis
 
 Perfetto can be enabled by passing the following options to CMake:
    - `-DCLVK_PERFETTO_ENABLE=ON`
    - `-DCLVK_PERFETTO_SDK_DIR=/path/to/perfetto/sdk`
 
-The perfetto SDK can be found in the [Perfetto Github repository](https://github.com/google/perfetto/tree/v39.0)
+The perfetto SDK can be found in the [Perfetto Github repository](https://github.com/google/perfetto/tree/v46.0)
 
 If you already have a perfetto library in your system, you still need to provide the path
 to the SDK directory so the build system can find `perfetto.h`.
