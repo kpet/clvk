@@ -161,12 +161,12 @@ struct cvk_device_properties_samsung_xclipse_920
     std::string vendor() const override final { return "Samsung"; }
     const std::set<std::string> get_native_builtins() const override final {
         return std::set<std::string>({
-            "ceil",           "fabs",      "floor",       "fma",
-            "fmax",           "fmin",      "half_exp2",   "half_log2",
-            "half_rsqrt",     "half_sqrt", "isequal",     "isgreater",
-            "isgreaterequal", "isless",    "islessequal", "islessgreater",
-            "isnotequal",     "log2",      "mad",         "round",
-            "rsqrt",          "sqrt",      "exp2",
+            "ceil",      "floor",       "fma",           "fmax",
+            "fmin",      "half_exp2",   "half_log2",     "half_rsqrt",
+            "half_sqrt", "isequal",     "isgreater",     "isgreaterequal",
+            "isless",    "islessequal", "islessgreater", "isnotequal",
+            "log2",      "mad",         "round",         "rsqrt",
+            "sqrt",      "exp2",
         });
     }
 };
