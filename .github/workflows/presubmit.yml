@@ -124,6 +124,13 @@ jobs:
           ${PERFETTO_DIR}/tools/install-build-deps
           ${PERFETTO_DIR}/tools/setup_all_configs.py
           ${PERFETTO_DIR}/tools/ninja -C ${PERFETTO_DIR}/out/linux_clang_release trace_processor_shell
+      - name: Download libclc artifacts
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: build-libclc.yml
+          workflow_conclusion: success
+          name: libclc
+          path: libclc
       - name: Configure
         shell: bash
         run: |
@@ -135,6 +142,7 @@ jobs:
             cmake '${{ github.workspace }}' -G Ninja \
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
+              -DCLSPV_EXTERNAL_LIBCLC_DIR='${{ github.workspace }}/libclc' \
               -DCLVK_ENABLE_ASSERTIONS=ON \
               -DCLVK_VULKAN_IMPLEMENTATION=swiftshader \
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
