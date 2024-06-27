@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4206866,
+    "apiVersion": 4206870,
     "deviceID": 5710,
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 24.0.2",
+    "driverInfo": "Mesa 24.1.0",
     "driverName": "radv",
-    "driverVersion": 100663298
+    "driverVersion": 100667392
   },
   "test-results": {
     "API": {
@@ -690,6 +690,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -702,6 +703,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -753,6 +755,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -765,6 +768,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -777,6 +781,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -789,6 +794,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -801,6 +807,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -813,6 +820,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -1469,6 +1477,7 @@
       "has_results": true,
       "results": {
         "svm_allocate_shared_buffer": "skip",
+        "svm_allocate_shared_buffer_negative": "skip",
         "svm_byte_granularity": "skip",
         "svm_cross_buffer_pointers_coarse_grain": "skip",
         "svm_enqueue_api": "skip",
@@ -1638,6 +1647,58 @@
         "info_state": "skip",
         "interleaved_enqueue": "skip",
         "mixed_commands": "skip",
+        "negative_command_buffer_barrier_buffer_finalized": "skip",
+        "negative_command_buffer_barrier_invalid_command_buffer": "skip",
+        "negative_command_buffer_barrier_mutable_handle_not_null": "skip",
+        "negative_command_buffer_barrier_not_null_queue": "skip",
+        "negative_command_buffer_barrier_sync_points_null_or_num_zero": "skip",
+        "negative_command_buffer_command_svm_finalized_command_buffer": "skip",
+        "negative_command_buffer_command_svm_invalid_command_buffer": "skip",
+        "negative_command_buffer_command_svm_mutable_handle_not_null": "skip",
+        "negative_command_buffer_command_svm_queue_not_null": "skip",
+        "negative_command_buffer_command_svm_sync_points_null_or_num_zero": "skip",
+        "negative_command_buffer_copy_image_context_not_same": "skip",
+        "negative_command_buffer_copy_image_finalized_command_buffer": "skip",
+        "negative_command_buffer_copy_image_invalid_command_buffer": "skip",
+        "negative_command_buffer_copy_image_mutable_handle_not_null": "skip",
+        "negative_command_buffer_copy_image_queue_not_null": "skip",
+        "negative_command_buffer_copy_image_sync_points_null_or_num_zero": "skip",
+        "negative_command_ndrange_kernel_command_buffer_finalized": "skip",
+        "negative_command_ndrange_kernel_invalid_command_buffer": "skip",
+        "negative_command_ndrange_kernel_invalid_properties": "skip",
+        "negative_command_ndrange_kernel_mutable_handle_not_null": "skip",
+        "negative_command_ndrange_kernel_not_support_printf": "skip",
+        "negative_command_ndrange_kernel_sync_points_null_or_num_zero": "skip",
+        "negative_command_ndrange_kernel_with_different_context": "skip",
+        "negative_command_ndrange_kernel_with_enqueue_call": "skip",
+        "negative_command_ndrange_queue_not_null": "skip",
+        "negative_create_command_buffer_device_does_not_support_out_of_order_queue": "skip",
+        "negative_create_command_buffer_not_supported_properties": "skip",
+        "negative_create_command_buffer_null_queues": "skip",
+        "negative_create_command_buffer_num_queues": "skip",
+        "negative_create_command_buffer_queue_without_min_properties": "skip",
+        "negative_create_command_buffer_repeated_properties": "skip",
+        "negative_enqueue_command_buffer_different_context_than_event": "skip",
+        "negative_enqueue_command_buffer_invalid_command_buffer": "skip",
+        "negative_enqueue_command_buffer_not_finalized": "skip",
+        "negative_enqueue_command_buffer_not_valid_queue_in_queues": "skip",
+        "negative_enqueue_command_buffer_null_queues_num_queues": "skip",
+        "negative_enqueue_command_buffer_num_queues_not_zero_different_while_buffer_creation": "skip",
+        "negative_enqueue_command_buffer_without_simultaneous_no_pending_state": "skip",
+        "negative_enqueue_event_wait_list_null_or_events_null": "skip",
+        "negative_enqueue_queue_not_compatible": "skip",
+        "negative_enqueue_queue_with_different_context": "skip",
+        "negative_finalize_command_buffer_invalid_command_buffer": "skip",
+        "negative_finalize_command_buffer_not_recording_state": "skip",
+        "negative_get_command_buffer_info_context": "skip",
+        "negative_get_command_buffer_info_invalid_command_buffer": "skip",
+        "negative_get_command_buffer_info_not_supported_param_name": "skip",
+        "negative_get_command_buffer_info_prop_array": "skip",
+        "negative_get_command_buffer_info_queues": "skip",
+        "negative_get_command_buffer_info_ref_count": "skip",
+        "negative_get_command_buffer_info_state": "skip",
+        "negative_release_command_buffer_invalid_command_buffer": "skip",
+        "negative_retain_command_buffer_invalid_command_buffer": "skip",
         "out_of_order": "skip",
         "pending_set_kernel_arg": "skip",
         "properties_queue_substitution": "skip",
