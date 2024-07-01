@@ -192,9 +192,9 @@ struct cvk_command_queue : public _cl_command_queue,
     }
 
     cl_int reset_printf_buffer() {
-        if (m_printf_buffer && m_printf_buffer->map()) {
+        if (m_printf_buffer && m_printf_buffer->map_write_only()) {
             memset(m_printf_buffer->host_va(), 0, 4);
-            m_printf_buffer->unmap();
+            m_printf_buffer->unmap_to_write(0, 4);
             return CL_SUCCESS;
         }
         cvk_error_fn("Could not reset printf buffer");

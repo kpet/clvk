@@ -24,9 +24,10 @@
 
 struct cvk_memory_allocation {
 
-    cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index)
+    cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index,
+                          bool coherent)
         : m_device(dev), m_size(size), m_memory(VK_NULL_HANDLE),
-          m_memory_type_index(type_index) {}
+          m_memory_type_index(type_index), m_coherent(coherent) {}
 
     ~cvk_memory_allocation() {
         if (m_memory != VK_NULL_HANDLE) {
@@ -49,6 +50,28 @@ struct cvk_memory_allocation {
         return vkAllocateMemory(m_device, &memoryAllocateInfo, 0, &m_memory);
     }
 
+    void invalidate(VkDeviceSize offset, VkDeviceSize size) {
+        if (!m_coherent) {
+            TRACE_BEGIN("invalidate_memory", "offset", offset, "size", size);
+            const VkMappedMemoryRange range = {
+                VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr, m_memory,
+                offset, size};
+            vkInvalidateMappedMemoryRanges(m_device, 1, &range);
+            TRACE_END();
+        }
+    }
+
+    void flush(VkDeviceSize offset, VkDeviceSize size) {
+        if (!m_coherent) {
+            TRACE_BEGIN("flush_memory", "offset", offset, "size", size);
+            const VkMappedMemoryRange range = {
+                VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr, m_memory,
+                offset, size};
+            vkFlushMappedMemoryRanges(m_device, 1, &range);
+            TRACE_END();
+        }
+    }
+
     VkResult map(void** map_ptr) {
         return vkMapMemory(m_device, m_memory, 0, m_size, 0, map_ptr);
     }
@@ -62,6 +85,7 @@ private:
     VkDeviceSize m_size;
     VkDeviceMemory m_memory;
     uint32_t m_memory_type_index;
+    bool m_coherent;
 };
 
 using cvk_mem_callback_pointer_type = void(CL_CALLBACK*)(cl_mem mem,
@@ -208,14 +232,38 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
         return m_map_ptr;
     }
 
-    bool CHECK_RETURN map();
-    void unmap();
+    bool CHECK_RETURN map() {
+        auto ret = map_memory();
+        if (!ret) {
+            return ret;
+        }
+        invalidate_memory(0, m_size);
+        return true;
+    }
+    bool CHECK_RETURN map_write_only() { return map_memory(); }
+    bool CHECK_RETURN map_to_read(VkDeviceSize offset, VkDeviceSize size) {
+        auto ret = map_memory();
+        if (!ret) {
+            return ret;
+        }
+        invalidate_memory(offset, size);
+        return true;
+    }
+    void unmap() {
+        flush_memory(0, m_size);
+        unmap_memory();
+    }
+    void unmap_read_only() { unmap_memory(); }
+    void unmap_to_write(VkDeviceSize offset, VkDeviceSize size) {
+        flush_memory(offset, size);
+        unmap_memory();
+    }
 
     bool CHECK_RETURN copy_to(void* dst, size_t offset, size_t size) {
-        if (map()) {
+        if (map_to_read(offset, size)) {
             void* src = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
-            unmap();
+            unmap_read_only();
             return true;
         }
         return false;
@@ -223,22 +271,22 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
 
     bool CHECK_RETURN copy_to(cvk_mem* dst, size_t src_offset,
                               size_t dst_offset, size_t size) {
-        if (map() && dst->map()) {
+        if (map_to_read(src_offset, size) && dst->map_write_only()) {
             void* src_ptr = pointer_offset(m_map_ptr, src_offset);
             void* dst_ptr = pointer_offset(dst->host_va(), dst_offset);
             memcpy(dst_ptr, src_ptr, size);
-            dst->unmap();
-            unmap();
+            dst->unmap_to_write(dst_offset, size);
+            unmap_read_only();
             return true;
         }
         return false;
     }
 
     bool CHECK_RETURN copy_from(const void* src, size_t offset, size_t size) {
-        if (map()) {
+        if (map_write_only()) {
             void* dst = pointer_offset(m_map_ptr, offset);
             memcpy(dst, src, size);
-            unmap();
+            unmap_to_write(offset, size);
             return true;
         }
         return false;
@@ -246,7 +294,13 @@ struct cvk_mem : public _cl_mem, api_object<object_magic::memory_object> {
 
     cvk_mem_init_tracker& init_tracker() { return m_init_tracker; }
 
+    void invalidate_memory(VkDeviceSize offset, VkDeviceSize size);
+
 private:
+    bool CHECK_RETURN map_memory();
+    void unmap_memory();
+    void flush_memory(VkDeviceSize offset, VkDeviceSize size);
+
     cl_mem_object_type m_type;
     std::mutex m_map_lock;
     cl_mem_flags m_flags;
@@ -385,6 +439,11 @@ struct cvk_buffer : public cvk_mem {
         if (num_mappings_with_same_pointer != 0) {
             return false;
         }
+
+        // memory has been mapped when the mapping has been created (when the
+        // enqueue command has been created). We need to invalidate it before
+        // the command execution to make sure of the content of the memory.
+        invalidate_memory(mapping.offset, mapping.size);
 
         m_mappings.insert({mapping.ptr, mapping});
 

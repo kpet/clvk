@@ -18,7 +18,7 @@
 #include "memory.hpp"
 #include "queue.hpp"
 
-bool cvk_mem::map() {
+bool cvk_mem::map_memory() {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::map", this);
 
@@ -45,7 +45,7 @@ bool cvk_mem::map() {
     return true;
 }
 
-void cvk_mem::unmap() {
+void cvk_mem::unmap_memory() {
     std::lock_guard<std::mutex> lock(m_map_lock);
     cvk_debug("%p::unmap", this);
 
@@ -62,6 +62,22 @@ void cvk_mem::unmap() {
         }
     }
     cvk_debug("%p::unmap, new map_count = %u", this, m_map_count);
+}
+
+void cvk_mem::invalidate_memory(VkDeviceSize offset, VkDeviceSize size) {
+    if (m_parent != nullptr) {
+        m_parent->invalidate_memory(offset + m_parent_offset, size);
+    } else {
+        m_memory->invalidate(offset, size);
+    }
+}
+
+void cvk_mem::flush_memory(VkDeviceSize offset, VkDeviceSize size) {
+    if (m_parent != nullptr) {
+        m_parent->flush_memory(offset + m_parent_offset, size);
+    } else {
+        m_memory->flush(offset, size);
+    }
 }
 
 std::unique_ptr<cvk_buffer>
@@ -111,7 +127,7 @@ bool cvk_buffer::init() {
 
     // Allocate memory
     m_memory = std::make_shared<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        vkdev, params.size, params.memory_type_index, params.memory_coherent);
     res = m_memory->allocate(device->uses_physical_addressing());
 
     if (res != VK_SUCCESS) {
@@ -425,7 +441,7 @@ bool cvk_image::init_vulkan_image() {
 
     // Allocate memory
     m_memory = std::make_unique<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index);
+        vkdev, params.size, params.memory_type_index, params.memory_coherent);
 
     res = m_memory->allocate(device->uses_physical_addressing());
 

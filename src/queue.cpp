@@ -1308,23 +1308,35 @@ private:
 };
 
 struct memobj_map_holder {
-    memobj_map_holder(cvk_mem* memobj) : m_mem(memobj), m_mapped(false) {
+    memobj_map_holder(cvk_mem* memobj, bool read_only, bool write_only)
+        : m_mem(memobj), m_mapped(false), m_read_only(read_only),
+          m_write_only(write_only) {
         CVK_ASSERT(memobj != nullptr);
     }
     ~memobj_map_holder() {
         if (m_mapped) {
-            m_mem->unmap();
+            if (m_read_only) {
+                m_mem->unmap_read_only();
+            } else {
+                m_mem->unmap();
+            }
         }
     }
 
     bool CHECK_RETURN map() {
-        m_mapped = m_mem->map();
+        if (m_write_only) {
+            m_mapped = m_mem->map_write_only();
+        } else {
+            m_mapped = m_mem->map();
+        }
         return m_mapped;
     }
 
 private:
     cvk_mem* m_mem;
     bool m_mapped;
+    bool m_read_only;
+    bool m_write_only;
 };
 
 void cvk_rectangle_copier::do_copy(direction dir, void* src_base,
@@ -1358,7 +1370,7 @@ void cvk_rectangle_copier::do_copy(direction dir, void* src_base,
 }
 
 cl_int cvk_command_copy_host_buffer_rect::do_action() {
-    memobj_map_holder map_holder{m_buffer};
+    memobj_map_holder map_holder{m_buffer, false, false};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
@@ -1390,8 +1402,8 @@ cl_int cvk_command_copy_host_buffer_rect::do_action() {
 }
 
 cl_int cvk_command_copy_buffer_rect::do_action() {
-    memobj_map_holder src_map_holder{m_src_buffer};
-    memobj_map_holder dst_map_holder{m_dst_buffer};
+    memobj_map_holder src_map_holder{m_src_buffer, true, false};
+    memobj_map_holder dst_map_holder{m_dst_buffer, false, true};
 
     if (!src_map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
@@ -1430,7 +1442,7 @@ void memset_multi(void* dst, void* pattern_ptr, size_t size) {
 } // namespace
 
 cl_int cvk_command_fill_buffer::do_action() {
-    memobj_map_holder map_holder{m_buffer};
+    memobj_map_holder map_holder{m_buffer, false, true};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
