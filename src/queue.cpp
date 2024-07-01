@@ -1123,7 +1123,16 @@ cl_int cvk_command_kernel::do_post_action() {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
         }
-        return cvk_printf(buffer, m_kernel->program()->printf_descriptors());
+        auto cb_index =
+            m_queue->context()->get_property_index(CL_PRINTF_CALLBACK_ARM);
+        if (cb_index == -1) {
+            cvk_error_fn("failed to get printf callback function");
+            return CL_INVALID_PROPERTY;
+        }
+        auto all_props = m_queue->context()->properties();
+        auto cb_func = (printf_callback_func*)all_props[cb_index];
+        return cvk_printf(buffer, m_kernel->program()->printf_descriptors(),
+                          cb_func);
     }
 
     return CL_SUCCESS;

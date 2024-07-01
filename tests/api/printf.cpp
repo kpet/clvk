@@ -17,7 +17,7 @@
 #include "testcl.hpp"
 #include "unit.hpp"
 #include "utils.hpp"
-
+#include <cstring>
 #include <filesystem>
 
 #ifdef __APPLE__
@@ -225,6 +225,36 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
     ASSERT_NE(printf_buffer, nullptr);
 
     ASSERT_STREQ(printf_buffer, message);
+}
+
+void printf_callback(const char* buffer, size_t len, size_t complete,
+                     void* user_data) {
+    ASSERT_EQ(strlen(buffer), len);
+    printf("Received data: %s (length: %zu)\n", buffer, len);
+}
+
+TEST_F(WithPrintfEnabled, PrintSimple) {
+    const char message[] = "Hello World!";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
+    /* Create a cl_context with a printf_callback and user specified buffer
+     * size. */
+    cl_context_properties properties[] = {
+        /* Enable a printf callback function for this context. */
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        strlen(message),
+
+    };
+
+    SetupPrintfCallback(properties);
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, 0, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
 }
 
 #endif

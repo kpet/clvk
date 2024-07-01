@@ -213,6 +213,12 @@ protected:
         ASSERT_CL_SUCCESS(err);
     }
 
+    void SetUpContext(const cl_context_properties* props) {
+        cl_int err;
+        m_context = clCreateContext(props, 1, &gDevice, nullptr, nullptr, &err);
+        ASSERT_CL_SUCCESS(err);
+    }
+
     void TearDown() override {
         cl_int err = clReleaseContext(m_context);
         ASSERT_CL_SUCCESS(err);
@@ -510,7 +516,6 @@ protected:
 #ifndef COMPILER_AVAILABLE
         GTEST_SKIP();
 #endif
-        WithContext::SetUp();
         auto queue = CreateCommandQueue(device(), properties);
         m_queue = queue.release();
     }
@@ -760,5 +765,28 @@ protected:
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
-    void SetUp() override { SetUpQueue(CL_QUEUE_PROFILING_ENABLE); }
+    void SetUp() override {
+        WithContext::SetUp();
+        SetUpQueue(CL_QUEUE_PROFILING_ENABLE);
+    }
+};
+
+class WithPrintfEnabled : public WithCommandQueue {
+protected:
+    void SetUp() override{};
+    void TearDown() override {
+        cl_int err = clReleaseContext(m_context);
+        ASSERT_CL_SUCCESS(err);
+        if (m_queue != nullptr) {
+            WithCommandQueue::TearDown();
+        }
+        if (m_context != nullptr) {
+            WithContext::TearDown();
+        }
+    }
+
+    void SetupPrintfCallback(const cl_context_properties* props) {
+        SetUpContext(props);
+        SetUpQueue(0);
+    }
 };
