@@ -251,11 +251,13 @@ clvk_global_state::clvk_global_state() {
 }
 
 clvk_global_state::~clvk_global_state() {
-    term_executors();
-    term_platform();
-    term_vulkan();
-    term_tracing();
-    term_logging();
+    if (config.destroy_global_state) {
+        term_executors();
+        term_platform();
+        term_vulkan();
+        term_tracing();
+        term_logging();
+    }
 }
 
 static clvk_global_state* gGlobalState;

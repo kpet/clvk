@@ -188,13 +188,13 @@ $ LD_LIBRARY_PATH=./build ./build/simple_test
 
 > Perfetto is a production-grade open-source stack for performance instrumentation and trace analysis. It offers services and libraries and for recording system-level and app-level traces, native + java heap profiling, a library for analyzing traces using SQL and a web-based UI to visualize and explore multi-GB traces.
 >
-> -- https://github.com/google/perfetto/tree/v39.0#perfetto---system-profiling-app-tracing-and-trace-analysis
+> -- https://github.com/google/perfetto/tree/v46.0#perfetto---system-profiling-app-tracing-and-trace-analysis
 
 Perfetto can be enabled by passing the following options to CMake:
    - `-DCLVK_PERFETTO_ENABLE=ON`
    - `-DCLVK_PERFETTO_SDK_DIR=/path/to/perfetto/sdk`
 
-The perfetto SDK can be found in the [Perfetto Github repository](https://github.com/google/perfetto/tree/v39.0)
+The perfetto SDK can be found in the [Perfetto Github repository](https://github.com/google/perfetto/tree/v46.0)
 
 If you already have a perfetto library in your system, you still need to provide the path
 to the SDK directory so the build system can find `perfetto.h`.
@@ -320,11 +320,12 @@ following sources (in the order documented here). Values obtained from each
 source take precedence over previously obtained values.
 
 1. System-wide configuration in `/etc/clvk.conf`
-2. Per-user configuration in `~/.config/clvk.conf`
-3. `clvk.conf` in the current directory
-4. An additional configuration file specified using the `CLVK_CONFIG_FILE`
+2. Configuration file in `/usr/local/etc/clvk.conf`
+3. Per-user configuration in `~/.config/clvk.conf`
+4. `clvk.conf` in the current directory
+5. An additional configuration file specified using the `CLVK_CONFIG_FILE`
   environment variable, if provided
-5. Environment variables for individual configuration options
+6. Environment variables for individual configuration options
 
 Configuration files use a key-value format and allow comments beginning with `#`:
 
@@ -491,6 +492,13 @@ using the name of the corresponding environment variable.
   attempts to enqueue a command. It is disabled by default, meaning that if an
   enqueue fails, it returns an error. When specified, it will retry as long as
   there are groups in flight (commands being processed).
+
+* `CLVK_DESTROY_GLOBAL_STATE` specifies whether global state should be destructed
+  in a global destructor (default: true). Some applications incorrectly use
+  OpenCL API calls in global destructors which is [not guaranteed to work](https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_API.html#_global_constructors_and_destructors).
+  This option can be used to disable destroying global state which allows these
+  applications to work with the downside of not cleanly terminating clvk. Use
+  with caution.
 
 # Limitations
 

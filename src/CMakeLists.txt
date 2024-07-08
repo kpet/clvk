@@ -67,6 +67,7 @@ add_library(OpenCL-objects OBJECT
   printf.cpp
   program.cpp
   queue.cpp
+  queue_controller.cpp
   semaphore.cpp
   sha1.cpp
   tracing.cpp

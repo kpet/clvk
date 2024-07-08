@@ -1639,12 +1639,12 @@ void cvk_program::do_build() {
     complete_operation(device, CL_BUILD_SUCCESS);
 }
 
-bool cvk_program::build(build_operation operation, cl_uint num_devices,
-                        const cl_device_id* device_list, const char* options,
-                        cl_uint num_input_programs,
-                        const cl_program* input_programs,
-                        const char** header_include_names,
-                        cvk_program_callback cb, void* data) {
+cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
+                          const cl_device_id* device_list, const char* options,
+                          cl_uint num_input_programs,
+                          const cl_program* input_programs,
+                          const char** header_include_names,
+                          cvk_program_callback cb, void* data) {
     std::lock_guard<std::mutex> lock(m_lock);
 
     // Check if there is already a build in progress
@@ -1653,7 +1653,7 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
                       [](auto& status) {
                           return status.second == CL_BUILD_IN_PROGRESS;
                       })) {
-        return false;
+        return CL_INVALID_OPERATION;
     }
 
     retain();
@@ -1687,13 +1687,30 @@ bool cvk_program::build(build_operation operation, cl_uint num_devices,
     m_operation_callback = cb;
     m_operation_callback_data = data;
 
-    // Kick off build
-    m_thread = std::make_unique<std::thread>(&cvk_program::do_build, this);
+    cl_int ret = CL_SUCCESS;
     if (cb) {
+        // Kick off build
+        m_thread = std::make_unique<std::thread>(&cvk_program::do_build, this);
         m_thread->detach();
+    } else {
+        do_build();
+        if (build_status() != CL_BUILD_SUCCESS) {
+            switch (operation) {
+            case build_operation::link:
+                ret = CL_LINK_PROGRAM_FAILURE;
+                break;
+            case build_operation::build:
+            case build_operation::build_binary:
+                ret = CL_BUILD_PROGRAM_FAILURE;
+                break;
+            case build_operation::compile:
+                ret = CL_COMPILE_PROGRAM_FAILURE;
+                break;
+            }
+            CVK_ASSERT(ret != CL_SUCCESS);
+        }
     }
-
-    return true;
+    return ret;
 }
 
 cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,

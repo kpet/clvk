@@ -128,6 +128,7 @@ void parse_config_file() {
 
     std::vector<std::string> config_file_paths;
     config_file_paths.push_back("/etc/clvk.conf");
+    config_file_paths.push_back("/usr/local/etc/clvk.conf");
     config_file_paths.push_back("~/.config/clvk.conf");
     config_file_paths.push_back(
         (std::filesystem::current_path() / conf_file).string());

@@ -109,14 +109,16 @@ struct cvk_device : public _cl_device_id,
 
     CHECK_RETURN uint32_t memory_type_index_for_resource(
         uint32_t valid_memory_type_bits,
-        VkMemoryPropertyFlags required_properties) const {
+        VkMemoryPropertyFlags required_properties,
+        VkMemoryPropertyFlags avoid_properties) const {
 
         for (uint32_t k = 0; k < m_mem_properties.memoryTypeCount; k++) {
             auto dev_properties = m_mem_properties.memoryTypes[k].propertyFlags;
             bool valid = (1ULL << k) & valid_memory_type_bits;
             bool satisfactory =
                 (dev_properties & required_properties) == required_properties;
-            if (satisfactory && valid) {
+            bool avoid = dev_properties & avoid_properties;
+            if (satisfactory && valid && !avoid) {
                 return k;
             }
         }
@@ -129,8 +131,8 @@ struct cvk_device : public _cl_device_id,
         const VkMemoryPropertyFlags* supported_memory_types) const {
 
         for (int i = 0; i < num_supported; i++) {
-            auto k = memory_type_index_for_resource(valid_memory_type_bits,
-                                                    supported_memory_types[i]);
+            auto k = memory_type_index_for_resource(
+                valid_memory_type_bits, supported_memory_types[i], 0);
             if (k != VK_MAX_MEMORY_TYPES) {
                 cvk_debug_fn("selected %u", k);
                 return k;
@@ -138,6 +140,24 @@ struct cvk_device : public _cl_device_id,
         }
 
         return VK_MAX_MEMORY_TYPES;
+    }
+
+    CHECK_RETURN uint32_t memory_type_index_for_resource(
+        uint32_t valid_memory_type_bits, int num_supported,
+        const VkMemoryPropertyFlags* supported_memory_types,
+        VkMemoryPropertyFlags avoid_memory_type) const {
+
+        for (int i = 0; i < num_supported; i++) {
+            auto k = memory_type_index_for_resource(valid_memory_type_bits,
+                                                    supported_memory_types[i],
+                                                    avoid_memory_type);
+            if (k != VK_MAX_MEMORY_TYPES) {
+                cvk_debug_fn("selected %u", k);
+                return k;
+            }
+        }
+        return memory_type_index_for_resource(
+            valid_memory_type_bits, num_supported, supported_memory_types);
     }
 
     struct allocation_parameters {
@@ -158,17 +178,30 @@ struct cvk_device : public _cl_device_id,
             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
     };
 
+    CHECK_RETURN uint32_t
+    memory_type_index_for_image(uint32_t valid_memory_type_bits) const {
+        return memory_type_index_for_resource(
+            valid_memory_type_bits, ARRAY_SIZE(image_supported_memory_types),
+            image_supported_memory_types, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    }
+
     CHECK_RETURN allocation_parameters select_memory_for(VkImage image) const {
         VkMemoryRequirements memreqs;
         vkGetImageMemoryRequirements(m_dev, image, &memreqs);
 
         allocation_parameters ret;
         ret.size = memreqs.size;
-        ret.memory_type_index = memory_type_index_for_resource(
-            memreqs.memoryTypeBits, ARRAY_SIZE(image_supported_memory_types),
-            image_supported_memory_types);
+        ret.memory_type_index =
+            memory_type_index_for_image(memreqs.memoryTypeBits);
 
         return ret;
+    }
+
+    CHECK_RETURN uint32_t
+    memory_type_index_for_buffer(uint32_t valid_memory_type_bits) const {
+        return memory_type_index_for_resource(
+            valid_memory_type_bits, ARRAY_SIZE(buffer_supported_memory_types),
+            buffer_supported_memory_types);
     }
 
     CHECK_RETURN allocation_parameters
@@ -179,9 +212,8 @@ struct cvk_device : public _cl_device_id,
 
         allocation_parameters ret;
         ret.size = memreqs.size;
-        ret.memory_type_index = memory_type_index_for_resource(
-            memreqs.memoryTypeBits, ARRAY_SIZE(buffer_supported_memory_types),
-            buffer_supported_memory_types);
+        ret.memory_type_index =
+            memory_type_index_for_buffer(memreqs.memoryTypeBits);
 
         return ret;
     }
@@ -194,16 +226,12 @@ struct cvk_device : public _cl_device_id,
         uint32_t heap_index = VK_MAX_MEMORY_HEAPS;
 
         // buffers
-        type_index = memory_type_index_for_resource(
-            0xFFFFFFFFU, ARRAY_SIZE(buffer_supported_memory_types),
-            buffer_supported_memory_types);
+        type_index = memory_type_index_for_buffer(0xFFFFFFFFU);
         heap_index = m_mem_properties.memoryTypes[type_index].heapIndex;
         size = std::min(size, m_mem_properties.memoryHeaps[heap_index].size);
 
         // images
-        type_index = memory_type_index_for_resource(
-            0xFFFFFFFFU, ARRAY_SIZE(image_supported_memory_types),
-            image_supported_memory_types);
+        type_index = memory_type_index_for_image(0xFFFFFFFFU);
         heap_index = m_mem_properties.memoryTypes[type_index].heapIndex;
         size = std::min(size, m_mem_properties.memoryHeaps[heap_index].size);
 

@@ -2303,21 +2303,8 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
     // clCreateProgramWithSource or clCreateProgramWithBinary or
     // clCreateProgramWithILKHR.
 
-    if (!program->build(build_op, num_devices, device_list, options, 0, nullptr,
-                        nullptr, pfn_notify, user_data)) {
-        return CL_INVALID_OPERATION;
-    }
-
-    if (pfn_notify == nullptr) {
-
-        program->wait_for_operation();
-
-        if (program->build_status() != CL_BUILD_SUCCESS) {
-            return CL_BUILD_PROGRAM_FAILURE;
-        }
-    }
-
-    return CL_SUCCESS;
+    return program->build(build_op, num_devices, device_list, options, 0,
+                          nullptr, nullptr, pfn_notify, user_data);
 }
 
 cl_int CLVK_API_CALL clCompileProgram(
@@ -2374,22 +2361,9 @@ cl_int CLVK_API_CALL clCompileProgram(
     }
 
     // TODO Validate program
-    if (!program->build(build_operation::compile, num_devices, device_list,
-                        options, num_input_headers, input_headers,
-                        header_include_names, pfn_notify, user_data)) {
-        return CL_INVALID_OPERATION;
-    }
-
-    if (pfn_notify == nullptr) {
-
-        program->wait_for_operation();
-
-        if (program->build_status() != CL_BUILD_SUCCESS) {
-            return CL_BUILD_PROGRAM_FAILURE;
-        }
-    }
-
-    return CL_SUCCESS;
+    return program->build(build_operation::compile, num_devices, device_list,
+                          options, num_input_headers, input_headers,
+                          header_include_names, pfn_notify, user_data);
 }
 
 cl_program CLVK_API_CALL clLinkProgram(
@@ -2470,29 +2444,12 @@ cl_program CLVK_API_CALL clLinkProgram(
 
     cvk_program* prog_ret = new cvk_program(icd_downcast(context));
 
-    if (!prog_ret->build(build_operation::link, num_devices, device_list,
-                         options, num_input_programs, input_programs, nullptr,
-                         pfn_notify, user_data)) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_INVALID_OPERATION;
-        }
-        return nullptr;
-    }
-
-    if (pfn_notify == nullptr) {
-
-        prog_ret->wait_for_operation();
-
-        if (prog_ret->build_status() != CL_BUILD_SUCCESS) {
-            if (errcode_ret != nullptr) {
-                *errcode_ret = CL_LINK_PROGRAM_FAILURE;
-            }
-            return nullptr;
-        }
-    }
+    cl_int ret = prog_ret->build(
+        build_operation::link, num_devices, device_list, options,
+        num_input_programs, input_programs, nullptr, pfn_notify, user_data);
 
     if (errcode_ret != nullptr) {
-        *errcode_ret = CL_SUCCESS;
+        *errcode_ret = ret;
     }
 
     return prog_ret;
@@ -3747,9 +3704,10 @@ void* cvk_enqueue_map_buffer(cvk_command_queue* cq, cvk_buffer* buffer,
                              cl_map_flags map_flags,
                              cl_uint num_events_in_wait_list,
                              const cl_event* event_wait_list, cl_event* event,
-                             cl_int* errcode_ret, cl_command_type type) {
-    auto cmd =
-        new cvk_command_map_buffer(cq, buffer, offset, size, map_flags, type);
+                             cl_int* errcode_ret, cl_command_type type,
+                             cvk_image* image = nullptr) {
+    auto cmd = new cvk_command_map_buffer(cq, buffer, offset, size, map_flags,
+                                          type, image);
 
     void* map_ptr;
     cl_int err = cmd->build(&map_ptr);
@@ -5478,7 +5436,7 @@ void* CLVK_API_CALL clEnqueueMapImage(
             command_queue, static_cast<cvk_buffer*>(img->buffer()),
             blocking_map, origin[0] * img->element_size(),
             region[0] * img->element_size(), map_flags, num_events_in_wait_list,
-            event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE);
+            event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE, img);
     } else {
         ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
                                     map_flags, origin, region, image_row_pitch,

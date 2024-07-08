@@ -20,6 +20,7 @@
 #include "init.hpp"
 #include "memory.hpp"
 #include "queue.hpp"
+#include "queue_controller.hpp"
 #include "tracing.hpp"
 #include "utils.hpp"
 
@@ -46,6 +47,11 @@ cvk_command_queue::cvk_command_queue(
 
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
         cvk_warn_fn("out-of-order execution enabled, will be ignored");
+    }
+
+    if (config.dynamic_batches) {
+        m_controllers.push_back(
+            std::make_unique<cvk_queue_controller_batch_parameters>(this));
     }
 
     TRACE_CNT_VAR_INIT(batch_in_flight_counter,
@@ -208,7 +214,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
     } else {
         // End the current command batch
-        if ((err = end_current_command_batch()) != CL_SUCCESS) {
+        if ((err = end_current_command_batch(true)) != CL_SUCCESS) {
             return err;
         }
         if (!cmd->is_built_before_enqueue()) {
@@ -282,8 +288,8 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
     return err;
 }
 
-cl_int cvk_command_queue::end_current_command_batch() {
-    if (m_command_batch) {
+cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
+    if (m_command_batch && m_command_batch->batch_size() > 0) {
         TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
                        m_command_batch->batch_size());
 
@@ -291,6 +297,11 @@ cl_int cvk_command_queue::end_current_command_batch() {
             return CL_OUT_OF_RESOURCES;
         }
         enqueue_command(m_command_batch);
+
+        for (auto& controller : m_controllers) {
+            controller->update_after_end_current_command_batch(from_flush);
+        }
+
         m_command_batch = nullptr;
 
         batch_enqueued();
@@ -478,7 +489,7 @@ cl_int cvk_command_queue::flush_no_lock() {
     std::unique_ptr<cvk_command_group> group;
 
     // End current command batch
-    cl_int err = end_current_command_batch();
+    cl_int err = end_current_command_batch(true);
     if (err != CL_SUCCESS) {
         return err;
     }
@@ -1455,8 +1466,8 @@ cl_int cvk_command_fill_buffer::do_action() {
 
 cl_int cvk_command_map_buffer::build(void** map_ptr) {
 
-    if (!m_buffer->find_or_create_mapping(m_mapping, m_offset, m_size,
-                                          m_flags)) {
+    if (!m_buffer->find_or_create_mapping(m_mapping, m_offset, m_size, m_flags,
+                                          m_image)) {
         return CL_OUT_OF_RESOURCES;
     }
 
