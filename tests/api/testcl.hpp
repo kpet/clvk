@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #pragma once
 
 #if defined(USING_SWIFTSHADER)
@@ -203,19 +205,14 @@ static void GetDeviceAndHostTimer(cl_device_id device, cl_ulong* device_ts,
 class WithContext : public ::testing::Test {
 protected:
     cl_context m_context;
+    const cl_context_properties* m_props = nullptr;
 
     cl_platform_id platform() const { return gPlatform; }
 
     void SetUp() override {
         cl_int err;
         m_context =
-            clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
-        ASSERT_CL_SUCCESS(err);
-    }
-
-    void SetUpContext(const cl_context_properties* props) {
-        cl_int err;
-        m_context = clCreateContext(props, 1, &gDevice, nullptr, nullptr, &err);
+            clCreateContext(m_props, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -226,7 +223,6 @@ protected:
 
     holder<cl_program> CreateProgram(const char* source) {
         cl_int err;
-
         auto program =
             clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         EXPECT_CL_SUCCESS(err);
@@ -248,9 +244,7 @@ protected:
     holder<cl_program> CreateAndBuildProgram(const char* source,
                                              const char* options = nullptr) {
         auto program = CreateProgram(source);
-
         BuildProgram(program, options);
-
         return program;
     }
 
@@ -360,7 +354,6 @@ protected:
 
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {
         auto program = CreateAndBuildProgram(source);
-
         cl_int err;
         auto kernel = clCreateKernel(program, name, &err);
         EXPECT_CL_SUCCESS(err);
@@ -513,6 +506,7 @@ protected:
     cl_device_id device() const { return gDevice; }
 
     void SetUpQueue(cl_command_queue_properties properties) {
+
 #ifndef COMPILER_AVAILABLE
         GTEST_SKIP();
 #endif
@@ -520,7 +514,10 @@ protected:
         m_queue = queue.release();
     }
 
-    void SetUp() override { SetUpQueue(0); }
+    void SetUp() override {
+        WithContext::SetUp();
+        SetUpQueue(0);
+    }
 
     void TearDown() override {
 #ifdef COMPILER_AVAILABLE
@@ -582,6 +579,7 @@ protected:
         auto err = clEnqueueNDRangeKernel(
             m_queue, kernel, work_dim, global_work_offset, global_work_size,
             local_work_size, num_events_in_wait_list, event_wait_list, event);
+
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -773,20 +771,18 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override{};
+    void SetUp() override { WithContext::SetUp(); };
     void TearDown() override {
         cl_int err = clReleaseContext(m_context);
         ASSERT_CL_SUCCESS(err);
-        if (m_queue != nullptr) {
-            WithCommandQueue::TearDown();
-        }
         if (m_context != nullptr) {
             WithContext::TearDown();
         }
     }
 
     void SetupPrintfCallback(const cl_context_properties* props) {
-        SetUpContext(props);
+        m_props = props;
+        WithContext::SetUp();
         SetUpQueue(0);
     }
 };
