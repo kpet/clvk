@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "printf.hpp"
 #include <cstring>
 #include <sstream>
-
-#include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {

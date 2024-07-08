@@ -15,6 +15,7 @@
 #pragma once
 
 #include <array>
+#include <iostream>
 #include <memory>
 
 #include "config.hpp"
@@ -179,12 +180,12 @@ struct cvk_command_queue : public _cl_command_queue,
             cl_int status = CL_SUCCESS;
             auto buff_size_prop_index =
                 m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
-            if (buff_size_prop_index == -1) {
-                cvk_error_fn("Could not get printf buffer size");
-                status = CL_INVALID_BUFFER_SIZE;
+            unsigned int buff_size = config.printf_buffer_size;
+            if (buff_size_prop_index != -1) {
+                auto all_props = m_context->properties();
+                buff_size = all_props[buff_size_prop_index];
             }
-            auto all_props = m_context->properties();
-            auto buff_size = all_props[buff_size_prop_index];
+           
             CVK_ASSERT(status == CL_SUCCESS);
             m_printf_buffer =
                 cvk_buffer::create(context(), 0, buff_size, nullptr, &status);
@@ -246,6 +247,10 @@ struct cvk_command_queue : public _cl_command_queue,
                                             _cl_event* const* event_list);
     int get_property_index(const int prop);
 
+    printf_callback_func* get_printf_cb_func() {
+        return m_cb_func;
+    }
+
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     void enqueue_command(cvk_command* cmd);
@@ -275,7 +280,10 @@ private:
     cl_uint m_max_cmd_group_size;
     cl_uint m_max_first_cmd_group_size;
 
-    std::atomic<uint64_t> m_nb_batch_in_flight;
+    printf_callback_func* m_cb_func;
+
+        std::atomic<uint64_t>
+            m_nb_batch_in_flight;
     std::atomic<uint64_t> m_nb_group_in_flight;
 
     TRACE_CNT_VAR(batch_in_flight_counter);

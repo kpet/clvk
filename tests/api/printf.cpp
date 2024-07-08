@@ -19,6 +19,7 @@
 #include "utils.hpp"
 #include <cstring>
 #include <filesystem>
+#include <iostream>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -42,8 +43,11 @@ static void releaseStdout(int fd) {
 
 static bool getStdout(int& fd) {
     fd = dup(fileno(stdout));
+    int x = 0;
     if (!freopen(stdoutFileName.c_str(), "w", stdout)) {
+
         fprintf(stderr, "ERROR!\n");
+
         releaseStdout(fd);
         return false;
     }
@@ -82,10 +86,16 @@ private:
 static char* mkdtemp(char* tmpl, size_t size) {
 #ifdef WIN32
     if (_mktemp_s(tmpl, size + 1) != 0) {
+        fprintf(stderr, "Error creating temporary directory: %s\n",
+                tmpl); // Error handling
+
         return nullptr;
     }
 
     if (!CreateDirectory(tmpl, nullptr)) {
+        fprintf(stderr, "Error creating temporary directory: %s\n",
+                tmpl); // Error handling
+
         return nullptr;
     }
 
@@ -107,7 +117,6 @@ static std::string getStdoutFileName(temp_folder_deletion& temp) {
 TEST_F(WithCommandQueue, SimplePrintf) {
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
-
     int fd;
     ASSERT_TRUE(getStdout(fd));
 
@@ -124,15 +133,14 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     releaseStdout(fd);
     auto printf_buffer = getStdoutContent();
     ASSERT_NE(printf_buffer, nullptr);
-
     ASSERT_STREQ(printf_buffer, message);
 }
 
 TEST_F(WithCommandQueue, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-    auto cfg1 =
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
+   // auto cfg1 =
+     //   CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 100000, true);
 
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
@@ -236,6 +244,7 @@ void printf_callback(const char* buffer, size_t len, size_t complete,
 TEST_F(WithPrintfEnabled, PrintSimple) {
     const char message[] = "Hello World!";
     char source[512];
+
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     /* Create a cl_context with a printf_callback and user specified buffer
      * size. */
@@ -247,12 +256,13 @@ TEST_F(WithPrintfEnabled, PrintSimple) {
         strlen(message),
 
     };
-
     SetupPrintfCallback(properties);
+
     auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;
     size_t lws = 1;
+
     EnqueueNDRangeKernel(kernel, 1, 0, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 }

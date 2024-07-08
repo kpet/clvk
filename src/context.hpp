@@ -81,6 +81,9 @@ struct cvk_context : public _cl_context,
         }
         return -1;
     }
+    int get_prop_size(){
+        return m_properties.size();
+    }
 
 private:
     cvk_device* m_device;
