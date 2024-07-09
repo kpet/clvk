@@ -19,7 +19,6 @@
 #include "utils.hpp"
 #include <cstring>
 #include <filesystem>
-#include <iostream>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -139,8 +138,8 @@ TEST_F(WithCommandQueue, SimplePrintf) {
 TEST_F(WithCommandQueue, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-   // auto cfg1 =
-     //   CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 100000, true);
+    auto cfg1 =
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
 
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
@@ -238,7 +237,6 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
 void printf_callback(const char* buffer, size_t len, size_t complete,
                      void* user_data) {
     ASSERT_EQ(strlen(buffer), len);
-    printf("Received data: %s (length: %zu)\n", buffer, len);
 }
 
 TEST_F(WithPrintfEnabled, PrintSimple) {

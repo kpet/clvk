@@ -67,7 +67,8 @@ cvk_command_queue::cvk_command_queue(
     if (cb_index != -1) {
         auto all_props = m_context->properties();
         m_cb_func = (printf_callback_func*)all_props[cb_index];
-
+    } else {
+        m_cb_func = nullptr;
     }
 }
 
@@ -334,8 +335,9 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     if (queues_to_flush.size() == 1) {
         for (auto q : queues_to_flush) {
             auto status = q->execute_cmds_required_by(num_events, event_list);
-            if (status != CL_SUCCESS)
+            if (status != CL_SUCCESS) {
                 return status;
+            }
         }
     }
 
@@ -359,8 +361,9 @@ cl_int cvk_command_group::execute_cmds() {
                      cl_command_type_to_string(cmd->type()), cmd->event());
 
         cl_int status = cmd->execute();
-        if (status != CL_COMPLETE && global_status == CL_SUCCESS)
+        if (status != CL_COMPLETE && global_status == CL_SUCCESS) {
             global_status = status;
+        }
         cvk_debug_fn("command returned %d", status);
 
         commands.pop_front();
@@ -911,8 +914,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region_iterate(
                 dim - 1, region, region_lws, region_gws, region_offset,
                 command_buffer, num_workgroups);
         }
-        if (err != CL_SUCCESS)
+        if (err != CL_SUCCESS) {
             return err;
+        }
     }
 
     return CL_SUCCESS;
@@ -1532,9 +1536,9 @@ cl_int cvk_command_unmap_image::do_action() {
     return CL_COMPLETE;
 }
 
-VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
-                                             const std::array<size_t, 3>& origin,
-                                             const std::array<size_t, 3>& region) {
+VkImageSubresourceLayers
+prepare_subresource(const cvk_image* image, const std::array<size_t, 3>& origin,
+                    const std::array<size_t, 3>& region) {
     uint32_t baseArrayLayer = 0;
     uint32_t layerCount = 1;
 
@@ -1556,7 +1560,8 @@ VkImageSubresourceLayers prepare_subresource(const cvk_image* image,
     return ret;
 }
 
-VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& origin) {
+VkOffset3D prepare_offset(const cvk_image* image,
+                          const std::array<size_t, 3>& origin) {
 
     auto x = static_cast<int32_t>(origin[0]);
     auto y = static_cast<int32_t>(origin[1]);
@@ -1579,7 +1584,8 @@ VkOffset3D prepare_offset(const cvk_image* image, const std::array<size_t, 3>& o
     return offset;
 }
 
-VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& region) {
+VkExtent3D prepare_extent(const cvk_image* image,
+                          const std::array<size_t, 3>& region) {
     uint32_t extentHeight = region[1];
     uint32_t extentDepth = region[2];
 
@@ -1602,12 +1608,13 @@ VkExtent3D prepare_extent(const cvk_image* image, const std::array<size_t, 3>& r
     return extent;
 }
 
-VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
-                                            size_t bufferOffset,
-                                            const std::array<size_t, 3>& origin,
-                                            const std::array<size_t, 3>& region) {
+VkBufferImageCopy
+prepare_buffer_image_copy(const cvk_image* image, size_t bufferOffset,
+                          const std::array<size_t, 3>& origin,
+                          const std::array<size_t, 3>& region) {
 
-    VkImageSubresourceLayers subResource = prepare_subresource(image, origin, region);
+    VkImageSubresourceLayers subResource =
+        prepare_subresource(image, origin, region);
 
     VkOffset3D offset = prepare_offset(image, origin);
 
