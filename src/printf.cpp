@@ -241,7 +241,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     }
     auto output = printf_out.str().c_str();
     if (printf_cb != nullptr) {
-        printf_cb(output, buffer_size, true, nullptr);
+        printf_cb(output, buffer_size, data >= data_end, nullptr);
     } else {
         printf("%s", output);
     }

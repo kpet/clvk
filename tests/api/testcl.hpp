@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <iostream>
-
 #pragma once
 
 #if defined(USING_SWIFTSHADER)
@@ -771,18 +769,15 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override { WithContext::SetUp(); };
+    void SetUp() override {};
     void TearDown() override {
-        cl_int err = clReleaseContext(m_context);
-        ASSERT_CL_SUCCESS(err);
-        if (m_context != nullptr) {
-            WithContext::TearDown();
+        if (m_queue != nullptr) {
+            WithCommandQueue::TearDown();
         }
     }
 
     void SetupPrintfCallback(const cl_context_properties* props) {
         m_props = props;
-        WithContext::SetUp();
-        SetUpQueue(0);
+        WithCommandQueue::SetUp();
     }
 };

@@ -449,14 +449,11 @@ TEST_F(WithContext, SetUnusedSamplerArg) {
 }
 #include <iostream>
 TEST_F(WithContext, SetUnusedLocalArg) {
-    std::cout << "testing 1" << std::endl;
     static const char* source = R"(
       kernel void foo(local int* ptr) {}
     )";
-    std::cout << "testing 1" << std::endl;
 
     auto kernel = CreateKernel(source, "foo");
-    std::cout << "testing 1" << std::endl;
 
     SetKernelArg(kernel, 0, 64, nullptr);
 }
