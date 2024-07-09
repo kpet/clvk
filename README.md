@@ -500,6 +500,9 @@ using the name of the corresponding environment variable.
   applications to work with the downside of not cleanly terminating clvk. Use
   with caution.
 
+* `CLVK_DEVICE_EXTENSIONS` specifies extensions to be added to the list of
+  exposed extensions. It expects a whitespace separated list of extensions.
+
 # Limitations
 
 * Only one device per CL context
