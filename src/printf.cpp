@@ -268,7 +268,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
                         bytes_written);
     }
 
-    printf_buffer->unmap();
+    printf_buffer->unmap_read_only();
 
     return CL_SUCCESS;
 }
