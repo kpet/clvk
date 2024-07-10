@@ -769,7 +769,7 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override {};
+    void SetUp() override{};
     void TearDown() override {
         if (m_queue != nullptr) {
             WithCommandQueue::TearDown();
