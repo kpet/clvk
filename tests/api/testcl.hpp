@@ -531,12 +531,6 @@ protected:
         SetUpQueue(0);
     }
 
-    void reset_buffer_size(size_t new_size) {
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, new_size,
-                                    true);
-        WithCommandQueue::SetUp();
-    }
-
     void TearDown() override {
 #ifdef COMPILER_AVAILABLE
         ReleaseCommandQueue(m_queue);

@@ -37,8 +37,6 @@ static char stdoutBuffer[BUFFER_SIZE];
 std::vector<char> GLOBAL_BUFFER;
 size_t BUFFER_FILL_LEVEL = 0;
 
-std::string EXPECTED_STRING;
-
 static void releaseStdout(int fd) {
     fflush(stdout);
     dup2(fd, fileno(stdout));
@@ -87,14 +85,10 @@ private:
 static char* mkdtemp(char* tmpl, size_t size) {
 #ifdef WIN32
     if (_mktemp_s(tmpl, size + 1) != 0) {
-        fprintf(stderr, "Error creating temporary directory: %s\n",
-                tmpl); // Error handling
         return nullptr;
     }
 
     if (!CreateDirectory(tmpl, nullptr)) {
-        fprintf(stderr, "Error creating temporary directory: %s\n",
-                tmpl); // Error handling
         return nullptr;
     }
 
@@ -226,9 +220,7 @@ TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
     long int buff_size = 24;
     char source[512];
     const char message[] = "1,2,3,4";
-    EXPECTED_STRING = message;
     GLOBAL_BUFFER.resize(buff_size);
-
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     /* Create a cl_context with a printf_callback and user specified buffer
      * size. */
