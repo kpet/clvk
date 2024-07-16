@@ -203,14 +203,20 @@ static void GetDeviceAndHostTimer(cl_device_id device, cl_ulong* device_ts,
 class WithContext : public ::testing::Test {
 protected:
     cl_context m_context;
-    const cl_context_properties* m_props = nullptr;
 
     cl_platform_id platform() const { return gPlatform; }
 
     void SetUp() override {
         cl_int err;
         m_context =
-            clCreateContext(m_props, 1, &gDevice, nullptr, nullptr, &err);
+            clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
+        ASSERT_CL_SUCCESS(err);
+    }
+
+    void SetUpWithContextProperties(const cl_context_properties* _props) {
+        cl_int err;
+        m_context =
+            clCreateContext(_props, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -221,6 +227,7 @@ protected:
 
     holder<cl_program> CreateProgram(const char* source) {
         cl_int err;
+
         auto program =
             clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         EXPECT_CL_SUCCESS(err);
@@ -242,7 +249,9 @@ protected:
     holder<cl_program> CreateAndBuildProgram(const char* source,
                                              const char* options = nullptr) {
         auto program = CreateProgram(source);
+
         BuildProgram(program, options);
+
         return program;
     }
 
@@ -352,6 +361,7 @@ protected:
 
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {
         auto program = CreateAndBuildProgram(source);
+
         cl_int err;
         auto kernel = clCreateKernel(program, name, &err);
         EXPECT_CL_SUCCESS(err);
@@ -504,7 +514,6 @@ protected:
     cl_device_id device() const { return gDevice; }
 
     void SetUpQueue(cl_command_queue_properties properties) {
-
 #ifndef COMPILER_AVAILABLE
         GTEST_SKIP();
 #endif
@@ -515,6 +524,17 @@ protected:
     void SetUp() override {
         WithContext::SetUp();
         SetUpQueue(0);
+    }
+
+    void SetUpWithQueueProperties(const cl_context_properties* _prop) {
+        WithContext::SetUpWithContextProperties(_prop);
+        SetUpQueue(0);
+    }
+
+    void reset_buffer_size(size_t new_size) {
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, new_size,
+                                    true);
+        WithCommandQueue::SetUp();
     }
 
     void TearDown() override {
@@ -577,7 +597,6 @@ protected:
         auto err = clEnqueueNDRangeKernel(
             m_queue, kernel, work_dim, global_work_offset, global_work_size,
             local_work_size, num_events_in_wait_list, event_wait_list, event);
-
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -769,15 +788,10 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override{};
-    void TearDown() override {
-        if (m_queue != nullptr) {
-            WithCommandQueue::TearDown();
-        }
-    }
+    void SetUp() override {};
+    void TearDown() override { WithCommandQueue::TearDown(); }
 
-    void SetupPrintfCallback(const cl_context_properties* props) {
-        m_props = props;
-        WithCommandQueue::SetUp();
+    void SetupPrintfCallback(const cl_context_properties* _props) {
+        WithCommandQueue::SetUpWithQueueProperties(_props);
     }
 };

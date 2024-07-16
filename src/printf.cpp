@@ -239,11 +239,13 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
-    auto output = printf_out.str().c_str();
+
+    auto output = printf_out.str();
     if (printf_cb != nullptr) {
-        printf_cb(output, buffer_size, data >= data_end, nullptr);
+        auto len = output.size();
+        printf_cb(output.c_str(), len, data >= data_end, nullptr);
     } else {
-        printf("%s", output);
+        printf("%s", output.c_str());
     }
 }
 
@@ -262,7 +264,6 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     const size_t bytes_written = read_inc_buff<uint32_t>(data) * 4;
     const size_t limit = std::min(bytes_written, data_size);
     auto* data_end = data + limit;
-
     while (data < data_end) {
         process_printf(data, descriptors, data_end, printf_cb, buffer_size);
     }
