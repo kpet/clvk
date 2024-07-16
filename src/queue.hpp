@@ -177,16 +177,9 @@ struct cvk_command_queue : public _cl_command_queue,
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
             cl_int status = CL_SUCCESS;
-            auto buff_size_prop_index =
-                m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
-            unsigned int buff_size = config.printf_buffer_size;
-            if (buff_size_prop_index != -1) {
-                auto all_props = m_context->properties();
-                buff_size = all_props[buff_size_prop_index];
-            }
-            CVK_ASSERT(status == CL_SUCCESS);
-            m_printf_buffer =
-                cvk_buffer::create(context(), 0, buff_size, nullptr, &status);
+
+            m_printf_buffer = cvk_buffer::create(
+                context(), 0, m_context->get_buffer_size(), nullptr, &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();

@@ -966,14 +966,8 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    size_t buff_size = config.printf_buffer_size;
-    auto buff_size_prop_index =
-        m_context->get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+    auto buff_size = m_context->get_buffer_size();
 
-    if (buff_size_prop_index != -1) {
-        auto props = m_context->properties();
-        buff_size = props[buff_size_prop_index];
-    }
     options += " -enable-printf ";
     options += " -printf-buffer-size=" + std::to_string(buff_size) + " ";
 

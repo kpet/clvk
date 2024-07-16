@@ -34,6 +34,11 @@ static std::string stdoutFileName;
 #define BUFFER_SIZE 1024
 static char stdoutBuffer[BUFFER_SIZE];
 
+std::vector<char> GLOBAL_BUFFER;
+size_t BUFFER_FILL_LEVEL = 0;
+
+std::string EXPECTED_STRING;
+
 static void releaseStdout(int fd) {
     fflush(stdout);
     dup2(fd, fileno(stdout));
@@ -42,11 +47,8 @@ static void releaseStdout(int fd) {
 
 static bool getStdout(int& fd) {
     fd = dup(fileno(stdout));
-    int x = 0;
     if (!freopen(stdoutFileName.c_str(), "w", stdout)) {
-
         fprintf(stderr, "ERROR!\n");
-
         releaseStdout(fd);
         return false;
     }
@@ -87,14 +89,12 @@ static char* mkdtemp(char* tmpl, size_t size) {
     if (_mktemp_s(tmpl, size + 1) != 0) {
         fprintf(stderr, "Error creating temporary directory: %s\n",
                 tmpl); // Error handling
-
         return nullptr;
     }
 
     if (!CreateDirectory(tmpl, nullptr)) {
         fprintf(stderr, "Error creating temporary directory: %s\n",
                 tmpl); // Error handling
-
         return nullptr;
     }
 
@@ -113,9 +113,22 @@ static std::string getStdoutFileName(temp_folder_deletion& temp) {
     return (prefix / suffix).string();
 }
 
+void printf_callback(const char* buffer, size_t len, size_t complete,
+                     void* user_data) {
+    // Calculate how much data we can fit
+    size_t space_available = GLOBAL_BUFFER.size() - BUFFER_FILL_LEVEL;
+    size_t data_to_copy = (len <= space_available) ? len : space_available;
+    // Copy data into the buffer (up to the available space)
+    if (space_available > len) {
+        memcpy(GLOBAL_BUFFER.data() + BUFFER_FILL_LEVEL, buffer, data_to_copy);
+        BUFFER_FILL_LEVEL += data_to_copy;
+    }
+}
+
 TEST_F(WithCommandQueue, SimplePrintf) {
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
+
     int fd;
     ASSERT_TRUE(getStdout(fd));
 
@@ -132,20 +145,25 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     releaseStdout(fd);
     auto printf_buffer = getStdoutContent();
     ASSERT_NE(printf_buffer, nullptr);
+
     ASSERT_STREQ(printf_buffer, message);
 }
 
-TEST_F(WithCommandQueue, TooLongPrintf) {
-    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
-    // to print) + 4 for the byte written counter
-    auto cfg1 =
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
+TEST_F(WithPrintfEnabled, TooLongPrintf) {
+    long int buff_size = 44;
+    cl_context_properties properties[] = {
+        /* Enable a printf callback function for this context. */
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        buff_size,
 
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
+    };
+    SetupPrintfCallback(properties);
+    GLOBAL_BUFFER.resize(buff_size, '\0');
+    // We only get the first 2 prints because the buffer is too small to get
+    // the last one.
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
 
     const char* source = R"(
     kernel void test_printf() {
@@ -160,29 +178,29 @@ TEST_F(WithCommandQueue, TooLongPrintf) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
-
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    // We only get the first 2 prints because the buffer is too small to get the
-    // last one.
-    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
-    ASSERT_STREQ(printf_buffer, message);
+    // Reset the buffer if complete, otherwise keep the remaining part
+    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
+    BUFFER_FILL_LEVEL = 0;
+    GLOBAL_BUFFER.clear();
+    GLOBAL_BUFFER.shrink_to_fit();
 }
 
-TEST_F(WithCommandQueue, TooLongPrintf2) {
-    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
-    // to print) + 4 for the byte written counter + 8 which are not enough for
-    // the third print, but should not cause any issue in clvk
-    auto cfg1 =
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 36, true);
+TEST_F(WithPrintfEnabled, TooLongPrintf2) {
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
+    long int buff_size = 46;
+    cl_context_properties properties[] = {
+        /* Enable a printf callback function for this context. */
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        buff_size,
 
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
+    };
 
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
+    SetupPrintfCallback(properties);
+    GLOBAL_BUFFER.resize(buff_size, '\0');
+    // We only get the first 2 prints because the buffer is too small to get
+    // the last one.
 
     const char* source = R"(
     kernel void test_printf() {
@@ -197,26 +215,33 @@ TEST_F(WithCommandQueue, TooLongPrintf2) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
-
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    // We only get the first 2 prints because the buffer is too small to get the
-    // last one.
-    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
-    ASSERT_STREQ(printf_buffer, message);
+    // Reset the buffer if complete, otherwise keep the remaining part
+    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
+    BUFFER_FILL_LEVEL = 0;
+    GLOBAL_BUFFER.clear();
+    GLOBAL_BUFFER.shrink_to_fit();
 }
 
-TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
-
-    const char message[] = "1,2,3,4";
+TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
+    long int buff_size = 24;
     char source[512];
+    const char message[] = "1,2,3,4";
+    EXPECTED_STRING = message;
+    GLOBAL_BUFFER.resize(buff_size);
+
+    sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
+    /* Create a cl_context with a printf_callback and user specified buffer
+     * size. */
+    cl_context_properties properties[] = {
+        /* Enable a printf callback function for this context. */
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        buff_size,
+
+    };
+    SetupPrintfCallback(properties);
+
     sprintf(source,
             "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
             message);
@@ -227,21 +252,17 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    ASSERT_STREQ(printf_buffer, message);
-}
-
-void printf_callback(const char* buffer, size_t len, size_t complete,
-                     void* user_data) {
-    ASSERT_EQ(strlen(buffer), len);
+    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
+    BUFFER_FILL_LEVEL = 0;
+    GLOBAL_BUFFER.clear();
+    GLOBAL_BUFFER.shrink_to_fit();
 }
 
 TEST_F(WithPrintfEnabled, PrintSimple) {
-    const char message[] = "Hello World!";
+    long int buff_size = 13;
     char source[512];
+    const char message[] = "Hello World!";
+    GLOBAL_BUFFER.resize(buff_size);
 
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     /* Create a cl_context with a printf_callback and user specified buffer
@@ -251,7 +272,7 @@ TEST_F(WithPrintfEnabled, PrintSimple) {
         CL_PRINTF_CALLBACK_ARM,
         (cl_context_properties)printf_callback,
         CL_PRINTF_BUFFERSIZE_ARM,
-        strlen(message),
+        buff_size,
 
     };
     SetupPrintfCallback(properties);
@@ -263,6 +284,11 @@ TEST_F(WithPrintfEnabled, PrintSimple) {
 
     EnqueueNDRangeKernel(kernel, 1, 0, &gws, &lws, 0, nullptr, nullptr);
     Finish();
+    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
+    // Reset the buffer if complete, otherwise keep the remaining part
+    BUFFER_FILL_LEVEL = 0;
+    GLOBAL_BUFFER.clear();
+    GLOBAL_BUFFER.shrink_to_fit();
 }
 
 #endif

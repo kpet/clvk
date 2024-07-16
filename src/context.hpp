@@ -41,6 +41,14 @@ struct cvk_context : public _cl_context,
             }
             m_properties.push_back(*props);
         }
+        // Compute and save buffer size.
+        auto buff_size_prop_index =
+            get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+        if (buff_size_prop_index != -1) {
+            m_buffer_size = m_properties[buff_size_prop_index];
+        } else {
+            m_buffer_size = config.printf_buffer_size;
+        }
     }
 
     virtual ~cvk_context() {
@@ -83,12 +91,14 @@ struct cvk_context : public _cl_context,
     }
 
     int get_prop_size() { return m_properties.size(); }
+    size_t get_buffer_size() { return m_buffer_size; }
 
 private:
     cvk_device* m_device;
     std::mutex m_callbacks_lock;
     std::vector<cvk_context_callback> m_destuctor_callbacks;
     std::vector<cl_context_properties> m_properties;
+    size_t m_buffer_size;
 };
 
 static inline cvk_context* icd_downcast(cl_context context) {
