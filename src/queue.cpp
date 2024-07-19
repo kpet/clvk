@@ -67,8 +67,6 @@ cvk_command_queue::cvk_command_queue(
     if (cb_index != -1) {
         auto all_props = m_context->properties();
         m_cb_func = (printf_callback_func*)all_props[cb_index];
-    } else {
-        m_cb_func = nullptr;
     }
 }
 

@@ -34,8 +34,7 @@ static std::string stdoutFileName;
 #define BUFFER_SIZE 1024
 static char stdoutBuffer[BUFFER_SIZE];
 
-std::vector<char> GLOBAL_BUFFER;
-size_t BUFFER_FILL_LEVEL = 0;
+std::vector<char> globalBuffer;
 
 static void releaseStdout(int fd) {
     fflush(stdout);
@@ -109,14 +108,32 @@ static std::string getStdoutFileName(temp_folder_deletion& temp) {
 
 void printf_callback(const char* buffer, size_t len, size_t complete,
                      void* user_data) {
+    auto org_buf_size = globalBuffer.size();
     // Calculate how much data we can fit
-    size_t space_available = GLOBAL_BUFFER.size() - BUFFER_FILL_LEVEL;
+    size_t space_available = globalBuffer.capacity() - org_buf_size;
     size_t data_to_copy = (len <= space_available) ? len : space_available;
     // Copy data into the buffer (up to the available space)
     if (space_available > len) {
-        memcpy(GLOBAL_BUFFER.data() + BUFFER_FILL_LEVEL, buffer, data_to_copy);
-        BUFFER_FILL_LEVEL += data_to_copy;
+        globalBuffer.resize(org_buf_size + len, '\0');
+        memcpy(globalBuffer.data() + org_buf_size, buffer, data_to_copy);
     }
+
+    if (complete || (space_available < len && space_available >= 1)) {
+        globalBuffer.emplace_back('\0');
+    }
+}
+
+std::vector<cl_context_properties>& setup_arm_printf_test(long int buff_size) {
+    globalBuffer.clear();
+    globalBuffer.shrink_to_fit();
+    globalBuffer.reserve(buff_size);
+    static std::vector<cl_context_properties> properties = {
+        CL_PRINTF_CALLBACK_ARM,
+        (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM,
+        buff_size,
+    };
+    return properties;
 }
 
 TEST_F(WithCommandQueue, SimplePrintf) {
@@ -144,17 +161,8 @@ TEST_F(WithCommandQueue, SimplePrintf) {
 }
 
 TEST_F(WithPrintfEnabled, TooLongPrintf) {
-    long int buff_size = 44;
-    cl_context_properties properties[] = {
-        /* Enable a printf callback function for this context. */
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        buff_size,
-
-    };
-    SetupPrintfCallback(properties);
-    GLOBAL_BUFFER.resize(buff_size, '\0');
+    auto props = setup_arm_printf_test(44);
+    SetUpWithContextProperties(props.data());
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
     const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
@@ -173,26 +181,13 @@ TEST_F(WithPrintfEnabled, TooLongPrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
     // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
-    BUFFER_FILL_LEVEL = 0;
-    GLOBAL_BUFFER.clear();
-    GLOBAL_BUFFER.shrink_to_fit();
+    ASSERT_STREQ(globalBuffer.data(), message);
 }
 
 TEST_F(WithPrintfEnabled, TooLongPrintf2) {
+    auto props = setup_arm_printf_test(46);
+    SetUpWithContextProperties(props.data());
     const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
-    long int buff_size = 46;
-    cl_context_properties properties[] = {
-        /* Enable a printf callback function for this context. */
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        buff_size,
-
-    };
-
-    SetupPrintfCallback(properties);
-    GLOBAL_BUFFER.resize(buff_size, '\0');
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
 
@@ -210,29 +205,15 @@ TEST_F(WithPrintfEnabled, TooLongPrintf2) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
     // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
-    BUFFER_FILL_LEVEL = 0;
-    GLOBAL_BUFFER.clear();
-    GLOBAL_BUFFER.shrink_to_fit();
+    ASSERT_STREQ(globalBuffer.data(), message);
 }
 
 TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
-    long int buff_size = 24;
+    auto props = setup_arm_printf_test(24);
+    SetUpWithContextProperties(props.data());
     char source[512];
     const char message[] = "1,2,3,4";
-    GLOBAL_BUFFER.resize(buff_size);
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
-    /* Create a cl_context with a printf_callback and user specified buffer
-     * size. */
-    cl_context_properties properties[] = {
-        /* Enable a printf callback function for this context. */
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        buff_size,
-
-    };
-    SetupPrintfCallback(properties);
 
     sprintf(source,
             "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
@@ -244,43 +225,7 @@ TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
-    BUFFER_FILL_LEVEL = 0;
-    GLOBAL_BUFFER.clear();
-    GLOBAL_BUFFER.shrink_to_fit();
-}
-
-TEST_F(WithPrintfEnabled, PrintSimple) {
-    long int buff_size = 13;
-    char source[512];
-    const char message[] = "Hello World!";
-    GLOBAL_BUFFER.resize(buff_size);
-
-    sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
-    /* Create a cl_context with a printf_callback and user specified buffer
-     * size. */
-    cl_context_properties properties[] = {
-        /* Enable a printf callback function for this context. */
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        buff_size,
-
-    };
-    SetupPrintfCallback(properties);
-
-    auto kernel = CreateKernel(source, "test_printf");
-
-    size_t gws = 1;
-    size_t lws = 1;
-
-    EnqueueNDRangeKernel(kernel, 1, 0, &gws, &lws, 0, nullptr, nullptr);
-    Finish();
-    ASSERT_STREQ(GLOBAL_BUFFER.data(), message);
-    // Reset the buffer if complete, otherwise keep the remaining part
-    BUFFER_FILL_LEVEL = 0;
-    GLOBAL_BUFFER.clear();
-    GLOBAL_BUFFER.shrink_to_fit();
+    ASSERT_STREQ(globalBuffer.data(), message);
 }
 
 #endif

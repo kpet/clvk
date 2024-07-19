@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "printf.hpp"
 #include <cstring>
 #include <sstream>
+
+#include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
@@ -157,8 +158,7 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
 }
 
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
-                    char* data_end, printf_callback_func printf_cb,
-                    size_t buffer_size) {
+                    char* data_end, printf_callback_func printf_cb) {
 
     uint32_t printf_id = read_inc_buff<uint32_t>(data);
     auto& format_string = descs.at(printf_id).format_string;
@@ -265,7 +265,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     const size_t limit = std::min(bytes_written, data_size);
     auto* data_end = data + limit;
     while (data < data_end) {
-        process_printf(data, descriptors, data_end, printf_cb, buffer_size);
+        process_printf(data, descriptors, data_end, printf_cb);
     }
 
     if (buffer_size < bytes_written) {
