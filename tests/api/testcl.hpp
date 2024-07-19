@@ -202,19 +202,18 @@ static void GetDeviceAndHostTimer(cl_device_id device, cl_ulong* device_ts,
 
 class WithContext : public ::testing::Test {
 protected:
-    cl_context m_context;
+    cl_context m_context = nullptr;
 
     cl_platform_id platform() const { return gPlatform; }
 
-    void SetUp() override {
-        cl_int err;
-        m_context =
-            clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
-        ASSERT_CL_SUCCESS(err);
-    }
+    void SetUp() override { SetUpWithContextProperties(nullptr); }
 
     void SetUpWithContextProperties(const cl_context_properties* _props) {
         cl_int err;
+        if (m_context != nullptr) {
+            err = clReleaseContext(m_context);
+            ASSERT_CL_SUCCESS(err);
+        }
         m_context =
             clCreateContext(_props, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
@@ -526,9 +525,14 @@ protected:
         SetUpQueue(0);
     }
 
-    void SetUpWithQueueProperties(const cl_context_properties* _prop) {
+    void SetUpWithContextProperties(const cl_context_properties* _prop) {
         WithContext::SetUpWithContextProperties(_prop);
         SetUpQueue(0);
+    }
+
+    void SetUpWithQueueProperties(const cl_command_queue_properties _prop) {
+        WithContext::SetUp();
+        SetUpQueue(_prop);
     }
 
     void TearDown() override {
@@ -775,17 +779,16 @@ protected:
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
     void SetUp() override {
-        WithContext::SetUp();
-        SetUpQueue(CL_QUEUE_PROFILING_ENABLE);
+        SetUpWithQueueProperties(CL_QUEUE_PROFILING_ENABLE);
     }
 };
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override{};
+    void SetUp() override {};
     void TearDown() override { WithCommandQueue::TearDown(); }
 
-    void SetupPrintfCallback(const cl_context_properties* _props) {
-        WithCommandQueue::SetUpWithQueueProperties(_props);
+    void SetUpWithContextProperties(const cl_context_properties* _props) {
+        WithCommandQueue::SetUpWithContextProperties(_props);
     }
 };
