@@ -785,7 +785,7 @@ protected:
 
 class WithPrintfEnabled : public WithCommandQueue {
 protected:
-    void SetUp() override {};
+    void SetUp() override{};
     void TearDown() override { WithCommandQueue::TearDown(); }
 
     void SetUpWithContextProperties(const cl_context_properties* _props) {
