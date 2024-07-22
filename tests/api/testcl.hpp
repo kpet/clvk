@@ -37,6 +37,7 @@
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
+#include "utils.hpp"
 
 #define CLVK_CONFIG_ASSERT_GT(opt, val)                                        \
     ASSERT_GT(clvk_get_config()->opt.value, val)
@@ -802,7 +803,7 @@ protected:
             CL_PRINTF_CALLBACK_ARM,
             (cl_context_properties)printf_cb,
             CL_PRINTF_BUFFERSIZE_ARM,
-            buff_size,
+            (long)buff_size,
         };
 
         WithCommandQueue::SetUpWithContextProperties(properties.data());
