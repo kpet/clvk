@@ -777,9 +777,7 @@ protected:
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
-    void SetUp() override {
-        SetUpWithQueueProperties(CL_QUEUE_PROFILING_ENABLE);
-    }
+    void SetUp() override { SetUpWithContextProperties(nullptr); }
 };
 
 class WithPrintfEnabled : public WithCommandQueue {
