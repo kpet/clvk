@@ -264,6 +264,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     const size_t bytes_written = read_inc_buff<uint32_t>(data) * 4;
     const size_t limit = std::min(bytes_written, data_size);
     auto* data_end = data + limit;
+
     while (data < data_end) {
         process_printf(data, descriptors, data_end, printf_cb);
     }

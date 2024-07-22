@@ -17,6 +17,7 @@
 #include "testcl.hpp"
 #include "unit.hpp"
 #include "utils.hpp"
+
 #include <cstring>
 #include <filesystem>
 
@@ -29,12 +30,16 @@
 #include <io.h>
 #endif
 
+std::string bufferArm;
+void printf_callback(const char* buffer, size_t len, size_t complete,
+                     void* user_data) {
+    bufferArm += std::string(buffer);
+}
+
 static std::string stdoutFileName;
 
 #define BUFFER_SIZE 1024
 static char stdoutBuffer[BUFFER_SIZE];
-
-std::vector<char> globalBuffer;
 
 static void releaseStdout(int fd) {
     fflush(stdout);
@@ -106,36 +111,6 @@ static std::string getStdoutFileName(temp_folder_deletion& temp) {
     return (prefix / suffix).string();
 }
 
-void printf_callback(const char* buffer, size_t len, size_t complete,
-                     void* user_data) {
-    auto org_buf_size = globalBuffer.size();
-    // Calculate how much data we can fit
-    size_t space_available = globalBuffer.capacity() - org_buf_size;
-    size_t data_to_copy = (len <= space_available) ? len : space_available;
-    // Copy data into the buffer (up to the available space)
-    if (space_available > len) {
-        globalBuffer.resize(org_buf_size + len, '\0');
-        memcpy(globalBuffer.data() + org_buf_size, buffer, data_to_copy);
-    }
-
-    if (complete || (space_available < len && space_available >= 1)) {
-        globalBuffer.emplace_back('\0');
-    }
-}
-
-std::vector<cl_context_properties>& setup_arm_printf_test(long int buff_size) {
-    globalBuffer.clear();
-    globalBuffer.shrink_to_fit();
-    globalBuffer.reserve(buff_size);
-    static std::vector<cl_context_properties> properties = {
-        CL_PRINTF_CALLBACK_ARM,
-        (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM,
-        buff_size,
-    };
-    return properties;
-}
-
 TEST_F(WithCommandQueue, SimplePrintf) {
     temp_folder_deletion temp;
     stdoutFileName = getStdoutFileName(temp);
@@ -161,8 +136,9 @@ TEST_F(WithCommandQueue, SimplePrintf) {
 }
 
 TEST_F(WithPrintfEnabled, TooLongPrintf) {
-    auto props = setup_arm_printf_test(44);
-    SetUpWithContextProperties(props.data());
+    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
+    // to print) + 4 for the byte written counter
+    SetUpWithCallback(28, bufferArm, printf_callback);
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
     const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
@@ -181,12 +157,14 @@ TEST_F(WithPrintfEnabled, TooLongPrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
     // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(globalBuffer.data(), message);
+    ASSERT_STREQ(bufferArm.c_str(), message);
 }
 
 TEST_F(WithPrintfEnabled, TooLongPrintf2) {
-    auto props = setup_arm_printf_test(46);
-    SetUpWithContextProperties(props.data());
+    // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
+    // to print) + 4 for the byte written counter + 8 which are not enough for
+    // the third print, but should not cause any issue in clvk
+    SetUpWithCallback(36, bufferArm, printf_callback);
     const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
@@ -205,16 +183,18 @@ TEST_F(WithPrintfEnabled, TooLongPrintf2) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
     // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(globalBuffer.data(), message);
+    ASSERT_STREQ(bufferArm.c_str(), message);
 }
 
-TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
-    auto props = setup_arm_printf_test(24);
-    SetUpWithContextProperties(props.data());
-    char source[512];
-    const char message[] = "1,2,3,4";
-    sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
+TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
+    temp_folder_deletion temp;
+    stdoutFileName = getStdoutFileName(temp);
 
+    int fd;
+    ASSERT_TRUE(getStdout(fd));
+
+    const char message[] = "1,2,3,4";
+    char source[512];
     sprintf(source,
             "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
             message);
@@ -225,7 +205,11 @@ TEST_F(WithPrintfEnabled, PrintfMissingLengthModifier) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    ASSERT_STREQ(globalBuffer.data(), message);
+    releaseStdout(fd);
+    auto printf_buffer = getStdoutContent();
+    ASSERT_NE(printf_buffer, nullptr);
+
+    ASSERT_STREQ(printf_buffer, message);
 }
 
 #endif
