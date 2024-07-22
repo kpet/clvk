@@ -520,9 +520,7 @@ protected:
         m_queue = queue.release();
     }
 
-    void SetUp() override {
-        SetUpWithContextProperties(nullptr);
-    }
+    void SetUp() override { SetUpWithContextProperties(nullptr); }
 
     void SetUpWithContextProperties(const cl_context_properties* _prop) {
         WithContext::SetUpWithContextProperties(_prop);
@@ -777,7 +775,7 @@ protected:
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
-    void SetUp() override { 
+    void SetUp() override {
         SetUpWithQueueProperties(CL_QUEUE_PROFILING_ENABLE);
     }
 };
