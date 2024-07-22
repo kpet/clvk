@@ -39,6 +39,15 @@
 #include "unit.hpp"
 #include "utils.hpp"
 
+#ifdef __APPLE__
+#include <unistd.h>
+#endif
+
+#ifdef WIN32
+#include <Windows.h>
+#include <io.h>
+#endif
+
 #define CLVK_CONFIG_ASSERT_GT(opt, val)                                        \
     ASSERT_GT(clvk_get_config()->opt.value, val)
 #define CLVK_CONFIG_ASSERT_EQ(opt, val)                                        \
