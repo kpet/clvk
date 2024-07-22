@@ -521,8 +521,7 @@ protected:
     }
 
     void SetUp() override {
-        WithContext::SetUp();
-        SetUpQueue(0);
+        SetUpWithContextProperties(nullptr);
     }
 
     void SetUpWithContextProperties(const cl_context_properties* _prop) {
@@ -784,11 +783,31 @@ protected:
 };
 
 class WithPrintfEnabled : public WithCommandQueue {
+private:
+    bool m_is_set = false;
+
 protected:
     void SetUp() override{};
     void TearDown() override { WithCommandQueue::TearDown(); }
 
-    void SetUpWithContextProperties(const cl_context_properties* _props) {
-        WithCommandQueue::SetUpWithContextProperties(_props);
+    void SetUpWithCallback(size_t buff_size, std::string& buffer,
+                           void (*printf_cb)(const char* buffer, size_t len,
+                                             size_t complete,
+                                             void* user_data)) {
+        buffer = "";
+        // Ensure everything is deleted before we make a new context.
+        if (m_is_set) {
+            WithPrintfEnabled::TearDown();
+        }
+
+        static std::vector<cl_context_properties> properties = {
+            CL_PRINTF_CALLBACK_ARM,
+            (cl_context_properties)printf_cb,
+            CL_PRINTF_BUFFERSIZE_ARM,
+            buff_size,
+        };
+
+        WithCommandQueue::SetUpWithContextProperties(properties.data());
+        m_is_set = true;
     }
 };

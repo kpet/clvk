@@ -46,12 +46,9 @@ struct cvk_context : public _cl_context,
         // Get buffer size from extension.
         auto buff_size_prop_index =
             get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
-        if (buff_size_prop_index != -1) {
+        if (buff_size_prop_index != -1 && !config.printf_buffer_size.set) {
             m_buffer_size = m_properties[buff_size_prop_index];
-        }
-        // If buffersize is set in config then default to that.
-        if constexpr (std::is_member_object_pointer_v<
-                          decltype(&config_struct::printf_buffer_size)>) {
+        } else {
             m_buffer_size = config.printf_buffer_size;
         }
     }
