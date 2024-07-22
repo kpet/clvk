@@ -520,9 +520,7 @@ protected:
         m_queue = queue.release();
     }
 
-    void SetUp() override {
-        SetUpWithContextProperties(nullptr);
-    }
+    void SetUp() override { SetUpWithContextProperties(nullptr); }
 
     void SetUpWithContextProperties(const cl_context_properties* _prop) {
         WithContext::SetUpWithContextProperties(_prop);
