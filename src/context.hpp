@@ -14,8 +14,6 @@
 
 #pragma once
 
-#include <type_traits>
-
 #include "device.hpp"
 #include "objects.hpp"
 
