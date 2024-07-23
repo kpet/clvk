@@ -126,7 +126,7 @@ private:
     std::vector<cl_context_properties> m_properties;
     size_t m_printf_buffersize;
     cvk_printf_callback_t m_printf_callback;
-    void * m_printf_userdata;
+    void* m_printf_userdata;
 };
 
 static inline cvk_context* icd_downcast(cl_context context) {
