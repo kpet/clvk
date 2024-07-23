@@ -37,16 +37,6 @@
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
-#include "utils.hpp"
-
-#ifdef __APPLE__
-#include <unistd.h>
-#endif
-
-#ifdef WIN32
-#include <Windows.h>
-#include <io.h>
-#endif
 
 #define CLVK_CONFIG_ASSERT_GT(opt, val)                                        \
     ASSERT_GT(clvk_get_config()->opt.value, val)
@@ -212,20 +202,16 @@ static void GetDeviceAndHostTimer(cl_device_id device, cl_ulong* device_ts,
 
 class WithContext : public ::testing::Test {
 protected:
-    cl_context m_context = nullptr;
+    cl_context m_context;
 
     cl_platform_id platform() const { return gPlatform; }
 
     void SetUp() override { SetUpWithContextProperties(nullptr); }
 
-    void SetUpWithContextProperties(const cl_context_properties* _props) {
+    void SetUpWithContextProperties(const cl_context_properties* properties) {
         cl_int err;
-        if (m_context != nullptr) {
-            err = clReleaseContext(m_context);
-            ASSERT_CL_SUCCESS(err);
-        }
         m_context =
-            clCreateContext(_props, 1, &gDevice, nullptr, nullptr, &err);
+            clCreateContext(properties, 1, &gDevice, nullptr, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -530,17 +516,18 @@ protected:
         m_queue = queue.release();
     }
 
-    void SetUp() override { SetUpWithContextProperties(nullptr); }
-
-    void SetUpWithContextProperties(const cl_context_properties* _prop) {
-        WithContext::SetUpWithContextProperties(_prop);
-        SetUpQueue(0);
+    void
+    SetUpWithProperties(const cl_context_properties* context_properties,
+                        const cl_command_queue_properties queue_properties) {
+        WithContext::SetUpWithContextProperties(context_properties);
+        SetUpQueue(queue_properties);
     }
 
-    void SetUpWithQueueProperties(const cl_command_queue_properties _prop) {
-        WithContext::SetUp();
-        SetUpQueue(_prop);
+    void SetUpWithContextProperties(const cl_context_properties* properties) {
+        SetUpWithProperties(properties, 0);
     }
+
+    void SetUp() override { SetUpWithProperties(nullptr, 0); }
 
     void TearDown() override {
 #ifdef COMPILER_AVAILABLE
@@ -786,36 +773,11 @@ protected:
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
     void SetUp() override {
-        SetUpWithQueueProperties(CL_QUEUE_PROFILING_ENABLE);
+        SetUpWithProperties(nullptr, CL_QUEUE_PROFILING_ENABLE);
     }
 };
 
-class WithPrintfEnabled : public WithCommandQueue {
-private:
-    bool m_is_set = false;
-
+class WithCommandQueueNoSetUp : public WithCommandQueue {
 protected:
-    void SetUp() override{};
-    void TearDown() override { WithCommandQueue::TearDown(); }
-
-    void SetUpWithCallback(size_t buff_size, std::string& buffer,
-                           void (*printf_cb)(const char* buffer, size_t len,
-                                             size_t complete,
-                                             void* user_data)) {
-        buffer = "";
-        // Ensure everything is deleted before we make a new context.
-        if (m_is_set) {
-            WithPrintfEnabled::TearDown();
-        }
-
-        static std::vector<cl_context_properties> properties = {
-            CL_PRINTF_CALLBACK_ARM,
-            (cl_context_properties)printf_cb,
-            CL_PRINTF_BUFFERSIZE_ARM,
-            (long)buff_size,
-        };
-
-        WithCommandQueue::SetUpWithContextProperties(properties.data());
-        m_is_set = true;
-    }
+    void SetUp() override {};
 };

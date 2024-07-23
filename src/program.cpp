@@ -967,7 +967,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
-    auto buff_size = m_context->get_buffer_size();
+    auto buff_size = m_context->get_printf_buffersize();
 
     options += " -enable-printf ";
     options += " -printf-buffer-size=" + std::to_string(buff_size) + " ";

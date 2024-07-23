@@ -14,6 +14,8 @@
 
 #pragma once
 
+#define CLVK_PRINTF_USERDATA 0x5100
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 #include "config.hpp"

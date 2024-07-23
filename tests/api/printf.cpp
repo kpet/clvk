@@ -18,7 +18,6 @@
 #include "unit.hpp"
 #include "utils.hpp"
 
-#include <cstring>
 #include <filesystem>
 
 #ifdef __APPLE__
@@ -30,10 +29,10 @@
 #include <io.h>
 #endif
 
-std::string bufferArm;
 void printf_callback(const char* buffer, size_t len, size_t complete,
                      void* user_data) {
-    bufferArm += std::string(buffer);
+    std::string* user_buffer = (std::string*)user_data;
+    *user_buffer += std::string(buffer);
 }
 
 static std::string stdoutFileName;
@@ -135,10 +134,16 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     ASSERT_STREQ(printf_buffer, message);
 }
 
-TEST_F(WithPrintfEnabled, TooLongPrintf) {
+TEST_F(WithCommandQueueNoSetUp, TooLongPrintf) {
+    std::string buffer = "";
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-    SetUpWithCallback(28, bufferArm, printf_callback);
+    cl_context_properties properties[6] = {
+        CL_PRINTF_CALLBACK_ARM,   (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)28,
+        CLVK_PRINTF_USERDATA,     (cl_context_properties)&buffer};
+    WithCommandQueue::SetUpWithContextProperties(properties);
+
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
     const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
@@ -156,18 +161,24 @@ TEST_F(WithPrintfEnabled, TooLongPrintf) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
-    // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(bufferArm.c_str(), message);
+
+    ASSERT_STREQ(buffer.c_str(), message);
 }
 
-TEST_F(WithPrintfEnabled, TooLongPrintf2) {
+TEST_F(WithCommandQueueNoSetUp, TooLongPrintf2) {
+    std::string buffer = "";
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter + 8 which are not enough for
     // the third print, but should not cause any issue in clvk
-    SetUpWithCallback(36, bufferArm, printf_callback);
-    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
+    cl_context_properties properties[6] = {
+        CL_PRINTF_CALLBACK_ARM,   (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)36,
+        CLVK_PRINTF_USERDATA,     (cl_context_properties)&buffer};
+    WithCommandQueue::SetUpWithContextProperties(properties);
+
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
 
     const char* source = R"(
     kernel void test_printf() {
@@ -182,8 +193,8 @@ TEST_F(WithPrintfEnabled, TooLongPrintf2) {
     size_t lws = 1;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
-    // Reset the buffer if complete, otherwise keep the remaining part
-    ASSERT_STREQ(bufferArm.c_str(), message);
+
+    ASSERT_STREQ(buffer.c_str(), message);
 }
 
 TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {

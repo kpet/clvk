@@ -176,10 +176,10 @@ struct cvk_command_queue : public _cl_command_queue,
 
     cvk_buffer* get_or_create_printf_buffer() {
         if (!m_printf_buffer) {
-            cl_int status = CL_SUCCESS;
-
+            cl_int status;
             m_printf_buffer = cvk_buffer::create(
-                context(), 0, m_context->get_buffer_size(), nullptr, &status);
+                context(), 0, m_context->get_printf_buffersize(), nullptr,
+                &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();
@@ -236,9 +236,6 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
-    int get_property_index(const int prop);
-
-    printf_callback_func* get_printf_cb_func() { return m_cb_func; }
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
@@ -268,8 +265,6 @@ private:
     cl_uint m_max_first_cmd_batch_size;
     cl_uint m_max_cmd_group_size;
     cl_uint m_max_first_cmd_group_size;
-
-    printf_callback_func* m_cb_func = nullptr;
 
     std::atomic<uint64_t> m_nb_batch_in_flight;
     std::atomic<uint64_t> m_nb_group_in_flight;
