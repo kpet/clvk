@@ -779,5 +779,5 @@ protected:
 
 class WithCommandQueueNoSetUp : public WithCommandQueue {
 protected:
-    void SetUp() override {};
+    void SetUp() override{};
 };
