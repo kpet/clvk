@@ -63,11 +63,6 @@ cvk_command_queue::cvk_command_queue(
 
     TRACE_CNT(batch_in_flight_counter, 0);
     TRACE_CNT(group_in_flight_counter, 0);
-    auto cb_index = m_context->get_property_index(CL_PRINTF_CALLBACK_ARM);
-    if (cb_index != -1) {
-        auto all_props = m_context->properties();
-        m_cb_func = (printf_callback_func*)all_props[cb_index];
-    }
 }
 
 cl_int cvk_command_queue::init() {
@@ -1129,7 +1124,8 @@ cl_int cvk_command_kernel::do_post_action() {
             return CL_OUT_OF_RESOURCES;
         }
         return cvk_printf(buffer, m_kernel->program()->printf_descriptors(),
-                          m_queue->get_printf_cb_func());
+                          m_queue->context()->get_printf_callback(),
+                          m_queue->context()->get_printf_userdata());
     }
 
     return CL_SUCCESS;
