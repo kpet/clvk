@@ -114,7 +114,6 @@ struct cvk_context : public _cl_context,
         return -1;
     }
 
-    int get_prop_size() { return m_properties.size(); }
     size_t get_printf_buffersize() { return m_printf_buffersize; }
     cvk_printf_callback_t get_printf_callback() { return m_printf_callback; }
     void* get_printf_userdata() { return m_printf_userdata; }
