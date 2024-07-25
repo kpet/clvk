@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "context.hpp"
 #include "memory.hpp"
 
 #include <vector>
@@ -28,4 +29,5 @@ using printf_descriptor_map_t = std::unordered_map<uint32_t, printf_descriptor>;
 
 // Process the contents of the printf buffer and print the results to stdout
 cl_int cvk_printf(cvk_mem* printf_buffer,
-                  const printf_descriptor_map_t& descriptors);
+                  const printf_descriptor_map_t& descriptors,
+                  cvk_printf_callback_t cb_func, void* printf_userdata);
