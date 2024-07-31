@@ -163,6 +163,13 @@ struct api_query_string : public std::string {
     size_t size_with_null() const { return size() + 1; }
 };
 
+bool out_of_order_device_support(const cl_device_id devices) {
+    cl_command_queue_properties device_props = 0;
+    cl_int err = clGetDeviceInfo(devices, CL_DEVICE_QUEUE_PROPERTIES,
+                                 sizeof(device_props), &device_props, NULL);
+    return device_props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+}
+
 } // namespace
 
 // Platform API
@@ -1463,6 +1470,13 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     if (!is_valid_device(device) ||
         icd_downcast(context)->device() != icd_downcast(device)) {
         *errcode_ret = CL_INVALID_DEVICE;
+        return nullptr;
+    }
+
+    // We do not support out of order command queues so this must fail
+    if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
+        !out_of_order_device_support(device)) {
+        *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
         return nullptr;
     }
 
