@@ -163,11 +163,14 @@ struct api_query_string : public std::string {
     size_t size_with_null() const { return size() + 1; }
 };
 
-bool out_of_order_device_support(const cl_device_id devices) {
+bool out_of_order_device_support(const cl_device_id devices,
+                                 cl_int err) {
     cl_command_queue_properties device_props = 0;
-    cl_int err = clGetDeviceInfo(devices, CL_DEVICE_QUEUE_PROPERTIES,
-                                 sizeof(device_props), &device_props, NULL);
-    return device_props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+    err = clGetDeviceInfo(devices, CL_DEVICE_QUEUE_PROPERTIES,
+                                  sizeof(device_props), &device_props, NULL);
+    if(err != CL_SUCCESS)
+        return device_props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+    return false;
 }
 
 } // namespace
@@ -1473,10 +1476,13 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
+    cl_int err = CL_SUCCESS;
     // We do not support out of order command queues so this must fail
     if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
-        !out_of_order_device_support(device)) {
+        !out_of_order_device_support(device, err)) {
         *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
+        if (err != CL_SUCCESS)
+            *errcode_ret = err;
         return nullptr;
     }
 
@@ -1484,7 +1490,7 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));
 
-    cl_int err = queue->init();
+    err = queue->init();
 
     *errcode_ret = err;
 
