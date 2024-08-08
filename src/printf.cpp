@@ -13,20 +13,25 @@
 // limitations under the License.
 
 #include <sstream>
-
+#include <iostream>
 #include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
     auto conversionSpecPos = fmt.find_first_of("diouxXfFeEgGaAcsp");
+    if (conversionSpecPos == std::string_view::npos) {
+        return '\0'; // No conversion specifier found
+    }
     return fmt.at(conversionSpecPos);
 }
 
 // Read type T from given pointer
-template <typename T> T read_buff(const char* data) {
+template <typename T> T read_buff(const char* data, const char* data_end) {
+    if (data + sizeof(T) > data_end) {
+        return T{};
+    }
     return *(reinterpret_cast<const T*>(data));
 }
-
 // Read type T from given pointer then increment the pointer
 template <typename T> T read_inc_buff(char*& data) {
     T out = *(reinterpret_cast<T*>(data));
@@ -89,7 +94,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
 }
 
 // Print the format part containing exactly one arg using snprintf
-std::string print_part(const std::string& fmt, const char* data, size_t size) {
+std::string print_part(const std::string& fmt, const char* data, size_t size, const char* data_end) {
     // We don't know the exact size of the output string, but given we have a
     // single argument, the size of the format string plus 1024 bytes is more
     // than likely to fit everything. If it doesn't fit, just keep retrying with
@@ -99,6 +104,12 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
     out[0] = '\0';
 
     auto conversion = std::tolower(get_fmt_conversion(fmt));
+
+    // Handle missing conversion specifier
+    if (conversion == '\0') {
+        return fmt;
+    }
+
     bool finished = false;
     while (!finished) {
         int written = 0;
@@ -112,29 +123,30 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'g':
         case 'a': {
             if (size == 2)
-                written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   cl_half_to_float(read_buff<cl_half>(data)));
+                written = snprintf(
+                    out.data(), out_size, fmt.c_str(),
+                    cl_half_to_float(read_buff<cl_half>(data, data_end)));
             else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<float>(data));
+                                   read_buff<float>(data, data_end));
             else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<double>(data));
+                                   read_buff<double>(data, data_end));
             break;
         }
         default: {
             if (size == 1)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<uint8_t>(data));
+                                   read_buff<uint8_t>(data, data_end));
             else if (size == 2)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<uint16_t>(data));
+                                   read_buff<uint16_t>(data, data_end));
             else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<uint32_t>(data));
+                                   read_buff<uint32_t>(data, data_end));
             else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
-                                   read_buff<uint64_t>(data));
+                                   read_buff<uint64_t>(data, data_end));
             break;
         }
         }
@@ -165,79 +177,103 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
     std::stringstream printf_out{};
 
-    // Firstly print the part of the format string up to the first '%'
-    size_t next_part = format_string.find_first_of('%');
-    printf_out << format_string.substr(0, next_part);
+    // Handle empty format string
+    if (format_string.empty()) {
+        return; // Nothing to print
+    }
 
-    // Decompose the remaining format string into individual strings with
-    // one format specifier each, handle each one individually
-    size_t arg_idx = 0;
-    while (next_part < format_string.size() - 1) {
-        // Get the part of the format string before the next format specifier
-        size_t part_start = next_part;
-        size_t part_end = format_string.find_first_of('%', part_start + 1);
-        auto part_fmt = format_string.substr(part_start, part_end - part_start);
+    // Check if the format string contains any format specifiers
+    if (format_string.find('%') == std::string::npos) {
+        // No format specifiers, print the format string directly
+        printf_out << format_string;
+        data = data_end;
+    } else {
+        // Format string contains specifiers
+        size_t next_part = format_string.find_first_of('%');
+        printf_out << format_string.substr(0, next_part);
 
-        // Handle special cases
-        if (part_end == part_start + 1) {
-            printf_out << "%";
-            next_part = part_end + 1;
-            continue;
-        } else if (part_end == std::string::npos &&
-                   arg_idx >= descs.at(printf_id).arg_sizes.size()) {
-            // If there are no remaining arguments, the rest of the format
-            // should be printed verbatim
-            printf_out << part_fmt;
-            break;
-        }
+        size_t arg_idx = 0;
+        do {
+            size_t part_start = next_part;
+            size_t part_end = format_string.find_first_of('%', part_start + 1);
+            auto part_fmt =
+                format_string.substr(part_start, part_end - part_start);
 
-        // The size of the argument that this format part will consume
-        auto& size = descs.at(printf_id).arg_sizes[arg_idx];
+            // Handle special case of '%'
+            if (part_end == part_start + 1) {
+                printf_out << "%";
+                next_part = part_end + 1;
+                continue;
+            }
 
-        if (data + size > data_end) {
-            data += size;
-            return;
-        }
+            // Check if there's a valid conversion specifier and enough
+            // arguments
+            char conversion = get_fmt_conversion(part_fmt);
+            if (conversion != '\0' &&
+                arg_idx < descs.at(printf_id).arg_sizes.size()) {
+                // Process the format specifier and its corresponding argument
+                auto& size = descs.at(printf_id).arg_sizes[arg_idx];
+                if (data + size > data_end) {
+                    data += size;
+                    return;
+                }
 
-        // Check to see if we have a vector format specifier
-        int vec_len = 0;
-        int el_size = 0;
-        std::string remaining_str;
-        part_fmt = get_vector_fmt(part_fmt, vec_len, el_size, remaining_str);
+                // Check to see if we have a vector format specifier
+                int vec_len = 0;
+                int el_size = 0;
+                std::string remaining_str;
+                part_fmt =
+                    get_vector_fmt(part_fmt, vec_len, el_size, remaining_str);
 
-        // Scalar argument
-        if (vec_len < 2) {
-            // Special case for %s
-            if (get_fmt_conversion(part_fmt) == 's') {
-                uint32_t string_id = read_buff<uint32_t>(data);
-                printf_out << print_part(
-                    part_fmt, descs.at(string_id).format_string.c_str(), size);
+                // Check if get_vector_fmt encountered an error
+                if (part_fmt.empty()) {
+                    std::cerr << "Error parsing vector format specifier\n";
+                    data += size; // Skip the argument data
+                    continue;
+                }
+
+                if (vec_len < 2) {
+                    // Scalar argument
+                    // Special case for %s
+                    if (get_fmt_conversion(part_fmt) == 's') {
+                        uint32_t string_id =
+                            read_buff<uint32_t>(data, data_end);
+                        printf_out << print_part(
+                            part_fmt, descs.at(string_id).format_string.c_str(),
+                            size, data_end);
+                    } else {
+                        printf_out
+                            << print_part(part_fmt, data, size, data_end);
+                    }
+                    data += size;
+                } else {
+                    // Vector argument
+                    if (el_size == 0) {
+                        el_size = size / vec_len;
+                    }
+                    auto* data_start = data;
+                    for (int i = 0; i < vec_len - 1; i++) {
+                        printf_out << print_part(part_fmt, data, size / vec_len,
+                                                 data_end)
+                                   << ",";
+                        data += el_size;
+                    }
+                    printf_out
+                        << print_part(part_fmt, data, size / vec_len, data_end)
+                        << remaining_str;
+                    data = data_start + size;
+                }
+
+                arg_idx++;
             } else {
-                printf_out << print_part(part_fmt, data, size);
+                // No more valid conversions or arguments, print the rest
+                // verbatim
+                printf_out << part_fmt;
             }
-            data += size;
-        } else {
-            // Vector argument
-            if (el_size == 0) {
-                // 'ele_size == 0' means that no length modifier has been used.
-                // According to the spec, this is an undefined behavior. Let's
-                // use the size coming from clspv and the vec_len to figure out
-                // the element size then.
-                el_size = size / vec_len;
-            }
-            auto* data_start = data;
-            for (int i = 0; i < vec_len - 1; i++) {
-                printf_out << print_part(part_fmt, data, size / vec_len) << ",";
-                data += el_size;
-            }
-            printf_out << print_part(part_fmt, data, size / vec_len)
-                       << remaining_str;
-            data = data_start + size;
-        }
 
-        // Move to the next format part and prepare to handle the next arg
-        next_part = part_end;
-        arg_idx++;
+            next_part = part_end;
+        } while (next_part != std::string::npos &&
+                 next_part < format_string.size() - 1);
     }
 
     auto output = printf_out.str();
