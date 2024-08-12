@@ -167,7 +167,7 @@ bool out_of_order_device_support(const cl_device_id devices, cl_int err) {
     cl_command_queue_properties device_props = 0;
     err = clGetDeviceInfo(devices, CL_DEVICE_QUEUE_PROPERTIES,
                           sizeof(device_props), &device_props, NULL);
-    if (err != CL_SUCCESS) {
+    if (err == CL_SUCCESS) {
         return device_props & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
     }
     return false;
