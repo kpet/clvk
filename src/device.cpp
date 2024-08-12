@@ -681,7 +681,9 @@ void cvk_device::build_extension_ils_list() {
             outputs.push_back(input.substr(0, pos));
             input.erase(0, pos + 1);
         }
-        outputs.push_back(input);
+        if (input.size() > 0) {
+            outputs.push_back(input);
+        }
         return outputs;
     };
     auto config_extensions = split_string(config.device_extensions(), ',');
