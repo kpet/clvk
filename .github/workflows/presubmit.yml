@@ -112,22 +112,22 @@ jobs:
       - name: Build libclc
         if: ${{ matrix.android-abi != '' }}
         env:
-          LLVM_NATIVE_BUILD_DIR: ${{ github.workspace }}/build_llvm_native
-          LLVM_NATIVE_INSTALL_DIR: ${{ github.workspace }}/build_llvm_native/install
+          LLVM_NATIVE_DIR: ${{ github.workspace }}/build_llvm_native/
+          LLVM_ARCHIVE_PREFIX: LLVM-19.1.0-rc2-Linux-X64
           LIBCLC_DIR: ${{ github.workspace }}/build_libclc
         run: |
           set -x
-          cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/llvm' -B ${LLVM_NATIVE_BUILD_DIR} -G Ninja \
-            -DLLVM_ENABLE_PROJECTS="clang" \
-            -DLLVM_NATIVE_TARGET=1 \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=${LLVM_NATIVE_INSTALL_DIR}
-          cmake --build ${LLVM_NATIVE_BUILD_DIR} --target install
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.0-rc2/${LLVM_ARCHIVE_PREFIX}.tar.xz
+          mkdir -p ${LLVM_NATIVE_DIR}
+          tar -xf ${LLVM_ARCHIVE_PREFIX}.tar.xz -C ${LLVM_NATIVE_DIR}
           cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/libclc' -B ${LIBCLC_DIR} -G Ninja \
-            -DLLVM_CMAKE_DIR=${LLVM_NATIVE_INSTALL_DIR}/lib/cmake \
+            -DLLVM_CMAKE_DIR=${LLVM_NATIVE_DIR}/${LLVM_ARCHIVE_PREFIX}/lib/cmake \
+            -DCMAKE_CXX_COMPILER=${LLVM_NATIVE_DIR}/${LLVM_ARCHIVE_PREFIX}/bin/clang++ \
+            -DCMAKE_CXX_FLAGS="-fuse-ld=lld" \
             -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
           cmake --build ${LIBCLC_DIR}
           ls -l ${LIBCLC_DIR}
+          rm -rf ${LLVM_NATIVE_DIR} ${LLVM_ARCHIVE_PREFIX}.tar.xz
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
