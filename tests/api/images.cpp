@@ -727,6 +727,12 @@ TEST_F(WithCommandQueue, 1DBufferImageUnmapAfterRelease) {
         buffer,                       // buffer
     };
 
+    // clvk controller can decide to submit command directly after being
+    // enqueued. As we need to make sure that the unmap command will not be
+    // executed before we call Finish, we add this event to guarantee this
+    // property.
+    auto event = CreateUserEvent();
+
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     std::atomic<bool> destructor_called = false;
@@ -742,9 +748,11 @@ TEST_F(WithCommandQueue, 1DBufferImageUnmapAfterRelease) {
     clReleaseMemObject(released_image);
     EXPECT_FALSE(destructor_called);
 
-    EnqueueUnmapMemObject(released_image, map_ptr);
+    EnqueueUnmapMemObject(released_image, map_ptr, 1, (const cl_event*)&event,
+                          nullptr);
     EXPECT_FALSE(destructor_called);
 
+    SetUserEventStatus(event, CL_COMPLETE);
     Finish();
     EXPECT_TRUE(destructor_called);
 }
@@ -768,6 +776,12 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
         buffer,                       // buffer
     };
 
+    // clvk controller can decide to submit command directly after being
+    // enqueued. As we need to make sure that the unmap command will not be
+    // executed before we call Finish, we add this event to guarantee this
+    // property.
+    auto event = CreateUserEvent();
+
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     std::atomic<bool> destructor_called = false;
@@ -779,13 +793,14 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
     auto map_ptr = EnqueueMapImage<cl_uchar>(image, CL_TRUE, 0, origin, region,
                                              nullptr, nullptr);
 
-    EnqueueUnmapMemObject(image, map_ptr);
+    EnqueueUnmapMemObject(image, map_ptr, 1, (const cl_event*)&event, nullptr);
     EXPECT_FALSE(destructor_called);
 
     cl_mem released_image = image.release();
     clReleaseMemObject(released_image);
     EXPECT_FALSE(destructor_called);
 
+    SetUserEventStatus(event, CL_COMPLETE);
     Finish();
     EXPECT_TRUE(destructor_called);
 }
