@@ -729,7 +729,7 @@ TEST_F(WithCommandQueue, 1DBufferImageUnmapAfterRelease) {
 
     // clvk controller can decide to submit command directly after being
     // enqueued. As we need to make sure that the unmap command will not be
-    // executed before we call Finish, we add this event to garantee this
+    // executed before we call Finish, we add this event to guarantee this
     // property.
     auto event = CreateUserEvent();
 
