@@ -727,7 +727,12 @@ TEST_F(WithCommandQueue, 1DBufferImageUnmapAfterRelease) {
         buffer,                       // buffer
     };
 
+    // clvk controller can decide to submit command directly after being
+    // enqueued. As we need to make sure that the unmap command will not be
+    // executed before we call Finish, we add this event to garantee this
+    // property.
     auto event = CreateUserEvent();
+
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     std::atomic<bool> destructor_called = false;
@@ -771,7 +776,12 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
         buffer,                       // buffer
     };
 
+    // clvk controller can decide to submit command directly after being
+    // enqueued. As we need to make sure that the unmap command will not be
+    // executed before we call Finish, we add this event to garantee this
+    // property.
     auto event = CreateUserEvent();
+
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
 
     std::atomic<bool> destructor_called = false;
