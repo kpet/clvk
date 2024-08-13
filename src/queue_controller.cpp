@@ -71,7 +71,7 @@ void cvk_queue_controller_batch_parameters::reset_after_flush() {
     m_no_batch_in_flight_since_last_flush = false;
 }
 
-void cvk_queue_controller_batch_parameters::update_after_flush() {
+void cvk_queue_controller_batch_parameters::update_after_empty_flush() {
     TRACE_FUNCTION();
     reset_after_flush();
     update_trace_counter();

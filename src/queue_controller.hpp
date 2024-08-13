@@ -25,7 +25,7 @@ struct cvk_queue_controller {
         (void)from_flush;
     }
 
-    virtual void update_after_flush() {}
+    virtual void update_after_empty_flush() {}
 
 protected:
     cvk_command_queue* m_queue;
@@ -36,7 +36,7 @@ struct cvk_queue_controller_batch_parameters : public cvk_queue_controller {
 
     void update_after_end_current_command_batch(bool from_flush) override final;
 
-    void update_after_flush() override final;
+    void update_after_empty_flush() override final;
 
 private:
     void update_trace_counter();

@@ -493,7 +493,7 @@ cl_int cvk_command_queue::flush_no_lock() {
     // Early exit if there are no commands in the queue
     if (m_groups.front()->commands.size() == 0) {
         for (auto& controller : m_controllers) {
-            controller->update_after_flush();
+            controller->update_after_empty_flush();
         }
         return CL_SUCCESS;
     }
