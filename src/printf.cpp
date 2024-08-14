@@ -175,19 +175,41 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
     while (next_part < format_string.size() - 1) {
-        auto tmp = printf_out.str().c_str();
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
-        if (part_end >= format_string.size()) {
-            part_end = format_string.size() - 1;
+
+        // Handle case where there's no second '%'
+        if (part_end == std::string::npos || part_end >= format_string.size()) {
+            part_end =
+                format_string.size(); // Set part_end to the end of the string
         }
         auto part_fmt = format_string.substr(part_start, part_end - part_start);
 
         // Handle special cases
-        if (part_end == part_start + 1) {
-            printf_out << "%";
-            next_part = part_end + 1;
+        if (part_fmt == "%") {
+            // printf requires two % i.e. %% to display % iff they are not at
+            // the start of the string. All starting % shoulld be collapsed into
+            // one.
+            if (printf_out.str() != part_fmt) {
+                printf_out << part_fmt;
+                // check for two consecutive % since otherwise the way we are
+                // moving the next_part var this will be skipped.
+                if (format_string[part_start] == '%' &&
+                    printf_out.str() != part_fmt) {
+                    printf_out << part_fmt;
+                }
+            }
+            next_part = part_end;
+            // Skip the next % as well since we have already added it.
+            if (format_string[part_start] == '%') {
+                next_part++;
+            }
+            continue;
+            // Single char
+        } else if (part_fmt.length() == 1) {
+            printf_out << part_fmt;
+            next_part = part_end;
             continue;
         } else if (part_end == std::string::npos &&
                    arg_idx >= descs.at(printf_id).arg_sizes.size()) {
@@ -219,9 +241,6 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
                 if (string_id >= descs.size()) {
                     printf_out << "";
                 } else {
-                    auto curr = print_part(
-                        part_fmt, descs.at(string_id).format_string.c_str(),
-                        size);
                     printf_out << print_part(
                         part_fmt, descs.at(string_id).format_string.c_str(),
                         size);
@@ -253,7 +272,6 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
-    auto tmp = printf_out.str().c_str();
     printf("%s", printf_out.str().c_str());
 }
 
