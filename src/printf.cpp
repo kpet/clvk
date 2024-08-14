@@ -272,6 +272,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
+
     printf("%s", printf_out.str().c_str());
 }
 
