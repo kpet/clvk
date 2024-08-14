@@ -166,15 +166,22 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
     // Firstly print the part of the format string up to the first '%'
     size_t next_part = format_string.find_first_of('%');
+    if (next_part > format_string.size()) {
+        return;
+    }
     printf_out << format_string.substr(0, next_part);
 
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
     while (next_part < format_string.size() - 1) {
+        auto tmp = printf_out.str().c_str();
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
+        if (part_end >= format_string.size()) {
+            part_end = format_string.size() - 1;
+        }
         auto part_fmt = format_string.substr(part_start, part_end - part_start);
 
         // Handle special cases
@@ -209,8 +216,16 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             // Special case for %s
             if (get_fmt_conversion(part_fmt) == 's') {
                 uint32_t string_id = read_buff<uint32_t>(data);
-                printf_out << print_part(
-                    part_fmt, descs.at(string_id).format_string.c_str(), size);
+                if (string_id >= descs.size()) {
+                    printf_out << "";
+                } else {
+                    auto curr = print_part(
+                        part_fmt, descs.at(string_id).format_string.c_str(),
+                        size);
+                    printf_out << print_part(
+                        part_fmt, descs.at(string_id).format_string.c_str(),
+                        size);
+                }
             } else {
                 printf_out << print_part(part_fmt, data, size);
             }
@@ -238,7 +253,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
-
+    auto tmp = printf_out.str().c_str();
     printf("%s", printf_out.str().c_str());
 }
 
