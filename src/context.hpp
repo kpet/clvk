@@ -33,7 +33,8 @@ struct cvk_context : public _cl_context,
                      refcounted,
                      object_magic_header<object_magic::context> {
 
-    cvk_context(cvk_device* device, const cl_context_properties* props)
+    cvk_context(cvk_device* device, const cl_context_properties* props,
+                void* user_data)
         : m_device(device) {
 
         if (props) {
@@ -61,16 +62,9 @@ struct cvk_context : public _cl_context,
         if (printf_callback_prop_index != -1) {
             m_printf_callback =
                 (cvk_printf_callback_t)m_properties[printf_callback_prop_index];
+            m_printf_userdata = user_data;
         } else {
             m_printf_callback = nullptr;
-        }
-
-        // Get printf userdata from extension
-        auto printf_userdata_prop_index =
-            get_property_index(CLVK_PRINTF_USERDATA);
-        if (printf_userdata_prop_index != -1) {
-            m_printf_userdata = (void*)m_properties[printf_userdata_prop_index];
-        } else {
             m_printf_userdata = nullptr;
         }
     }

@@ -206,12 +206,16 @@ protected:
 
     cl_platform_id platform() const { return gPlatform; }
 
-    void SetUp() override { SetUpWithContextProperties(nullptr); }
+    void SetUp() override { SetUpWithContextProperties(nullptr, nullptr); }
 
-    void SetUpWithContextProperties(const cl_context_properties* properties) {
+    void SetUpWithContextProperties(const cl_context_properties* properties,
+                                    void* user_data) {
         cl_int err;
-        m_context =
-            clCreateContext(properties, 1, &gDevice, nullptr, nullptr, &err);
+        m_context = clCreateContext(
+            properties, 1, &gDevice,
+            [](const char* errinfo, const void* private_info, size_t cb,
+               void* user_data) {},
+            user_data, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -516,18 +520,19 @@ protected:
         m_queue = queue.release();
     }
 
-    void
-    SetUpWithProperties(const cl_context_properties* context_properties,
-                        const cl_command_queue_properties queue_properties) {
-        WithContext::SetUpWithContextProperties(context_properties);
+    void SetUpWithProperties(const cl_context_properties* context_properties,
+                             const cl_command_queue_properties queue_properties,
+                             void* user_data) {
+        WithContext::SetUpWithContextProperties(context_properties, user_data);
         SetUpQueue(queue_properties);
     }
 
-    void SetUpWithContextProperties(const cl_context_properties* properties) {
-        SetUpWithProperties(properties, 0);
+    void SetUpWithContextProperties(const cl_context_properties* properties,
+                                    void* user_data) {
+        SetUpWithProperties(properties, 0, user_data);
     }
 
-    void SetUp() override { SetUpWithProperties(nullptr, 0); }
+    void SetUp() override { SetUpWithProperties(nullptr, 0, nullptr); }
 
     void TearDown() override {
 #ifdef COMPILER_AVAILABLE
@@ -773,7 +778,7 @@ protected:
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
     void SetUp() override {
-        SetUpWithProperties(nullptr, CL_QUEUE_PROFILING_ENABLE);
+        SetUpWithProperties(nullptr, CL_QUEUE_PROFILING_ENABLE, nullptr);
     }
 };
 
