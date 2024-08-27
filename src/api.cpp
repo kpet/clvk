@@ -1477,10 +1477,8 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     }
 
     cl_int err = CL_SUCCESS;
-    std::string oooe_env_var = "CLVK_IGNORE_OUT_OF_ORDER_EXECUTION";
-    const char* oooe_env_var_val = getenv(oooe_env_var.c_str());
-
-    if (oooe_env_var_val == nullptr || strcmp(oooe_env_var_val, "1") != 0) {
+    if (!config.ignore_out_of_order_execution.set ||
+        config.ignore_out_of_order_execution.value == 0) {
         // We do not support out of order command queues so this must fail
         if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
             !out_of_order_device_support(device, err)) {
