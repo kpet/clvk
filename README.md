@@ -345,6 +345,11 @@ using the name of the corresponding environment variable.
 
 * `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
+* `CLVK_IGNORE_OUT_OF_ORDER_EXECUTION` can be used to ignore out of order execution checks
+
+   * 0: does not ignores OOOE checks and validates if hardware can support it
+   * 1: ignores the aforementioned checks
+
 * `CLVK_LOG` controls the level of logging
 
    * 0: only print fatal messages (default)
