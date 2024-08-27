@@ -62,10 +62,10 @@ struct cvk_context : public _cl_context,
         if (printf_callback_prop_index != -1) {
             m_printf_callback =
                 (cvk_printf_callback_t)m_properties[printf_callback_prop_index];
-            m_printf_userdata = user_data;
+            m_user_data = user_data;
         } else {
             m_printf_callback = nullptr;
-            m_printf_userdata = nullptr;
+            m_user_data = nullptr;
         }
     }
 
@@ -110,7 +110,7 @@ struct cvk_context : public _cl_context,
 
     size_t get_printf_buffersize() { return m_printf_buffersize; }
     cvk_printf_callback_t get_printf_callback() { return m_printf_callback; }
-    void* get_printf_userdata() { return m_printf_userdata; }
+    void* get_printf_userdata() { return m_user_data; }
 
 private:
     cvk_device* m_device;
@@ -119,7 +119,7 @@ private:
     std::vector<cl_context_properties> m_properties;
     size_t m_printf_buffersize;
     cvk_printf_callback_t m_printf_callback;
-    void* m_printf_userdata;
+    void* m_user_data;
 };
 
 static inline cvk_context* icd_downcast(cl_context context) {
