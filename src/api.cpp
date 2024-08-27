@@ -1477,16 +1477,20 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     }
 
     cl_int err = CL_SUCCESS;
-    // We do not support out of order command queues so this must fail
-    if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
-        !out_of_order_device_support(device, err)) {
-        *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
-        if (err != CL_SUCCESS) {
-            *errcode_ret = err;
-        }
-        return nullptr;
-    }
+    std::string oooe_env_var = "CLVK_IGNORE_OUT_OF_ORDER_EXECUTION";
+    const char* oooe_env_var_val = getenv(oooe_env_var.c_str());
 
+    if (oooe_env_var_val == nullptr || strcmp(oooe_env_var_val, "1") != 0) {
+        // We do not support out of order command queues so this must fail
+        if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
+            !out_of_order_device_support(device, err)) {
+            *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
+            if (err != CL_SUCCESS) {
+                *errcode_ret = err;
+            }
+            return nullptr;
+        }
+    }
     auto queue = std::make_unique<cvk_command_queue>(
         icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));
