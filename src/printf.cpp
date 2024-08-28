@@ -167,122 +167,115 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // Firstly print the part of the format string up to the first '%'
     size_t next_part = format_string.find_first_of('%');
     if (next_part > format_string.size()) {
-        // if there is no format just print the whole string itself.
-        assert (descs.size() == 1);
         printf_out << format_string;
         printf("%s", printf_out.str().c_str());
+        data = data_end;
         return;
     }
-        printf_out << format_string.substr(0, next_part);
+    printf_out << format_string.substr(0, next_part);
 
-        // Decompose the remaining format string into individual strings with
-        // one format specifier each, handle each one individually
-        size_t arg_idx = 0;
-        while (next_part < format_string.size() - 1) {
-            // Get the part of the format string before the next format
-            // specifier
-            size_t part_start = next_part;
-            size_t part_end = format_string.find_first_of('%', part_start + 1);
+    // Decompose the remaining format string into individual strings with
+    // one format specifier each, handle each one individually
+    size_t arg_idx = 0;
+    while (next_part < format_string.size() - 1) {
+        // Get the part of the format string before the next format
+        // specifier
+        size_t part_start = next_part;
+        size_t part_end = format_string.find_first_of('%', part_start + 1);
 
-            // Handle case where there's no second '%'
-            if (part_end == std::string::npos ||
-                part_end >= format_string.size()) {
-                part_end = format_string
-                               .size(); // Set part_end to the end of the string
-            }
-            auto part_fmt =
-                format_string.substr(part_start, part_end - part_start);
-
-            // Handle special cases
-            if (part_fmt == "%") {
-                // printf requires two % i.e. %% to display % iff they are not
-                // at the start of the string. All starting % shoulld be
-                // collapsed into one.
-                if (printf_out.str() != part_fmt) {
-                    printf_out << part_fmt;
-                    // check for two consecutive % since otherwise the way we
-                    // are moving the next_part var this will be skipped.
-                    if (format_string[part_start] == '%' &&
-                        printf_out.str() != part_fmt) {
-                        printf_out << part_fmt;
-                    }
-                }
-                next_part = part_end;
-                // Skip the next % as well since we have already added it.
-                if (format_string[part_start] == '%') {
-                    next_part++;
-                }
-                continue;
-                // Single char
-            } else if (part_fmt.length() == 1) {
-                printf_out << part_fmt;
-                next_part = part_end;
-                continue;
-            } else if (part_end == std::string::npos &&
-                       arg_idx >= descs.at(printf_id).arg_sizes.size()) {
-                // If there are no remaining arguments, the rest of the format
-                // should be printed verbatim
-                printf_out << part_fmt;
-                break;
-            }
-
-            // The size of the argument that this format part will consume
-            auto& size = descs.at(printf_id).arg_sizes[arg_idx];
-
-            if (data + size > data_end) {
-                data += size;
-                return;
-            }
-
-            // Check to see if we have a vector format specifier
-            int vec_len = 0;
-            int el_size = 0;
-            std::string remaining_str;
-            part_fmt =
-                get_vector_fmt(part_fmt, vec_len, el_size, remaining_str);
-
-            // Scalar argument
-            if (vec_len < 2) {
-                // Special case for %s
-                if (get_fmt_conversion(part_fmt) == 's') {
-                    uint32_t string_id = read_buff<uint32_t>(data);
-                    if (string_id >= descs.size()) {
-                        printf_out << "";
-                    } else {
-                        printf_out << print_part(
-                            part_fmt, descs.at(string_id).format_string.c_str(),
-                            size);
-                    }
-                } else {
-                    printf_out << print_part(part_fmt, data, size);
-                }
-                data += size;
-            } else {
-                // Vector argument
-                if (el_size == 0) {
-                    // 'ele_size == 0' means that no length modifier has been
-                    // used. According to the spec, this is an undefined
-                    // behavior. Let's use the size coming from clspv and the
-                    // vec_len to figure out the element size then.
-                    el_size = size / vec_len;
-                }
-                auto* data_start = data;
-                for (int i = 0; i < vec_len - 1; i++) {
-                    printf_out << print_part(part_fmt, data, size / vec_len)
-                               << ",";
-                    data += el_size;
-                }
-                printf_out << print_part(part_fmt, data, size / vec_len)
-                           << remaining_str;
-                data = data_start + size;
-            }
-
-            // Move to the next format part and prepare to handle the next arg
-            next_part = part_end;
-            arg_idx++;
+        // Handle case where there's no second '%'
+        if (part_end == std::string::npos || part_end >= format_string.size()) {
+            part_end =
+                format_string.size(); // Set part_end to the end of the string
         }
-    }
+        auto part_fmt = format_string.substr(part_start, part_end - part_start);
 
+        // Handle special cases
+        if (part_fmt == "%") {
+            // printf requires two % i.e. %% to display % iff they are not
+            // at the start of the string. All starting % shoulld be
+            // collapsed into one.
+            if (printf_out.str() != part_fmt) {
+                printf_out << part_fmt;
+                // check for two consecutive % since otherwise the way we
+                // are moving the next_part var this will be skipped.
+                if (format_string[part_start] == '%' &&
+                    printf_out.str() != part_fmt) {
+                    printf_out << part_fmt;
+                }
+            }
+            next_part = part_end;
+            // Skip the next % as well since we have already added it.
+            if (format_string[part_start] == '%') {
+                next_part++;
+            }
+            continue;
+            // Single char
+        } else if (part_fmt.length() == 1) {
+            printf_out << part_fmt;
+            next_part = part_end;
+            continue;
+        } else if (part_end == std::string::npos &&
+                   arg_idx >= descs.at(printf_id).arg_sizes.size()) {
+            // If there are no remaining arguments, the rest of the format
+            // should be printed verbatim
+            printf_out << part_fmt;
+            break;
+        }
+
+        // The size of the argument that this format part will consume
+        auto& size = descs.at(printf_id).arg_sizes[arg_idx];
+
+        if (data + size > data_end) {
+            data += size;
+            return;
+        }
+
+        // Check to see if we have a vector format specifier
+        int vec_len = 0;
+        int el_size = 0;
+        std::string remaining_str;
+        part_fmt = get_vector_fmt(part_fmt, vec_len, el_size, remaining_str);
+
+        // Scalar argument
+        if (vec_len < 2) {
+            // Special case for %s
+            if (get_fmt_conversion(part_fmt) == 's') {
+                uint32_t string_id = read_buff<uint32_t>(data);
+                if (string_id >= descs.size()) {
+                    printf_out << "";
+                } else {
+                    printf_out << print_part(
+                        part_fmt, descs.at(string_id).format_string.c_str(),
+                        size);
+                }
+            } else {
+                printf_out << print_part(part_fmt, data, size);
+            }
+            data += size;
+        } else {
+            // Vector argument
+            if (el_size == 0) {
+                // 'ele_size == 0' means that no length modifier has been
+                // used. According to the spec, this is an undefined
+                // behavior. Let's use the size coming from clspv and the
+                // vec_len to figure out the element size then.
+                el_size = size / vec_len;
+            }
+            auto* data_start = data;
+            for (int i = 0; i < vec_len - 1; i++) {
+                printf_out << print_part(part_fmt, data, size / vec_len) << ",";
+                data += el_size;
+            }
+            printf_out << print_part(part_fmt, data, size / vec_len)
+                       << remaining_str;
+            data = data_start + size;
+        }
+
+        // Move to the next format part and prepare to handle the next arg
+        next_part = part_end;
+        arg_idx++;
+    }
     printf("%s", printf_out.str().c_str());
 }
 
