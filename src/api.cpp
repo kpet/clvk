@@ -1023,7 +1023,8 @@ cl_context CLVK_API_CALL clCreateContext(
         return nullptr;
     }
 
-    cl_context context = new cvk_context(icd_downcast(devices[0]), properties);
+    cl_context context =
+        new cvk_context(icd_downcast(devices[0]), properties, user_data);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;

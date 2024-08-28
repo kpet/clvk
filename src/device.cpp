@@ -619,6 +619,7 @@ void cvk_device::build_extension_ils_list() {
 #endif
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_no_integer_wrap_decoration"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_arm_non_uniform_work_group_size"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_arm_printf"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_suggested_local_work_size"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
         // MAKE_NAME_VERSION(0, 9, 0, "cl_khr_semaphore"),
@@ -672,6 +673,28 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_intel_required_subgroup_size"));
         m_has_subgroup_size_selection = true;
+    }
+
+    auto split_string = [](std::string input, char delimiter) {
+        std::vector<std::string> outputs;
+        size_t pos = 0;
+        while ((pos = input.find(delimiter)) != std::string::npos) {
+            outputs.push_back(input.substr(0, pos));
+            input.erase(0, pos + 1);
+        }
+        if (input.size() > 0) {
+            outputs.push_back(input);
+        }
+        return outputs;
+    };
+    auto config_extensions = split_string(config.device_extensions(), ',');
+    for (auto& config_extension : config_extensions) {
+        cl_name_version extension;
+        extension.version = CL_MAKE_VERSION(0, 0, 0);
+        memcpy(extension.name, config_extension.c_str(),
+               std::min(config_extension.size(),
+                        (size_t)CL_NAME_VERSION_MAX_NAME_SIZE));
+        m_extensions.push_back(extension);
     }
 
     // Build extension string
