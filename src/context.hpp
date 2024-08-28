@@ -16,6 +16,11 @@
 
 #include "device.hpp"
 #include "objects.hpp"
+#include "unit.hpp"
+
+using cvk_printf_callback_t = void(CL_CALLBACK*)(const char* buffer, size_t len,
+                                                 size_t complete,
+                                                 void* user_data);
 
 using cvk_context_callback_pointer_type = void(CL_CALLBACK*)(cl_context context,
                                                              void* user_data);
@@ -28,7 +33,8 @@ struct cvk_context : public _cl_context,
                      refcounted,
                      object_magic_header<object_magic::context> {
 
-    cvk_context(cvk_device* device, const cl_context_properties* props)
+    cvk_context(cvk_device* device, const cl_context_properties* props,
+                void* user_data)
         : m_device(device) {
 
         if (props) {
@@ -40,6 +46,26 @@ struct cvk_context : public _cl_context,
                 props += 2;
             }
             m_properties.push_back(*props);
+        }
+        // Get printf buffer size from extension.
+        auto buff_size_prop_index =
+            get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+        if (buff_size_prop_index != -1 && !config.printf_buffer_size.set) {
+            m_printf_buffersize = m_properties[buff_size_prop_index];
+        } else {
+            m_printf_buffersize = config.printf_buffer_size;
+        }
+
+        // Get printf callback from extension
+        auto printf_callback_prop_index =
+            get_property_index(CL_PRINTF_CALLBACK_ARM);
+        if (printf_callback_prop_index != -1) {
+            m_printf_callback =
+                (cvk_printf_callback_t)m_properties[printf_callback_prop_index];
+            m_user_data = user_data;
+        } else {
+            m_printf_callback = nullptr;
+            m_user_data = nullptr;
         }
     }
 
@@ -73,11 +99,27 @@ struct cvk_context : public _cl_context,
         return size <= m_device->max_mem_alloc_size();
     }
 
+    int get_property_index(const int prop) {
+        for (unsigned i = 0; i < m_properties.size(); i += 2) {
+            if (m_properties[i] == prop) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    size_t get_printf_buffersize() { return m_printf_buffersize; }
+    cvk_printf_callback_t get_printf_callback() { return m_printf_callback; }
+    void* get_printf_userdata() { return m_user_data; }
+
 private:
     cvk_device* m_device;
     std::mutex m_callbacks_lock;
     std::vector<cvk_context_callback> m_destuctor_callbacks;
     std::vector<cl_context_properties> m_properties;
+    size_t m_printf_buffersize;
+    cvk_printf_callback_t m_printf_callback;
+    void* m_user_data;
 };
 
 static inline cvk_context* icd_downcast(cl_context context) {

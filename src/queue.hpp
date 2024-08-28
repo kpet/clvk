@@ -178,7 +178,8 @@ struct cvk_command_queue : public _cl_command_queue,
         if (!m_printf_buffer) {
             cl_int status;
             m_printf_buffer = cvk_buffer::create(
-                context(), 0, config.printf_buffer_size, nullptr, &status);
+                context(), 0, m_context->get_printf_buffersize(), nullptr,
+                &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
         return m_printf_buffer.get();

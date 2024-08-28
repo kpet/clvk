@@ -967,10 +967,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
+    auto buff_size = m_context->get_printf_buffersize();
+
     options += " -enable-printf ";
-    options +=
-        " -printf-buffer-size=" + std::to_string(config.printf_buffer_size) +
-        " ";
+    options += " -printf-buffer-size=" + std::to_string(buff_size) + " ";
 
 #if COMPILER_AVAILABLE
     options += " " + config.clspv_options() + " ";
