@@ -211,11 +211,12 @@ protected:
     void SetUpWithContextProperties(const cl_context_properties* properties,
                                     void* user_data) {
         cl_int err;
-        m_context = clCreateContext(
-            properties, 1, &gDevice,
-            [](const char* errinfo, const void* private_info, size_t cb,
-               void* user_data) {},
-            user_data, &err);
+        // TODO instrument calls to the context callback and validate that it's
+        // called in some tests
+        auto ctx_cb = [](const char* errinfo, const void* private_info,
+                         size_t cb, void* user_data) {};
+        m_context =
+            clCreateContext(properties, 1, &gDevice, ctx_cb, user_data, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -782,7 +783,20 @@ protected:
     }
 };
 
-class WithCommandQueueNoSetUp : public WithCommandQueue {
+static void printf_callback(const char* buffer, size_t len, size_t complete,
+                            void* user_data) {
+    std::string* user_buffer = (std::string*)user_data;
+    *user_buffer += std::string(buffer);
+}
+
+class WithCommandQueueAndPrintf : public WithCommandQueue {
 protected:
-    void SetUp() override{};
+    void SetUp() override {
+
+        cl_context_properties properties[2] = {
+            CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback};
+        WithCommandQueue::SetUpWithContextProperties(
+            properties, reinterpret_cast<void*>(&m_printf_output));
+    };
+    std::string m_printf_output{};
 };
