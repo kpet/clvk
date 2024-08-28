@@ -206,10 +206,16 @@ protected:
 
     cl_platform_id platform() const { return gPlatform; }
 
-    void SetUp() override {
+    void SetUp() override { SetUpWithContextProperties(nullptr, nullptr); }
+
+    void SetUpWithContextProperties(const cl_context_properties* properties,
+                                    void* user_data) {
         cl_int err;
-        m_context =
-            clCreateContext(nullptr, 1, &gDevice, nullptr, nullptr, &err);
+        m_context = clCreateContext(
+            properties, 1, &gDevice,
+            [](const char* errinfo, const void* private_info, size_t cb,
+               void* user_data) {},
+            user_data, &err);
         ASSERT_CL_SUCCESS(err);
     }
 
@@ -510,12 +516,23 @@ protected:
 #ifndef COMPILER_AVAILABLE
         GTEST_SKIP();
 #endif
-        WithContext::SetUp();
         auto queue = CreateCommandQueue(device(), properties);
         m_queue = queue.release();
     }
 
-    void SetUp() override { SetUpQueue(0); }
+    void SetUpWithProperties(const cl_context_properties* context_properties,
+                             const cl_command_queue_properties queue_properties,
+                             void* user_data) {
+        WithContext::SetUpWithContextProperties(context_properties, user_data);
+        SetUpQueue(queue_properties);
+    }
+
+    void SetUpWithContextProperties(const cl_context_properties* properties,
+                                    void* user_data) {
+        SetUpWithProperties(properties, 0, user_data);
+    }
+
+    void SetUp() override { SetUpWithProperties(nullptr, 0, nullptr); }
 
     void TearDown() override {
 #ifdef COMPILER_AVAILABLE
@@ -760,5 +777,12 @@ protected:
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
-    void SetUp() override { SetUpQueue(CL_QUEUE_PROFILING_ENABLE); }
+    void SetUp() override {
+        SetUpWithProperties(nullptr, CL_QUEUE_PROFILING_ENABLE, nullptr);
+    }
+};
+
+class WithCommandQueueNoSetUp : public WithCommandQueue {
+protected:
+    void SetUp() override{};
 };

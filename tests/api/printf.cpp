@@ -29,6 +29,12 @@
 #include <io.h>
 #endif
 
+void printf_callback(const char* buffer, size_t len, size_t complete,
+                     void* user_data) {
+    std::string* user_buffer = (std::string*)user_data;
+    *user_buffer += std::string(buffer);
+}
+
 static std::string stdoutFileName;
 
 #define BUFFER_SIZE 1024
@@ -128,17 +134,19 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     ASSERT_STREQ(printf_buffer, message);
 }
 
-TEST_F(WithCommandQueue, TooLongPrintf) {
+TEST_F(WithCommandQueueNoSetUp, TooLongPrintf) {
+    std::string buffer = "";
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-    auto cfg1 =
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
+    cl_context_properties properties[4] = {
+        CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)28};
+    WithCommandQueue::SetUpWithContextProperties(
+        properties, reinterpret_cast<void*>(&buffer));
 
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
+    // We only get the first 2 prints because the buffer is too small to get
+    // the last one.
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
 
     const char* source = R"(
     kernel void test_printf() {
@@ -154,28 +162,23 @@ TEST_F(WithCommandQueue, TooLongPrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    // We only get the first 2 prints because the buffer is too small to get the
-    // last one.
-    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
-    ASSERT_STREQ(printf_buffer, message);
+    ASSERT_STREQ(buffer.c_str(), message);
 }
 
-TEST_F(WithCommandQueue, TooLongPrintf2) {
+TEST_F(WithCommandQueueNoSetUp, TooLongPrintf2) {
+    std::string buffer = "";
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter + 8 which are not enough for
     // the third print, but should not cause any issue in clvk
-    auto cfg1 =
-        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 36, true);
+    cl_context_properties properties[4] = {
+        CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback,
+        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)36};
+    WithCommandQueue::SetUpWithContextProperties(
+        properties, reinterpret_cast<void*>(&buffer));
 
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
+    // We only get the first 2 prints because the buffer is too small to get
+    // the last one.
+    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
 
     const char* source = R"(
     kernel void test_printf() {
@@ -191,14 +194,7 @@ TEST_F(WithCommandQueue, TooLongPrintf2) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    // We only get the first 2 prints because the buffer is too small to get the
-    // last one.
-    const char* message = "get_global_id(0) = 0\nget_global_id(1) = 0\n";
-    ASSERT_STREQ(printf_buffer, message);
+    ASSERT_STREQ(buffer.c_str(), message);
 }
 
 TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {

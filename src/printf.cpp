@@ -157,7 +157,8 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
 }
 
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
-                    char* data_end) {
+                    char* data_end, cvk_printf_callback_t printf_cb,
+                    void* printf_userdata) {
 
     uint32_t printf_id = read_inc_buff<uint32_t>(data);
     auto& format_string = descs.at(printf_id).format_string;
@@ -276,11 +277,19 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         next_part = part_end;
         arg_idx++;
     }
-    printf("%s", printf_out.str().c_str());
+
+    auto output = printf_out.str();
+    if (printf_cb != nullptr) {
+        auto len = output.size();
+        printf_cb(output.c_str(), len, data >= data_end, printf_userdata);
+    } else {
+        printf("%s", output.c_str());
+    }
 }
 
 cl_int cvk_printf(cvk_mem* printf_buffer,
-                  const printf_descriptor_map_t& descriptors) {
+                  const printf_descriptor_map_t& descriptors,
+                  cvk_printf_callback_t printf_cb, void* printf_userdata) {
     CVK_ASSERT(printf_buffer);
     if (!printf_buffer->map()) {
         cvk_error("Could not map printf buffer");
@@ -295,7 +304,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
     auto* data_end = data + limit;
 
     while (data < data_end) {
-        process_printf(data, descriptors, data_end);
+        process_printf(data, descriptors, data_end, printf_cb, printf_userdata);
     }
 
     if (buffer_size < bytes_written) {
@@ -305,7 +314,7 @@ cl_int cvk_printf(cvk_mem* printf_buffer,
                         bytes_written);
     }
 
-    printf_buffer->unmap();
+    printf_buffer->unmap_read_only();
 
     return CL_SUCCESS;
 }

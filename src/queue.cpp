@@ -492,6 +492,9 @@ cl_int cvk_command_queue::flush_no_lock() {
 
     // Early exit if there are no commands in the queue
     if (m_groups.front()->commands.size() == 0) {
+        for (auto& controller : m_controllers) {
+            controller->update_after_empty_flush();
+        }
         return CL_SUCCESS;
     }
 
@@ -1123,7 +1126,10 @@ cl_int cvk_command_kernel::do_post_action() {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
         }
-        return cvk_printf(buffer, m_kernel->program()->printf_descriptors());
+
+        return cvk_printf(buffer, m_kernel->program()->printf_descriptors(),
+                          m_queue->context()->get_printf_callback(),
+                          m_queue->context()->get_printf_userdata());
     }
 
     return CL_SUCCESS;
@@ -1308,23 +1314,39 @@ private:
 };
 
 struct memobj_map_holder {
-    memobj_map_holder(cvk_mem* memobj) : m_mem(memobj), m_mapped(false) {
+    enum class access
+    {
+        read_write,
+        read_only,
+        write_only,
+    };
+    memobj_map_holder(cvk_mem* memobj, enum access access)
+        : m_mem(memobj), m_mapped(false), m_access(access) {
         CVK_ASSERT(memobj != nullptr);
     }
     ~memobj_map_holder() {
         if (m_mapped) {
-            m_mem->unmap();
+            if (m_access == access::read_only) {
+                m_mem->unmap_read_only();
+            } else {
+                m_mem->unmap();
+            }
         }
     }
 
     bool CHECK_RETURN map() {
-        m_mapped = m_mem->map();
+        if (m_access == access::write_only) {
+            m_mapped = m_mem->map_write_only();
+        } else {
+            m_mapped = m_mem->map();
+        }
         return m_mapped;
     }
 
 private:
     cvk_mem* m_mem;
     bool m_mapped;
+    enum access m_access;
 };
 
 void cvk_rectangle_copier::do_copy(direction dir, void* src_base,
@@ -1358,7 +1380,8 @@ void cvk_rectangle_copier::do_copy(direction dir, void* src_base,
 }
 
 cl_int cvk_command_copy_host_buffer_rect::do_action() {
-    memobj_map_holder map_holder{m_buffer};
+    memobj_map_holder map_holder{m_buffer,
+                                 memobj_map_holder::access::read_write};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
@@ -1390,8 +1413,10 @@ cl_int cvk_command_copy_host_buffer_rect::do_action() {
 }
 
 cl_int cvk_command_copy_buffer_rect::do_action() {
-    memobj_map_holder src_map_holder{m_src_buffer};
-    memobj_map_holder dst_map_holder{m_dst_buffer};
+    memobj_map_holder src_map_holder{m_src_buffer,
+                                     memobj_map_holder::access::read_only};
+    memobj_map_holder dst_map_holder{m_dst_buffer,
+                                     memobj_map_holder::access::write_only};
 
     if (!src_map_holder.map()) {
         return CL_OUT_OF_RESOURCES;
@@ -1430,7 +1455,8 @@ void memset_multi(void* dst, void* pattern_ptr, size_t size) {
 } // namespace
 
 cl_int cvk_command_fill_buffer::do_action() {
-    memobj_map_holder map_holder{m_buffer};
+    memobj_map_holder map_holder{m_buffer,
+                                 memobj_map_holder::access::write_only};
 
     if (!map_holder.map()) {
         return CL_OUT_OF_RESOURCES;

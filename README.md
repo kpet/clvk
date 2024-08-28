@@ -142,17 +142,41 @@ the build system:
 * `CLVK_ENABLE_UBSAN` can be used to enable
    [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html).
 
+## Cross-compiling
+
+When cross-compiling clvk, libclc binaries need to be compiled separately:
+
+1. Build a host native clang compiler using the source pointed by clspv in `<clvk>/external/clspv/third_party/llvm`:
+```
+cmake -B <clang_host> -S <clvk>/external/clspv/third_party/llvm \
+  -DLLVM_ENABLE_PORJECTS="clang" \
+  -DLLVM_NATIVE_TARGET=1 \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="<clang_host>/install"
+cmake --build <clang_host> --target install
+```
+2. Build libclc using that compiler:
+```
+cmake -B <libclc> -S <clvk>/external/clspv/third_party/llvm/libclc \
+  -DLLVM_CMAKE_DIR="<clang_host>/install/lib/cmake" \
+  -DLIBCLC_DIR_TARGETS_TO_BUILD="clspv--;clspv64--"
+cmake --build <libclc>
+```
+3. Pass the following options to CMake when compiling clvk:
+  - `-DCLSPV_EXTERNAL_LIBCLC_DIR="<libclc>"`
+
 ## Building for Android
 
 clvk can be built for Android using the
 [Android NDK](https://developer.android.com/ndk) toolchain.
 
 1. Download and extract the NDK toolchain to a directory (`/path/to/ndk`)
-2. Pass the following options to CMake:
+2. Build libclc binaries ([cross-compiling](#Cross-compiling))
+3. Pass the following options to CMake:
     - `-DCMAKE_TOOLCHAIN_FILE=/path/to/ndk/build/cmake/android.toolchain.cmake`
     - `-DANDROID_ABI=<ABI_FOR_THE_TARGET_DEVICE>`, most likely `arm64-v8a`
     - `-DVulkan_LIBRARY=/path/to/ndk/**/<api-level>/libvulkan.so`
-3. That should be it!
+4. That should be it!
 
 # Using
 
@@ -499,6 +523,9 @@ using the name of the corresponding environment variable.
   This option can be used to disable destroying global state which allows these
   applications to work with the downside of not cleanly terminating clvk. Use
   with caution.
+
+* `CLVK_DEVICE_EXTENSIONS` specifies extensions to be added to the list of
+  exposed extensions. It expects a whitespace separated list of extensions.
 
 # Limitations
 

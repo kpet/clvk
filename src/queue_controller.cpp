@@ -48,41 +48,49 @@ cvk_queue_controller_batch_parameters::cvk_queue_controller_batch_parameters(
     TRACE_CNT(last_batch_size_counter, m_last_batch_size);
 }
 
+void cvk_queue_controller_batch_parameters::update_trace_counter() {
+    TRACE_CNT(max_cmd_batch_size_counter, m_queue->m_max_cmd_batch_size);
+    TRACE_CNT(max_first_cmd_batch_size_counter,
+              m_queue->m_max_first_cmd_batch_size);
+    TRACE_CNT(max_first_cmd_batch_size_limit_counter,
+              m_max_first_cmd_batch_size_limit);
+    TRACE_CNT(max_first_cmd_batch_size_limit_hit_counter,
+              m_max_first_cmd_batch_size_limit_hit);
+    TRACE_CNT(last_batch_size_counter, m_last_batch_size);
+}
+
+void cvk_queue_controller_batch_parameters::reset_after_flush() {
+    if (m_queue->m_nb_batch_in_flight > 1 &&
+        !m_no_batch_in_flight_since_last_flush) {
+        // Increase max_cmd_batch_size if there was always batches in flight
+        // since last flush.
+        m_queue->m_max_cmd_batch_size += m_queue->m_nb_batch_in_flight;
+    }
+    // Reset after flush
+    m_last_batch_size = 0;
+    m_no_batch_in_flight_since_last_flush = false;
+}
+
+void cvk_queue_controller_batch_parameters::update_after_empty_flush() {
+    TRACE_FUNCTION();
+    reset_after_flush();
+    update_trace_counter();
+}
+
 void cvk_queue_controller_batch_parameters::
     update_after_end_current_command_batch(bool from_flush) {
     TRACE_FUNCTION();
-    auto reset_after_flush = [this]() {
-        if (m_queue->m_nb_batch_in_flight > 1 &&
-            !m_no_batch_in_flight_since_last_flush) {
-            // Increase max_cmd_batch_size if there was always batches in flight
-            // since last flush.
-            m_queue->m_max_cmd_batch_size += m_queue->m_nb_batch_in_flight;
-        }
-        // Reset after flush
-        m_last_batch_size = 0;
-        m_no_batch_in_flight_since_last_flush = false;
-    };
-    auto trace = [this]() {
-        TRACE_CNT(max_cmd_batch_size_counter, m_queue->m_max_cmd_batch_size);
-        TRACE_CNT(max_first_cmd_batch_size_counter,
-                  m_queue->m_max_first_cmd_batch_size);
-        TRACE_CNT(max_first_cmd_batch_size_limit_counter,
-                  m_max_first_cmd_batch_size_limit);
-        TRACE_CNT(max_first_cmd_batch_size_limit_hit_counter,
-                  m_max_first_cmd_batch_size_limit_hit);
-        TRACE_CNT(last_batch_size_counter, m_last_batch_size);
-    };
     if (!m_queue->m_command_batch) {
         if (from_flush) {
             reset_after_flush();
         }
-        trace();
+        update_trace_counter();
         return;
     }
     auto batch_size = m_queue->m_command_batch->batch_size();
     if (m_last_batch_size == 0) {
         m_last_batch_size = batch_size;
-        trace();
+        update_trace_counter();
         return;
     }
 
@@ -147,5 +155,5 @@ void cvk_queue_controller_batch_parameters::
     if (m_queue->m_max_cmd_batch_size < m_queue->m_max_first_cmd_batch_size) {
         m_queue->m_max_first_cmd_batch_size = m_queue->m_max_cmd_batch_size;
     }
-    trace();
+    update_trace_counter();
 }
