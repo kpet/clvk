@@ -1477,8 +1477,8 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     }
 
     cl_int err = CL_SUCCESS;
-    if (!config.ignore_out_of_order_execution.set ||
-        config.ignore_out_of_order_execution.value == 0) {
+    if (!(config.ignore_out_of_order_execution.set &&
+        config.ignore_out_of_order_execution())) {
         // We do not support out of order command queues so this must fail
         if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE &&
             !out_of_order_device_support(device, err)) {
