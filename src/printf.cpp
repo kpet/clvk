@@ -167,12 +167,12 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // Firstly print the part of the format string up to the first '%'
     size_t next_part = format_string.find_first_of('%');
     if (next_part > format_string.size()) {
-        // if there is no format string followed by a string to print just print
-        // the whole string itself.
-        if (descs.size() == 1) {
-            printf_out << format_string;
-        }
-    } else {
+        // if there is no format just print the whole string itself.
+        assert (descs.size() == 1);
+        printf_out << format_string;
+        printf("%s", printf_out.str().c_str());
+        return;
+    }
         printf_out << format_string.substr(0, next_part);
 
         // Decompose the remaining format string into individual strings with
