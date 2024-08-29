@@ -1681,19 +1681,19 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
 
     cl_int ret = CL_SUCCESS;
     bool build_in_separate_thread = config.build_in_separate_thread() || cb;
-    bool check_build_status = !cb;
+    bool wait_for_completion = !cb;
     if (build_in_separate_thread) {
         // Kick off build
         m_thread = std::make_unique<std::thread>(
             &cvk_program::do_build_in_separate_thread, this);
-        if (!check_build_status) {
+        if (!wait_for_completion) {
             m_thread->detach();
         }
     } else {
         do_build();
     }
 
-    if (check_build_status) {
+    if (wait_for_completion) {
         if (build_in_separate_thread) {
             CVK_ASSERT(m_thread->joinable());
             m_thread->join();
