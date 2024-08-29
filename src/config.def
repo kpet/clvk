@@ -50,7 +50,7 @@ OPTION(uint32_t, max_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
 OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
-OPTION(uint32_t, ignore_out_of_order_execution, false) // false meaning dont ignore
+OPTION(bool, ignore_out_of_order_execution, false) // false meaning dont ignore
 
 // experimental
 OPTION(bool, dynamic_batches, false)
