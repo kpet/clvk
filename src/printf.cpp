@@ -179,8 +179,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
     while (next_part < format_string.size() - 1) {
-        // Get the part of the format string before the next format
-        // specifier
+        // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
 
