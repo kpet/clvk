@@ -34,6 +34,7 @@
 #define CL_USE_DEPRECATED_OPENCL_2_1_APIS
 #define CL_USE_DEPRECATED_OPENCL_2_2_APIS
 #include "CL/cl.h"
+#include "CL/cl_ext.h"
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
