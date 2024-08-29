@@ -1515,8 +1515,6 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
 }
 
 void cvk_program::do_build() {
-    cvk_set_current_thread_name_if_supported("clvk-build");
-
     // Destroy entry points from previous build
     m_entry_points.clear();
 
@@ -1682,12 +1680,24 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
     m_operation_callback_data = data;
 
     cl_int ret = CL_SUCCESS;
-    if (cb) {
+    bool build_in_separate_thread = config.build_in_separate_thread() || cb;
+    bool wait_for_completion = !cb;
+    if (build_in_separate_thread) {
         // Kick off build
-        m_thread = std::make_unique<std::thread>(&cvk_program::do_build, this);
-        m_thread->detach();
+        m_thread = std::make_unique<std::thread>(
+            &cvk_program::do_build_in_separate_thread, this);
+        if (!wait_for_completion) {
+            m_thread->detach();
+        }
     } else {
         do_build();
+    }
+
+    if (wait_for_completion) {
+        if (build_in_separate_thread) {
+            CVK_ASSERT(m_thread->joinable());
+            m_thread->join();
+        }
         if (build_status() != CL_BUILD_SUCCESS) {
             switch (operation) {
             case build_operation::link:
