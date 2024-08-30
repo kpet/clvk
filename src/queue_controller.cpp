@@ -22,7 +22,8 @@ cvk_queue_controller_batch_parameters::cvk_queue_controller_batch_parameters(
       m_max_first_cmd_batch_size_limit(
           queue->device()->get_max_first_cmd_batch_size()),
       m_max_first_cmd_batch_size_limit_hit(0), m_last_batch_size(0),
-      m_no_batch_in_flight_since_last_flush(false) {
+      m_no_batch_in_flight_since_last_flush(false),
+      m_executor_idle_since_last_flush(false) {
     TRACE_CNT_VAR_INIT(max_cmd_batch_size_counter,
                        "clvk-queue_" + std::to_string((uintptr_t)this) +
                            "-max_batch_size");
@@ -60,7 +61,7 @@ void cvk_queue_controller_batch_parameters::update_trace_counter() {
 }
 
 void cvk_queue_controller_batch_parameters::reset_after_flush() {
-    if (m_queue->m_nb_batch_in_flight > 1 &&
+    if (m_queue->m_nb_batch_in_flight > 2 &&
         !m_no_batch_in_flight_since_last_flush) {
         // Increase max_cmd_batch_size if there was always batches in flight
         // since last flush.
@@ -69,6 +70,7 @@ void cvk_queue_controller_batch_parameters::reset_after_flush() {
     // Reset after flush
     m_last_batch_size = 0;
     m_no_batch_in_flight_since_last_flush = false;
+    m_executor_idle_since_last_flush = false;
 }
 
 void cvk_queue_controller_batch_parameters::update_after_empty_flush() {
@@ -87,6 +89,12 @@ void cvk_queue_controller_batch_parameters::
         update_trace_counter();
         return;
     }
+
+    // update m_executor_idle_since_last_flush
+    if (m_queue->m_executor != nullptr) {
+        m_executor_idle_since_last_flush |= m_queue->m_executor->is_idle();
+    }
+
     auto batch_size = m_queue->m_command_batch->batch_size();
     if (m_last_batch_size == 0) {
         m_last_batch_size = batch_size;
@@ -95,6 +103,8 @@ void cvk_queue_controller_batch_parameters::
     }
 
     // update m_no_batch_in_flight_since_last_flush
+    // It needs to be after m_last_batch_size is first initialized as we do not
+    // care of what is happening before the first batch.
     m_no_batch_in_flight_since_last_flush |= m_queue->m_nb_batch_in_flight == 0;
 
     if (m_queue->m_nb_batch_in_flight == 0 &&
@@ -120,14 +130,22 @@ void cvk_queue_controller_batch_parameters::
         // before the end of the first batch.
         m_queue->m_max_cmd_batch_size -= 2;
     } else if (m_queue->m_nb_batch_in_flight > 0 &&
-               m_last_batch_size <= m_queue->m_max_first_cmd_batch_size) {
+               m_last_batch_size <= m_queue->m_max_first_cmd_batch_size &&
+               m_executor_idle_since_last_flush) {
         // Commands in flight and the last batch was smaller that
-        // max_first_cmd_batch_size. Make smaller first batch to try to reduce
-        // the latency.
+        // max_first_cmd_batch_size and the executor has been idle. Make smaller
+        // first batch to try to reduce the latency.
         m_queue->m_max_first_cmd_batch_size -= 1;
     }
 
     if (from_flush) {
+        if (!m_executor_idle_since_last_flush &&
+            m_max_first_cmd_batch_size_limit_hit > 0) {
+            // Executor has always been busy.
+            // Decrease limit_hot to avoid first batch to decrease when we can
+            // keep it as big as possible.
+            m_max_first_cmd_batch_size_limit_hit--;
+        }
         reset_after_flush();
     } else {
         m_last_batch_size = batch_size;
@@ -138,14 +156,21 @@ void cvk_queue_controller_batch_parameters::
         m_queue->m_max_cmd_batch_size = m_max_cmd_batch_size_limit;
     }
     // Do not decrease m_max_first_cmd_batch_size under the limit.
-    // After 4 tries, reset the limit to 1, allowing any possitive value one
-    // time.
     if (m_queue->m_max_first_cmd_batch_size <
         m_max_first_cmd_batch_size_limit) {
-        m_max_first_cmd_batch_size_limit_hit++;
-        if (m_max_first_cmd_batch_size_limit_hit == 4) {
+        m_max_first_cmd_batch_size_limit_hit += 2;
+        if (m_max_first_cmd_batch_size_limit_hit > 8 &&
+            m_max_first_cmd_batch_size_limit > 1) {
+            // Too many hit, reset limit hit and decrease limit
             m_max_first_cmd_batch_size_limit_hit = 0;
-            m_max_first_cmd_batch_size_limit = 1;
+            m_max_first_cmd_batch_size_limit--;
+        } else if (m_max_first_cmd_batch_size_limit_hit > 16 &&
+                   m_max_first_cmd_batch_size_limit == 1) {
+            // Too many hit with limit at minimum, we might have end up in a
+            // corner case, let's reset limit to initial value
+            m_max_first_cmd_batch_size_limit_hit = 0;
+            m_max_first_cmd_batch_size_limit =
+                m_queue->device()->get_max_first_cmd_batch_size();
         } else {
             m_queue->m_max_first_cmd_batch_size =
                 m_max_first_cmd_batch_size_limit;

@@ -47,6 +47,7 @@ private:
     cl_uint m_max_first_cmd_batch_size_limit_hit;
     cl_uint m_last_batch_size;
     bool m_no_batch_in_flight_since_last_flush;
+    bool m_executor_idle_since_last_flush;
 
     TRACE_CNT_VAR(max_cmd_batch_size_counter);
     TRACE_CNT_VAR(max_first_cmd_batch_size_counter);
