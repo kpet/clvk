@@ -18,105 +18,7 @@
 #include "unit.hpp"
 #include "utils.hpp"
 
-#include <filesystem>
-
-#ifdef __APPLE__
-#include <unistd.h>
-#endif
-
-#ifdef WIN32
-#include <Windows.h>
-#include <io.h>
-#endif
-
-void printf_callback(const char* buffer, size_t len, size_t complete,
-                     void* user_data) {
-    std::string* user_buffer = (std::string*)user_data;
-    *user_buffer += std::string(buffer);
-}
-
-static std::string stdoutFileName;
-
-#define BUFFER_SIZE 1024
-static char stdoutBuffer[BUFFER_SIZE];
-
-static void releaseStdout(int fd) {
-    fflush(stdout);
-    dup2(fd, fileno(stdout));
-    close(fd);
-}
-
-static bool getStdout(int& fd) {
-    fd = dup(fileno(stdout));
-    if (!freopen(stdoutFileName.c_str(), "w", stdout)) {
-        fprintf(stderr, "ERROR!\n");
-        releaseStdout(fd);
-        return false;
-    }
-    return true;
-}
-
-static char* getStdoutContent() {
-    FILE* f;
-    memset(stdoutBuffer, 0, BUFFER_SIZE);
-    fflush(stdout);
-    f = fopen(stdoutFileName.c_str(), "r");
-    if (f == nullptr)
-        return nullptr;
-
-    char* ptr = stdoutBuffer;
-    do {
-        ptr += strlen(ptr);
-        ptr = fgets(ptr, BUFFER_SIZE, f);
-    } while (ptr != nullptr);
-    fclose(f);
-
-    return stdoutBuffer;
-}
-
-struct temp_folder_deletion {
-    ~temp_folder_deletion() {
-        if (!m_path.empty())
-            std::filesystem::remove_all(m_path.c_str());
-    }
-    void set_path(std::string path) { m_path = path; }
-
-private:
-    std::string m_path;
-};
-
-static char* mkdtemp(char* tmpl, size_t size) {
-#ifdef WIN32
-    if (_mktemp_s(tmpl, size + 1) != 0) {
-        return nullptr;
-    }
-
-    if (!CreateDirectory(tmpl, nullptr)) {
-        return nullptr;
-    }
-
-    return tmpl;
-#else
-    return mkdtemp(tmpl);
-#endif
-}
-
-static std::string getStdoutFileName(temp_folder_deletion& temp) {
-    char template_tmp_dir[] = "clvk-XXXXXX";
-    std::filesystem::path prefix(
-        mkdtemp(template_tmp_dir, sizeof(template_tmp_dir)));
-    std::filesystem::path suffix("stdout_buffer");
-    temp.set_path(prefix.string());
-    return (prefix / suffix).string();
-}
-
-TEST_F(WithCommandQueue, SimplePrintf) {
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
-
+TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     const char message[] = "Hello World!";
     char source[512];
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
@@ -127,22 +29,14 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    ASSERT_STREQ(printf_buffer, message);
+    ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
-TEST_F(WithCommandQueueNoSetUp, TooLongPrintf) {
-    std::string buffer = "";
+TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
-    cl_context_properties properties[4] = {
-        CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)28};
-    WithCommandQueue::SetUpWithContextProperties(
-        properties, reinterpret_cast<void*>(&buffer));
+    auto cfg1 =
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 28, true);
 
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
@@ -162,19 +56,15 @@ TEST_F(WithCommandQueueNoSetUp, TooLongPrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    ASSERT_STREQ(buffer.c_str(), message);
+    ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
-TEST_F(WithCommandQueueNoSetUp, TooLongPrintf2) {
-    std::string buffer = "";
+TEST_F(WithCommandQueueAndPrintf, TooLongPrintf2) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter + 8 which are not enough for
     // the third print, but should not cause any issue in clvk
-    cl_context_properties properties[4] = {
-        CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback,
-        CL_PRINTF_BUFFERSIZE_ARM, (cl_context_properties)36};
-    WithCommandQueue::SetUpWithContextProperties(
-        properties, reinterpret_cast<void*>(&buffer));
+    auto cfg1 =
+        CLVK_CONFIG_SCOPED_OVERRIDE(printf_buffer_size, uint32_t, 36, true);
 
     // We only get the first 2 prints because the buffer is too small to get
     // the last one.
@@ -194,16 +84,10 @@ TEST_F(WithCommandQueueNoSetUp, TooLongPrintf2) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    ASSERT_STREQ(buffer.c_str(), message);
+    ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
-TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
-
+TEST_F(WithCommandQueueAndPrintf, PrintfMissingLengthModifier) {
     const char message[] = "1,2,3,4";
     char source[512];
     sprintf(source,
@@ -216,11 +100,7 @@ TEST_F(WithCommandQueue, PrintfMissingLengthModifier) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    ASSERT_STREQ(printf_buffer, message);
+    ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
 #endif
