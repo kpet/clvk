@@ -29,6 +29,8 @@ struct cvk_context_callback {
     void* data;
 };
 
+struct cvk_command_queue;
+
 struct cvk_context : public _cl_context,
                      refcounted,
                      object_magic_header<object_magic::context> {
@@ -73,6 +75,7 @@ struct cvk_context : public _cl_context,
             auto cb = *cbi;
             cb.pointer(this, cb.data);
         }
+        free_image_init_command_queue();
     }
 
     const std::vector<cl_context_properties>& properties() const {
@@ -116,6 +119,9 @@ struct cvk_context : public _cl_context,
     cvk_printf_callback_t get_printf_callback() { return m_printf_callback; }
     void* get_printf_userdata() { return m_user_data; }
 
+    cvk_command_queue* get_or_create_image_init_command_queue();
+    void free_image_init_command_queue();
+
 private:
     cvk_device* m_device;
     std::mutex m_callbacks_lock;
@@ -124,6 +130,9 @@ private:
     size_t m_printf_buffersize;
     cvk_printf_callback_t m_printf_callback;
     void* m_user_data;
+
+    std::mutex m_queue_image_init_lock;
+    cvk_command_queue* m_queue_image_init = nullptr;
 };
 
 static inline cvk_context* icd_downcast(cl_context context) {

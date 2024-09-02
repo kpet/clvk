@@ -543,6 +543,12 @@ using the name of the corresponding environment variable.
   can be a work-around when having issues with clang compiling in the
   application thread.
 
+* `CLVK_INIT_IMAGE_AT_CREATION` force to initialize OpenCL images created with
+  `CL_MEM_COPY_HOST_PTR` or `CL_MEM_USE_HOST_PTR` at creation time instead of
+  initializing them during first use of the image (default: false). It reduces
+  the memory footprint as clvk needs to keep a buffer with the data to
+  initialize at first use.
+
 # Limitations
 
 * Only one device per CL context
