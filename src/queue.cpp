@@ -101,6 +101,10 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
             continue;
         }
         CVK_ASSERT(mem->is_image_type());
+        if (config.init_image_at_creation()) {
+            tracker.set_state(cvk_mem_init_state::completed);
+            continue;
+        }
         auto initcmd =
             new cvk_command_image_init(this, static_cast<cvk_image*>(mem));
         _cl_event* initev;
