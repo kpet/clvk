@@ -1731,28 +1731,26 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
     TRACE_CNT(descriptor_set_allocated_counter, 0);
 }
 
-cvk_entry_point* cvk_program::get_entry_point(std::string& name,
-                                              cl_int* errcode_ret) {
+std::shared_ptr<cvk_entry_point>
+cvk_program::get_entry_point(std::string& name, cl_int* errcode_ret) {
     std::lock_guard<std::mutex> lock(m_lock);
 
     // Check for existing entry point in cache
     if (m_entry_points.count(name)) {
         *errcode_ret = CL_SUCCESS;
-        return m_entry_points.at(name).get();
+        return m_entry_points.at(name);
     }
 
     // Create and initialize entry point
-    cvk_entry_point* entry_point =
-        new cvk_entry_point(m_context->device(), this, name);
+    std::shared_ptr<cvk_entry_point> entry_point =
+        std::make_shared<cvk_entry_point>(m_context->device(), this, name);
     *errcode_ret = entry_point->init();
     if (*errcode_ret != CL_SUCCESS) {
-        delete entry_point;
         return nullptr;
     }
 
     // Add to cache for reuse by other kernels
-    m_entry_points.insert(
-        {name, std::unique_ptr<cvk_entry_point>(entry_point)});
+    m_entry_points.insert({name, entry_point});
 
     return entry_point;
 }
