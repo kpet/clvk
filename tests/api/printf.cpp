@@ -32,7 +32,7 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
-TEST_F(WithCommandQueueAndPrintf, SimplePrintfWithFormat) {
+TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
     const char message[] = "";
     char source[512];
     sprintf(source, "kernel void test_printf() { printf(\"%%s\", \"\"); }");

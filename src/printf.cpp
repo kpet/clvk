@@ -168,10 +168,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // Firstly print the part of the format string up to the first '%'
     size_t next_part = format_string.find_first_of('%');
     if (next_part > format_string.size()) {
-        printf_out << format_string;
-        printf("%s", printf_out.str().c_str());
         data = data_end;
-        return;
     }
     printf_out << format_string.substr(0, next_part);
 
