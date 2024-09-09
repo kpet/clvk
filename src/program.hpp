@@ -34,6 +34,7 @@
 #include "memory.hpp"
 #include "objects.hpp"
 #include "printf.hpp"
+#include "utils.hpp"
 
 const int SPIR_WORD_SIZE = 4;
 
@@ -855,6 +856,10 @@ public:
 
 private:
     void do_build();
+    void do_build_in_separate_thread() {
+        cvk_set_current_thread_name_if_supported("clvk-build");
+        do_build();
+    };
     std::string prepare_build_options(const cvk_device* device) const;
     CHECK_RETURN cl_build_status do_build_inner(const cvk_device* device);
 

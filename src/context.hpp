@@ -35,7 +35,7 @@ struct cvk_context : public _cl_context,
 
     cvk_context(cvk_device* device, const cl_context_properties* props,
                 void* user_data)
-        : m_device(device) {
+        : m_device(device), m_user_data(user_data) {
 
         if (props) {
             while (*props) {
@@ -49,23 +49,21 @@ struct cvk_context : public _cl_context,
         }
         // Get printf buffer size from extension.
         auto buff_size_prop_index =
-            get_property_index(CL_PRINTF_BUFFERSIZE_ARM);
+            get_property_value_index(CL_PRINTF_BUFFERSIZE_ARM);
         if (buff_size_prop_index != -1 && !config.printf_buffer_size.set) {
             m_printf_buffersize = m_properties[buff_size_prop_index];
         } else {
-            m_printf_buffersize = config.printf_buffer_size;
+            m_printf_buffersize = 0;
         }
 
         // Get printf callback from extension
         auto printf_callback_prop_index =
-            get_property_index(CL_PRINTF_CALLBACK_ARM);
+            get_property_value_index(CL_PRINTF_CALLBACK_ARM);
         if (printf_callback_prop_index != -1) {
             m_printf_callback =
                 (cvk_printf_callback_t)m_properties[printf_callback_prop_index];
-            m_user_data = user_data;
         } else {
             m_printf_callback = nullptr;
-            m_user_data = nullptr;
         }
     }
 
@@ -99,7 +97,7 @@ struct cvk_context : public _cl_context,
         return size <= m_device->max_mem_alloc_size();
     }
 
-    int get_property_index(const int prop) {
+    int get_property_value_index(const int prop) {
         for (unsigned i = 0; i < m_properties.size(); i += 2) {
             if (m_properties[i] == prop) {
                 return i + 1;
@@ -108,7 +106,13 @@ struct cvk_context : public _cl_context,
         return -1;
     }
 
-    size_t get_printf_buffersize() { return m_printf_buffersize; }
+    size_t get_printf_buffersize() {
+        if (m_printf_buffersize) {
+            return m_printf_buffersize;
+        } else {
+            return config.printf_buffer_size;
+        }
+    }
     cvk_printf_callback_t get_printf_callback() { return m_printf_callback; }
     void* get_printf_userdata() { return m_user_data; }
 
