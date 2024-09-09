@@ -134,6 +134,30 @@ TEST_F(WithCommandQueue, SimplePrintf) {
     ASSERT_STREQ(printf_buffer, message);
 }
 
+TEST_F(WithCommandQueue, SimplePrintfWithFormat) {
+    temp_folder_deletion temp;
+    stdoutFileName = getStdoutFileName(temp);
+
+    int fd;
+    ASSERT_TRUE(getStdout(fd));
+
+    const char message[] = "";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%%s\", \"\"); }");
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    releaseStdout(fd);
+    auto printf_buffer = getStdoutContent();
+    ASSERT_NE(printf_buffer, nullptr);
+
+    ASSERT_STREQ(printf_buffer, message);
+}
+
 TEST_F(WithCommandQueueNoSetUp, TooLongPrintf) {
     std::string buffer = "";
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
