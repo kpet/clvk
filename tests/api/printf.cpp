@@ -33,12 +33,6 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
 }
 
 TEST_F(WithCommandQueue, SimplePrintfWithFormat) {
-    temp_folder_deletion temp;
-    stdoutFileName = getStdoutFileName(temp);
-
-    int fd;
-    ASSERT_TRUE(getStdout(fd));
-
     const char message[] = "";
     char source[512];
     sprintf(source, "kernel void test_printf() { printf(\"%%s\", \"\"); }");
@@ -49,11 +43,7 @@ TEST_F(WithCommandQueue, SimplePrintfWithFormat) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    releaseStdout(fd);
-    auto printf_buffer = getStdoutContent();
-    ASSERT_NE(printf_buffer, nullptr);
-
-    ASSERT_STREQ(printf_buffer, message);
+    ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
 TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
