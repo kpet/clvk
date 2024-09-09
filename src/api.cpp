@@ -1467,7 +1467,6 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
-    cl_int err = CL_SUCCESS;
     if (!(config.ignore_out_of_order_execution.set &&
           config.ignore_out_of_order_execution())) {
         // We do not support out of order command queues so this must fail
@@ -1480,7 +1479,7 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));
 
-    err = queue->init();
+    cl_int err = queue->init();
 
     *errcode_ret = err;
 
