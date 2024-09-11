@@ -33,9 +33,7 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
 }
 
 TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
-    const char message[] = "";
-    char source[512];
-    sprintf(source, "kernel void test_printf() { printf(\"%%s\", \"\"); }");
+    const char* source = "kernel void test_printf() { printf(\"%s\", \"\"); }";
     auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;
@@ -43,7 +41,7 @@ TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
     Finish();
 
-    ASSERT_STREQ(m_printf_output.c_str(), message);
+    ASSERT_STREQ(m_printf_output.c_str(), "");
 }
 
 TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
