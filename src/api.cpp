@@ -296,7 +296,8 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
 
 static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
 #define FUNC_PTR(X) reinterpret_cast<void*>(X)
-#define EXTENSION_ENTRYPOINT(X) {#X, FUNC_PTR(X)}
+#define EXTENSION_ENTRYPOINT(X)                                                \
+    { #X, FUNC_PTR(X) }
     EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
     EXTENSION_ENTRYPOINT(clIcdGetPlatformIDsKHR),
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
