@@ -363,6 +363,15 @@ struct cvk_device : public _cl_device_id,
                         static_cast<size_t>(sub_group_size()));
     }
 
+    bool supports_dot_product() const {
+        return m_features_shader_integer_dot_product.shaderIntegerDotProduct;
+    }
+
+    const VkPhysicalDeviceShaderIntegerDotProductProperties&
+    dot_product_properties() const {
+        return m_integer_dot_product_properties;
+    }
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
@@ -677,6 +686,8 @@ private:
     VkPhysicalDeviceSubgroupSizeControlProperties
         m_subgroup_size_control_properties{};
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
+    VkPhysicalDeviceShaderIntegerDotProductProperties
+        m_integer_dot_product_properties{};
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
     VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer{};
@@ -694,6 +705,8 @@ private:
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
         m_features_buffer_device_address{};
     VkPhysicalDeviceFloatControlsProperties m_float_controls_properties{};
+    VkPhysicalDeviceShaderIntegerDotProductFeatures
+        m_features_shader_integer_dot_product{};
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
 

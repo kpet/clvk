@@ -430,6 +430,9 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
     cl_device_pci_bus_info_khr val_pci_bus_info;
     cl_device_atomic_capabilities val_atomic_capabilities;
+    cl_device_integer_dot_product_capabilities_khr val_int_dot_product;
+    cl_device_integer_dot_product_acceleration_properties_khr
+        val_int_dot_product_props;
     std::vector<size_t> val_subgroup_sizes;
 
     auto device = icd_downcast(dev);
@@ -905,6 +908,57 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_pci_bus_info;
         size_ret = sizeof(val_pci_bus_info);
         break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR:
+        val_int_dot_product =
+            device->supports_dot_product()
+                ? CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR |
+                      CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR
+                : 0;
+        copy_ptr = &val_int_dot_product;
+        size_ret = sizeof(val_int_dot_product);
+        break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR: {
+        auto dp_props = device->dot_product_properties();
+        val_int_dot_product_props.signed_accelerated =
+            dp_props.integerDotProduct8BitSignedAccelerated;
+        val_int_dot_product_props.unsigned_accelerated =
+            dp_props.integerDotProduct8BitUnsignedAccelerated;
+        val_int_dot_product_props.mixed_signedness_accelerated =
+            dp_props.integerDotProduct8BitMixedSignednessAccelerated;
+        val_int_dot_product_props.accumulating_saturating_signed_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating8BitSignedAccelerated;
+        val_int_dot_product_props.accumulating_saturating_unsigned_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating8BitUnsignedAccelerated;
+        val_int_dot_product_props
+            .accumulating_saturating_mixed_signedness_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated;
+        copy_ptr = &val_int_dot_product_props;
+        size_ret = sizeof(val_int_dot_product_props);
+    } break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR: {
+        auto dp_props = device->dot_product_properties();
+        val_int_dot_product_props.signed_accelerated =
+            dp_props.integerDotProduct4x8BitPackedSignedAccelerated;
+        val_int_dot_product_props.unsigned_accelerated =
+            dp_props.integerDotProduct4x8BitPackedUnsignedAccelerated;
+        val_int_dot_product_props.mixed_signedness_accelerated =
+            dp_props.integerDotProduct4x8BitPackedMixedSignednessAccelerated;
+        val_int_dot_product_props.accumulating_saturating_signed_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated;
+        val_int_dot_product_props.accumulating_saturating_unsigned_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated;
+        val_int_dot_product_props
+            .accumulating_saturating_mixed_signedness_accelerated =
+            dp_props
+                .integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated;
+        copy_ptr = &val_int_dot_product_props;
+        size_ret = sizeof(val_int_dot_product_props);
+    } break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
             uint32_t size = device->min_sub_group_size();
