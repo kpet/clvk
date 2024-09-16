@@ -296,8 +296,7 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
 
 static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
 #define FUNC_PTR(X) reinterpret_cast<void*>(X)
-#define EXTENSION_ENTRYPOINT(X)                                                \
-    { #X, FUNC_PTR(X) }
+#define EXTENSION_ENTRYPOINT(X) {#X, FUNC_PTR(X)}
     EXTENSION_ENTRYPOINT(clCreateProgramWithILKHR),
     EXTENSION_ENTRYPOINT(clIcdGetPlatformIDsKHR),
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
@@ -1468,11 +1467,11 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
     }
 
     if (config.ignore_out_of_order_execution()) {
-          // We do not support out of order command queues so this must fail
-          if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
-              *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
-              return nullptr;
-          }
+        // We do not support out of order command queues so this must fail
+        if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
+            *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
+            return nullptr;
+        }
     }
     auto queue = std::make_unique<cvk_command_queue>(
         icd_downcast(context), icd_downcast(device), properties,
