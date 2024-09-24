@@ -191,13 +191,16 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         if (part_fmt == "%") {
             // printf requires two % i.e. %% to display % iff they are not
             // at the start of the string. All starting % shoulld be
-            // collapsed into one.
+            // collapsed into one unless there are exactly two % side by side.
+
             if (printf_out.str() != part_fmt) {
                 printf_out << part_fmt;
                 // check for two consecutive % since otherwise the way we
                 // are moving the next_part var this will be skipped.
                 if (format_string[part_start] == '%' &&
-                    printf_out.str() != part_fmt) {
+                    (printf_out.str() != part_fmt ||
+                     std::count(format_string.begin(), format_string.end(),
+                                '%') == 2)) {
                     printf_out << part_fmt;
                 }
             }
@@ -242,11 +245,15 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
                 if (string_id >= descs.size()) {
                     printf_out << "";
                 } else {
+                    auto tmmmp = print_part(
+                        part_fmt, descs.at(string_id).format_string.c_str(),
+                        size);
                     printf_out << print_part(
                         part_fmt, descs.at(string_id).format_string.c_str(),
                         size);
                 }
             } else {
+                auto tmmmp = print_part(part_fmt, data, size);
                 printf_out << print_part(part_fmt, data, size);
             }
             data += size;
