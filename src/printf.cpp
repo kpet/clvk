@@ -13,12 +13,19 @@
 // limitations under the License.
 
 #include <sstream>
+#include <stack>
 
 #include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
     auto conversionSpecPos = fmt.find_first_of("diouxXfFeEgGaAcsp");
+    // Check if a valid conversion specifier was found
+    if (conversionSpecPos == std::string_view::npos) {
+        conversionSpecPos = -1;
+        return '\0'; // Return null character to indicate
+                     // no specifier found
+    }
     return fmt.at(conversionSpecPos);
 }
 
@@ -156,6 +163,16 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
     return std::string(out.data());
 }
 
+char get_quote(const std::string& str) {
+    if (str.find('"') != std::string::npos) {
+        return '"';
+    }
+    if (str.find('\'') != std::string::npos) {
+        return '\'';
+    }
+    return '\0';
+}
+
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
                     char* data_end, cvk_printf_callback_t printf_cb,
                     void* printf_userdata) {
@@ -175,6 +192,14 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
+    std::stack<char> quotes;
+    if (format_string.size() > 0) {
+        auto curr_quote = get_quote(format_string.substr(
+            0, next_part)); // checking if curr selection is inside a " or '.
+        if (curr_quote) {
+            quotes.push(curr_quote);
+        }
+    }
     while (next_part < format_string.size() - 1) {
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
@@ -187,22 +212,27 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         }
         auto part_fmt = format_string.substr(part_start, part_end - part_start);
 
+        auto curr_quote = get_quote(format_string.substr(part_start, part_end));
+        if (curr_quote) {
+            if (!quotes.empty() && quotes.top() == curr_quote) {
+                quotes.pop();
+            } else {
+                quotes.push(curr_quote);
+            }
+        }
         // Handle special cases
         if (part_fmt == "%") {
             // printf requires two % i.e. %% to display % iff they are not
             // at the start of the string. All starting % shoulld be
             // collapsed into one unless there are exactly two % side by side.
-
-            if (printf_out.str() != part_fmt) {
+            printf_out << part_fmt;
+            // check for two consecutive % since otherwise the way we
+            // are moving the next_part var this will be skipped.
+            if (part_start + 1 < format_string.length() &&
+                format_string[part_start + 1] == '%' && quotes.empty() &&
+                !(part_start + 2 < format_string.length() &&
+                  format_string[part_start + 2] == 's')) {
                 printf_out << part_fmt;
-                // check for two consecutive % since otherwise the way we
-                // are moving the next_part var this will be skipped.
-                if (format_string[part_start] == '%' &&
-                    (printf_out.str() != part_fmt ||
-                     std::count(format_string.begin(), format_string.end(),
-                                '%') == 2)) {
-                    printf_out << part_fmt;
-                }
             }
             next_part = part_end;
             // Skip the next % as well since we have already added it.
@@ -224,11 +254,20 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         }
 
         // The size of the argument that this format part will consume
-        auto& size = descs.at(printf_id).arg_sizes[arg_idx];
+        size_t size = 0;
 
-        if (data + size > data_end) {
+        if (descs.count(printf_id) > 0 &&
+            !descs.at(printf_id).arg_sizes.empty() &&
+            arg_idx < descs.at(printf_id).arg_sizes.size()) {
+            size = descs.at(printf_id).arg_sizes[arg_idx];
+        }
+
+        // Handle invalid cases (size will be 0 here)
+        if (size == 0 || data + size > data_end) {
             data += size;
-            return;
+            if (data > data_end) {
+                return;
+            }
         }
 
         // Check to see if we have a vector format specifier
@@ -245,15 +284,11 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
                 if (string_id >= descs.size()) {
                     printf_out << "";
                 } else {
-                    auto tmmmp = print_part(
-                        part_fmt, descs.at(string_id).format_string.c_str(),
-                        size);
                     printf_out << print_part(
                         part_fmt, descs.at(string_id).format_string.c_str(),
                         size);
                 }
             } else {
-                auto tmmmp = print_part(part_fmt, data, size);
                 printf_out << print_part(part_fmt, data, size);
             }
             data += size;
@@ -283,8 +318,8 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
     auto output = printf_out.str();
     if (printf_cb != nullptr) {
-        auto len = output.size();
-        printf_cb(output.c_str(), len, data >= data_end, printf_userdata);
+        printf_cb(output.c_str(), output.size(), data >= data_end,
+                  printf_userdata);
     } else {
         printf("%s", output.c_str());
     }
