@@ -22,7 +22,6 @@ char get_fmt_conversion(std::string_view fmt) {
     auto conversionSpecPos = fmt.find_first_of("diouxXfFeEgGaAcsp");
     // Check if a valid conversion specifier was found
     if (conversionSpecPos == std::string_view::npos) {
-        conversionSpecPos = -1;
         return '\0'; // Return null character to indicate
                      // no specifier found
     }
@@ -64,7 +63,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
 
     size_t vec_length_pos_start = ++pos;
     size_t vec_length_pos_end =
-        fmt.find_first_not_of("23468", vec_length_pos_start);
+        fmt.find_first_not_of("23468", vec_length_pos_start + 1);
     auto vec_length_str = fmt.substr(vec_length_pos_start,
                                      vec_length_pos_end - vec_length_pos_start);
     int vec_length = std::atoi(vec_length_str.c_str());
@@ -195,7 +194,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     std::stack<char> quotes;
     if (format_string.size() > 0) {
         auto curr_quote = get_quote(format_string.substr(
-            0, next_part)); // checking if curr selection is inside a " or '.
+            0, next_part)); // checking if curr selection has a " or '.
         if (curr_quote) {
             quotes.push(curr_quote);
         }
@@ -222,14 +221,18 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         }
         // Handle special cases
         if (part_fmt == "%") {
-            // printf requires two % i.e. %% to display % iff they are not
-            // at the start of the string. All starting % shoulld be
-            // collapsed into one unless there are exactly two % side by side.
             printf_out << part_fmt;
             // check for two consecutive % since otherwise the way we
             // are moving the next_part var this will be skipped.
-            if (part_start + 1 < format_string.length() &&
-                format_string[part_start + 1] == '%' && quotes.empty() &&
+            // printf requires two % i.e. %% to display % iff they are not
+            // at the start of the string. All starting %% shoulld be
+            // collapsed into one %.
+            // also check the the two consecutive % is not a case of %%s
+            // if the two %% are in quotes then we will collapse it into one %
+            auto curr_str = printf_out.str();
+            if (curr_str.length() > 1 && quotes.empty() &&
+                part_start + 1 < format_string.length() &&
+                format_string[part_start + 1] == '%' &&
                 !(part_start + 2 < format_string.length() &&
                   format_string[part_start + 2] == 's')) {
                 printf_out << part_fmt;
@@ -317,9 +320,13 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     }
 
     auto output = printf_out.str();
+    // special case for single % which needs to be represented by two %%.
+    if (output == "%") {
+        output = "%%";
+    }
     if (printf_cb != nullptr) {
-        printf_cb(output.c_str(), output.size(), data >= data_end,
-                  printf_userdata);
+        auto len = output.size();
+        printf_cb(output.c_str(), len, data >= data_end, printf_userdata);
     } else {
         printf("%s", output.c_str());
     }
