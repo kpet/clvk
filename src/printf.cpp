@@ -13,14 +13,12 @@
 // limitations under the License.
 
 #include <sstream>
-#include <stack>
 
 #include "printf.hpp"
 
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
     auto conversionSpecPos = fmt.find_first_of("diouxXfFeEgGaAcsp");
-    // Check if a valid conversion specifier was found
     if (conversionSpecPos == std::string_view::npos) {
         return '\0'; // Return null character to indicate
                      // no specifier found
@@ -162,16 +160,6 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
     return std::string(out.data());
 }
 
-char get_quote(const std::string& str) {
-    if (str.find('"') != std::string::npos) {
-        return '"';
-    }
-    if (str.find('\'') != std::string::npos) {
-        return '\'';
-    }
-    return '\0';
-}
-
 void process_printf(char*& data, const printf_descriptor_map_t& descs,
                     char* data_end, cvk_printf_callback_t printf_cb,
                     void* printf_userdata) {
@@ -182,71 +170,39 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     std::stringstream printf_out{};
 
     // Firstly print the part of the format string up to the first '%'
+    // if there is no % print the string as is.
     size_t next_part = format_string.find_first_of('%');
-    if (next_part > format_string.size()) {
+    if (next_part < format_string.size()) {
+        printf_out << format_string.substr(0, next_part);
+    } else {
+        printf_out << format_string;
+        next_part = format_string.size();
         data = data_end;
     }
-    printf_out << format_string.substr(0, next_part);
 
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
-    std::stack<char> quotes;
-    if (format_string.size() > 0) {
-        auto curr_quote = get_quote(format_string.substr(
-            0, next_part)); // checking if curr selection has a " or '.
-        if (curr_quote) {
-            quotes.push(curr_quote);
-        }
-    }
     while (next_part < format_string.size() - 1) {
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
-
-        // Handle case where there's no second '%'
-        if (part_end == std::string::npos || part_end >= format_string.size()) {
-            part_end =
-                format_string.size(); // Set part_end to the end of the string
-        }
         auto part_fmt = format_string.substr(part_start, part_end - part_start);
 
-        auto curr_quote = get_quote(format_string.substr(part_start, part_end));
-        if (curr_quote) {
-            if (!quotes.empty() && quotes.top() == curr_quote) {
-                quotes.pop();
-            } else {
-                quotes.push(curr_quote);
-            }
-        }
         // Handle special cases
-        if (part_fmt == "%") {
-            printf_out << part_fmt;
-            // check for two consecutive % since otherwise the way we
-            // are moving the next_part var this will be skipped.
-            // printf requires two % i.e. %% to display % iff they are not
-            // at the start of the string. All starting %% shoulld be
-            // collapsed into one %.
-            // also check the the two consecutive % is not a case of %%s
-            // if the two %% are in quotes then we will collapse it into one %
-            auto curr_str = printf_out.str();
-            if (curr_str.length() > 1 && quotes.empty() &&
-                part_start + 1 < format_string.length() &&
-                format_string[part_start + 1] == '%' &&
-                !(part_start + 2 < format_string.length() &&
-                  format_string[part_start + 2] == 's')) {
-                printf_out << part_fmt;
-            }
-            next_part = part_end;
-            // Skip the next % as well since we have already added it.
+        if (part_end == part_start + 1) {
             if (format_string[part_start] == '%') {
-                next_part++;
+                printf_out << "%";
+                // in cases of the last two chars % we need to add it twice.
+                if (part_end == format_string.size() - 2) {
+                    printf_out << "%";
+                }
+                next_part = part_end + 1;
+            } else {
+                // in this case we just print and move by 1.
+                printf_out << format_string[part_start];
+                next_part = part_end;
             }
-            continue;
-            // Single char
-        } else if (part_fmt.length() == 1) {
-            printf_out << part_fmt;
-            next_part = part_end;
             continue;
         } else if (part_end == std::string::npos &&
                    arg_idx >= descs.at(printf_id).arg_sizes.size()) {
@@ -258,19 +214,16 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
         // The size of the argument that this format part will consume
         size_t size = 0;
-
+        // Updated if the size is valid
         if (descs.count(printf_id) > 0 &&
             !descs.at(printf_id).arg_sizes.empty() &&
             arg_idx < descs.at(printf_id).arg_sizes.size()) {
             size = descs.at(printf_id).arg_sizes[arg_idx];
         }
 
-        // Handle invalid cases (size will be 0 here)
-        if (size == 0 || data + size > data_end) {
+        if (data + size > data_end) {
             data += size;
-            if (data > data_end) {
-                return;
-            }
+            return;
         }
 
         // Check to see if we have a vector format specifier
@@ -284,9 +237,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             // Special case for %s
             if (get_fmt_conversion(part_fmt) == 's') {
                 uint32_t string_id = read_buff<uint32_t>(data);
-                if (string_id >= descs.size()) {
-                    printf_out << "";
-                } else {
+                if (string_id < descs.size()) {
                     printf_out << print_part(
                         part_fmt, descs.at(string_id).format_string.c_str(),
                         size);
@@ -320,10 +271,6 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     }
 
     auto output = printf_out.str();
-    // special case for single % which needs to be represented by two %%.
-    if (output == "%") {
-        output = "%%";
-    }
     if (printf_cb != nullptr) {
         auto len = output.size();
         printf_cb(output.c_str(), len, data >= data_end, printf_userdata);
