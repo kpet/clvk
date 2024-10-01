@@ -367,9 +367,51 @@ struct cvk_device : public _cl_device_id,
         return m_features_shader_integer_dot_product.shaderIntegerDotProduct;
     }
 
-    const VkPhysicalDeviceShaderIntegerDotProductProperties&
-    dot_product_properties() const {
-        return m_integer_dot_product_properties;
+    const cl_device_integer_dot_product_acceleration_properties_khr
+    dot_product_4x8bit_packed_properties() const {
+        cl_device_integer_dot_product_acceleration_properties_khr res;
+        res.signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedSignedAccelerated;
+        res.unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedUnsignedAccelerated;
+        res.mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedMixedSignednessAccelerated;
+        res.accumulating_saturating_signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated;
+        res.accumulating_saturating_unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated;
+        res.accumulating_saturating_mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated;
+        return res;
+    }
+
+    const cl_device_integer_dot_product_acceleration_properties_khr
+    dot_product_8bit_properties() const {
+        cl_device_integer_dot_product_acceleration_properties_khr res;
+        res.signed_accelerated = m_integer_dot_product_properties
+                                     .integerDotProduct8BitSignedAccelerated;
+        res.unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct8BitUnsignedAccelerated;
+        res.mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct8BitMixedSignednessAccelerated;
+        res.accumulating_saturating_signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitSignedAccelerated;
+        res.accumulating_saturating_unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitUnsignedAccelerated;
+        res.accumulating_saturating_mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated;
+        return res;
     }
 
     bool supports_images() const {

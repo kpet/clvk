@@ -917,48 +917,17 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_int_dot_product;
         size_ret = sizeof(val_int_dot_product);
         break;
-    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR: {
-        auto dp_props = device->dot_product_properties();
-        val_int_dot_product_props.signed_accelerated =
-            dp_props.integerDotProduct8BitSignedAccelerated;
-        val_int_dot_product_props.unsigned_accelerated =
-            dp_props.integerDotProduct8BitUnsignedAccelerated;
-        val_int_dot_product_props.mixed_signedness_accelerated =
-            dp_props.integerDotProduct8BitMixedSignednessAccelerated;
-        val_int_dot_product_props.accumulating_saturating_signed_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating8BitSignedAccelerated;
-        val_int_dot_product_props.accumulating_saturating_unsigned_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating8BitUnsignedAccelerated;
-        val_int_dot_product_props
-            .accumulating_saturating_mixed_signedness_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR:
+        val_int_dot_product_props = device->dot_product_8bit_properties();
         copy_ptr = &val_int_dot_product_props;
         size_ret = sizeof(val_int_dot_product_props);
-    } break;
-    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR: {
-        auto dp_props = device->dot_product_properties();
-        val_int_dot_product_props.signed_accelerated =
-            dp_props.integerDotProduct4x8BitPackedSignedAccelerated;
-        val_int_dot_product_props.unsigned_accelerated =
-            dp_props.integerDotProduct4x8BitPackedUnsignedAccelerated;
-        val_int_dot_product_props.mixed_signedness_accelerated =
-            dp_props.integerDotProduct4x8BitPackedMixedSignednessAccelerated;
-        val_int_dot_product_props.accumulating_saturating_signed_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated;
-        val_int_dot_product_props.accumulating_saturating_unsigned_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated;
-        val_int_dot_product_props
-            .accumulating_saturating_mixed_signedness_accelerated =
-            dp_props
-                .integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated;
+        break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR:
+        val_int_dot_product_props =
+            device->dot_product_4x8bit_packed_properties();
         copy_ptr = &val_int_dot_product_props;
         size_ret = sizeof(val_int_dot_product_props);
-    } break;
+        break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
             uint32_t size = device->min_sub_group_size();
