@@ -697,7 +697,7 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(MAKE_NAME_VERSION(
             1, 0, 0, "cl_arm_integer_dot_product_accumulate_saturate_int8"));
         m_extensions.push_back(MAKE_NAME_VERSION(
-            1, 0, 0, CL_KHR_INTEGER_DOT_PRODUCT_EXTENSION_NAME));
+            2, 0, 0, CL_KHR_INTEGER_DOT_PRODUCT_EXTENSION_NAME));
     }
 
     auto split_string = [](std::string input, char delimiter) {
