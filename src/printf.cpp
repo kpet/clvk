@@ -19,10 +19,6 @@
 // Extract the conversion specifier from a format string
 char get_fmt_conversion(std::string_view fmt) {
     auto conversionSpecPos = fmt.find_first_of("diouxXfFeEgGaAcsp");
-    if (conversionSpecPos == std::string_view::npos) {
-        return '\0'; // Return null character to indicate
-                     // no specifier found
-    }
     return fmt.at(conversionSpecPos);
 }
 
@@ -61,7 +57,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
 
     size_t vec_length_pos_start = ++pos;
     size_t vec_length_pos_end =
-        fmt.find_first_not_of("23468", vec_length_pos_start + 1);
+        fmt.find_first_not_of("23468", vec_length_pos_start);
     auto vec_length_str = fmt.substr(vec_length_pos_start,
                                      vec_length_pos_end - vec_length_pos_start);
     int vec_length = std::atoi(vec_length_str.c_str());
@@ -115,30 +111,32 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'e':
         case 'g':
         case 'a': {
-            if (size == 2)
+            if (size == 2) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    cl_half_to_float(read_buff<cl_half>(data)));
-            else if (size == 4)
+            } else if (size == 4) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<float>(data));
-            else
+            } else {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<double>(data));
+            }
             break;
         }
         default: {
-            if (size == 1)
+            if (size == 1) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint8_t>(data));
-            else if (size == 2)
+            } else if (size == 2) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint16_t>(data));
-            else if (size == 4)
+            } else if (size == 4) {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint32_t>(data));
-            else
+            } else {
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint64_t>(data));
+            }
             break;
         }
         }
@@ -169,21 +167,20 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
     std::stringstream printf_out{};
 
-    // Firstly print the part of the format string up to the first '%'
-    // if there is no % print the string as is.
+    // Firstly print the part of the format string up to the first '%' if any
+    // otherwise print the whole string as is and move the data pointer to the
+    // end.
     size_t next_part = format_string.find_first_of('%');
-    if (next_part < format_string.size()) {
-        printf_out << format_string.substr(0, next_part);
-    } else {
+    if (next_part == std::string::npos) {
         printf_out << format_string;
-        next_part = format_string.size();
         data = data_end;
+    } else {
+        printf_out << format_string.substr(0, next_part);
     }
-
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
-    while (next_part < format_string.size() - 1) {
+    while (next_part < format_string.size()) {
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
@@ -191,17 +188,17 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
         // Handle special cases
         if (part_end == part_start + 1) {
-            if (format_string[part_start] == '%') {
-                printf_out << "%";
-                // in cases of the last two chars % we need to add it twice.
-                if (part_end == format_string.size() - 2) {
-                    printf_out << "%";
-                }
-                next_part = part_end + 1;
+            printf_out << "%";
+            size_t next_format = format_string.find_first_of('%', part_end + 1);
+            // Check if there is anything to print between two %
+            if (next_format != std::string::npos &&
+                next_format - part_end > 1) {
+                // Print everything in between the two %
+                printf_out << format_string.substr(
+                    part_end + 1, next_format - (part_end + 1));
+                next_part = next_format;
             } else {
-                // in this case we just print and move by 1.
-                printf_out << format_string[part_start];
-                next_part = part_end;
+                next_part = part_end + 1;
             }
             continue;
         } else if (part_end == std::string::npos &&
@@ -213,13 +210,7 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         }
 
         // The size of the argument that this format part will consume
-        size_t size = 0;
-        // Updated if the size is valid
-        if (descs.count(printf_id) > 0 &&
-            !descs.at(printf_id).arg_sizes.empty() &&
-            arg_idx < descs.at(printf_id).arg_sizes.size()) {
-            size = descs.at(printf_id).arg_sizes[arg_idx];
-        }
+        auto& size = descs.at(printf_id).arg_sizes[arg_idx];
 
         if (data + size > data_end) {
             data += size;
