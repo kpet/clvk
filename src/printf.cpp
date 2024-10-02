@@ -111,32 +111,30 @@ std::string print_part(const std::string& fmt, const char* data, size_t size) {
         case 'e':
         case 'g':
         case 'a': {
-            if (size == 2) {
+            if (size == 2)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    cl_half_to_float(read_buff<cl_half>(data)));
-            } else if (size == 4) {
+            else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<float>(data));
-            } else {
+            else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<double>(data));
-            }
             break;
         }
         default: {
-            if (size == 1) {
+            if (size == 1)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint8_t>(data));
-            } else if (size == 2) {
+            else if (size == 2)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint16_t>(data));
-            } else if (size == 4) {
+            else if (size == 4)
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint32_t>(data));
-            } else {
+            else
                 written = snprintf(out.data(), out_size, fmt.c_str(),
                                    read_buff<uint64_t>(data));
-            }
             break;
         }
         }
