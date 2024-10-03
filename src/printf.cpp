@@ -170,11 +170,11 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
     // end.
     size_t next_part = format_string.find_first_of('%');
     if (next_part == std::string::npos) {
-        printf_out << format_string;
+        next_part = format_string.size();
         data = data_end;
-    } else {
-        printf_out << format_string.substr(0, next_part);
     }
+    printf_out << format_string.substr(0, next_part);
+
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
@@ -224,11 +224,8 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             // Special case for %s
             if (get_fmt_conversion(part_fmt) == 's') {
                 uint32_t string_id = read_buff<uint32_t>(data);
-                if (string_id < descs.size()) {
-                    printf_out << print_part(
-                        part_fmt, descs.at(string_id).format_string.c_str(),
-                        size);
-                }
+                printf_out << print_part(
+                    part_fmt, descs.at(string_id).format_string.c_str(), size);
             } else {
                 printf_out << print_part(part_fmt, data, size);
             }
