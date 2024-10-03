@@ -187,14 +187,16 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         // Handle special cases
         if (part_end == part_start + 1) {
             printf_out << "%";
-            // We also need to print the literals between '%%' and the next '%'
-            next_part = part_start = part_end + 1;
-            part_end = format_string.find_first_of('%', part_start);
-            if (part_end != std::string::npos && part_end > part_start) {
-                part_fmt =
-                    format_string.substr(part_start, part_end - part_start);
-                printf_out << part_fmt;
-                next_part = part_end;
+            size_t next_format = format_string.find_first_of('%', part_end + 1);
+            // Check if there is anything to print between two %
+            if (next_format != std::string::npos &&
+                next_format - part_end > 1) {
+                // Print everything in between the two %
+                printf_out << format_string.substr(
+                    part_end + 1, next_format - (part_end + 1));
+                next_part = next_format;
+            } else {
+                next_part = part_end + 1;
             }
             continue;
         } else if (part_end == std::string::npos &&
@@ -224,8 +226,11 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             // Special case for %s
             if (get_fmt_conversion(part_fmt) == 's') {
                 uint32_t string_id = read_buff<uint32_t>(data);
-                printf_out << print_part(
-                    part_fmt, descs.at(string_id).format_string.c_str(), size);
+                if (string_id < descs.size()) {
+                    printf_out << print_part(
+                        part_fmt, descs.at(string_id).format_string.c_str(),
+                        size);
+                }
             } else {
                 printf_out << print_part(part_fmt, data, size);
             }
