@@ -227,7 +227,7 @@ jobs:
         run: ${{ env.testbindir }}/simple_test_static${{ env.exe-ext }}
       - name: Simple test (static)
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
-        run: ${{ env.testbindir }}/simple_test_concurrent_print${{ env.exe-ext } 1500}
+        run: ${{ env.testbindir }}/simple_test_concurrent_print 1500 ${{ env.exe-ext }}
       - name: Simple test
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/simple_test${{ env.exe-ext }}
