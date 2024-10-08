@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <assert.h>
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
-#include <assert.h>
 
 #define CL_TARGET_OPENCL_VERSION 120
 #include "CL/cl.h"
@@ -37,7 +37,7 @@ kernel void test_simple(uint timeout)
 }
 )";
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     cl_platform_id platform;
     cl_device_id device;
     cl_int err;
