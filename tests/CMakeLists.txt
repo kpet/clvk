@@ -66,6 +66,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/config)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-il-binary)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-llvm-ir-binary)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-concurrent)
+
 endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sha1)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-binary)
