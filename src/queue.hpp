@@ -174,34 +174,6 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
-    cvk_buffer* get_or_create_printf_buffer() {
-        if (!m_printf_buffer) {
-            cl_int status;
-            m_printf_buffer = cvk_buffer::create(
-                context(), 0, m_context->get_printf_buffersize(), nullptr,
-                &status);
-            CVK_ASSERT(status == CL_SUCCESS);
-        }
-        return m_printf_buffer.get();
-    }
-
-    cvk_buffer* get_printf_buffer() {
-        if (!m_printf_buffer) {
-            return nullptr;
-        }
-        return m_printf_buffer.get();
-    }
-
-    cl_int reset_printf_buffer() {
-        if (m_printf_buffer && m_printf_buffer->map_write_only()) {
-            memset(m_printf_buffer->host_va(), 0, 4);
-            m_printf_buffer->unmap_to_write(0, 4);
-            return CL_SUCCESS;
-        }
-        cvk_error_fn("Could not reset printf buffer");
-        return CL_OUT_OF_RESOURCES;
-    }
-
     void command_pool_lock() { m_command_pool.lock(); }
 
     void command_pool_unlock() { m_command_pool.unlock(); }
@@ -271,8 +243,6 @@ private:
 
     TRACE_CNT_VAR(batch_in_flight_counter);
     TRACE_CNT_VAR(group_in_flight_counter);
-
-    std::unique_ptr<cvk_buffer> m_printf_buffer;
 
     std::vector<std::unique_ptr<cvk_queue_controller>> m_controllers;
 
@@ -773,8 +743,9 @@ struct cvk_command_kernel final : public cvk_command_batchable {
 
     cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
                        const cvk_ndrange& ndrange)
-        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
-          m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
+        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q),
+          m_context(q->context()), m_kernel(kernel), m_dimensions(dims),
+          m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
           m_argument_values(nullptr) {}
 
     ~cvk_command_kernel() {
@@ -802,6 +773,34 @@ struct cvk_command_kernel final : public cvk_command_batchable {
         return argvals->memory_objects();
     }
 
+    cvk_buffer* get_or_create_printf_buffer() {
+        if (!m_printf_buffer) {
+            cl_int status;
+            m_printf_buffer = cvk_buffer::create(
+                m_context, 0, m_context->get_printf_buffersize(), nullptr,
+                &status);
+            CVK_ASSERT(status == CL_SUCCESS);
+        }
+        return m_printf_buffer.get();
+    }
+
+    cl_int reset_printf_buffer() {
+        if (m_printf_buffer && m_printf_buffer->map_write_only()) {
+            memset(m_printf_buffer->host_va(), 0, 4);
+            m_printf_buffer->unmap_to_write(0, 4);
+            return CL_SUCCESS;
+        }
+        cvk_error_fn("Could not reset printf buffer");
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    cvk_buffer* get_printf_buffer() {
+        if (!m_printf_buffer) {
+            return nullptr;
+        }
+        return m_printf_buffer.get();
+    }
+
 private:
     CHECK_RETURN cl_int
     build_and_dispatch_regions(cvk_command_buffer& command_buffer);
@@ -816,10 +815,12 @@ private:
     CHECK_RETURN cl_int dispatch_uniform_region(
         const cvk_ndrange& region, cvk_command_buffer& command_buffer);
 
+    cvk_context* m_context;
     cvk_kernel_holder m_kernel;
     uint32_t m_dimensions;
     cvk_ndrange m_ndrange;
     VkPipeline m_pipeline;
+    std::unique_ptr<cvk_buffer> m_printf_buffer;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
 };
 
