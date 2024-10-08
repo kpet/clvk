@@ -32,6 +32,18 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
+TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
+    const char* source = "kernel void test_printf() { printf(\"%s\", \"\"); }";
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), "");
+}
+
 TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
     // to print) + 4 for the byte written counter
