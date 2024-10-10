@@ -367,6 +367,16 @@ struct cvk_device : public _cl_device_id,
         return m_features_shader_integer_dot_product.shaderIntegerDotProduct;
     }
 
+    const cl_device_integer_dot_product_capabilities_khr
+    dot_product_capabilities() const {
+        if (supports_dot_product()) {
+            return CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_KHR |
+                   CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR;
+        } else {
+            return 0;
+        }
+    }
+
     const cl_device_integer_dot_product_acceleration_properties_khr
     dot_product_4x8bit_packed_properties() const {
         cl_device_integer_dot_product_acceleration_properties_khr res;

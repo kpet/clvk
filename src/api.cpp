@@ -909,11 +909,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_pci_bus_info);
         break;
     case CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR:
-        val_int_dot_product =
-            device->supports_dot_product()
-                ? CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR |
-                      CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR
-                : 0;
+        val_int_dot_product = device->dot_product_capabilities();
         copy_ptr = &val_int_dot_product;
         size_ret = sizeof(val_int_dot_product);
         break;
