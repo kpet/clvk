@@ -1041,11 +1041,7 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     // Setup printf buffer descriptor if needed
     if (m_kernel->program()->uses_printf()) {
         // Create and initialize the printf buffer
-        auto buffer = get_or_create_printf_buffer();
-        auto err = reset_printf_buffer();
-        if (err != CL_SUCCESS) {
-            return err;
-        }
+        auto buffer = create_printf_buffer();
 
         if (m_kernel->program()->printf_buffer_info().type ==
             module_buffer_type::storage_buffer) {

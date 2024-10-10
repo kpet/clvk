@@ -773,7 +773,7 @@ struct cvk_command_kernel final : public cvk_command_batchable {
         return argvals->memory_objects();
     }
 
-    cvk_buffer* get_or_create_printf_buffer() {
+    cvk_buffer* create_printf_buffer() {
         if (!m_printf_buffer) {
             cl_int status;
             m_printf_buffer = cvk_buffer::create(
@@ -781,17 +781,14 @@ struct cvk_command_kernel final : public cvk_command_batchable {
                 &status);
             CVK_ASSERT(status == CL_SUCCESS);
         }
-        return m_printf_buffer.get();
-    }
 
-    cl_int reset_printf_buffer() {
         if (m_printf_buffer && m_printf_buffer->map_write_only()) {
             memset(m_printf_buffer->host_va(), 0, 4);
             m_printf_buffer->unmap_to_write(0, 4);
-            return CL_SUCCESS;
+        } else {
+            cvk_error_fn("Could not reset printf buffer");
         }
-        cvk_error_fn("Could not reset printf buffer");
-        return CL_OUT_OF_RESOURCES;
+        return m_printf_buffer.get();
     }
 
     cvk_buffer* get_printf_buffer() {
