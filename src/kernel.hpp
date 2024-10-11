@@ -161,7 +161,7 @@ private:
 
     std::mutex m_lock;
     cvk_program_holder m_program;
-    cvk_entry_point* m_entry_point;
+    std::shared_ptr<cvk_entry_point> m_entry_point;
     std::string m_name;
     std::vector<kernel_argument> m_args;
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
@@ -177,7 +177,7 @@ using cvk_kernel_holder = refcounted_holder<cvk_kernel>;
 
 struct cvk_kernel_argument_values {
 
-    cvk_kernel_argument_values(cvk_entry_point* entry_point)
+    cvk_kernel_argument_values(std::shared_ptr<cvk_entry_point> entry_point)
         : m_entry_point(entry_point), m_is_enqueued(false),
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
           m_kernel_resources(m_entry_point->num_resource_slots()),
@@ -203,7 +203,7 @@ struct cvk_kernel_argument_values {
     }
 
     static std::shared_ptr<cvk_kernel_argument_values>
-    create(cvk_entry_point* entry_point) {
+    create(std::shared_ptr<cvk_entry_point> entry_point) {
         auto val = std::make_shared<cvk_kernel_argument_values>(entry_point);
 
         if (!val->init()) {
@@ -416,7 +416,7 @@ private:
     }
 
     std::mutex m_lock;
-    cvk_entry_point* m_entry_point;
+    std::shared_ptr<cvk_entry_point> m_entry_point;
     std::unique_ptr<std::vector<uint8_t>> m_pod_data;
     bool m_is_enqueued;
     const std::vector<kernel_argument>& m_args;

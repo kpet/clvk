@@ -799,8 +799,8 @@ public:
 
     const VkPipelineCache& pipeline_cache() const { return m_pipeline_cache; }
 
-    CHECK_RETURN cvk_entry_point* get_entry_point(std::string& name,
-                                                  cl_int* errcode_ret);
+    CHECK_RETURN std::shared_ptr<cvk_entry_point>
+    get_entry_point(std::string& name, cl_int* errcode_ret);
 
     bool create_module_constant_data_buffer() {
         cl_int err;
@@ -901,7 +901,7 @@ private:
     std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;
     VkPushConstantRange m_push_constant_range;
-    std::unordered_map<std::string, std::unique_ptr<cvk_entry_point>>
+    std::unordered_map<std::string, std::shared_ptr<cvk_entry_point>>
         m_entry_points;
     std::vector<uint32_t> m_stripped_binary;
     VkPipelineCache m_pipeline_cache;
