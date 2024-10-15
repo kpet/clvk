@@ -525,7 +525,10 @@ using the name of the corresponding environment variable.
   with caution.
 
 * `CLVK_DEVICE_EXTENSIONS` specifies extensions to be added to the list of
-  exposed extensions. It expects a whitespace separated list of extensions.
+  exposed extensions. It expects a comma separated list of extensions.
+
+* `CLVK_DEVICE_EXTENSIONS_MASKED` specifies extensions to be removed from the
+  list of exposed extensions. It expects a comma separated list of extensions.
 
 * `CLVK_BUILD_IN_SEPARATE_THREAD` force to build kernels in a separate thread
   (default: false). It brings a slight overhead when creating the thread, but
