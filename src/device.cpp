@@ -722,11 +722,23 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(extension);
     }
 
+    auto config_extensions_masked =
+        split_string(config.device_extensions_masked(), ',');
+    for (auto& config_extension_masked : config_extensions_masked) {
+        for (auto it = m_extensions.begin(); it != m_extensions.end(); it++) {
+            if (strcmp(config_extension_masked.c_str(), it->name) == 0) {
+                m_extensions.erase(it);
+                break;
+            }
+        }
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
         m_extension_string += " ";
     }
+    cvk_info_fn("extensions: '%s'", m_extension_string.c_str());
 
     // Build list of ILs
     m_ils = {
