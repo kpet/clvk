@@ -43,7 +43,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
     // Consume precision and field width
     pos = fmt.find_first_not_of("123456789.", pos);
 
-    if (fmt.at(pos) != 'v') {
+    if (pos == std::string::npos || fmt.at(pos) != 'v') {
         vector_size = 1;
         return std::string{fmt};
     }

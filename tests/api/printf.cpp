@@ -23,6 +23,41 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     char source[512];
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     auto kernel = CreateKernel(source, "test_printf");
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, SimplePrintfPercent) {
+    // Tests that the while loop inside the process_printf func
+    // goes all the way to the end of the string to be printed.
+    const char message[] = "The value is: 123%";
+    char source[512];
+    sprintf(source,
+            "kernel void test_printf() { printf(\"The value is: %d%\"); }",
+            123);
+
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, SimplePrintfBetweenPercents) {
+    const char message[] = "%Hello%World%!";
+    const char message_test[] = "%%Hello%%World%%!";
+
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%s\");}",
+            message_test);
+
+    auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;
     size_t lws = 1;
