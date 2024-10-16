@@ -78,6 +78,20 @@ TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
 
     ASSERT_STREQ(m_printf_output.c_str(), "");
 }
+TEST_F(WithCommandQueueAndPrintf, PrintfWithNoFormatSpecifier) {
+    const char* source =
+        "kernel void test_printf() { printf(\"\\n\", \"foo\");}";
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    // The expected output is just a newline character since there's no
+    // format specifier to consume the "foo" argument.
+    ASSERT_STREQ(m_printf_output.c_str(), "\n");
+}
 
 TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
     // each print takes 12 bytes (4 for the printf_id, and 2*4 for the 2 integer
