@@ -57,7 +57,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
 
     size_t vec_length_pos_start = ++pos;
     size_t vec_length_pos_end =
-        fmt.find_first_not_of("23468", vec_length_pos_start);
+        fmt.find_first_not_of("123468", vec_length_pos_start);
     auto vec_length_str = fmt.substr(vec_length_pos_start,
                                      vec_length_pos_end - vec_length_pos_start);
     int vec_length = std::atoi(vec_length_str.c_str());
