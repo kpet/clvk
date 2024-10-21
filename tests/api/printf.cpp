@@ -36,7 +36,7 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintfPercent) {
     const char message[] = "The value is: 123%";
     char source[512];
     sprintf(source,
-            "kernel void test_printf() { printf(\"The value is: %d%\"); }",
+            "kernel void test_printf() { printf(\"The value is: %d%%\"); }",
             123);
 
     auto kernel = CreateKernel(source, "test_printf");
