@@ -363,6 +363,67 @@ struct cvk_device : public _cl_device_id,
                         static_cast<size_t>(sub_group_size()));
     }
 
+    bool supports_dot_product() const {
+        return m_features_shader_integer_dot_product.shaderIntegerDotProduct;
+    }
+
+    cl_device_integer_dot_product_capabilities_khr
+    dot_product_capabilities() const {
+        if (supports_dot_product()) {
+            return CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_KHR |
+                   CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED_KHR;
+        } else {
+            return 0;
+        }
+    }
+
+    cl_device_integer_dot_product_acceleration_properties_khr
+    dot_product_4x8bit_packed_properties() const {
+        cl_device_integer_dot_product_acceleration_properties_khr res;
+        res.signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedSignedAccelerated;
+        res.unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedUnsignedAccelerated;
+        res.mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct4x8BitPackedMixedSignednessAccelerated;
+        res.accumulating_saturating_signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedSignedAccelerated;
+        res.accumulating_saturating_unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedUnsignedAccelerated;
+        res.accumulating_saturating_mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating4x8BitPackedMixedSignednessAccelerated;
+        return res;
+    }
+
+    cl_device_integer_dot_product_acceleration_properties_khr
+    dot_product_8bit_properties() const {
+        cl_device_integer_dot_product_acceleration_properties_khr res;
+        res.signed_accelerated = m_integer_dot_product_properties
+                                     .integerDotProduct8BitSignedAccelerated;
+        res.unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct8BitUnsignedAccelerated;
+        res.mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProduct8BitMixedSignednessAccelerated;
+        res.accumulating_saturating_signed_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitSignedAccelerated;
+        res.accumulating_saturating_unsigned_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitUnsignedAccelerated;
+        res.accumulating_saturating_mixed_signedness_accelerated =
+            m_integer_dot_product_properties
+                .integerDotProductAccumulatingSaturating8BitMixedSignednessAccelerated;
+        return res;
+    }
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
@@ -677,6 +738,8 @@ private:
     VkPhysicalDeviceSubgroupSizeControlProperties
         m_subgroup_size_control_properties{};
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
+    VkPhysicalDeviceShaderIntegerDotProductProperties
+        m_integer_dot_product_properties{};
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
     VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer{};
@@ -694,6 +757,8 @@ private:
     VkPhysicalDeviceBufferDeviceAddressFeaturesKHR
         m_features_buffer_device_address{};
     VkPhysicalDeviceFloatControlsProperties m_float_controls_properties{};
+    VkPhysicalDeviceShaderIntegerDotProductFeatures
+        m_features_shader_integer_dot_product{};
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
 

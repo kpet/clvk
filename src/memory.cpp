@@ -534,15 +534,19 @@ bool cvk_image::init_vulkan_texel_buffer() {
 
     auto vkbuf = static_cast<cvk_buffer*>(buffer())->vulkan_buffer();
     auto offset = static_cast<cvk_buffer*>(buffer())->vulkan_buffer_offset();
+    // The range should cover exactly the number of texels specified at
+    // image creation time.  Don't use WHOLE_SIZE because the row pitch
+    // might include additional padding large enough for one or more texels.
+    auto range = element_size() * width();
 
     VkBufferViewCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
         nullptr,
-        0,            // flags
-        vkbuf,        // buffer
-        fmt.vkfmt,    // format
-        offset,       // offset
-        VK_WHOLE_SIZE // range
+        0,         // flags
+        vkbuf,     // buffer
+        fmt.vkfmt, // format
+        offset,    // offset
+        range      // range
     };
 
     res = vkCreateBufferView(vkdev, &createInfo, nullptr, &m_buffer_view);
