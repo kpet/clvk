@@ -56,8 +56,13 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
     fmt = fmt_specifier;
 
     size_t vec_length_pos_start = ++pos;
-    size_t vec_length_pos_end =
-        fmt.find_first_not_of("123468", vec_length_pos_start);
+    // Assume vec len is at max 8 in which case we need just one digit.
+    size_t vec_length_pos_end = pos + 1;
+    // Check if len is 16 and update accordingly. This is only possible iff
+    // the first char of the size is 1.
+    if (fmt[vec_length_pos_start] == '1') {
+        vec_length_pos_end++;
+    }
     auto vec_length_str = fmt.substr(vec_length_pos_start,
                                      vec_length_pos_end - vec_length_pos_start);
     int vec_length = std::atoi(vec_length_str.c_str());
