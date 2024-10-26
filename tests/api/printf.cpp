@@ -103,4 +103,35 @@ TEST_F(WithCommandQueueAndPrintf, PrintfMissingLengthModifier) {
     ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
+TEST_F(WithCommandQueueAndPrintf, VectorLen8) {
+    const char message[] = "+1,+2,+3,+4,+5,+6,+7,+8";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%%+v8i\", "
+                    "(int8)(1,2,3,4,5,6,7,8));}");
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, VectorLen16) {
+    const char message[] =
+        "+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,+16";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%%+v16i\", "
+                    "(int16)(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));}");
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
 #endif
