@@ -58,7 +58,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
     size_t vec_length_pos_start = ++pos;
     // Assume vec len is at max 8 in which case we need just one digit.
     size_t vec_length_pos_end = pos + 1;
-    // Check if len is 16 and update accordingly. This is only possible iff
+    // Check if len is 16 and update accordingly. This is only possible if
     // the first char of the size is 1.
     if (fmt[vec_length_pos_start] == '1') {
         vec_length_pos_end++;
