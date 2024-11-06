@@ -43,7 +43,7 @@ std::string get_vector_fmt(std::string fmt, int& vector_size, int& element_size,
     // Consume precision and field width
     pos = fmt.find_first_not_of("123456789.", pos);
 
-    if (fmt.at(pos) != 'v') {
+    if (pos == std::string::npos || fmt.at(pos) != 'v') {
         vector_size = 1;
         return std::string{fmt};
     }
@@ -170,14 +170,20 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
 
     std::stringstream printf_out{};
 
-    // Firstly print the part of the format string up to the first '%'
+    // Firstly print the part of the format string up to the first '%' if any
+    // otherwise print the whole string as is and move the data pointer to the
+    // end.
     size_t next_part = format_string.find_first_of('%');
+    if (next_part == std::string::npos) {
+        next_part = format_string.size();
+        data = data_end;
+    }
     printf_out << format_string.substr(0, next_part);
 
     // Decompose the remaining format string into individual strings with
     // one format specifier each, handle each one individually
     size_t arg_idx = 0;
-    while (next_part < format_string.size() - 1) {
+    while (next_part < format_string.size()) {
         // Get the part of the format string before the next format specifier
         size_t part_start = next_part;
         size_t part_end = format_string.find_first_of('%', part_start + 1);
@@ -186,7 +192,15 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
         // Handle special cases
         if (part_end == part_start + 1) {
             printf_out << "%";
-            next_part = part_end + 1;
+            // We also need to print the literals between '%%' and the next '%'
+            next_part = part_start = part_end + 1;
+            part_end = format_string.find_first_of('%', part_start);
+            if (part_end != std::string::npos && part_end > part_start) {
+                part_fmt =
+                    format_string.substr(part_start, part_end - part_start);
+                printf_out << part_fmt;
+                next_part = part_end;
+            }
             continue;
         } else if (part_end == std::string::npos &&
                    arg_idx >= descs.at(printf_id).arg_sizes.size()) {
