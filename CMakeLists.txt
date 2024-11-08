@@ -121,6 +121,7 @@ if (CLVK_COMPILER_AVAILABLE)
 endif()
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
     CACHE STRING "Clspv source directory")
+set(CLSPV_BUILD_SPIRV_DIS OFF)
 add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
                  EXCLUDE_FROM_ALL)
 set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY
