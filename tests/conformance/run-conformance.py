@@ -167,7 +167,7 @@ def load_json(path):
         return json.load(f)
 
 def run_conformance_binary(path, results_dir, args):
-    start = datetime.datetime.utcnow()
+    start = datetime.datetime.now(datetime.UTC)
     dirname = os.path.dirname(path)
     binary = os.path.basename(path)
     path = os.path.join(dirname, os.path.basename(binary))
@@ -186,7 +186,7 @@ def run_conformance_binary(path, results_dir, args):
     stdout, stderr = p.communicate()
     stdout = stdout.decode('utf-8')
     stderr = stderr.decode('utf-8')
-    end = datetime.datetime.utcnow()
+    end = datetime.datetime.now(datetime.UTC)
     with open(results_stdout, 'w') as f:
         f.write(stdout)
     with open(results_stderr, 'w') as f:
