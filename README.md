@@ -369,7 +369,10 @@ using the name of the corresponding environment variable.
 
 * `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
-* `CLVK_IGNORE_OUT_OF_ORDER_EXECUTION` can be used to ignore out of order execution checks
+* `CLVK_IGNORE_OUT_OF_ORDER_EXECUTION` controls whether out-of-order queues can be
+  created. Out-of-order queues, when allowed, always behave as in-order queues. This can be
+  useful to enable applications that request out-of-order queues but don't use all their features
+  to run.
 
    * 0: does not ignore OOOE checks and validates if hardware can support it (default)
    * 1: ignores the aforementioned checks
