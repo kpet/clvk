@@ -16,35 +16,6 @@
 
 #include <unordered_set>
 
-TEST(Platform, HasOneDefaultDevice) {
-    cl_int err;
-    cl_uint num_devices;
-    err =
-        clGetDeviceIDs(gPlatform, CL_DEVICE_TYPE_ALL, 0, nullptr, &num_devices);
-    ASSERT_EQ(err, CL_SUCCESS);
-
-    std::vector<cl_device_id> devices(num_devices);
-
-    err = clGetDeviceIDs(gPlatform, CL_DEVICE_TYPE_ALL, num_devices,
-                         devices.data(), nullptr);
-    ASSERT_EQ(err, CL_SUCCESS);
-
-    unsigned num_default = 0;
-
-    for (auto dev : devices) {
-        cl_device_type dtype;
-        err = clGetDeviceInfo(dev, CL_DEVICE_TYPE, sizeof(dtype), &dtype,
-                              nullptr);
-        ASSERT_EQ(err, CL_SUCCESS);
-
-        if (dtype & CL_DEVICE_TYPE_DEFAULT) {
-            num_default++;
-        }
-    }
-
-    ASSERT_EQ(num_default, 1);
-}
-
 TEST(Platform, DeviceQueryWithMultipleTypes) {
     cl_int err;
 
@@ -55,7 +26,6 @@ TEST(Platform, DeviceQueryWithMultipleTypes) {
     ASSERT_EQ(err, CL_SUCCESS);
 
     // Check its type is one of the expected values
-    dtype &= ~CL_DEVICE_TYPE_DEFAULT;
     ASSERT_TRUE(dtype == CL_DEVICE_TYPE_GPU || dtype == CL_DEVICE_TYPE_CPU ||
                 dtype == CL_DEVICE_TYPE_ACCELERATOR);
 

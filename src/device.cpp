@@ -28,8 +28,8 @@ constexpr VkMemoryPropertyFlags cvk_device::buffer_supported_memory_types[];
 constexpr VkMemoryPropertyFlags cvk_device::image_supported_memory_types[];
 
 cvk_device* cvk_device::create(cvk_platform* platform, VkInstance instance,
-                               VkPhysicalDevice pdev, bool is_default) {
-    cvk_device* device = new cvk_device(platform, pdev, is_default);
+                               VkPhysicalDevice pdev) {
+    cvk_device* device = new cvk_device(platform, pdev);
 
     if (!device->init(instance)) {
         delete device;

@@ -378,11 +378,16 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
     cl_uint num = 0;
 
     for (auto dev : icd_downcast(platform)->devices()) {
-        if (dev->type() & device_type) {
+        if ((dev->type() & device_type) ||
+            (device_type == CL_DEVICE_TYPE_DEFAULT && num == 0) ||
+            (device_type == CL_DEVICE_TYPE_ALL)) {
             if ((devices != nullptr) && (num < num_entries)) {
                 devices[num] = dev;
             }
             num++;
+            if (device_type == CL_DEVICE_TYPE_DEFAULT) {
+                break;
+            }
         }
     }
 
