@@ -369,6 +369,14 @@ using the name of the corresponding environment variable.
 
 * `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
+* `CLVK_IGNORE_OUT_OF_ORDER_EXECUTION` controls whether out-of-order queues can be
+  created. Out-of-order queues, when allowed, always behave as in-order queues. This can be
+  useful to enable applications that request out-of-order queues but don't use all their features
+  to run.
+
+   * 0: creating an out-of-order queue results in a failure (default)
+   * 1: creating an out-of-order queue is supported but it will function as an in-order queue
+
 * `CLVK_LOG` controls the level of logging
 
    * 0: only print fatal messages (default)
