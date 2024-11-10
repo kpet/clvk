@@ -374,8 +374,8 @@ using the name of the corresponding environment variable.
   useful to enable applications that request out-of-order queues but don't use all their features
   to run.
 
-   * 0: does not ignore OOOE checks and validates if hardware can support it (default)
-   * 1: ignores the aforementioned checks
+   * 0: creating an out-of-order queue results in a failure (default)
+   * 1: creating an out-of-order queue is supported but it will function as an in-order queue
 
 * `CLVK_LOG` controls the level of logging
 
