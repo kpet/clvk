@@ -175,6 +175,7 @@ struct cvk_command_queue : public _cl_command_queue,
     }
 
     cvk_buffer* get_or_create_printf_buffer() {
+        CVK_ASSERT(m_context != nullptr);
         if (!m_printf_buffer) {
             cl_int status;
             m_printf_buffer = cvk_buffer::create(
@@ -236,6 +237,8 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
+
+    void detach_from_context();
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);

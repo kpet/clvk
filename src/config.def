@@ -31,6 +31,8 @@ OPTION(uint32_t, opencl_version, (uint32_t)CL_MAKE_VERSION(3, 0, 0))
 
 OPTION(bool, build_in_separate_thread, false)
 
+OPTION(bool, init_image_at_creation, false)
+
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER

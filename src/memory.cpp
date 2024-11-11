@@ -508,6 +508,26 @@ bool cvk_image::init_vulkan_image() {
                 "Could not copy image host_ptr data to the staging buffer");
             return false;
         }
+
+        if (config.init_image_at_creation()) {
+            auto queue = m_context->get_or_create_image_init_command_queue();
+            if (queue == nullptr) {
+                return false;
+            }
+
+            auto initimage = new cvk_command_image_init(queue, this);
+            ret = queue->enqueue_command_with_deps(initimage, 0, nullptr,
+                                                   nullptr);
+            if (ret != CL_SUCCESS) {
+                return false;
+            }
+            ret = queue->finish();
+            if (ret != CL_SUCCESS) {
+                return false;
+            }
+            std::lock_guard<std::mutex> lock(m_init_tracker.mutex());
+            m_init_tracker.set_state(cvk_mem_init_state::completed);
+        }
     }
 
     return true;
