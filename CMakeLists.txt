@@ -91,7 +91,9 @@ if("Ninja" STREQUAL ${CMAKE_GENERATOR})
 endif()
 
 # OpenCL Headers
-include_directories(BEFORE ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
+set(OPENCL_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers
+    CACHE STRING "OpenCL-Headers source directory")
+include_directories(BEFORE ${OPENCL_HEADERS_SOURCE_DIR})
 
 # SPIR-V Headers
 set(SPIRV_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Headers CACHE STRING
