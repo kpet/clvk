@@ -106,7 +106,8 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 
 set(CLVK_BUILD_SPIRV_TOOLS ON CACHE BOOL "Set to OFF to disable SPIRV-Tools build")
 if (CLVK_BUILD_SPIRV_TOOLS)
-  add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
+  add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR}
+                   ${PROJECT_BINARY_DIR}/external/SPIRV-Tools EXCLUDE_FROM_ALL)
 endif()
 
 # clspv
