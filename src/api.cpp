@@ -30,6 +30,31 @@
 
 #define CLVK_API_CALL CL_API_CALL
 
+#ifndef cl_ext_buffer_device_address
+#define cl_ext_buffer_device_address
+
+#ifndef CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT
+#define CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT 0x11B8
+#endif
+
+#ifndef CL_MEM_DEVICE_ADDRESS_EXT
+#define CL_MEM_DEVICE_ADDRESS_EXT (1ul << 31)
+#endif
+
+#ifndef CL_MEM_DEVICE_PTR_EXT
+#define CL_MEM_DEVICE_PTR_EXT 0xff01
+#endif
+
+typedef cl_ulong cl_mem_device_address_EXT;
+
+// typedef cl_int(CL_API_CALL *clSetKernelArgDevicePointerEXT_fn)(
+//     cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_EXT dev_addr);
+
+cl_int clSetKernelArgDevicePointerEXT_fn(cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_EXT dev_addr);
+
+
+#endif // cl_ext_buffer_device_address
+
 namespace {
 
 // Validation functions
@@ -303,6 +328,7 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clGetKernelSuggestedLocalWorkSizeKHR),
     {"clGetKernelSubGroupInfoKHR", FUNC_PTR(clGetKernelSubGroupInfo)},
+    {"clSetKernelArgDevicePointerEXT", FUNC_PTR(clSetKernelArgDevicePointerEXT_fn)},
     EXTENSION_ENTRYPOINT(clCreateSemaphoreWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clEnqueueWaitSemaphoresKHR),
     EXTENSION_ENTRYPOINT(clEnqueueSignalSemaphoresKHR),
@@ -2143,6 +2169,21 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         copy_ptr = memobj->properties().data();
         ret_size = memobj->properties().size() * sizeof(cl_mem_properties);
         break;
+    case CL_MEM_DEVICE_PTR_EXT: {
+        auto buffer = static_cast<cvk_buffer*>(memobj);
+        if (!buffer->is_buffer_type()) {
+            ret = CL_INVALID_MEM_OBJECT;
+            break;
+        }
+        if (!buffer->context()->device()->supports_buffer_device_address()) {
+            ret = CL_INVALID_OPERATION;
+            break;
+        }
+        val_sizet = buffer->device_address();
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    }
     default:
         ret = CL_INVALID_VALUE;
     }
@@ -6291,6 +6332,37 @@ cl_int clGetSemaphoreInfoKHR(const cl_semaphore_khr sema_object,
     }
 
     return ret;
+}
+
+cl_int clSetKernelArgDevicePointerEXT_fn(cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_EXT dev_addr) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel, "arg_index", arg_index);
+    LOG_API_CALL("kernel = %p, arg_index = %u, dev_addr = %p",
+                 kernel, arg_index, (void*)dev_addr);
+
+    auto kern = icd_downcast(kernel);
+
+    // Validate kernel
+    if (!is_valid_kernel(kern)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    // Validate argument index 
+    if (arg_index >= kern->num_args()) {
+        cvk_error_fn("the program has only %u arguments", kern->num_args());
+        return CL_INVALID_ARG_INDEX;
+    }
+
+    // Get argument info
+    auto const& arg = kern->arguments()[arg_index];
+
+    // Validate argument is a pointer type
+    // device pointer kernel argument of type __global is buffer type here so failure
+    // if (!arg.is_pod_pointer()) {
+    //     return CL_INVALID_ARG_VALUE;
+    // }
+
+    // Set the argument using the device address
+    return kern->set_arg(arg_index, sizeof(dev_addr), &dev_addr);
 }
 
 cl_int clReleaseSemaphoreKHR(cl_semaphore_khr sema_object) {

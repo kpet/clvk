@@ -47,6 +47,9 @@ struct cvk_platform;
 
 struct cvk_device : public _cl_device_id,
                     object_magic_header<object_magic::device> {
+    /// Map for storing device pointers to buffer pointers
+    /// Support cl_ext_buffer_device_address
+    std::unordered_map<void*, void*> device_to_buffer_map;
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
         : m_platform(platform), m_pdev(pd) {
@@ -710,6 +713,10 @@ struct cvk_device : public _cl_device_id,
 
     bool keep_memory_allocations_mapped() const {
         return m_clvk_properties->keep_memory_allocations_mapped();
+    }
+
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
     }
 
 private:

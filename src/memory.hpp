@@ -491,8 +491,10 @@ struct cvk_buffer : public cvk_mem {
         auto device = context()->device();
         auto vkdev = device->vulkan_device();
         auto device_address =
-            device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info);
-        return device_address + vulkan_buffer_offset();
+            device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info) +
+            vulkan_buffer_offset();
+        device->device_to_buffer_map[(void*)device_address] = (void*)this;
+        return device_address;
     }
 
 private:

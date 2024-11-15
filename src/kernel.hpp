@@ -27,6 +27,16 @@
 
 struct cvk_kernel_argument_values;
 
+#ifndef CL_MEM_DEVICE_ADDRESS_EXT
+#define CL_MEM_DEVICE_ADDRESS_EXT (1ul << 31)
+#endif
+
+#ifndef CL_MEM_DEVICE_PTR_EXT
+#define CL_MEM_DEVICE_PTR_EXT 0xff01
+#endif
+
+typedef cl_ulong cl_mem_device_address_EXT;
+
 struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     cvk_kernel(cvk_program* program, const char* name)
@@ -318,6 +328,22 @@ struct cvk_kernel_argument_values {
                 }
 
                 m_kernel_resources[arg.binding] = sampler;
+            } else if (arg.kind == kernel_argument_kind::buffer) {
+                auto device_ptr =
+                    *reinterpret_cast<const cl_mem_device_address_EXT*>(value);
+                auto device_to_buffer_map = m_entry_point->program()
+                                                ->context()
+                                                ->device()
+                                                ->device_to_buffer_map;
+                auto it = device_to_buffer_map.find((void*)device_ptr);
+                if (it == device_to_buffer_map.end()) {
+                    return CL_INVALID_MEM_OBJECT;
+                }
+
+                // device pointer found in map, swapping the buffer pointer
+                auto buffer_ptr_raw = it->second;
+                auto buffer_ptr = reinterpret_cast<cvk_buffer*>(buffer_ptr_raw);
+                m_kernel_resources[arg.binding] = buffer_ptr;
             } else {
                 auto apimem = *reinterpret_cast<const cl_mem*>(value);
                 if (apimem == nullptr) {
