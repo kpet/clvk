@@ -23,6 +23,23 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     char source[512];
     sprintf(source, "kernel void test_printf() { printf(\"%s\");}", message);
     auto kernel = CreateKernel(source, "test_printf");
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, SimplePrintfPercent) {
+    // Tests that the while loop inside the process_printf func
+    // goes all the way to the end of the string to be printed.
+    const char message[] = "The value is: 123%";
+    char source[512];
+    sprintf(source,
+            "kernel void test_printf() { printf(\"The value is: %d%%\"); }",
+            123);
+
+    auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;
     size_t lws = 1;
@@ -30,6 +47,50 @@ TEST_F(WithCommandQueueAndPrintf, SimplePrintf) {
     Finish();
 
     ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, SimplePrintfBetweenPercents) {
+    const char message[] = "%Hello%World%!";
+    const char message_test[] = "%%Hello%%World%%!";
+
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%s\");}",
+            message_test);
+
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, SimpleFormatedPrintf) {
+    const char* source = "kernel void test_printf() { printf(\"%s\", \"\"); }";
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), "");
+}
+TEST_F(WithCommandQueueAndPrintf, PrintfWithNoFormatSpecifier) {
+    const char* source =
+        "kernel void test_printf() { printf(\"\\n\", \"foo\");}";
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    // The expected output is just a newline character since there's no
+    // format specifier to consume the "foo" argument.
+    ASSERT_STREQ(m_printf_output.c_str(), "\n");
 }
 
 TEST_F(WithCommandQueueAndPrintf, TooLongPrintf) {
@@ -93,6 +154,37 @@ TEST_F(WithCommandQueueAndPrintf, PrintfMissingLengthModifier) {
     sprintf(source,
             "kernel void test_printf() { printf(\"%%v4u\", (uint4)(%s));}",
             message);
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, VectorLen8) {
+    const char message[] = "+1,+2,+3,+4,+5,+6,+7,+8";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%%+v8i\", "
+                    "(int8)(1,2,3,4,5,6,7,8));}");
+    auto kernel = CreateKernel(source, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+
+    ASSERT_STREQ(m_printf_output.c_str(), message);
+}
+
+TEST_F(WithCommandQueueAndPrintf, VectorLen16) {
+    const char message[] =
+        "+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,+16";
+    char source[512];
+    sprintf(source, "kernel void test_printf() { printf(\"%%+v16i\", "
+                    "(int16)(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16));}");
     auto kernel = CreateKernel(source, "test_printf");
 
     size_t gws = 1;

@@ -430,6 +430,9 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_device_enqueue_capabilities val_dev_enqueue_caps;
     cl_device_pci_bus_info_khr val_pci_bus_info;
     cl_device_atomic_capabilities val_atomic_capabilities;
+    cl_device_integer_dot_product_capabilities_khr val_int_dot_product;
+    cl_device_integer_dot_product_acceleration_properties_khr
+        val_int_dot_product_props;
     std::vector<size_t> val_subgroup_sizes;
 
     auto device = icd_downcast(dev);
@@ -904,6 +907,22 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_pci_bus_info = device->pci_bus_info();
         copy_ptr = &val_pci_bus_info;
         size_ret = sizeof(val_pci_bus_info);
+        break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES_KHR:
+        val_int_dot_product = device->dot_product_capabilities();
+        copy_ptr = &val_int_dot_product;
+        size_ret = sizeof(val_int_dot_product);
+        break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT_KHR:
+        val_int_dot_product_props = device->dot_product_8bit_properties();
+        copy_ptr = &val_int_dot_product_props;
+        size_ret = sizeof(val_int_dot_product_props);
+        break;
+    case CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED_KHR:
+        val_int_dot_product_props =
+            device->dot_product_4x8bit_packed_properties();
+        copy_ptr = &val_int_dot_product_props;
+        size_ret = sizeof(val_int_dot_product_props);
         break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
@@ -1467,6 +1486,13 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
+    if (!config.ignore_out_of_order_execution()) {
+        // We do not support out of order command queues so this must fail
+        if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
+            *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
+            return nullptr;
+        }
+    }
     auto queue = std::make_unique<cvk_command_queue>(
         icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));

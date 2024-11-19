@@ -508,6 +508,26 @@ bool cvk_image::init_vulkan_image() {
                 "Could not copy image host_ptr data to the staging buffer");
             return false;
         }
+
+        if (config.init_image_at_creation()) {
+            auto queue = m_context->get_or_create_image_init_command_queue();
+            if (queue == nullptr) {
+                return false;
+            }
+
+            auto initimage = new cvk_command_image_init(queue, this);
+            ret = queue->enqueue_command_with_deps(initimage, 0, nullptr,
+                                                   nullptr);
+            if (ret != CL_SUCCESS) {
+                return false;
+            }
+            ret = queue->finish();
+            if (ret != CL_SUCCESS) {
+                return false;
+            }
+            std::lock_guard<std::mutex> lock(m_init_tracker.mutex());
+            m_init_tracker.set_state(cvk_mem_init_state::completed);
+        }
     }
 
     return true;
@@ -534,15 +554,19 @@ bool cvk_image::init_vulkan_texel_buffer() {
 
     auto vkbuf = static_cast<cvk_buffer*>(buffer())->vulkan_buffer();
     auto offset = static_cast<cvk_buffer*>(buffer())->vulkan_buffer_offset();
+    // The range should cover exactly the number of texels specified at
+    // image creation time.  Don't use WHOLE_SIZE because the row pitch
+    // might include additional padding large enough for one or more texels.
+    auto range = element_size() * width();
 
     VkBufferViewCreateInfo createInfo = {
         VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO,
         nullptr,
-        0,            // flags
-        vkbuf,        // buffer
-        fmt.vkfmt,    // format
-        offset,       // offset
-        VK_WHOLE_SIZE // range
+        0,         // flags
+        vkbuf,     // buffer
+        fmt.vkfmt, // format
+        offset,    // offset
+        range      // range
     };
 
     res = vkCreateBufferView(vkdev, &createInfo, nullptr, &m_buffer_view);

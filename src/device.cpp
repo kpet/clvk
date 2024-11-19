@@ -55,6 +55,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES;
     m_float_controls_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
+    m_integer_dot_product_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES;
 
     //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
     // allocation size and default init when the extension is not supported
@@ -83,6 +85,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_maintenance3_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0), nullptr,
                          m_float_controls_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 3, 0), nullptr,
+                         m_integer_dot_product_properties),
         };
 #undef VER_EXT_PROP
 
@@ -335,6 +339,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_KHR;
     m_features_subgroup_size_control.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES;
+    m_features_shader_integer_dot_product.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES;
     m_features_queue_global_priority.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
 
@@ -369,6 +375,8 @@ void cvk_device::init_features(VkInstance instance) {
             VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
                          VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
                          m_features_buffer_device_address),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 3, 0), nullptr,
+                         m_features_shader_integer_dot_product),
             VER_EXT_FEAT(0, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
                          m_features_queue_global_priority),
 
@@ -535,6 +543,10 @@ void cvk_device::init_compiler_options() {
         m_device_compiler_options += " -physical-storage-buffers ";
     }
 
+    if (supports_dot_product()) {
+        m_device_compiler_options += " -cl-arm-integer-dot-product ";
+    }
+
     // Builtin options
     auto parse_builtins = [](std::string s) {
         std::set<std::string> builtins;
@@ -675,6 +687,22 @@ void cvk_device::build_extension_ils_list() {
         m_has_subgroup_size_selection = true;
     }
 
+    if (supports_dot_product()) {
+        if (supports_int8()) {
+            m_extensions.push_back(MAKE_NAME_VERSION(
+                2, 0, 0, CL_KHR_INTEGER_DOT_PRODUCT_EXTENSION_NAME));
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_arm_integer_dot_product_int8"));
+            m_extensions.push_back(MAKE_NAME_VERSION(
+                1, 0, 0, "cl_arm_integer_dot_product_accumulate_int8"));
+            m_extensions.push_back(MAKE_NAME_VERSION(
+                1, 0, 0,
+                "cl_arm_integer_dot_product_accumulate_saturate_int8"));
+        }
+        m_extensions.push_back(MAKE_NAME_VERSION(
+            1, 0, 0, "cl_arm_integer_dot_product_accumulate_int16"));
+    }
+
     auto split_string = [](std::string input, char delimiter) {
         std::vector<std::string> outputs;
         size_t pos = 0;
@@ -697,11 +725,23 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(extension);
     }
 
+    auto config_extensions_masked =
+        split_string(config.device_extensions_masked(), ',');
+    for (auto& config_extension_masked : config_extensions_masked) {
+        for (auto it = m_extensions.begin(); it != m_extensions.end(); it++) {
+            if (strcmp(config_extension_masked.c_str(), it->name) == 0) {
+                m_extensions.erase(it);
+                break;
+            }
+        }
+    }
+
     // Build extension string
     for (auto& ext : m_extensions) {
         m_extension_string += ext.name;
         m_extension_string += " ";
     }
+    cvk_info_fn("extensions: '%s'", m_extension_string.c_str());
 
     // Build list of ILs
     m_ils = {
@@ -758,6 +798,14 @@ void cvk_device::build_extension_ils_list() {
         m_has_fp64_support = true;
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_fp64"));
+    }
+    if (supports_dot_product()) {
+        if (supports_int8()) {
+            m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+                3, 0, 0, "__opencl_c_integer_dot_product_input_4x8bit"));
+        }
+        m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+            3, 0, 0, "__opencl_c_integer_dot_product_input_4x8bit_packed"));
     }
 }
 
@@ -1186,6 +1234,12 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_float_controls_properties.shaderRoundingModeRTEFloat32 ||
                m_float_controls_properties.shaderRoundingModeRTEFloat16 ||
                m_float_controls_properties.shaderRoundingModeRTEFloat64;
+    case spv::CapabilityDotProduct:
+    case spv::CapabilityDotProductInput4x8BitPacked:
+        return supports_dot_product();
+    case spv::CapabilityDotProductInput4x8Bit:
+    case spv::CapabilityDotProductInputAll:
+        return supports_dot_product() && supports_int8();
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);

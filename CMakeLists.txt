@@ -91,7 +91,9 @@ if("Ninja" STREQUAL ${CMAKE_GENERATOR})
 endif()
 
 # OpenCL Headers
-include_directories(BEFORE ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers)
+set(OPENCL_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/OpenCL-Headers
+    CACHE STRING "OpenCL-Headers source directory")
+include_directories(BEFORE ${OPENCL_HEADERS_SOURCE_DIR})
 
 # SPIR-V Headers
 set(SPIRV_HEADERS_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/SPIRV-Headers CACHE STRING
@@ -106,7 +108,8 @@ set(SPIRV-Headers_SOURCE_DIR ${SPIRV_HEADERS_SOURCE_DIR})
 
 set(CLVK_BUILD_SPIRV_TOOLS ON CACHE BOOL "Set to OFF to disable SPIRV-Tools build")
 if (CLVK_BUILD_SPIRV_TOOLS)
-  add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR} EXCLUDE_FROM_ALL)
+  add_subdirectory(${SPIRV_TOOLS_SOURCE_DIR}
+                   ${PROJECT_BINARY_DIR}/external/SPIRV-Tools EXCLUDE_FROM_ALL)
 endif()
 
 # clspv
@@ -121,6 +124,7 @@ if (CLVK_COMPILER_AVAILABLE)
 endif()
 set(CLSPV_SOURCE_DIR ${PROJECT_SOURCE_DIR}/external/clspv
     CACHE STRING "Clspv source directory")
+set(CLSPV_BUILD_SPIRV_DIS OFF)
 add_subdirectory(${CLSPV_SOURCE_DIR} ${PROJECT_BINARY_DIR}/external/clspv
                  EXCLUDE_FROM_ALL)
 set_target_properties(clspv PROPERTIES RUNTIME_OUTPUT_DIRECTORY

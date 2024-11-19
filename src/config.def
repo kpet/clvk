@@ -31,6 +31,8 @@ OPTION(uint32_t, opencl_version, (uint32_t)CL_MAKE_VERSION(3, 0, 0))
 
 OPTION(bool, build_in_separate_thread, false)
 
+OPTION(bool, init_image_at_creation, false)
+
 #if COMPILER_AVAILABLE
 OPTION(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER
@@ -52,6 +54,7 @@ OPTION(uint32_t, max_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
 OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
 OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
+OPTION(bool, ignore_out_of_order_execution, false) // false meaning dont ignore
 
 // experimental
 OPTION(bool, dynamic_batches, false)
@@ -62,6 +65,7 @@ OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meani
 OPTION(bool, supports_filter_linear, true)
 
 OPTION(std::string, device_extensions, "")
+OPTION(std::string, device_extensions_masked, "")
 
 //
 // Logging

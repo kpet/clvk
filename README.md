@@ -369,6 +369,14 @@ using the name of the corresponding environment variable.
 
 * `CLVK_CONFIG_FILE` specifies the path to an additional configuration file.
 
+* `CLVK_IGNORE_OUT_OF_ORDER_EXECUTION` controls whether out-of-order queues can be
+  created. Out-of-order queues, when allowed, always behave as in-order queues. This can be
+  useful to enable applications that request out-of-order queues but don't use all their features
+  to run.
+
+   * 0: creating an out-of-order queue results in a failure (default)
+   * 1: creating an out-of-order queue is supported but it will function as an in-order queue
+
 * `CLVK_LOG` controls the level of logging
 
    * 0: only print fatal messages (default)
@@ -525,12 +533,21 @@ using the name of the corresponding environment variable.
   with caution.
 
 * `CLVK_DEVICE_EXTENSIONS` specifies extensions to be added to the list of
-  exposed extensions. It expects a whitespace separated list of extensions.
+  exposed extensions. It expects a comma separated list of extensions.
+
+* `CLVK_DEVICE_EXTENSIONS_MASKED` specifies extensions to be removed from the
+  list of exposed extensions. It expects a comma separated list of extensions.
 
 * `CLVK_BUILD_IN_SEPARATE_THREAD` force to build kernels in a separate thread
   (default: false). It brings a slight overhead when creating the thread, but
   can be a work-around when having issues with clang compiling in the
   application thread.
+
+* `CLVK_INIT_IMAGE_AT_CREATION` force to initialize OpenCL images created with
+  `CL_MEM_COPY_HOST_PTR` or `CL_MEM_USE_HOST_PTR` at creation time instead of
+  initializing them during first use of the image (default: false). It reduces
+  the memory footprint as clvk needs to keep a buffer with the data to
+  initialize at first use.
 
 # Limitations
 

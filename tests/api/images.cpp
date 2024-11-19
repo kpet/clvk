@@ -15,6 +15,7 @@
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
 #include "testcl.hpp"
+#include "utils.hpp"
 
 TEST_F(WithContext, CreateImageLegacy) {
     cl_image_format format = {CL_RGBA, CL_UNORM_INT8};
@@ -804,3 +805,51 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
     Finish();
     EXPECT_TRUE(destructor_called);
 }
+
+#ifdef CLVK_UNIT_TESTING_ENABLED
+
+TEST_F(WithCommandQueue, ImageInitAtCreation) {
+    auto cfg =
+        CLVK_CONFIG_SCOPED_OVERRIDE(init_image_at_creation, bool, true, true);
+
+    const size_t IMAGE_WIDTH = 16;
+    const cl_uchar init_value = 0xAB;
+    std::vector<cl_uchar> host_data(IMAGE_WIDTH, init_value);
+    std::vector<cl_uchar> read_data(IMAGE_WIDTH, 0);
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D, // image_type
+        IMAGE_WIDTH,           // image_width
+        1,                     // image_height
+        1,                     // image_depth
+        0,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+    auto image = CreateImage(CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, &format,
+                             &desc, host_data.data());
+
+    // Read the data back from the image.
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    EnqueueReadImage(image, CL_FALSE, origin, region, 0, 0, read_data.data());
+    Finish();
+
+    // Check that we got the values copied from the initial host pointer.
+    bool success = true;
+    for (int i = 0; i < IMAGE_WIDTH; ++i) {
+        auto val = read_data[i];
+        if (val != init_value) {
+            printf("Failed comparison at data[%d]: expected %d but got %d\n", i,
+                   init_value, val);
+            success = false;
+        }
+    }
+    EXPECT_TRUE(success);
+}
+
+#endif

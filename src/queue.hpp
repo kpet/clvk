@@ -174,6 +174,36 @@ struct cvk_command_queue : public _cl_command_queue,
         return m_command_pool.free_command_buffer(cmdbuf);
     }
 
+
+    cvk_buffer* get_or_create_printf_buffer() {
+        CVK_ASSERT(m_context != nullptr);
+        if (!m_printf_buffer) {
+            cl_int status;
+            m_printf_buffer = cvk_buffer::create(
+                context(), 0, m_context->get_printf_buffersize(), nullptr,
+                &status);
+            CVK_ASSERT(status == CL_SUCCESS);
+        }
+        return m_printf_buffer.get();
+    }
+
+    cvk_buffer* get_printf_buffer() {
+        if (!m_printf_buffer) {
+            return nullptr;
+        }
+        return m_printf_buffer.get();
+    }
+
+    cl_int reset_printf_buffer() {
+        if (m_printf_buffer && m_printf_buffer->map_write_only()) {
+            memset(m_printf_buffer->host_va(), 0, 4);
+            m_printf_buffer->unmap_to_write(0, 4);
+            return CL_SUCCESS;
+        }
+        cvk_error_fn("Could not reset printf buffer");
+        return CL_OUT_OF_RESOURCES;
+    }
+
     void command_pool_lock() { m_command_pool.lock(); }
 
     void command_pool_unlock() { m_command_pool.unlock(); }
@@ -208,6 +238,8 @@ struct cvk_command_queue : public _cl_command_queue,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
                                             _cl_event* const* event_list);
+
+    void detach_from_context();
 
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);

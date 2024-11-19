@@ -80,6 +80,8 @@ cvk_command_queue::~cvk_command_queue() {
     }
 }
 
+void cvk_command_queue::detach_from_context() { m_context.reset(nullptr); }
+
 cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
     if (cmd->is_data_movement()) {
         return CL_SUCCESS;
