@@ -378,11 +378,16 @@ cl_int CLVK_API_CALL clGetDeviceIDs(cl_platform_id platform,
     cl_uint num = 0;
 
     for (auto dev : icd_downcast(platform)->devices()) {
-        if (dev->type() & device_type) {
+        if ((dev->type() & device_type) ||
+            (device_type == CL_DEVICE_TYPE_DEFAULT && num == 0) ||
+            (device_type == CL_DEVICE_TYPE_ALL)) {
             if ((devices != nullptr) && (num < num_entries)) {
                 devices[num] = dev;
             }
             num++;
+            if (device_type == CL_DEVICE_TYPE_DEFAULT) {
+                break;
+            }
         }
     }
 
@@ -620,16 +625,20 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT:
-    case CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_INT:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT:
-    case CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF:
         val_uint = 1; // FIXME can we do better?
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE:
+    case CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE:
+        val_uint = 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
