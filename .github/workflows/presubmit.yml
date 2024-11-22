@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - libclc-android
   pull_request:
 
 jobs:
