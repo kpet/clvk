@@ -1,0 +1,117 @@
+name: Build Mesa
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      mesa-branch:
+        description: 'Branch of Mesa to use'
+        required: True
+        default: 24.3
+        type: string
+      llvm-branch:
+        description: 'Branch of LLVM to use'
+        required: True
+        default: release/19.x
+        type: string
+
+env:
+  mesa-branch: ${{ inputs.mesa-branch || '24.3' }}
+  llvm-branch: ${{ inputs.llvm-branch || 'release/19.x' }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+      - name: Setup Python environment
+        shell: bash
+        if: ${{ matrix.os != 'windows-2022' }}
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          python3 -m pip install meson packaging pyyaml mako
+      - name: Install required packages (Ubuntu)
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        run: |
+          sudo apt install -y libdrm-dev libxcb1-dev libxrandr-dev libxcb-randr0-dev \
+                              libx11-xcb-dev libxcb-dri3-dev libxcb-present-dev \
+                              libxcb-shm0-dev libxshmfence-dev
+      - name: Install required packages (Windows)
+        if: ${{ matrix.os == 'windows-2022' }}
+        run: |
+          pip install mako meson pyyaml
+          choco install winflexbison pkgconfiglite
+      - name: Setup Ninja
+        uses: ./.github/actions/setup-ninja
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          variant: sccache
+          key: ${{ matrix.os }}-mesa
+      - name: Fetch LLVM
+        run: |
+          git clone -b ${{ env.llvm-branch }} --depth 1 https://github.com/llvm/llvm-project.git llvm-project
+      - name: Build LLVM (Windows)
+        if: ${{ matrix.os == 'windows-2022' }}
+        run: |
+          cd llvm-project/llvm
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="AArch64;X86"
+          ninja
+          ninja install
+      - name: Build LLVM (non-Windows)
+        if: ${{ matrix.os != 'windows-2022' }}
+        run: |
+          cd llvm-project/llvm
+          mkdir build
+          cd build
+          cmake .. -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DCMAKE_BUILD_TYPE=Release -DLLVM_TARGETS_TO_BUILD="AArch64;X86" -DBUILD_SHARED_LIBS=ON
+          ninja
+          sudo $(which ninja) install
+      - name: Fetch Mesa
+        run: |
+          git clone -b ${{ env.mesa-branch }} --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git mesa
+      - name: Compose configuration options
+        shell: bash
+        run: |
+            if [ "$RUNNER_OS" == "Windows" ]; then
+              echo "platforms=windows" >> $GITHUB_ENV
+            elif [ "$RUNNER_OS" == "macOS" ]; then
+              echo "platforms=macos" >> $GITHUB_ENV
+            else
+              echo "platforms=x11" >> $GITHUB_ENV
+            fi
+      - name: Configure
+        if: ${{ matrix.os != 'windows-2022' }}
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            source venv/bin/activate
+          fi
+          pip list
+          cd mesa
+          meson setup -Dcpp_rtti=false -Dvulkan-drivers=swrast -Dintel-clc=system -Dopengl=false -Dgles1=false -Dgles2=false -Dgallium-drivers=llvmpipe -Dplatforms=${{ env.platforms }} build
+      # FIXME separate configure step necessary because using bash selects GNU link.exe
+      - name: Configure (Windows)
+        if: ${{ matrix.os == 'windows-2022' }}
+        # FIXME d3d12 gallium driver enabled to pull DirectX-Headers as dep. Mesa should do it on a Windows platform when building a Vulkan driver.
+        run: |
+          pip list
+          cd mesa
+          meson setup -Dvulkan-drivers=swrast -Dintel-clc=system -Dopengl=false -Dgles1=false -Dgles2=false -Dgallium-drivers='llvmpipe,d3d12' -Dplatforms=${{ env.platforms }} build
+      - name: Build
+        run: |
+          ninja -C mesa/build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mesa-${{ runner.os }}
+          path: ${{ github.workspace }}/mesa/build/src/gallium/targets/lavapipe
