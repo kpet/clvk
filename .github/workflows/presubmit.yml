@@ -74,6 +74,7 @@ jobs:
           sudo rm -rf /usr/local/share/powershell
           sudo rm -rf /usr/local/share/chromium
           sudo rm -rf /usr/local/lib/node_modules
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
           df -h
       - name: Setup Ninja
         uses: ./.github/actions/setup-ninja
@@ -151,6 +152,16 @@ jobs:
       - name: Build clang
         run: cmake --build '${{ env.builddir }}' --config Release --target clang -j2
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+      # Our build is complete, we can now delete all the static libraries and
+      # intermediate objects to free up space.
+      - name: Free space on the runner
+        shell: bash
+        run: |
+          set -x
+          df -h
+          find '${{ env.builddir }}' -name "*.a" -delete
+          find '${{ env.builddir }}' -name "*.o" -delete
+          df -h
       - name: Install
         run: cmake --install '${{ env.builddir }}'
       - uses: actions/upload-artifact@v4
