@@ -1,6 +1,5 @@
 name: Build Mesa
 on:
-  push:
   workflow_dispatch:
     inputs:
       mesa-branch:
