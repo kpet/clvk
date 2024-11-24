@@ -110,7 +110,18 @@ jobs:
       - name: Build
         run: |
           ninja -C mesa/build
+      - name: Prepare artifact
+        shell: bash
+        run: |
+          mkdir mesa-artifact
+          cd mesa-artifact
+          cp -rvf '${{ github.workspace }}'/mesa/build/src/gallium/targets/lavapipe/* .
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            cp -vf /usr/local/lib/libLLVM* .
+          else
+            cp -vf 'C:/Program Files (x86)/LLVM/bin/LLVM-C.dll' .
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: mesa-${{ runner.os }}
-          path: ${{ github.workspace }}/mesa/build/src/gallium/targets/lavapipe
+          path: ${{ github.workspace }}/mesa-artifact
