@@ -206,8 +206,13 @@ jobs:
           if [ "$RUNNER_OS" == "Windows" ]; then
             echo "exe-ext=.exe" >> $GITHUB_ENV
           else
-            echo "LD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
             echo "exe-ext=" >> $GITHUB_ENV
+          fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo "LD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
+          fi
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            echo "DYLD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
             find '${{ env.builddir }}' -name clang.exe
