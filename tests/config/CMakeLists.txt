@@ -15,16 +15,3 @@
 add_gtest_executable(config_test
     main.cpp
 )
-
-# Use the configure_file command to copy during configuration stage
-configure_file(
-    clvk.conf
-    ${CMAKE_BINARY_DIR}/clvk.conf  # Destination, including subfolder
-    COPYONLY  # Just copy, don't process as a template
-)
-
-configure_file(
-    conf_test.conf
-    ${CMAKE_BINARY_DIR}/conf_test.conf
-    COPYONLY
-)
