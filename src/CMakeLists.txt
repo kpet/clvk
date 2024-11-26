@@ -146,6 +146,9 @@ if (CLVK_COMPILER_AVAILABLE)
   set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-link)
 endif()
 
+if (ANDROID)
+  set(OpenCL-dependencies ${OpenCL-dependencies} log)
+endif()
 
 
 # The reflection parser requires the headers.
