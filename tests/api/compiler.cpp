@@ -479,3 +479,22 @@ TEST_F(WithContext, SetUnusedSamplerArgWithInvalidObject) {
     cl_int err = clSetKernelArg(kernel, 0, sizeof(cl_sampler), &kern);
     ASSERT_EQ(err, CL_INVALID_SAMPLER);
 }
+
+#if CLVK_UNIT_TESTING_ENABLED
+TEST_F(WithContext, UnsupportedCapabilities) {
+    static const char* source = R"(
+      kernel void foo() {}
+    )";
+
+    auto cfg = CLVK_CONFIG_SCOPED_OVERRIDE(force_check_capabilities_error, bool,
+                                           true, true);
+    auto program = CreateProgram(source);
+    cl_int err =
+        clBuildProgram(program, 1, &gDevice, nullptr, nullptr, nullptr);
+    ASSERT_EQ(err, CL_BUILD_PROGRAM_FAILURE);
+    auto build_log = GetProgramBuildLog(program);
+
+    ASSERT_TRUE(build_log.find("Device does not support SPIR-V capability") !=
+                std::string::npos);
+}
+#endif

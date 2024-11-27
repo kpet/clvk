@@ -1492,7 +1492,7 @@ void cvk_program::prepare_push_constant_range() {
                              max_offset + max_offset_size};
 }
 
-bool cvk_program::check_capabilities(const cvk_device* device) const {
+bool cvk_program::check_capabilities(const cvk_device* device) {
     // Get list of required SPIR-V capabilities.
     std::vector<spv::Capability> capabilities;
     if (!m_binary.get_capabilities(capabilities)) {
@@ -1504,10 +1504,21 @@ bool cvk_program::check_capabilities(const cvk_device* device) const {
     for (auto c : capabilities) {
         cvk_info_fn("Program requires SPIR-V capability %d (%s).", c,
                     spirv_capability_to_string(c));
-        if (!device->supports_capability(c)) {
-            // TODO: propagate this message to the build log
-            cvk_error_fn("Device does not support SPIR-V capability %d (%s).",
-                         c, spirv_capability_to_string(c));
+        if (!device->supports_capability(c)
+#ifdef CLVK_UNIT_TESTING_ENABLED
+            || config.force_check_capabilities_error()
+#endif
+        ) {
+            const uint32_t max_message_size = 256;
+            std::string error_message;
+            error_message.resize(max_message_size);
+            if (snprintf(error_message.data(), max_message_size,
+                         "Device does not support SPIR-V capability %d (%s).",
+                         c, spirv_capability_to_string(c)) <= 0) {
+                return false;
+            }
+            cvk_error_fn("%s", error_message.data());
+            m_build_log += error_message;
             return false;
         }
     }
