@@ -305,7 +305,7 @@ jobs:
           CLVK_LOG_DEST: file:validation.log
           CLVK_VALIDATION_LAYERS: 1
           VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
-          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}
+          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}:${{ env.LD_LIBRARY_PATH }}
       - name: Perfetto test
         if: ${{ matrix.perfetto }}
         run: |
