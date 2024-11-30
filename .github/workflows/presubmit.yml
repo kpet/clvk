@@ -74,6 +74,7 @@ jobs:
           sudo rm -rf /usr/local/share/powershell
           sudo rm -rf /usr/local/share/chromium
           sudo rm -rf /usr/local/lib/node_modules
+          dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
           df -h
       - name: Setup Ninja
         uses: ./.github/actions/setup-ninja
@@ -109,29 +110,10 @@ jobs:
         with:
           version: 1.3.250.1
           rt-dir: ${{ github.workspace }}/vulkanrt
-      - name: Build libclc
-        if: ${{ matrix.android-abi != '' }}
-        env:
-          LLVM_NATIVE_DIR: ${{ github.workspace }}/build_llvm_native/
-          LLVM_ARCHIVE_PREFIX: LLVM-19.1.0-rc2-Linux-X64
-          LIBCLC_DIR: ${{ github.workspace }}/build_libclc
-        run: |
-          set -x
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.0-rc2/${LLVM_ARCHIVE_PREFIX}.tar.xz
-          mkdir -p ${LLVM_NATIVE_DIR}
-          tar -xf ${LLVM_ARCHIVE_PREFIX}.tar.xz -C ${LLVM_NATIVE_DIR}
-          cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/libclc' -B ${LIBCLC_DIR} -G Ninja \
-            -DLLVM_CMAKE_DIR=${LLVM_NATIVE_DIR}/${LLVM_ARCHIVE_PREFIX}/lib/cmake \
-            -DCMAKE_CXX_COMPILER=${LLVM_NATIVE_DIR}/${LLVM_ARCHIVE_PREFIX}/bin/clang++ \
-            -DCMAKE_CXX_FLAGS="-fuse-ld=lld" \
-            -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
-          cmake --build ${LIBCLC_DIR}
-          ls -l ${LIBCLC_DIR}
-          rm -rf ${LLVM_NATIVE_DIR} ${LLVM_ARCHIVE_PREFIX}.tar.xz
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33/libvulkan.so -DCLSPV_EXTERNAL_LIBCLC_DIR=${{ github.workspace }}/build_libclc" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33/libvulkan.so" >> $GITHUB_ENV
       - name: Build Perfetto
         if: ${{ matrix.perfetto }}
         shell: bash
@@ -170,6 +152,16 @@ jobs:
       - name: Build clang
         run: cmake --build '${{ env.builddir }}' --config Release --target clang -j2
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
+      # Our build is complete, we can now delete all the static libraries and
+      # intermediate objects to free up space.
+      - name: Free space on the runner
+        shell: bash
+        run: |
+          set -x
+          df -h
+          find '${{ env.builddir }}' -name "*.a" -delete
+          find '${{ env.builddir }}' -name "*.o" -delete
+          df -h
       - name: Install
         run: cmake --install '${{ env.builddir }}'
       - uses: actions/upload-artifact@v4

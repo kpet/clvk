@@ -142,9 +142,10 @@ the build system:
 * `CLVK_ENABLE_UBSAN` can be used to enable
    [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html).
 
-## Cross-compiling
+## Building libclc manually
 
-When cross-compiling clvk, libclc binaries need to be compiled separately:
+When compiling clvk on small machine (such as Raspberry pi) building libclc
+manually can help. Here are the few steps to do it:
 
 1. Build a host native clang compiler using the source pointed by clspv in `<clvk>/external/clspv/third_party/llvm`:
 ```
@@ -158,7 +159,7 @@ cmake --build <clang_host> --target install
 2. Build libclc using that compiler:
 ```
 cmake -B <libclc> -S <clvk>/external/clspv/third_party/llvm/libclc \
-  -DLLVM_CMAKE_DIR="<clang_host>/install/lib/cmake" \
+  -DLLVM_CMAKE_DIR="<clang_host>/lib/cmake" \
   -DLIBCLC_DIR_TARGETS_TO_BUILD="clspv--;clspv64--"
 cmake --build <libclc>
 ```
