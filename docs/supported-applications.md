@@ -37,7 +37,7 @@
 | [Geekbench 5](https://www.geekbench.com/) | Partial support |
 | [Libreoffice](https://www.libreoffice.org/) | Untested |
 | [hashcat](https://github.com/hashcat/hashcat) | :x: Kernel build fails |
-| [DaVinci Resolve](https://www.blackmagicdesign.com/uk/products/davinciresolve) | Untested |
+| [DaVinci Resolve](https://www.blackmagicdesign.com/uk/products/davinciresolve) | Not supported |
 | [TFLite](https://github.com/tensorflow/tensorflow.git) | :heavy_check_mark: Supported |
 
 If you've tested an application or want an application to be tested,
