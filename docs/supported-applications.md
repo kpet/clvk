@@ -39,6 +39,7 @@
 | [hashcat](https://github.com/hashcat/hashcat) | :x: Kernel build fails |
 | [DaVinci Resolve](https://www.blackmagicdesign.com/uk/products/davinciresolve) | Not supported |
 | [TFLite](https://github.com/tensorflow/tensorflow.git) | :heavy_check_mark: Supported |
+| [OpenCL-Benchmark](https://github.com/ProjectPhysX/OpenCL-Benchmark) | :heavy_check_mark: Supported |
 
 If you've tested an application or want an application to be tested,
 please send a PR and add it to this file :).
