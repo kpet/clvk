@@ -218,7 +218,7 @@ jobs:
       - name: Config tests
         shell: bash
         if: ${{ matrix.unit }}
-        run: ./tests/config/run_test.sh ${{ env.testbindir }}
+        run: ./tests/config/run_test.sh '${{ env.testbindir }}' '${{ github.workspace }}'/tests/config
       - name: SHA-1 tests
         if: ${{ matrix.android-abi == '' }}
         run: ${{ env.testbindir }}/sha1_tests${{ env.exe-ext }}
