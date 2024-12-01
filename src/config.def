@@ -99,5 +99,6 @@ OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 //
 #if CLVK_UNIT_TESTING_ENABLED
 OPTION(bool, force_descriptor_set_allocation_failure, false)
+OPTION(bool, force_check_capabilities_error, false)
 OPTION(bool, early_flush_enabled, true)
 #endif

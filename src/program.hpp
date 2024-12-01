@@ -878,7 +878,7 @@ private:
 
     /// Check if all of the capabilities required by the SPIR-V module are
     /// supported by `device`.
-    CHECK_RETURN bool check_capabilities(const cvk_device* device) const;
+    CHECK_RETURN bool check_capabilities(const cvk_device* device);
 
     uint32_t m_num_devices;
     cl_uint m_num_input_programs;
