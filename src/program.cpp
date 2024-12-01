@@ -1509,16 +1509,11 @@ bool cvk_program::check_capabilities(const cvk_device* device) {
             || config.force_check_capabilities_error()
 #endif
         ) {
-            const uint32_t max_message_size = 256;
-            std::string error_message;
-            error_message.resize(max_message_size);
-            if (snprintf(error_message.data(), max_message_size,
-                         "Device does not support SPIR-V capability %d (%s).",
-                         c, spirv_capability_to_string(c)) <= 0) {
-                return false;
-            }
-            cvk_error_fn("%s", error_message.data());
-            m_build_log += error_message;
+            std::stringstream error_message;
+            error_message << "Device does not support SPIR-V capability "
+                          << c << " (" << spirv_capability_to_string(c) << ").";
+            cvk_error_fn("%s", error_message.str().c_str());
+            m_build_log += error_message.str();
             return false;
         }
     }
