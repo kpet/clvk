@@ -1106,6 +1106,12 @@ void cvk_device::log_limits_and_memory_information() {
              limits.maxComputeWorkGroupSize[0],
              limits.maxComputeWorkGroupSize[1],
              limits.maxComputeWorkGroupSize[2]);
+    cvk_info("    Min subgroup size: %u",
+             m_subgroup_size_control_properties.minSubgroupSize);
+    cvk_info("    Max subgroup size: %u",
+             m_subgroup_size_control_properties.maxSubgroupSize);
+    cvk_info("    Max subgroups per work-group: %u",
+             m_subgroup_size_control_properties.maxComputeWorkgroupSubgroups);
 
     // Print memoy information
     cvk_info("Device has %u memory types:", m_mem_properties.memoryTypeCount);
