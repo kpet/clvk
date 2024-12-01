@@ -1510,8 +1510,8 @@ bool cvk_program::check_capabilities(const cvk_device* device) {
 #endif
         ) {
             std::stringstream error_message;
-            error_message << "Device does not support SPIR-V capability "
-                          << c << " (" << spirv_capability_to_string(c) << ").";
+            error_message << "Device does not support SPIR-V capability " << c
+                          << " (" << spirv_capability_to_string(c) << ").";
             cvk_error_fn("%s", error_message.str().c_str());
             m_build_log += error_message.str();
             return false;
