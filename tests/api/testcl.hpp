@@ -775,7 +775,36 @@ protected:
                                    param_value, param_value_size_ret);
         ASSERT_CL_SUCCESS(err);
     }
+
+    bool HasExtension(const std::string& name) {
+        std::vector<cl_name_version> exts;
+        size_t num_extensions;
+        GetDeviceInfo(CL_DEVICE_EXTENSIONS_WITH_VERSION, 0, nullptr,
+                      &num_extensions);
+
+        exts.resize(num_extensions);
+
+        GetDeviceInfo(CL_DEVICE_EXTENSIONS_WITH_VERSION,
+                      num_extensions * sizeof(cl_name_version), exts.data(),
+                      nullptr);
+
+        for (auto const& ext : exts) {
+            if (ext.name == name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 };
+
+#define REQUIRE_EXTENSION(name)                                                \
+    do {                                                                       \
+        if (!HasExtension(name)) {                                             \
+            GTEST_SKIP() << "Device does not support " << name                 \
+                         << " extension";                                      \
+        }                                                                      \
+    } while (0);
 
 class WithProfiledCommandQueue : public WithCommandQueue {
 protected:
