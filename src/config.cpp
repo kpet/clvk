@@ -128,6 +128,10 @@ void parse_config_file() {
 
     std::vector<std::string> config_file_paths;
     config_file_paths.push_back("/etc/clvk.conf");
+#ifdef __ANDROID__
+    config_file_paths.push_back("/system/etc/clvk.conf");
+    config_file_paths.push_back("/vendor/etc/clvk.conf");
+#endif
     config_file_paths.push_back("/usr/local/etc/clvk.conf");
     config_file_paths.push_back("~/.config/clvk.conf");
     config_file_paths.push_back(
