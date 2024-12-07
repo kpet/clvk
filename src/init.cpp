@@ -242,6 +242,9 @@ clvk_global_state::clvk_global_state() {
     init_config_from_env_only();
     init_logging();
     init_config();
+    // Re-init logging after init_config to take configuration values into
+    // account.
+    init_logging();
     cvk_info("Starting initialisation");
     init_tracing();
     init_vulkan();
