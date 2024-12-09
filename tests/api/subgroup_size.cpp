@@ -25,6 +25,7 @@ static const char* program_source = R"(
 )";
 
 TEST_F(WithCommandQueue, SubgroupSizes) {
+    REQUIRE_EXTENSION("cl_intel_required_subgroup_size");
     std::vector<size_t> subgroup_sizes;
     size_t raw_size;
     GetDeviceInfo(CL_DEVICE_SUB_GROUP_SIZES_INTEL, 0, nullptr, &raw_size);
@@ -32,15 +33,15 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
     GetDeviceInfo(CL_DEVICE_SUB_GROUP_SIZES_INTEL, raw_size,
                   subgroup_sizes.data(), nullptr);
 
-    size_t max_work_group_size;
-    GetDeviceInfo(CL_DEVICE_MAX_WORK_GROUP_SIZE, sizeof(size_t),
-                  &max_work_group_size, nullptr);
+    size_t max_num_sub_groups;
+    GetDeviceInfo(CL_DEVICE_MAX_NUM_SUB_GROUPS, sizeof(size_t),
+                  &max_num_sub_groups, nullptr);
 
     auto buffer = CreateBuffer(0, sizeof(cl_int));
 
-    auto run = [this](const char* kernel_prefix, size_t subgroup_size,
-                      size_t max_work_group_size, cl_mem buffer) {
-        cl_int expected_num_sub_groups = max_work_group_size / subgroup_size;
+    auto run = [this, max_num_sub_groups](const char* kernel_prefix,
+                                          size_t subgroup_size, cl_mem buffer) {
+        cl_int expected_num_sub_groups = max_num_sub_groups;
         size_t work_size = expected_num_sub_groups * subgroup_size;
         char source[512];
         snprintf(source, sizeof(source), program_source, kernel_prefix);
@@ -51,9 +52,10 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
         auto result =
             EnqueueMapBuffer<cl_int>(buffer, true, 0, 0, sizeof(cl_int));
 #if 0
-        printf("\tkernel_prefix '%s' subgroup_size %lu max_work_group_size %lu "
+        printf("\tkernel_prefix '%s' subgroup_size %lu "
+               "max_num_sub_groups %lu "
                "result %u expected %u\n",
-               kernel_prefix, subgroup_size, max_work_group_size, *result,
+               kernel_prefix, subgroup_size, max_num_sub_groups, *result,
                expected_num_sub_groups);
 #endif
         ASSERT_EQ(expected_num_sub_groups, *result);
@@ -65,12 +67,12 @@ TEST_F(WithCommandQueue, SubgroupSizes) {
         snprintf(attribute, sizeof(attribute),
                  "__attribute__((intel_reqd_sub_group_size(%lu))) ",
                  subgroup_size);
-        run(attribute, subgroup_size, max_work_group_size, buffer);
+        run(attribute, subgroup_size, buffer);
     }
     for (auto subgroup_size : subgroup_sizes) {
         auto cfg = CLVK_CONFIG_SCOPED_OVERRIDE(force_subgroup_size, uint32_t,
                                                subgroup_size, true);
-        run("", subgroup_size, max_work_group_size, buffer);
+        run("", subgroup_size, buffer);
     }
 }
 #endif

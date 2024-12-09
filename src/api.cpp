@@ -942,9 +942,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
             }
             copy_ptr = val_subgroup_sizes.data();
             size_ret = sizeof(size_t) * val_subgroup_sizes.size();
-            break;
+        } else {
+            ret = CL_INVALID_VALUE;
         }
-        [[fallthrough]];
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;

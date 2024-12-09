@@ -356,6 +356,10 @@ struct cvk_device : public _cl_device_id,
         if (!supports_subgroups()) {
             return 0;
         }
+        if (supports_subgroup_size_selection()) {
+            return m_subgroup_size_control_properties
+                .maxComputeWorkgroupSubgroups;
+        }
         return ceil_div(max_work_group_size(),
                         static_cast<size_t>(sub_group_size()));
     }
