@@ -233,6 +233,7 @@ jobs:
           fi
           if [ "$RUNNER_OS" == "macOS" ]; then
             echo "DYLD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
+            echo "DYLD_PRINT_LIBRARIES=1" >> $GITHUB_ENV
           fi
           if [ "$RUNNER_OS" == "Windows" ]; then
             find '${{ env.builddir }}' -name clang.exe
