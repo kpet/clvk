@@ -116,8 +116,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     }
 
     size_t max_num_sub_groups(const cvk_device* device) const {
-        return ceil_div(max_work_group_size(device),
-                        static_cast<size_t>(device->sub_group_size()));
+        return device->max_num_sub_groups();
     }
 
     const std::array<uint32_t, 3>& required_work_group_size() const {
