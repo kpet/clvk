@@ -212,6 +212,11 @@ OPTION(uint32_t, perfetto_trace_max_size, 1024u)
 OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS
 
+// Do not free descriptor set before the kernel is completely released. When it
+// is not possible to allocate new ones, reuse ones that have been released from
+// the application point of view.
+PROPERTY(bool, reuse_descriptor_set, false)
+
 
 ////////////////////////////////////////////////////////////
 // LOGGING & VALIDATION ////////////////////////////////////
