@@ -64,19 +64,36 @@ struct cvk_vulkan_queue_wrapper {
         return ret;
     }
 
-    CHECK_RETURN VkResult submit(const std::vector<VkCommandBuffer>& cmdbufs) {
+    CHECK_RETURN VkResult submit(VkCommandBuffer command_buffer,
+                                 VkSemaphore signal_semaphore,
+                                 uint64_t signal_value,
+                                 std::vector<VkSemaphore>& wait_semaphores,
+                                 std::vector<uint64_t>& wait_values) {
         std::lock_guard<std::mutex> lock(m_lock);
+
+        std::vector<VkPipelineStageFlags> wait_stage_masks;
+        for (auto unused : wait_semaphores) {
+            UNUSED(unused);
+            wait_stage_masks.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        }
+        VkTimelineSemaphoreSubmitInfo timelineInfo;
+        timelineInfo.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timelineInfo.pNext = NULL;
+        timelineInfo.waitSemaphoreValueCount = (uint32_t)wait_values.size();
+        timelineInfo.pWaitSemaphoreValues = wait_values.data();
+        timelineInfo.signalSemaphoreValueCount = 1;
+        timelineInfo.pSignalSemaphoreValues = &signal_value;
 
         VkSubmitInfo submitInfo = {
             VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            nullptr,
-            0,                                     // waitSemaphoreCOunt
-            nullptr,                               // pWaitSemaphores
-            nullptr,                               // pWaitDstStageMask
-            static_cast<uint32_t>(cmdbufs.size()), // commandBufferCount
-            cmdbufs.data(),
-            0,       // signalSemaphoreCount
-            nullptr, // pSignalSemaphores
+            &timelineInfo,
+            (uint32_t)wait_semaphores.size(), // waitSemaphoreCOunt
+            wait_semaphores.data(),           // pWaitSemaphores
+            wait_stage_masks.data(),          // pWaitDstStageMask
+            1,                                // commandBufferCount
+            &command_buffer,
+            1,                 // signalSemaphoreCount
+            &signal_semaphore, // pSignalSemaphores
         };
 
         TRACE_BEGIN("vkQueueSubmit");
@@ -86,6 +103,8 @@ struct cvk_vulkan_queue_wrapper {
             cvk_error_fn("could not submit work to queue: %s",
                          vulkan_error_string(ret));
         }
+
+        m_num_submissions++;
 
         return ret;
     }
