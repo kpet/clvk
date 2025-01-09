@@ -69,6 +69,8 @@ OPTION(bool, supports_filter_linear, true)
 OPTION(std::string, device_extensions, "")
 OPTION(std::string, device_extensions_masked, "")
 
+OPTION(bool, reuse_descriptor_set, false)
+
 //
 // Logging
 //

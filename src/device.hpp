@@ -699,6 +699,10 @@ struct cvk_device : public _cl_device_id,
                0;
     }
 
+    bool reuse_descriptor_set() const {
+        return m_clvk_properties->reuse_descriptor_set();
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
