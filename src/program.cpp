@@ -2269,6 +2269,16 @@ bool cvk_entry_point::allocate_descriptor_sets(VkDescriptorSet* ds) {
 
     std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
 
+    if (m_device->reuse_descriptor_set() && !m_descriptor_sets_array.empty()) {
+        cvk_descriptor_set_array descriptor_sets =
+            m_descriptor_sets_array.back();
+        m_descriptor_sets_array.pop_back();
+        for (unsigned i = 0; i < descriptor_sets.size(); i++) {
+            ds[i] = descriptor_sets[i];
+        }
+        return true;
+    }
+
 #if CLVK_UNIT_TESTING_ENABLED
     if (config.force_descriptor_set_allocation_failure() &&
         m_nb_descriptor_set_allocated + m_descriptor_set_layouts.size() >
