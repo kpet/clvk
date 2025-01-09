@@ -18,6 +18,7 @@
 #include "context.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
+#include "semaphore.hpp"
 #include "tracing.hpp"
 #include "utils.hpp"
 
@@ -35,12 +36,68 @@ struct cvk_event_callback {
     void* data;
 };
 
+struct cvk_condition_variable {
+    virtual ~cvk_condition_variable() {}
+
+    virtual void notify() = 0;
+    CHECK_RETURN virtual bool wait(std::unique_lock<std::mutex>&) = 0;
+
+    virtual cvk_semaphore* get_semaphore() {
+        CVK_ASSERT(false && "Should never be called");
+        return NULL;
+    }
+    virtual uint64_t get_value() {
+        CVK_ASSERT(false && "Should never be called");
+        return 0;
+    }
+
+    // By default, completion is managed by the user. Only timeline semaphore
+    // can have unnotified completion requiring an additionnal manual check.
+    CHECK_RETURN virtual bool is_complete() { return false; }
+};
+
+struct cvk_semaphore_condition_variable final : public cvk_condition_variable {
+    cvk_semaphore_condition_variable(cvk_semaphore* sem, uint64_t value)
+        : m_sem(sem), m_value(value) {
+        sem->retain();
+    }
+    ~cvk_semaphore_condition_variable() { m_sem->release(); }
+
+    void notify() override final { m_sem->notify(m_value); }
+    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock) override final {
+        lock.unlock();
+        bool ret = m_sem->wait(m_value);
+        lock.lock();
+        return ret;
+    }
+
+    bool is_complete() override final { return m_sem->poll_once(m_value); }
+
+    cvk_semaphore* get_semaphore() override final { return m_sem; }
+    uint64_t get_value() override final { return m_value; }
+
+private:
+    cvk_semaphore* m_sem;
+    uint64_t m_value;
+};
+
+struct cvk_std_condition_variable final : public cvk_condition_variable {
+    void notify() override final { m_cv.notify_all(); }
+    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock) override final {
+        m_cv.wait(lock);
+        return true;
+    }
+
+private:
+    std::condition_variable m_cv;
+};
+
 struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
     cvk_event(cvk_context* ctx, cvk_command_queue* queue)
         : api_object(ctx), m_command_type(0), m_queue(queue) {}
 
-    virtual cl_int get_status() const = 0;
+    virtual cl_int get_status() = 0;
 
     bool completed() { return get_status() == CL_COMPLETE; }
 
@@ -65,6 +122,15 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
 
     virtual uint64_t get_profiling_info(cl_profiling_info pinfo) const = 0;
 
+    virtual cvk_semaphore* get_semaphore() {
+        CVK_ASSERT(false && "Should never be called");
+        return nullptr;
+    }
+    virtual uint64_t get_value() {
+        CVK_ASSERT(false && "Should never be called");
+        return 0;
+    }
+
 protected:
     cl_command_type m_command_type;
     cvk_command_queue* m_queue;
@@ -75,34 +141,54 @@ struct cvk_event_command : public cvk_event {
     cvk_event_command(cvk_context* ctx, cvk_command* cmd,
                       cvk_command_queue* queue);
 
-    void set_status(cl_int status) override final;
+    void set_status(cl_int status) override final {
+        std::unique_lock<std::mutex> lock(m_lock);
+        set_status_no_lock(status, lock);
+    }
 
     void register_callback(cl_int callback_type,
                            cvk_event_callback_pointer_type ptr,
                            void* user_data) override final {
-        std::lock_guard<std::mutex> lock(m_lock);
+        std::unique_lock<std::mutex> lock(m_lock);
 
         cvk_event_callback cb = {ptr, user_data};
 
         if (m_status <= callback_type) {
-            execute_callback(cb);
+            execute_callback(cb, lock);
         } else {
             m_callbacks[callback_type].push_back(cb);
         }
     }
 
-    cl_int get_status() const override final { return m_status; }
+    void check_completion() {
+        std::unique_lock<std::mutex> lock(m_lock);
+        if (m_cv->is_complete()) {
+            set_status_no_lock(CL_COMPLETE, lock);
+        }
+    }
+
+    cl_int get_status() override final {
+        check_completion();
+        return m_status;
+    }
 
     cl_int wait() override final {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug_group(loggroup::event,
                         "cvk_event::wait: event = %p, status = %d", this,
                         m_status);
-        if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
+        if (m_status > 0) {
             TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
                               "command", (uintptr_t)m_cmd);
-            m_cv.wait(lock);
+            auto ret = m_cv->wait(lock);
             TRACE_END();
+            if (!ret) {
+                m_status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
+            }
+            // This is needed in case of timeline semaphore which mark the
+            // event as completed but have not update anything (not the
+            // status nor the profiling information)
+            set_status_no_lock(CL_COMPLETE, lock);
         }
 
         return m_status;
@@ -132,13 +218,22 @@ struct cvk_event_command : public cvk_event {
         set_profiling_info(pinfo, sample_clock());
     }
 
+    cvk_semaphore* get_semaphore() override final {
+        return m_cv->get_semaphore();
+    }
+    uint64_t get_value() override final { return m_cv->get_value(); }
+
 private:
-    void execute_callback(cvk_event_callback cb) {
+    void set_status_no_lock(cl_int status, std::unique_lock<std::mutex>& lock);
+    void execute_callback(cvk_event_callback cb,
+                          std::unique_lock<std::mutex>& lock) {
+        lock.unlock();
         cb.pointer(this, m_status, cb.data);
+        lock.lock();
     }
 
     std::mutex m_lock;
-    std::condition_variable m_cv;
+    std::unique_ptr<cvk_condition_variable> m_cv;
     cl_int m_status;
     cl_ulong m_profiling_data[4]{};
     cvk_command* m_cmd;
@@ -172,7 +267,7 @@ struct cvk_event_combine : public cvk_event {
         }
     }
 
-    cl_int get_status() const override final {
+    cl_int get_status() override final {
         auto start_status = m_start_event->get_status();
         auto end_status = m_end_event->get_status();
         if (start_status < 0) {
