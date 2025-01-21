@@ -31,6 +31,10 @@
 #include <io.h>
 #endif
 
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
+
 #define CASE(X)                                                                \
     case X:                                                                    \
         return #X;
@@ -153,20 +157,32 @@ bool cvk_log_group_enabled(uint64_t group_mask) {
     return gLoggingGroupMask & group_mask;
 }
 
+#ifdef __ANDROID__
+
+void cvk_log_android(loglevel level, const char* fmt, va_list& args) {
+    static int loglevel_to_android[] = {
+        [loglevel::fatal] = android_LogPriority::ANDROID_LOG_FATAL,
+        [loglevel::error] = android_LogPriority::ANDROID_LOG_ERROR,
+        [loglevel::warn] = android_LogPriority::ANDROID_LOG_WARN,
+        [loglevel::info] = android_LogPriority::ANDROID_LOG_INFO,
+        [loglevel::debug] = android_LogPriority::ANDROID_LOG_DEBUG,
+    };
+    int prio;
+    if (level < 0 || level >= ARRAY_SIZE(loglevel_to_android)) {
+        prio = android_LogPriority::ANDROID_LOG_VERBOSE;
+    } else {
+        prio = loglevel_to_android[level];
+    }
+    __android_log_vprint(prio, "CLVK", fmt, args);
+}
+
+#endif
+
 static const char colourRed[] = "\e[0;31m";
 static const char colourYellow[] = "\e[0;33m";
 static const char colourReset[] = "\e[0m";
 
-void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
-
-    if (!cvk_log_level_enabled(level)) {
-        return;
-    }
-
-    if (!cvk_log_group_enabled(group_mask)) {
-        return;
-    }
-
+void cvk_log_default(loglevel level, const char* fmt, va_list& args) {
     const char* colourCode = nullptr;
 
     if (gLoggingColour) {
@@ -191,10 +207,7 @@ void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
 
     fprintf(gLoggingFile, "[CLVK] ");
 
-    va_list args;
-    va_start(args, fmt);
     vfprintf(gLoggingFile, fmt, args);
-    va_end(args);
 
     if ((gLoggingColour) && (colourCode != nullptr)) {
         fprintf(gLoggingFile, "%s", colourReset);
@@ -204,6 +217,30 @@ void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
     if (level <= loglevel::error) {
         fflush(gLoggingFile);
     }
+}
+
+void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
+
+    if (!cvk_log_level_enabled(level)) {
+        return;
+    }
+
+    if (!cvk_log_group_enabled(group_mask)) {
+        return;
+    }
+
+    va_list args;
+    va_start(args, fmt);
+#ifdef __ANDROID__
+    if (gLoggingFile == stdout || gLoggingFile == stderr) {
+        cvk_log_android(level, fmt, args);
+    } else {
+        cvk_log_default(level, fmt, args);
+    }
+#else
+    cvk_log_default(level, fmt, args);
+#endif
+    va_end(args);
 
     if (level == loglevel::fatal) {
         exit(EXIT_FAILURE);
