@@ -515,7 +515,7 @@ bool cvk_image::init_vulkan_image() {
                 return false;
             }
 
-            auto initimage = new cvk_command_image_init(queue, this);
+            auto initimage = new cvk_command_image_init(queue, this, m_context);
             ret = queue->enqueue_command_with_deps(initimage, 0, nullptr,
                                                    nullptr);
             if (ret != CL_SUCCESS) {
