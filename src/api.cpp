@@ -724,12 +724,15 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_IMAGE_MAX_BUFFER_SIZE:
-        val_sizet = device->image_max_buffer_size();
+        val_sizet = std::min(device->image_max_buffer_size(),
+                             (size_t)device->max_mem_alloc_size());
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_IMAGE_MAX_ARRAY_SIZE:
-        val_sizet = device->vulkan_limits().maxImageArrayLayers;
+        val_sizet =
+            std::min((size_t)device->vulkan_limits().maxImageArrayLayers,
+                     (size_t)device->max_mem_alloc_size());
         copy_ptr = &val_sizet;
         size_ret = sizeof(val_sizet);
         break;
