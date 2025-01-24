@@ -4080,6 +4080,11 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         command_queue, kernel, work_dim, num_events_in_wait_list,
         event_wait_list, event);
 
+    static const size_t null_global_work_size[3] = {0};
+    if (global_work_size == nullptr) {
+        global_work_size = null_global_work_size;
+    }
+
     cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
                         local_work_size);
 
