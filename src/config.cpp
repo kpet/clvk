@@ -40,8 +40,10 @@ DEFINE_OPTION_TYPE_GETTER(uint32_t, config_option_type::uint32)
 DEFINE_OPTION_TYPE_GETTER(bool, config_option_type::boolean)
 
 config_option gConfigOptions[] = {
-#define OPTION(type, name, valdef) {option_type<type>(), #name, &config.name, false},
-#define EARLY_OPTION(type, name, valdef) {option_type<type>(), #name, &config.name, true},
+#define OPTION(type, name, valdef)                                             \
+    {option_type<type>(), #name, &config.name, false},
+#define EARLY_OPTION(type, name, valdef)                                       \
+    {option_type<type>(), #name, &config.name, true},
 #include "config.def"
 #undef EARLY_OPTION
 #undef OPTION
