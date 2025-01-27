@@ -4064,6 +4064,12 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         command_queue, kernel, work_dim, num_events_in_wait_list,
         event_wait_list, event);
 
+    if (work_dim == 0 || global_work_size == nullptr) {
+        return cvk_enqueue_marker_with_wait_list(icd_downcast(command_queue),
+                                                 num_events_in_wait_list,
+                                                 event_wait_list, event);
+    }
+
     cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
                         local_work_size);
 
