@@ -558,12 +558,6 @@ struct cvk_device : public _cl_device_id,
             return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
         }
 
-        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && supports_fp64()) {
-            return CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
-                   CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_FMA |
-                   CL_FP_DENORM;
-        }
-
         return 0;
     }
 
