@@ -27,7 +27,6 @@
 "end_current_command_batch"
 "enqueue_command"
 "execute_cmds"
-"executor_wait"
 "extract_cmds_required_by"
 "flush_no_lock"
 "free_descriptor_set"
