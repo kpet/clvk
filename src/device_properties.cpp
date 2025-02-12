@@ -133,17 +133,20 @@ struct cvk_device_properties_amd : public cvk_device_properties {
     cl_uint get_max_cmd_group_size() const override final { return 1; }
     const std::set<std::string> get_native_builtins() const override final {
         return std::set<std::string>({
-            "ceil",           "copysign",    "exp2",      "fdim",
-            "floor",          "fmax",        "fmin",      "frexp",
-            "half_exp",       "half_exp10",  "half_exp2", "half_log",
-            "half_log10",     "half_log2",   "half_powr", "half_rsqrt",
-            "half_sqrt",      "isequal",     "isfinite",  "isgreater",
-            "isgreaterequal", "isinf",       "isless",    "islessequal",
-            "islessgreater",  "isnan",       "isnormal",  "isnotequal",
-            "isordered",      "isunordered", "ldexp",     "log",
-            "log10",          "log2",        "mad",       "rint",
-            "round",          "rsqrt",       "signbit",   "sqrt",
-            "trunc",
+            "ceil",           "copysign",      "exp2",
+            "fdim",           "floor",         "fma",
+            "fmax",           "fmin",          "frexp",
+            "half_exp",       "half_exp10",    "half_exp2",
+            "half_log",       "half_log10",    "half_log2",
+            "half_powr",      "half_rsqrt",    "half_sqrt",
+            "isequal",        "isfinite",      "isgreater",
+            "isgreaterequal", "isinf",         "isless",
+            "islessequal",    "islessgreater", "isnan",
+            "isnormal",       "isnotequal",    "isordered",
+            "isunordered",    "ldexp",         "log",
+            "log10",          "log2",          "mad",
+            "rint",           "round",         "rsqrt",
+            "signbit",        "sqrt",          "trunc",
         });
     }
     std::string get_compile_options() const override final {
