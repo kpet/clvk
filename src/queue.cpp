@@ -103,8 +103,8 @@ cl_int cvk_command_queue::satisfy_data_dependencies(cvk_command* cmd) {
             continue;
         }
         CVK_ASSERT(mem->is_image_type());
-        auto initcmd =
-            new cvk_command_image_init(this, static_cast<cvk_image*>(mem));
+        auto initcmd = new cvk_command_image_init(
+            this, static_cast<cvk_image*>(mem), m_context);
         _cl_event* initev;
         cl_int err = enqueue_command_with_retry(initcmd, &initev);
         if (err != CL_SUCCESS) {
