@@ -33,6 +33,7 @@ struct config_option {
     config_option_type type;
     std::string name;
     const void* value;
+    bool early_option;
 };
 
 template <typename T> struct config_value {
@@ -48,12 +49,14 @@ template <typename T> struct config_value {
 
 struct config_struct {
 #define OPTION(type, name, valdef) const config_value<type> name{valdef};
+#define EARLY_OPTION OPTION
 #include "config.def"
+#undef EARLY_OPTION
 #undef OPTION
 };
 
 extern const config_struct config;
 
-extern void init_config_from_env_only();
-
 extern void init_config();
+
+extern void init_early_config();
