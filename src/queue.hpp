@@ -538,9 +538,14 @@ struct cvk_rectangle_copier {
                          const size_t* region, size_t a_row_pitch,
                          size_t a_slice_pitch, size_t b_row_pitch,
                          size_t b_slice_pitch, size_t elem_size)
-        : m_a_row_pitch(a_row_pitch), m_a_slice_pitch(a_slice_pitch),
-          m_b_row_pitch(b_row_pitch), m_b_slice_pitch(b_slice_pitch),
-          m_elem_size(elem_size) {
+        : m_elem_size(elem_size) {
+
+        m_a_row_pitch = initialize_pitch(a_row_pitch, region[0]);
+        m_b_row_pitch = initialize_pitch(b_row_pitch, region[0]);
+        m_a_slice_pitch =
+            initialize_pitch(a_slice_pitch, m_a_row_pitch * region[1]);
+        m_b_slice_pitch =
+            initialize_pitch(b_slice_pitch, m_b_row_pitch * region[1]);
 
         m_a_origin[0] = a_origin[0];
         m_a_origin[1] = a_origin[1];
@@ -567,6 +572,10 @@ struct cvk_rectangle_copier {
     void do_copy(direction dir, void* src_base, void* dst_base);
 
 private:
+    size_t initialize_pitch(size_t default_pitch, size_t region_pitch) {
+        return default_pitch == 0 ? region_pitch : default_pitch;
+    }
+
     std::array<size_t, 3> m_a_origin;
     size_t m_a_row_pitch;
     size_t m_a_slice_pitch;
