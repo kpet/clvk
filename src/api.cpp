@@ -620,25 +620,30 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_ulong;
         size_ret = sizeof(val_ulong);
         break;
+    // FIXME can we do better for vector width queries?
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG:
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT:
-    case CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_INT:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT:
+        val_uint = 1;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF:
-        val_uint = 1; // FIXME can we do better?
+        val_uint = device->supports_fp16() ? 1 : 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
     case CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE:
     case CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE:
-        val_uint = 0;
+        val_uint = device->supports_fp64() ? 1 : 0;
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
