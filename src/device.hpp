@@ -438,7 +438,10 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_fp16() const { return m_has_fp16_support; }
 
-    bool supports_fp64() const { return m_has_fp64_support; }
+    // TODO(kpet): support FP64 (clspv has very little support)
+    bool supports_fp64() const {
+        return 0 && m_features.features.shaderFloat64;
+    }
 
     bool supports_int8() const { return m_has_int8_support; }
 
@@ -556,6 +559,12 @@ struct cvk_device : public _cl_device_id,
         }
         if (fptype == CL_DEVICE_SINGLE_FP_CONFIG) {
             return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
+        }
+
+        if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && supports_fp64()) {
+            return CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
+                   CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_FMA |
+                   CL_FP_DENORM;
         }
 
         return 0;
@@ -794,7 +803,6 @@ private:
 
     bool m_has_timer_support{};
     bool m_has_fp16_support{};
-    bool m_has_fp64_support{};
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
     bool m_has_subgroup_size_selection{};
