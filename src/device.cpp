@@ -661,6 +661,10 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp16"));
     }
 
+    if (supports_fp64()) {
+        m_extensions.push_back(MAKE_NAME_VERSION(1, 0, 0, "cl_khr_fp64"));
+    }
+
     // Enable 8-bit integer support if possible
     if ((is_vulkan_extension_enabled(VK_KHR_8BIT_STORAGE_EXTENSION_NAME) &&
          m_features_8bit_storage.storageBuffer8BitAccess) &&
@@ -794,8 +798,7 @@ void cvk_device::build_extension_ils_list() {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_int64"));
     }
-    if (m_features.features.shaderFloat64) {
-        m_has_fp64_support = true;
+    if (supports_fp64()) {
         m_opencl_c_features.push_back(
             MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_fp64"));
     }
