@@ -67,10 +67,6 @@ struct cvk_device : public _cl_device_id,
             m_type = CL_DEVICE_TYPE_ACCELERATOR;
             break;
         }
-
-        m_clvk_properties = create_cvk_device_properties(
-            m_properties.deviceName, m_properties.vendorID,
-            m_properties.deviceID);
     }
 
     static cvk_device* create(cvk_platform* platform, VkInstance instance,
