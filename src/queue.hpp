@@ -386,11 +386,14 @@ protected:
 #define CLVK_COMMAND_BATCH 0x5000
 #define CLVK_COMMAND_IMAGE_INIT 0x5001
 
-struct cvk_command {
+struct cvk_command : public refcounted {
+    cvk_command(cl_command_type type, cvk_command_queue* queue,
+                cvk_context* ctx)
+        : m_type(type), m_queue(queue),
+          m_event(new cvk_event(ctx, this, queue)) {}
 
     cvk_command(cl_command_type type, cvk_command_queue* queue)
-        : m_type(type), m_queue(queue),
-          m_event(new cvk_event(m_queue->context(), this, queue)) {}
+        : cvk_command(type, queue, queue->context()) {}
 
     virtual ~cvk_command() { m_event->release(); }
 
@@ -681,8 +684,11 @@ private:
 };
 
 struct cvk_command_batchable : public cvk_command {
+    cvk_command_batchable(cl_command_type type, cvk_command_queue* queue,
+                          cvk_context* ctx)
+        : cvk_command(type, queue, ctx), m_query_pool(VK_NULL_HANDLE) {}
     cvk_command_batchable(cl_command_type type, cvk_command_queue* queue)
-        : cvk_command(type, queue), m_query_pool(VK_NULL_HANDLE) {}
+        : cvk_command_batchable(type, queue, queue->context()) {}
 
     virtual ~cvk_command_batchable() {
         if (m_query_pool != VK_NULL_HANDLE) {
@@ -1185,8 +1191,9 @@ private:
 
 struct cvk_command_image_init final : public cvk_command_batchable {
 
-    cvk_command_image_init(cvk_command_queue* queue, cvk_image* image)
-        : cvk_command_batchable(CLVK_COMMAND_IMAGE_INIT, queue),
+    cvk_command_image_init(cvk_command_queue* queue, cvk_image* image,
+                           cvk_context* ctx)
+        : cvk_command_batchable(CLVK_COMMAND_IMAGE_INIT, queue, ctx),
           m_image(image) {
         CVK_ASSERT(!m_image->is_backed_by_buffer_view());
     }
