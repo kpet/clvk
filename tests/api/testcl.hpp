@@ -388,6 +388,14 @@ protected:
         return kernel;
     }
 
+    void GetKernelWorkGroupInfo(cl_kernel kernel, cl_kernel_info param_name,
+                                size_t param_value_size, void* param_value) {
+        cl_int err =
+            clGetKernelWorkGroupInfo(kernel, gDevice, param_name,
+                                     param_value_size, param_value, nullptr);
+        EXPECT_CL_SUCCESS(err);
+    }
+
     holder<cl_command_queue>
     CreateCommandQueue(cl_device_id device,
                        cl_command_queue_properties properties) {
