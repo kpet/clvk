@@ -626,6 +626,7 @@ void cvk_device::build_extension_ils_list() {
         // Add always supported extensions
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_extended_versioning"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_create_command_queue"),
+        MAKE_NAME_VERSION(1, 0, 0, "cl_ext_buffer_device_address"),
 #ifdef ENABLE_SPIRV_IL
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif

@@ -47,6 +47,9 @@ struct cvk_platform;
 
 struct cvk_device : public _cl_device_id,
                     object_magic_header<object_magic::device> {
+    /// Map for storing device pointers to buffer pointers
+    /// Support cl_ext_buffer_device_address
+    std::unordered_map<void*, void*> device_to_buffer_map;
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
         : m_platform(platform), m_pdev(pd) {
@@ -701,6 +704,10 @@ struct cvk_device : public _cl_device_id,
     bool is_image_format_disabled(cl_image_format format) const {
         return m_clvk_properties->get_disabled_image_formats().count(format) !=
                0;
+    }
+
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
     }
 
 private:
