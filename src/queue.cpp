@@ -436,6 +436,18 @@ cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
         }
     }
     if (executor_cmds->commands.size() > 0) {
+        // Make sure there is something to extract if possible for the main
+        // thread to avoid having the executor to signal the main thread to get
+        // to completion.
+        if (executor_cmds->commands.size() > 1) {
+            auto cmd = executor_cmds->commands.back();
+            executor_cmds->commands.pop_back();
+            m_groups.push_back(std::move(executor_cmds));
+            queue->group_sent();
+
+            executor_cmds.reset(new cvk_command_group());
+            executor_cmds->commands.push_front(cmd);
+        }
         m_groups.push_back(std::move(executor_cmds));
         queue->group_sent();
     }
