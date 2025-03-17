@@ -117,6 +117,9 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
+    m_clvk_properties = create_cvk_device_properties(
+        m_properties.deviceName, m_properties.vendorID, m_properties.deviceID,
+        m_properties.driverVersion, m_driver_properties.driverID);
 #define SET_DEVICE_PROPERTY(option, print)                                     \
     do {                                                                       \
         if (config.option.set) {                                               \
@@ -1149,9 +1152,9 @@ bool cvk_device::init(VkInstance instance) {
         return false;
     }
 
-    init_clvk_runtime_behaviors();
-
     init_vulkan_properties(instance);
+
+    init_clvk_runtime_behaviors();
 
     init_driver_behaviors();
 

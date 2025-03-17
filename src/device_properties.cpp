@@ -255,9 +255,9 @@ static bool isNVIDIADevice(const uint32_t vendorID) {
     cvk_info_fn(#x);                                                           \
     return std::make_unique<x>(__VA_ARGS__);
 
-std::unique_ptr<cvk_device_properties>
-create_cvk_device_properties(const char* name, const uint32_t vendorID,
-                             const uint32_t deviceID) {
+std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
+    const char* name, const uint32_t vendorID, const uint32_t deviceID,
+    const uint32_t driverVersion, const VkDriverId driverID) {
     if (isMaliDevice(name, vendorID)) {
 #ifdef __ANDROID__
         // Find out which SoC this is.
