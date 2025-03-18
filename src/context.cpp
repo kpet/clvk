@@ -31,4 +31,8 @@ cvk_command_queue* cvk_context::get_or_create_image_init_command_queue() {
     return m_queue_image_init;
 }
 
-void cvk_context::free_image_init_command_queue() { delete m_queue_image_init; }
+void cvk_context::free_image_init_command_queue() {
+    if (m_queue_image_init != nullptr) {
+        m_queue_image_init->release();
+    }
+}
