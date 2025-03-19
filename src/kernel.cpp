@@ -20,7 +20,7 @@
 #include "memory.hpp"
 
 cl_ulong cvk_kernel::local_mem_size() const {
-    cl_ulong ret = 0; // FIXME take the compile-time allocations into account
+    cl_ulong ret = m_program->workgroup_variables_size();
 
     for (uint32_t i = 0; i < m_args.size(); i++) {
         auto const& arg = m_args[i];
