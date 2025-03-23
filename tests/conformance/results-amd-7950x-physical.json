@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4206888,
+    "apiVersion": 4210993,
     "deviceID": 5710,
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 24.3.4",
+    "driverInfo": "Mesa 25.0.2",
     "driverName": "radv",
-    "driverVersion": 100675588
+    "driverVersion": 104857602
   },
   "test-results": {
     "API": {
@@ -46,6 +46,7 @@
         "get_command_queue_info": "pass",
         "get_command_queue_info_compatibility": "pass",
         "get_context_info": "pass",
+        "get_context_info_mult_devices": "skip",
         "get_device_info": "pass",
         "get_image1d_array_info": "pass",
         "get_image1d_info": "pass",
@@ -458,6 +459,8 @@
         "features_macro_coupling": "pass",
         "get_program_build_info": "pass",
         "get_program_info": "pass",
+        "get_program_info_kernel_names": "fail",
+        "get_program_info_mult_devices": "skip",
         "get_program_source": "pass",
         "image_macro": "pass",
         "large_compile": "pass",
@@ -509,7 +512,7 @@
         "unload_repeated": "pass",
         "unload_valid": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Compute Info": {
       "duration": "00:00:00.034405",
@@ -639,25 +642,25 @@
       "duration": "00:00:00.159609",
       "has_results": true,
       "results": {
-        "buffer_multiImport_diffCtx": "fail",
-        "buffer_multiImport_diffCtx_fence": "fail",
-        "buffer_multiImport_sameCtx": "fail",
-        "buffer_multiImport_sameCtx_fence": "fail",
-        "buffer_multiple_queue": "fail",
-        "buffer_multiple_queue_fence": "fail",
-        "buffer_single_queue": "fail",
-        "buffer_single_queue_fence": "fail",
-        "consistency_external_buffer": "fail",
-        "consistency_external_for_1dimage": "fail",
-        "consistency_external_for_3dimage": "fail",
-        "consistency_external_image": "fail",
-        "consistency_external_semaphore": "fail",
-        "device_info": "fail",
-        "image_multiple_queue": "fail",
-        "image_single_queue": "fail",
-        "platform_info": "fail"
+        "test_buffer_multiImport_diffCtx": "skip",
+        "test_buffer_multiImport_diffCtx_fence": "skip",
+        "test_buffer_multiImport_sameCtx": "skip",
+        "test_buffer_multiImport_sameCtx_fence": "skip",
+        "test_buffer_multiple_queue": "skip",
+        "test_buffer_multiple_queue_fence": "skip",
+        "test_buffer_single_queue": "skip",
+        "test_buffer_single_queue_fence": "skip",
+        "test_consistency_external_buffer": "skip",
+        "test_consistency_external_for_1dimage": "skip",
+        "test_consistency_external_for_3dimage": "skip",
+        "test_consistency_external_image": "skip",
+        "test_consistency_external_semaphore": "skip",
+        "test_device_info": "skip",
+        "test_image_multiple_queue": "skip",
+        "test_image_single_queue": "skip",
+        "test_platform_info": "skip"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Generic Address Space": {
       "duration": "00:00:00.030022",
@@ -1487,7 +1490,10 @@
         "spirv14_usersemantic_decoratestring": "skip",
         "spirv14_usersemantic_memberdecoratestring": "skip",
         "spirv15_non_uniform_broadcast": "skip",
-        "spirv15_ptr_bitcast": "skip"
+        "spirv15_ptr_bitcast": "skip",
+        "spirv16_image_operand_nontemporal": "skip",
+        "spirv16_uniformdecoration_uniform": "skip",
+        "spirv16_uniformdecoration_uniformid": "skip"
       },
       "retcode": 1
     },

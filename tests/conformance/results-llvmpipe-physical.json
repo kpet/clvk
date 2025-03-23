@@ -1,11 +1,11 @@
 {
   "system-info": {
-    "apiVersion": 4206888,
+    "apiVersion": 4210993,
     "deviceID": 0,
     "deviceName": "llvmpipe (LLVM 19.1.7, 256 bits)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
     "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
-    "driverInfo": "Mesa 24.3.4 (LLVM 19.1.7)",
+    "driverInfo": "Mesa 25.0.2 (LLVM 19.1.7)",
     "driverName": "llvmpipe",
     "driverVersion": 1
   },
@@ -143,8 +143,8 @@
         "vstore_private": "pass",
         "wg_barrier": "pass",
         "work_item_functions": "pass",
-        "work_item_functions_out_of_range": "fail",
-        "work_item_functions_out_of_range_hardcoded": "fail",
+        "work_item_functions_out_of_range": "pass",
+        "work_item_functions_out_of_range_hardcoded": "pass",
         "writeimage": "pass",
         "writeimage_fp32": "pass",
         "writeimage_int16": "pass"
@@ -338,6 +338,8 @@
         "features_macro_coupling": "pass",
         "get_program_build_info": "pass",
         "get_program_info": "pass",
+        "get_program_info_kernel_names": "fail",
+        "get_program_info_mult_devices": "skip",
         "get_program_source": "pass",
         "image_macro": "pass",
         "large_compile": "pass",
@@ -389,7 +391,7 @@
         "unload_repeated": "pass",
         "unload_valid": "pass"
       },
-      "retcode": 0
+      "retcode": 1
     },
     "Compute Info": {
       "duration": "00:00:00.034509",
@@ -516,9 +518,27 @@
       "retcode": 0
     },
     "External memory and synchronisation": {
-      "duration": "00:00:00.285015",
-      "has_results": false,
-      "results": {},
+      "duration": "00:00:00.117214",
+      "has_results": true,
+      "results": {
+        "test_buffer_multiImport_diffCtx": "skip",
+        "test_buffer_multiImport_diffCtx_fence": "skip",
+        "test_buffer_multiImport_sameCtx": "skip",
+        "test_buffer_multiImport_sameCtx_fence": "skip",
+        "test_buffer_multiple_queue": "skip",
+        "test_buffer_multiple_queue_fence": "skip",
+        "test_buffer_single_queue": "skip",
+        "test_buffer_single_queue_fence": "skip",
+        "test_consistency_external_buffer": "skip",
+        "test_consistency_external_for_1dimage": "skip",
+        "test_consistency_external_for_3dimage": "skip",
+        "test_consistency_external_image": "skip",
+        "test_consistency_external_semaphore": "skip",
+        "test_device_info": "skip",
+        "test_image_multiple_queue": "skip",
+        "test_image_single_queue": "skip",
+        "test_platform_info": "skip"
+      },
       "retcode": 0
     },
     "Generic Address Space": {
@@ -1348,7 +1368,10 @@
         "spirv14_usersemantic_decoratestring": "skip",
         "spirv14_usersemantic_memberdecoratestring": "skip",
         "spirv15_non_uniform_broadcast": "skip",
-        "spirv15_ptr_bitcast": "skip"
+        "spirv15_ptr_bitcast": "skip",
+        "spirv16_image_operand_nontemporal": "skip",
+        "spirv16_uniformdecoration_uniform": "skip",
+        "spirv16_uniformdecoration_uniformid": "skip"
       },
       "retcode": 1
     },
