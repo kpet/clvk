@@ -237,7 +237,8 @@ class spir_binary {
 
 public:
     spir_binary(spv_target_env env)
-        : m_loaded_from_binary(false), m_target_env(env) {
+        : m_loaded_from_binary(false), m_target_env(env),
+          m_workgroup_variables_size(0) {
         m_context = spvContextCreate(env);
     }
     ~spir_binary() { spvContextDestroy(m_context); }
@@ -385,6 +386,14 @@ public:
 
     const kernels_flags_map& kernels_flags() const { return m_flags; }
 
+    void add_workgroup_variable_size(uint32_t size) {
+        m_workgroup_variables_size += size;
+    }
+
+    uint32_t get_workgroup_variables_size() const {
+        return m_workgroup_variables_size;
+    }
+
 private:
     spv_context m_context;
     std::vector<uint32_t> m_code;
@@ -402,6 +411,7 @@ private:
     kernels_flags_map m_flags;
     bool m_loaded_from_binary;
     spv_target_env m_target_env;
+    uint32_t m_workgroup_variables_size;
 };
 
 enum class build_operation
@@ -852,6 +862,10 @@ public:
 
     uint32_t kernel_flags(const std::string& kernel) const {
         return m_binary.kernels_flags().at(kernel);
+    }
+
+    uint32_t workgroup_variables_size() const {
+        return m_binary.get_workgroup_variables_size();
     }
 
 private:

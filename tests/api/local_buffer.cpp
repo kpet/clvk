@@ -63,3 +63,35 @@ TEST_F(WithCommandQueue, LocalBuffer) {
         ASSERT_TRUE(check(dst_buf, nb_wis, limit));
     }
 }
+
+TEST_F(WithCommandQueue, LocalMemorySize) {
+    static const char* source = R"(
+      kernel void test(local int *loc, global int *dst, const int limit) {
+        local int loc2[10];
+        int lid = get_local_id(0);
+        if (lid < limit) {
+          loc[lid] = lid;
+          loc2[lid] = dst[lid];
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (lid < limit) {
+          dst[lid] = loc[limit - 1 - lid] + loc2[limit - 1 - lid];
+        }
+      }
+    )";
+
+    auto program = CreateAndBuildProgram(source);
+    auto kernel = CreateKernel(program, "test");
+
+    cl_ulong mem_size;
+    size_t local_size = sizeof(cl_int) * 10;
+    GetKernelWorkGroupInfo(kernel, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(mem_size),
+                           &mem_size);
+    ASSERT_EQ(mem_size, local_size);
+
+    size_t arg_size = sizeof(cl_int) * 5;
+    SetKernelArg(kernel, 0, arg_size, nullptr);
+    GetKernelWorkGroupInfo(kernel, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(mem_size),
+                           &mem_size);
+    ASSERT_EQ(mem_size, local_size + arg_size);
+}

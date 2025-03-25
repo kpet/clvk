@@ -316,6 +316,11 @@ spv_result_t parse_reflection(void* user_data,
                 parse_data->binary->add_kernel_argument(kernel, std::move(arg));
                 break;
             }
+            case NonSemanticClspvReflectionWorkgroupVariableSize: {
+                auto size = parse_data->constants[inst->words[6]];
+                parse_data->binary->add_workgroup_variable_size(size);
+                break;
+            }
             case NonSemanticClspvReflectionArgumentWorkgroup: {
                 // These arguments have spec id, elem size and an optional arg
                 // info.
