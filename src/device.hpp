@@ -297,6 +297,10 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_uint num_compute_units() const {
+        if (config.force_compute_units.set &&
+            config.force_compute_units.value != 0) {
+            return config.force_compute_units();
+        }
         return m_clvk_properties->get_num_compute_units();
     }
 

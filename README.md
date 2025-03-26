@@ -508,6 +508,14 @@ using the name of the corresponding environment variable.
 * `CLVK_FORCE_SUBGROUP_SIZE` specifies the subgroup size to use, overriding
   everything.
 
+* `CLVK_DEFAULT_COMPUTE_UNITS` specifies the default number of compute units to
+  expose through `CL_DEVICE_MAX_COMPUTE_UNITS` if nothing is set in the device
+  properties (default: `1`).
+
+* `CLVK_FORCE_COMPUTE_UNITS` specifies the number of compute units to expose
+  through `CL_DEVICE_MAX_COMPUTE_UNITS`, overriding both `CLVK_DEFAULT_COMPUTE_UNITS`
+  and the value inside the device properties.
+
 * `CLVK_QUEUE_GLOBAL_PRIORITY` specifies the queue global priority to use if it
   is supported by the driver:
 
