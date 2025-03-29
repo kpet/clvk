@@ -70,10 +70,10 @@ OPTION(std::string, device_extensions_masked, "")
 //
 // Logging
 //
-OPTION(uint32_t, log, 0u)
-OPTION(bool, log_colour, false)
-OPTION(std::string, log_dest, "")
-OPTION(std::string, log_groups, "")
+EARLY_OPTION(uint32_t, log, 0u)
+EARLY_OPTION(bool, log_colour, false)
+EARLY_OPTION(std::string, log_dest, "")
+EARLY_OPTION(std::string, log_groups, "")
 
 //
 // Debug
