@@ -40,8 +40,12 @@ DEFINE_OPTION_TYPE_GETTER(uint32_t, config_option_type::uint32)
 DEFINE_OPTION_TYPE_GETTER(bool, config_option_type::boolean)
 
 config_option gConfigOptions[] = {
-#define OPTION(type, name, valdef) {option_type<type>(), #name, &config.name},
+#define OPTION(type, name, valdef)                                             \
+    {option_type<type>(), #name, &config.name, false},
+#define EARLY_OPTION(type, name, valdef)                                       \
+    {option_type<type>(), #name, &config.name, true},
 #include "config.def"
+#undef EARLY_OPTION
 #undef OPTION
 };
 
@@ -121,7 +125,7 @@ void read_config_file(std::unordered_map<std::string, std::string>& umap,
     config_stream.close();
 }
 
-void parse_config_file() {
+void parse_config_file(bool early_option) {
     std::unordered_map<std::string, std::string> file_config_values;
     std::string conf_file = "clvk.conf";
     std::ifstream config_stream;
@@ -157,6 +161,9 @@ void parse_config_file() {
     }
 
     for (auto& opt : gConfigOptions) {
+        if (early_option != opt.early_option) {
+            continue;
+        }
         if (file_config_values.find(opt.name) == file_config_values.end()) {
             continue;
         }
@@ -178,16 +185,17 @@ void parse_config_file() {
     return;
 }
 
-void parse_env() {
+void parse_env(bool early_option) {
     for (auto& opt : gConfigOptions) {
-        // printf("var_name = '%s' ", var_name.c_str());
+        if (early_option != opt.early_option) {
+            continue;
+        }
         auto var_name = get_clvk_env_name(opt.name);
         const char* txt = getenv(var_name.c_str());
         if (txt == nullptr) {
-            //    printf("is not set\n");
             continue;
         }
-        // printf("is set\n");
+        cvk_debug_group_fn(loggroup::cfg, "'%s' = '%s'", var_name.c_str(), txt);
         void* optval = const_cast<void*>(opt.value);
         switch (opt.type) {
         case config_option_type::string:
@@ -205,9 +213,12 @@ void parse_env() {
 
 } // namespace
 
-void init_config_from_env_only() { parse_env(); }
-
 void init_config() {
-    parse_config_file();
-    parse_env();
+    parse_config_file(false);
+    parse_env(false);
+}
+
+void init_early_config() {
+    parse_config_file(true);
+    parse_env(true);
 }
