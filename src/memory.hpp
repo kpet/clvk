@@ -761,6 +761,15 @@ struct cvk_image : public cvk_mem {
         return mapping;
     }
 
+    void cleanup_mapping(cvk_image_mapping& mapping) {
+        std::lock_guard<std::mutex> lock(m_mappings_lock);
+        if (m_mappings.count(mapping.ptr)) {
+            m_mappings.erase(mapping.ptr);
+        }
+        mapping.buffer->unmap();
+        mapping.buffer->release();
+    }
+
     cvk_image_mapping mapping_for(void* ptr) {
         std::lock_guard<std::mutex> lock(m_mappings_lock);
         CVK_ASSERT(m_mappings.count(ptr) > 0);
