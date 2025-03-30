@@ -2543,10 +2543,12 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
         return CL_INVALID_PROGRAM;
     }
 
-    // TODO CL_INVALID_PROGRAM_EXECUTABLE if param_name is
-    // CL_PROGRAM_NUM_KERNELS or CL_PROGRAM_KERNEL_NAMES and a successful
-    // program executable has not been built for at least one device in the list
-    // of devices associated with program.
+    bool program_built_once = false;
+    for (auto dev : program->devices()) {
+        if (program->build_status(dev) == CL_BUILD_SUCCESS) {
+            program_built_once = true;
+        }
+    }
 
     switch (param_name) {
     case CL_PROGRAM_NUM_DEVICES:
@@ -2572,6 +2574,9 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
         ret_size = sizeof(cl_device_id) * val_devices.size();
         break;
     case CL_PROGRAM_NUM_KERNELS:
+        if (!program_built_once) {
+            return CL_INVALID_PROGRAM_EXECUTABLE;
+        }
         val_sizet = program->num_kernels();
         copy_ptr = &val_sizet;
         ret_size = sizeof(val_sizet);
@@ -2581,6 +2586,9 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
         ret_size = program->source().size() + 1;
         break;
     case CL_PROGRAM_KERNEL_NAMES: {
+        if (!program_built_once) {
+            return CL_INVALID_PROGRAM_EXECUTABLE;
+        }
         val_string = "";
         std::string sep = "";
         for (auto kname : program->kernel_names()) {
@@ -2619,6 +2627,9 @@ cl_int CLVK_API_CALL clGetProgramInfo(cl_program prog,
         break;
     case CL_PROGRAM_SCOPE_GLOBAL_CTORS_PRESENT:
     case CL_PROGRAM_SCOPE_GLOBAL_DTORS_PRESENT:
+        if (!program_built_once) {
+            return CL_INVALID_PROGRAM_EXECUTABLE;
+        }
         val_bool = CL_FALSE;
         copy_ptr = &val_bool;
         ret_size = sizeof(val_bool);
