@@ -46,6 +46,9 @@ OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 OPTION(uint32_t, force_subgroup_size, 0u) // 0 meaning not forced
 OPTION(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
 
+OPTION(uint32_t, default_compute_units, 1u)
+OPTION(uint32_t, force_compute_units, 0u) // 0 meaning not forced
+
 //
 // Command execution
 //
