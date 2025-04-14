@@ -1655,6 +1655,7 @@ cl_int cvk_command_map_image::build(void** map_ptr) {
         cvk_error("cannot find or create a mapping");
         return CL_OUT_OF_RESOURCES;
     }
+    m_mapping_needs_releasing_on_destruction = true;
 
     *map_ptr = m_mapping.ptr;
 
@@ -1698,6 +1699,8 @@ cl_int cvk_command_map_image::do_action() {
             }
         }
     }
+
+    m_mapping_needs_releasing_on_destruction = false;
 
     // TODO invalidate buffer if the memory isn't coherent
 

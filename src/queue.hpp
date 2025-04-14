@@ -1040,11 +1040,16 @@ struct cvk_command_map_image final : public cvk_command {
                           const std::array<size_t, 3>& origin,
                           const std::array<size_t, 3>& region,
                           cl_map_flags flags, bool update_host_ptr = false)
-        : cvk_command(CL_COMMAND_MAP_IMAGE, q), m_image(img), m_origin(origin),
+        : cvk_command(CL_COMMAND_MAP_IMAGE, q), m_image(img),
+          m_mapping_needs_releasing_on_destruction(false), m_origin(origin),
           m_region(region), m_flags(flags),
           m_update_host_ptr(update_host_ptr &&
                             m_image->has_flags(CL_MEM_USE_HOST_PTR)) {}
-
+    ~cvk_command_map_image() {
+        if (m_mapping_needs_releasing_on_destruction) {
+            m_image->cleanup_mapping(m_mapping);
+        }
+    }
     CHECK_RETURN cl_int build(void** map_ptr);
     CHECK_RETURN cl_int do_action() override final;
     cvk_buffer* map_buffer() { return m_mapping.buffer; }
@@ -1074,6 +1079,7 @@ private:
 
     cvk_image_holder m_image;
     cvk_image_mapping m_mapping;
+    bool m_mapping_needs_releasing_on_destruction;
     std::array<size_t, 3> m_origin;
     std::array<size_t, 3> m_region;
     cl_map_flags m_flags;
