@@ -26,7 +26,9 @@
 struct cvk_device_properties {
     virtual std::string vendor() const { return "Unknown vendor"; }
     virtual cl_ulong get_global_mem_cache_size() const { return 0; }
-    virtual cl_ulong get_num_compute_units() const { return 1; }
+    virtual cl_ulong get_num_compute_units() const {
+        return config.max_compute_units();
+    }
 
     virtual cl_uint get_max_cmd_batch_size() const {
         return config.max_cmd_batch_size();
