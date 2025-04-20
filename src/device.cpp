@@ -736,6 +736,10 @@ void cvk_device::build_extension_ils_list() {
         split_string(config.device_extensions_masked(), ',');
     for (auto& config_extension_masked : config_extensions_masked) {
         for (auto it = m_extensions.begin(); it != m_extensions.end(); it++) {
+            if (strcmp(config_extension_masked.c_str(),
+                       CL_KHR_FP16_EXTENSION_NAME) == 0) {
+                m_has_fp16_support = false;
+            }
             if (strcmp(config_extension_masked.c_str(), it->name) == 0) {
                 m_extensions.erase(it);
                 break;
