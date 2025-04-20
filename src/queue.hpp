@@ -35,6 +35,7 @@ using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 struct cvk_command_group {
     std::deque<cvk_command*> commands;
     cl_int execute_cmds();
+    void execute_cmds_in_executor();
 };
 
 struct cvk_executor_thread {
