@@ -5,9 +5,9 @@
     "deviceName": "AMD Radeon Graphics (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 25.0.2",
+    "driverInfo": "Mesa 25.0.4",
     "driverName": "radv",
-    "driverVersion": 104857602
+    "driverVersion": 104857604
   },
   "test-results": {
     "API": {
@@ -457,9 +457,10 @@
         "execute_after_two_file_link": "pass",
         "features_macro": "pass",
         "features_macro_coupling": "pass",
+        "get_linked_program_info_kernel_names": "fail",
         "get_program_build_info": "pass",
         "get_program_info": "pass",
-        "get_program_info_kernel_names": "fail",
+        "get_program_info_kernel_names": "pass",
         "get_program_info_mult_devices": "skip",
         "get_program_source": "pass",
         "image_macro": "pass",
@@ -967,7 +968,7 @@
         "divide": "pass",
         "divide_cr": "pass",
         "erf": "pass",
-        "erfc": "fail",
+        "erfc": "pass",
         "exp": "pass",
         "exp10": "pass",
         "exp2": "pass",
