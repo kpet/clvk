@@ -30,9 +30,9 @@ add_gtest_executable(api_tests
     workgroup.cpp
 )
 
-if (${CLVK_COMPILER_AVAILABLE})
-  add_definitions(-DCOMPILER_AVAILABLE)
-endif()
+target_include_directories(api_tests SYSTEM BEFORE PRIVATE
+    ${SPIRV_HEADERS_SOURCE_DIR}/include
+)
 
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   add_definitions(-DUSING_SWIFTSHADER)
