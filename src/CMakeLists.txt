@@ -186,8 +186,8 @@ endif()
 
 function(CLLibrary target type)
   add_library(${target} ${type} $<TARGET_OBJECTS:OpenCL-objects>)
-  target_link_libraries(${target} ${OpenCL-dependencies}
-      clvk-config-definitions)
+  target_link_libraries(${target} PRIVATE ${OpenCL-dependencies})
+  target_link_libraries(${target} PUBLIC clvk-config-definitions)
   set_target_properties(${target} PROPERTIES LIBRARY_OUTPUT_DIRECTORY
       ${CMAKE_BINARY_DIR})
 endfunction(CLLibrary)
