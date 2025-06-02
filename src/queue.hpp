@@ -739,7 +739,7 @@ struct cvk_command_batchable : public cvk_command {
             pinfo == CL_PROFILING_COMMAND_SUBMIT) {
             return cvk_command::set_profiling_info(pinfo);
         } else if (pinfo == CL_PROFILING_COMMAND_START) {
-            return CL_SUCCESS;
+            return m_queue->device()->update_device_host_timer();
         } else {
             CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
             return set_profiling_info_end();
