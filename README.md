@@ -172,12 +172,15 @@ clvk can be built for Android using the
 [Android NDK](https://developer.android.com/ndk) toolchain.
 
 1. Download and extract the NDK toolchain to a directory (`/path/to/ndk`)
-2. Build libclc binaries ([cross-compiling](#Cross-compiling))
-3. Pass the following options to CMake:
+2. Pass the following options to CMake:
     - `-DCMAKE_TOOLCHAIN_FILE=/path/to/ndk/build/cmake/android.toolchain.cmake`
     - `-DANDROID_ABI=<ABI_FOR_THE_TARGET_DEVICE>`, most likely `arm64-v8a`
     - `-DVulkan_LIBRARY=/path/to/ndk/**/<api-level>/libvulkan.so`
-4. That should be it!
+3. That should be it!
+
+When compiling clvk on a small machine (such as Raspberry pi), building libclc
+might need to be done as a separate step between 1. and 2.
+([Building libclc manually](#building-libclc-manually)).
 
 # Using
 
@@ -196,7 +199,7 @@ you also need to make sure that clvk has access to the `clspv` binary. If you
 wish to move the built library and `clspv` binary out of the build tree, you will
 need to make sure that you provide clvk with a path to the `clspv` binary via the
 `CLVK_CLSPV_PATH` environment variable
-(see [Environment variables](#environment-variables)).
+(see [Configuration](#configuration)).
 
 ### Unix-like systems (Linux, macOS)
 
