@@ -172,7 +172,7 @@ jobs:
         shell: bash
         run: df -h
       - name: Download Swiftshader artifacts
-        uses: dawidd6/action-download-artifact@v10
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: build-swiftshader.yml
           workflow_conclusion: success
