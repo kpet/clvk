@@ -1263,7 +1263,7 @@ cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
         }
     }
 
-    auto event = new cvk_event(icd_downcast(context), nullptr, nullptr);
+    auto event = new cvk_event_command(icd_downcast(context), nullptr, nullptr);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;
@@ -3874,6 +3874,85 @@ void* CLVK_API_CALL clEnqueueMapBuffer(cl_command_queue cq, cl_mem buf,
     return map_ptr;
 }
 
+cl_int cvk_enqueue_unmap_image(cvk_command_queue* cq, cvk_image* image,
+                               void* mapped_ptr, bool update_host_ptr,
+                               bool blocking, cl_uint num_events_in_wait_list,
+                               const cl_event* event_wait_list,
+                               cl_event* event) {
+    const cvk_image_mapping mapping = image->mapping_for(mapped_ptr);
+
+    // We need to hold on the buffer to make sure it has not been release by the
+    // unmap command buffer creating the copy command which will hold on to it.
+    cvk_buffer_holder buffer(mapping.buffer);
+
+    bool needs_copy =
+        (mapping.flags & (CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION)) != 0;
+    update_host_ptr = update_host_ptr && image->has_flags(CL_MEM_USE_HOST_PTR);
+
+    auto cmd_unmap =
+        std::make_unique<cvk_command_unmap_image>(cq, image, mapped_ptr);
+
+    _cl_event* evt_unmap;
+    auto err = cq->enqueue_command_with_deps(
+        cmd_unmap.release(), blocking && !needs_copy, num_events_in_wait_list,
+        event_wait_list, &evt_unmap);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
+    if (needs_copy) {
+        _cl_event* evt_pre_copy = evt_unmap;
+        _cl_event* evt_host_ptr_update;
+        if (update_host_ptr) {
+            size_t zero_origin[3] = {0, 0, 0};
+            auto cmd_host_ptr_update =
+                std::make_unique<cvk_command_copy_host_buffer_rect>(
+                    cq, CL_COMMAND_WRITE_BUFFER_RECT, mapping.buffer,
+                    image->host_ptr(), mapping.origin.data(), zero_origin,
+                    mapping.region.data(), image->row_pitch(),
+                    image->slice_pitch(), image->map_buffer_row_pitch(mapping),
+                    image->map_buffer_slice_pitch(mapping),
+                    image->element_size());
+
+            err =
+                cq->enqueue_command_with_deps(cmd_host_ptr_update.release(), 1,
+                                              &evt_unmap, &evt_host_ptr_update);
+            if (err != CL_SUCCESS) {
+                return err;
+            }
+            evt_pre_copy = evt_host_ptr_update;
+        }
+        _cl_event* evt_copy;
+        auto cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_BUFFER_TO_IMAGE, cq, mapping.buffer, image, 0,
+            mapping.origin, mapping.region);
+
+        err = cq->enqueue_command_with_deps(cmd_copy.release(), blocking, 1,
+                                            &evt_pre_copy, &evt_copy);
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+
+        if (event != nullptr) {
+            *event = new cvk_event_combine(
+                cq->context(), CL_COMMAND_UNMAP_MEM_OBJECT, cq,
+                icd_downcast(evt_unmap), icd_downcast(evt_copy));
+        }
+        icd_downcast(evt_unmap)->release();
+        if (update_host_ptr) {
+            icd_downcast(evt_host_ptr_update)->release();
+        }
+        icd_downcast(evt_copy)->release();
+    } else {
+        if (event != nullptr) {
+            *event = evt_unmap;
+        } else {
+            icd_downcast(evt_unmap)->release();
+        }
+    }
+    return CL_SUCCESS;
+}
+
 cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
                                              void* mapped_ptr,
                                              cl_uint num_events_in_wait_list,
@@ -3895,31 +3974,26 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
         return CL_INVALID_MEM_OBJECT;
     }
 
-    cvk_command* cmd;
-
     if (memobj->is_image_type()) {
         auto image = static_cast<cvk_image*>(memobj);
         if (image->is_backed_by_buffer_view()) {
             auto buffer = static_cast<cvk_buffer*>(image->buffer());
-            cmd =
+            auto cmd =
                 new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
+            return command_queue->enqueue_command_with_deps(
+                cmd, num_events_in_wait_list, event_wait_list, event);
         } else {
-            auto cmd_unmap = std::make_unique<cvk_command_unmap_image>(
-                command_queue, image, mapped_ptr, true);
-
-            auto err = cmd_unmap->build();
-            if (err != CL_SUCCESS) {
-                return err;
-            }
-            cmd = cmd_unmap.release();
+            return cvk_enqueue_unmap_image(command_queue, image, mapped_ptr,
+                                           true, false, num_events_in_wait_list,
+                                           event_wait_list, event);
         }
     } else {
         auto buffer = static_cast<cvk_buffer*>(memobj);
-        cmd = new cvk_command_unmap_buffer(command_queue, buffer, mapped_ptr);
+        auto cmd = std::make_unique<cvk_command_unmap_buffer>(
+            command_queue, buffer, mapped_ptr);
+        return command_queue->enqueue_command_with_deps(
+            cmd.release(), num_events_in_wait_list, event_wait_list, event);
     }
-
-    return command_queue->enqueue_command_with_deps(
-        cmd, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
@@ -4760,6 +4834,180 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
     return CL_SUCCESS;
 }
 
+cl_int cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
+                             bool user_map_image, cl_bool blocking_map,
+                             cl_map_flags map_flags, const size_t* origin,
+                             const size_t* region, size_t* image_row_pitch,
+                             size_t* image_slice_pitch, cvk_buffer** map_buffer,
+                             void** map_ptr, cl_uint num_events_in_wait_list,
+                             const cl_event* event_wait_list, cl_event* event) {
+    auto command_queue = icd_downcast(cq);
+    auto image = static_cast<cvk_image*>(img);
+
+    if (!is_valid_command_queue(command_queue)) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, image) ||
+        !is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!map_flags_are_valid(map_flags)) {
+        return CL_INVALID_VALUE;
+    }
+    // TODO CL_INVALID_VALUE if region being mapped given by (origin,
+    // origin+region) is out of bounds
+    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules
+    // described in the argument description for origin and region.
+
+    if (image_row_pitch == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    switch (image->type()) {
+    case CL_MEM_OBJECT_IMAGE3D:
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        if (image_slice_pitch == nullptr) {
+            return CL_INVALID_VALUE;
+        }
+        break;
+    default:
+        break;
+    }
+    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height,
+    // specified or compute row and/or slice pitch) for image are not supported
+    // by device associated with queue.
+    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and
+    // data type) for image are not supported by device associated with queue.
+    // TODO CL_MAP_FAILURE if there is a failure to map the requested region
+    // into the host address space. This error cannot occur for image objects
+    // created with CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
+    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
+    // memory for data store associated with buffer.
+    if (!command_queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if ((map_flags & CL_MAP_READ) &&
+        (image->has_any_flag(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS))) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (((map_flags & CL_MAP_WRITE) ||
+         (map_flags & CL_MAP_WRITE_INVALIDATE_REGION)) &&
+        (image->has_any_flag(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS)) &&
+        user_map_image) {
+        return CL_INVALID_OPERATION;
+    }
+
+    std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
+    std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    bool needs_copy = (map_flags & CL_MAP_WRITE_INVALIDATE_REGION) == 0;
+    bool update_host_ptr =
+        user_map_image && image->has_flags(CL_MEM_USE_HOST_PTR);
+
+    // Get a mapping
+    cvk_image_mapping mapping;
+    if (!image->find_or_create_mapping(mapping, orig, reg, map_flags,
+                                       update_host_ptr)) {
+        cvk_error("cannot find or create a mapping");
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    if (map_ptr != nullptr) {
+        *map_ptr = mapping.ptr;
+    }
+    if (map_buffer != nullptr) {
+        *map_buffer = mapping.buffer;
+    }
+
+    if (update_host_ptr) {
+        *image_row_pitch = image->row_pitch();
+        if (image_slice_pitch != nullptr) {
+            *image_slice_pitch = image->slice_pitch();
+        }
+    } else {
+        *image_row_pitch = image->map_buffer_row_pitch(mapping);
+        if (image_slice_pitch != nullptr) {
+            *image_slice_pitch = image->map_buffer_slice_pitch(mapping);
+        }
+    }
+
+    if (needs_copy) {
+        _cl_event* evt_copy;
+        auto cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
+            CL_COMMAND_COPY_IMAGE_TO_BUFFER, command_queue, mapping.buffer,
+            image, 0, orig, reg);
+
+        auto err = command_queue->enqueue_command_with_deps(
+            cmd_copy.release(), blocking_map && !update_host_ptr,
+            num_events_in_wait_list, event_wait_list, &evt_copy);
+        if (err != CL_SUCCESS) {
+            image->cleanup_mapping(mapping);
+            return err;
+        }
+
+        if (update_host_ptr) {
+            size_t zero_origin[3] = {0, 0, 0};
+            auto cmd_host_ptr_update =
+                std::make_unique<cvk_command_copy_host_buffer_rect>(
+                    command_queue, CL_COMMAND_READ_BUFFER_RECT, mapping.buffer,
+                    image->host_ptr(), orig.data(), zero_origin, reg.data(),
+                    image->row_pitch(), image->slice_pitch(),
+                    image->map_buffer_row_pitch(reg),
+                    image->map_buffer_slice_pitch(reg), image->element_size());
+            _cl_event* evt_host_ptr_update;
+            err = command_queue->enqueue_command_with_deps(
+                cmd_host_ptr_update.release(), blocking_map, 1, &evt_copy,
+                &evt_host_ptr_update);
+            if (err != CL_SUCCESS) {
+                image->cleanup_mapping(mapping);
+                return err;
+            }
+
+            if (event != nullptr) {
+                *event = new cvk_event_combine(
+                    command_queue->context(), CL_COMMAND_MAP_IMAGE,
+                    command_queue, icd_downcast(evt_copy),
+                    icd_downcast(evt_host_ptr_update));
+            }
+            icd_downcast(evt_copy)->release();
+            icd_downcast(evt_host_ptr_update)->release();
+        } else {
+            if (event != nullptr) {
+                *event = evt_copy;
+            } else {
+                icd_downcast(evt_copy)->release();
+            }
+        }
+    } else {
+        auto cmd_map =
+            std::make_unique<cvk_command_map_image>(command_queue, image);
+
+        auto err = command_queue->enqueue_command_with_deps(
+            cmd_map.release(), blocking_map, num_events_in_wait_list,
+            event_wait_list, event);
+        if (err != CL_SUCCESS) {
+            image->cleanup_mapping(mapping);
+            return err;
+        }
+    }
+
+    return CL_SUCCESS;
+}
+
 cl_int cvk_enqueue_image_copy(
     cvk_command_queue* queue, cl_command_type command_type, cvk_mem* image,
     bool blocking, const size_t* origin, const size_t* region, size_t row_pitch,
@@ -4777,7 +5025,6 @@ cl_int cvk_enqueue_image_copy(
     }
 
     // Create image map command
-    std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
     cl_map_flags map_flags;
@@ -4786,15 +5033,6 @@ cl_int cvk_enqueue_image_copy(
     } else {
         map_flags = CL_MAP_READ;
     }
-
-    auto cmd_map = std::make_unique<cvk_command_map_image>(queue, img, orig,
-                                                           reg, map_flags);
-    void* map_ptr;
-    cl_int err = cmd_map->build(&map_ptr);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
-    auto map_buffer = cmd_map->map_buffer();
 
     // Create copy command
     auto rpitch = row_pitch;
@@ -4807,31 +5045,48 @@ cl_int cvk_enqueue_image_copy(
         spitch = region[1] * rpitch;
     }
     const size_t zero_origin[3] = {0, 0, 0};
+
+    _cl_event* evt_map;
+    cvk_buffer* map_buffer;
+    void* map_ptr;
+    size_t image_row_pitch, image_slice_pitch;
+    auto err = cvk_enqueue_map_image(
+        queue, image, false, false, map_flags, origin, region, &image_row_pitch,
+        &image_slice_pitch, &map_buffer, &map_ptr, num_events_in_wait_list,
+        event_wait_list, &evt_map);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
+
     auto cmd_copy = std::make_unique<cvk_command_copy_host_buffer_rect>(
         queue, command_type, map_buffer, ptr, zero_origin, zero_origin, region,
         rpitch, spitch, img->map_buffer_row_pitch(reg),
         img->map_buffer_slice_pitch(reg), img->element_size());
 
-    // Create unmap command
-    auto cmd_unmap =
-        std::make_unique<cvk_command_unmap_image>(queue, img, map_ptr);
-    err = cmd_unmap->build();
+    _cl_event* evt_copy;
+    err = queue->enqueue_command_with_deps(cmd_copy.release(), 1, &evt_map,
+                                           &evt_copy);
     if (err != CL_SUCCESS) {
         return err;
     }
 
-    // Create combine command
-    std::vector<std::unique_ptr<cvk_command>> commands;
-    commands.emplace_back(std::move(cmd_map));
-    commands.emplace_back(std::move(cmd_copy));
-    commands.emplace_back(std::move(cmd_unmap));
+    _cl_event* evt_unmap;
+    err = cvk_enqueue_unmap_image(queue, img, map_ptr, false, blocking, 1,
+                                  &evt_copy, &evt_unmap);
+    icd_downcast(evt_copy)->release();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
 
-    auto cmd =
-        new cvk_command_combine(queue, command_type, std::move(commands));
+    if (event != nullptr) {
+        *event = new cvk_event_combine(queue->context(), command_type, queue,
+                                       icd_downcast(evt_map),
+                                       icd_downcast(evt_unmap));
+    }
+    icd_downcast(evt_map)->release();
+    icd_downcast(evt_unmap)->release();
 
-    // Enqueue combined command
-    return queue->enqueue_command_with_deps(
-        cmd, blocking, num_events_in_wait_list, event_wait_list, event);
+    return CL_SUCCESS;
 }
 
 cl_int CLVK_API_CALL clEnqueueReadImage(
@@ -5141,13 +5396,15 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     }
 
     // Create image map command
-    std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
-    auto cmd_map = std::make_unique<cvk_command_map_image>(
-        command_queue, img, orig, reg, CL_MAP_WRITE_INVALIDATE_REGION);
     void* map_ptr;
-    cl_int err = cmd_map->build(&map_ptr);
+    _cl_event* evt_map;
+    size_t image_row_pitch, image_slice_pitch;
+    auto err = cvk_enqueue_map_image(
+        command_queue, image, false, false, CL_MAP_WRITE_INVALIDATE_REGION,
+        origin, region, &image_row_pitch, &image_slice_pitch, nullptr, &map_ptr,
+        num_events_in_wait_list, event_wait_list, &evt_map);
     if (err != CL_SUCCESS) {
         return err;
     }
@@ -5155,26 +5412,30 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     auto cmd_fill = std::make_unique<cvk_command_fill_image>(
         command_queue, map_ptr, pattern, pattern_size, reg);
 
-    // Create unmap command
-    auto cmd_unmap =
-        std::make_unique<cvk_command_unmap_image>(command_queue, img, map_ptr);
-    err = cmd_unmap->build();
+    _cl_event* evt_fill;
+    err = command_queue->enqueue_command_with_deps(cmd_fill.release(), 1,
+                                                   &evt_map, &evt_fill);
     if (err != CL_SUCCESS) {
         return err;
     }
 
-    // Create combine command
-    std::vector<std::unique_ptr<cvk_command>> commands;
-    commands.emplace_back(std::move(cmd_map));
-    commands.emplace_back(std::move(cmd_fill));
-    commands.emplace_back(std::move(cmd_unmap));
+    _cl_event* evt_unmap;
+    err = cvk_enqueue_unmap_image(command_queue, img, map_ptr, false, false, 1,
+                                  &evt_fill, &evt_unmap);
+    icd_downcast(evt_fill)->release();
+    if (err != CL_SUCCESS) {
+        return err;
+    }
 
-    auto cmd = new cvk_command_combine(command_queue, CL_COMMAND_FILL_IMAGE,
-                                       std::move(commands));
+    if (event != nullptr) {
+        *event = new cvk_event_combine(
+            command_queue->context(), CL_COMMAND_FILL_IMAGE, command_queue,
+            icd_downcast(evt_map), icd_downcast(evt_unmap));
+    }
+    icd_downcast(evt_map)->release();
+    icd_downcast(evt_unmap)->release();
 
-    // Enqueue combined command
-    return command_queue->enqueue_command_with_deps(
-        cmd, num_events_in_wait_list, event_wait_list, event);
+    return CL_SUCCESS;
 }
 
 cl_int CLVK_API_CALL clEnqueueCopyImageToBuffer(
@@ -5351,119 +5612,6 @@ cl_int CLVK_API_CALL clEnqueueCopyBufferToImage(
     }
 }
 
-void* cvk_enqueue_map_image(cl_command_queue cq, cl_mem img,
-                            cl_bool blocking_map, cl_map_flags map_flags,
-                            const size_t* origin, const size_t* region,
-                            size_t* image_row_pitch, size_t* image_slice_pitch,
-                            cl_uint num_events_in_wait_list,
-                            const cl_event* event_wait_list, cl_event* event,
-                            cl_int* errcode_ret) {
-    auto command_queue = icd_downcast(cq);
-    auto image = static_cast<cvk_image*>(img);
-
-    if (!is_valid_command_queue(command_queue)) {
-        *errcode_ret = CL_INVALID_COMMAND_QUEUE;
-        return nullptr;
-    }
-
-    if (!is_valid_image(image)) {
-        *errcode_ret = CL_INVALID_MEM_OBJECT;
-        return nullptr;
-    }
-
-    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
-        *errcode_ret = CL_INVALID_EVENT_WAIT_LIST;
-        return nullptr;
-    }
-
-    if (!is_same_context(command_queue, image) ||
-        !is_same_context(command_queue, num_events_in_wait_list,
-                         event_wait_list)) {
-        *errcode_ret = CL_INVALID_CONTEXT;
-        return nullptr;
-    }
-
-    if (!map_flags_are_valid(map_flags)) {
-        *errcode_ret = CL_INVALID_VALUE;
-        return nullptr;
-    }
-    // TODO CL_INVALID_VALUE if region being mapped given by (origin,
-    // origin+region) is out of bounds
-    // TODO CL_INVALID_VALUE if values in origin and region do not follow rules
-    // described in the argument description for origin and region.
-
-    if (image_row_pitch == nullptr) {
-        *errcode_ret = CL_INVALID_VALUE;
-        return nullptr;
-    }
-
-    switch (image->type()) {
-    case CL_MEM_OBJECT_IMAGE3D:
-    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
-    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
-        if (image_slice_pitch == nullptr) {
-            *errcode_ret = CL_INVALID_VALUE;
-            return nullptr;
-        }
-        break;
-    default:
-        break;
-    }
-    // TODO CL_INVALID_IMAGE_SIZE if image dimensions (image width, height,
-    // specified or compute row and/or slice pitch) for image are not supported
-    // by device associated with queue.
-    // TODO CL_INVALID_IMAGE_FORMAT if image format (image channel order and
-    // data type) for image are not supported by device associated with queue.
-    // TODO CL_MAP_FAILURE if there is a failure to map the requested region
-    // into the host address space. This error cannot occur for image objects
-    // created with CL_MEM_USE_HOST_PTR or CL_MEM_ALLOC_HOST_PTR.
-    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
-    // memory for data store associated with buffer.
-    if (!command_queue->device()->supports_images()) {
-        *errcode_ret = CL_INVALID_OPERATION;
-        return nullptr;
-    }
-
-    if ((map_flags & CL_MAP_READ) &&
-        (image->has_any_flag(CL_MEM_HOST_WRITE_ONLY | CL_MEM_HOST_NO_ACCESS))) {
-        *errcode_ret = CL_INVALID_OPERATION;
-        return nullptr;
-    }
-
-    if (((map_flags & CL_MAP_WRITE) ||
-         (map_flags & CL_MAP_WRITE_INVALIDATE_REGION)) &&
-        (image->has_any_flag(CL_MEM_HOST_READ_ONLY | CL_MEM_HOST_NO_ACCESS))) {
-        *errcode_ret = CL_INVALID_OPERATION;
-        return nullptr;
-    }
-
-    std::array<size_t, 3> orig = {origin[0], origin[1], origin[2]};
-    std::array<size_t, 3> reg = {region[0], region[1], region[2]};
-    auto cmd = std::make_unique<cvk_command_map_image>(
-        command_queue, image, orig, reg, map_flags, true);
-
-    void* map_ptr;
-    cl_int err = cmd->build(&map_ptr);
-
-    if (err != CL_SUCCESS) {
-        *errcode_ret = err;
-        return nullptr;
-    }
-
-    *image_row_pitch = cmd->row_pitch();
-    if (image_slice_pitch != nullptr) {
-        *image_slice_pitch = cmd->slice_pitch();
-    }
-
-    err = command_queue->enqueue_command_with_deps(cmd.release(), blocking_map,
-                                                   num_events_in_wait_list,
-                                                   event_wait_list, event);
-
-    *errcode_ret = err;
-
-    return map_ptr;
-}
-
 void* CLVK_API_CALL clEnqueueMapImage(
     cl_command_queue cq, cl_mem image, cl_bool blocking_map,
     cl_map_flags map_flags, const size_t* origin, const size_t* region,
@@ -5496,16 +5644,19 @@ void* CLVK_API_CALL clEnqueueMapImage(
             region[0] * img->element_size(), map_flags, num_events_in_wait_list,
             event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE, img);
     } else {
-        ret = cvk_enqueue_map_image(command_queue, image, blocking_map,
-                                    map_flags, origin, region, image_row_pitch,
-                                    image_slice_pitch, num_events_in_wait_list,
-                                    event_wait_list, event, &err);
+        err = cvk_enqueue_map_image(
+            command_queue, image, true, blocking_map, map_flags, origin, region,
+            image_row_pitch, image_slice_pitch, nullptr, &ret,
+            num_events_in_wait_list, event_wait_list, event);
     }
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
 
+    if (err != CL_SUCCESS) {
+        return nullptr;
+    }
     return ret;
 }
 
