@@ -120,7 +120,7 @@ if (CLVK_PERFETTO_ENABLE)
   )
   set_property(CACHE CLVK_PERFETTO_BACKEND PROPERTY STRINGS ${CLVK_PERFETTO_BACKEND_OPTIONS})
   if (${CLVK_PERFETTO_BACKEND} STREQUAL InProcess)
-      target_compile_definitions(clvk-config-definitions INTERFACE CLVK_PERFETTO_BACKEND_INPROCESS)
+      target_compile_definitions(OpenCL-objects INTERFACE CLVK_PERFETTO_BACKEND_INPROCESS)
   endif()
 
   target_compile_definitions(OpenCL-objects PUBLIC CLVK_PERFETTO_ENABLE)
