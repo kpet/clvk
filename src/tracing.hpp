@@ -18,7 +18,11 @@
 
 #include "cl_headers.hpp"
 #include "log.hpp"
+#ifdef CLVK_PERFETTO_AMALGAMATED
 #include "perfetto.h"
+#else
+#include "perfetto/tracing.h"
+#endif
 
 #define CLVK_PERFETTO_CATEGORY "clvk"
 
