@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-2019]
+        os: [ubuntu-22.04, macos-latest, windows-2022]
         online-compiler: [true, false]
         compiler-available: [true]
         android: ['']
@@ -42,7 +42,7 @@ jobs:
             compiler-available: true
             android-abi: arm64-v8a
             android: Android
-          - os: windows-2019
+          - os: windows-2022
             online-compiler: true
             unit: true
           - os: ubuntu-22.04
@@ -179,7 +179,7 @@ jobs:
           name: swiftshader-${{ runner.os }}
           path: swiftshader
       - name: Register Swiftshader ICD
-        if: ${{ matrix.os == 'windows-2019' }}
+        if: ${{ matrix.os == 'windows-2022' }}
         run: |
           reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers'
           reg add 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers' /v '${{ github.workspace }}\swiftshader\vk_swiftshader_icd.json' /t REG_DWORD /d 0
