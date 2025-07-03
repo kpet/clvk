@@ -6144,7 +6144,7 @@ cl_int clRetainSemaphoreKHR(cl_semaphore_khr sema_object) {
 // clang-format off
 cl_icd_dispatch gDispatchTable = {
     // OpenCL 1.0
-    clGetPlatformIDs,
+    {clGetPlatformIDs},
     clGetPlatformInfo,
     clGetDeviceIDs,
     clGetDeviceInfo,
@@ -6175,7 +6175,7 @@ cl_icd_dispatch gDispatchTable = {
     clRetainProgram,
     clReleaseProgram,
     clBuildProgram,
-    clUnloadCompiler,
+    {clUnloadCompiler},
     clGetProgramInfo,
     clGetProgramBuildInfo,
     clCreateKernel,
