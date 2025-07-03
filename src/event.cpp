@@ -22,9 +22,9 @@ static const cl_profiling_info status_to_profiling_info[4] = {
     CL_PROFILING_COMMAND_QUEUED,
 };
 
-cvk_event::cvk_event(cvk_context* ctx, cvk_command* cmd,
-                     cvk_command_queue* queue)
-    : api_object(ctx), m_cmd(cmd), m_queue(queue) {
+cvk_event_command::cvk_event_command(cvk_context* ctx, cvk_command* cmd,
+                                     cvk_command_queue* queue)
+    : cvk_event(ctx, queue), m_cmd(cmd) {
     if (cmd == nullptr) {
         m_status = CL_SUBMITTED;
         m_command_type = CL_COMMAND_USER;
@@ -34,7 +34,7 @@ cvk_event::cvk_event(cvk_context* ctx, cvk_command* cmd,
     }
 }
 
-void cvk_event::set_status(cl_int status) {
+void cvk_event_command::set_status(cl_int status) {
     cvk_debug_group(loggroup::event,
                     "cvk_event::set_status: event = %p, status = %d", this,
                     status);
