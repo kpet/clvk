@@ -1397,6 +1397,9 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 #if !COMPILER_AVAILABLE
     UNUSED(device);
 #else
+    // m_il and m_source cannot be set together.
+    // They can both be empty when loading from binary.
+    CVK_ASSERT(m_il.empty() || m_source.empty());
 
     bool build_from_il =
         m_il.size() > 0 && m_operation != build_operation::link;
@@ -1429,10 +1432,7 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
     auto build_options = prepare_build_options(device);
 
     // Add options to specify input/output types
-    if (build_from_il ||
-        m_binary_type == CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT ||
-        m_binary_type == CL_PROGRAM_BINARY_TYPE_LIBRARY ||
-        m_operation == build_operation::link) {
+    if (m_source.empty() || m_operation == build_operation::link) {
         build_options += " -x ir ";
     }
     bool build_to_ir =
