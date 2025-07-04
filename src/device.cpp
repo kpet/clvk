@@ -645,7 +645,8 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
         VkSubgroupFeatureFlags required_subgroup_ops =
-            VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+            VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
+            VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT;
         if ((m_subgroup_properties.supportedOperations &
              required_subgroup_ops) == required_subgroup_ops &&
             (m_features_shader_subgroup_extended_types
@@ -656,6 +657,21 @@ void cvk_device::build_extension_ils_list() {
             VK_SUBGROUP_FEATURE_SHUFFLE_BIT) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_shuffle"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_rotate"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_BALLOT_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_ballot"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_VOTE_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_non_uniform_vote"));
         }
     }
 
@@ -1248,6 +1264,9 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityGroupNonUniformShuffle:
         return m_subgroup_properties.supportedOperations &
                VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    case spv::CapabilityGroupNonUniformRotateKHR:
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
