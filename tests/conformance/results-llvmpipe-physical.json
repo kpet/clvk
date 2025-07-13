@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4210993,
+    "apiVersion": 4210999,
     "deviceID": 0,
-    "deviceName": "llvmpipe (LLVM 19.1.7, 256 bits)",
+    "deviceName": "llvmpipe (LLVM 20.1.7, 256 bits)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
     "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
-    "driverInfo": "Mesa 25.0.4 (LLVM 19.1.7)",
+    "driverInfo": "Mesa 25.1.5 (LLVM 20.1.7)",
     "driverName": "llvmpipe",
-    "driverVersion": 1
+    "driverVersion": 104861701
   },
   "test-results": {
     "API": {
@@ -1447,7 +1447,7 @@
         "subgroup_functions_non_uniform_arithmetic": "skip",
         "subgroup_functions_non_uniform_vote": "skip",
         "subgroup_functions_rotate": "skip",
-        "subgroup_functions_shuffle": "skip",
+        "subgroup_functions_shuffle": "pass",
         "subgroup_functions_shuffle_relative": "skip",
         "work_item_functions_core": "pass",
         "work_item_functions_ext": "skip"
@@ -1532,6 +1532,7 @@
         "copy_image": "skip",
         "copy_image_to_buffer": "skip",
         "copy_svm_buffer": "skip",
+        "enqueue_and_release": "skip",
         "event_info_command_queue": "skip",
         "event_info_command_type": "skip",
         "event_info_context": "skip",
@@ -1600,6 +1601,11 @@
         "negative_command_ndrange_kernel_with_different_context": "skip",
         "negative_command_ndrange_kernel_with_enqueue_call": "skip",
         "negative_command_ndrange_queue_not_null": "skip",
+        "negative_copy_buffer_to_immutable_image": "skip",
+        "negative_copy_image_to_immutable_buffer": "skip",
+        "negative_copy_to_immutable_buffer": "skip",
+        "negative_copy_to_immutable_buffer_rect": "skip",
+        "negative_copy_to_immutable_image": "skip",
         "negative_create_command_buffer_not_supported_properties": "skip",
         "negative_create_command_buffer_null_queues": "skip",
         "negative_create_command_buffer_num_queues": "skip",
@@ -1616,6 +1622,8 @@
         "negative_enqueue_queue_with_different_context": "skip",
         "negative_enqueue_queue_without_reqd_properties": "skip",
         "negative_enqueue_with_unsupported_queue_property": "skip",
+        "negative_fill_immutable_buffer": "skip",
+        "negative_fill_immutable_image": "skip",
         "negative_finalize_command_buffer_invalid_command_buffer": "skip",
         "negative_finalize_command_buffer_not_recording_state": "skip",
         "negative_get_command_buffer_info_context": "skip",
