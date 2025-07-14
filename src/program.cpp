@@ -1430,8 +1430,9 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 
     // Add options to specify input/output types
     if (build_from_il ||
-        m_binary_type == CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT ||
-        m_binary_type == CL_PROGRAM_BINARY_TYPE_LIBRARY ||
+        ((m_binary_type == CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT ||
+          m_binary_type == CL_PROGRAM_BINARY_TYPE_LIBRARY) &&
+         m_operation != build_operation::compile) ||
         m_operation == build_operation::link) {
         build_options += " -x ir ";
     }
