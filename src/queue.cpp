@@ -380,16 +380,17 @@ cl_int cvk_command_group::execute_cmds() {
 }
 
 cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
-    cl_uint num_events, _cl_event* const* event_list) {
+    cl_uint num_events, _cl_event* const* event_list,
+    std::unique_lock<std::mutex>& lock) {
     auto* exec = m_executor;
     if (exec == nullptr) {
         return CL_SUCCESS;
     }
 
-    m_lock.unlock();
+    lock.unlock();
     auto cmds = exec->extract_cmds_required_by(false, num_events, event_list);
     auto ret = cmds.execute_cmds();
-    m_lock.lock();
+    lock.lock();
 
     return ret;
 }
@@ -398,7 +399,7 @@ cl_int
 cvk_command_queue::execute_cmds_required_by(cl_uint num_events,
                                             _cl_event* const* event_list) {
     std::unique_lock<std::mutex> lock(m_lock);
-    return execute_cmds_required_by_no_lock(num_events, event_list);
+    return execute_cmds_required_by_no_lock(num_events, event_list, lock);
 }
 
 cvk_command_group
@@ -537,7 +538,7 @@ cl_int cvk_command_queue::flush() {
 }
 
 cl_int cvk_command_queue::finish() {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::unique_lock<std::mutex> lock(m_lock);
 
     auto status = flush_no_lock();
     if (status != CL_SUCCESS) {
@@ -546,7 +547,7 @@ cl_int cvk_command_queue::finish() {
 
     if (m_finish_event != nullptr) {
         _cl_event* evt_list = (_cl_event*)&*m_finish_event;
-        execute_cmds_required_by_no_lock(1, &evt_list);
+        execute_cmds_required_by_no_lock(1, &evt_list, lock);
         m_finish_event->wait();
     }
 
