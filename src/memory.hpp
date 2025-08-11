@@ -25,11 +25,15 @@
 struct cvk_memory_allocation {
 
     cvk_memory_allocation(VkDevice dev, VkDeviceSize size, uint32_t type_index,
-                          bool coherent)
+                          bool coherent, bool keep_mapping)
         : m_device(dev), m_size(size), m_memory(VK_NULL_HANDLE),
-          m_memory_type_index(type_index), m_coherent(coherent) {}
+          m_memory_type_index(type_index), m_coherent(coherent),
+          m_keep_mapping(keep_mapping), m_map_ptr(nullptr) {}
 
     ~cvk_memory_allocation() {
+        if (m_keep_mapping && m_map_ptr != nullptr) {
+            vkUnmapMemory(m_device, m_memory);
+        }
         if (m_memory != VK_NULL_HANDLE) {
             vkFreeMemory(m_device, m_memory, nullptr);
         }
@@ -73,10 +77,19 @@ struct cvk_memory_allocation {
     }
 
     VkResult map(void** map_ptr) {
-        return vkMapMemory(m_device, m_memory, 0, m_size, 0, map_ptr);
+        VkResult result = VK_SUCCESS;
+        if (!m_keep_mapping || m_map_ptr == nullptr) {
+            result = vkMapMemory(m_device, m_memory, 0, m_size, 0, &m_map_ptr);
+        }
+        *map_ptr = m_map_ptr;
+        return result;
     }
 
-    void unmap() { vkUnmapMemory(m_device, m_memory); }
+    void unmap() {
+        if (!m_keep_mapping) {
+            vkUnmapMemory(m_device, m_memory);
+        }
+    }
 
     VkDeviceMemory vulkan_memory() { return m_memory; }
 
@@ -86,6 +99,8 @@ private:
     VkDeviceMemory m_memory;
     uint32_t m_memory_type_index;
     bool m_coherent;
+    bool m_keep_mapping;
+    void* m_map_ptr;
 };
 
 using cvk_mem_callback_pointer_type = void(CL_CALLBACK*)(cl_mem mem,
