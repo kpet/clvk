@@ -699,6 +699,10 @@ struct cvk_device : public _cl_device_id,
                0;
     }
 
+    bool keep_memory_allocations_mapped() const {
+        return m_clvk_properties->keep_memory_allocations_mapped();
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
