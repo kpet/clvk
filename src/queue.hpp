@@ -237,7 +237,8 @@ struct cvk_command_queue : public _cl_command_queue,
     cl_int execute_cmds_required_by(cl_uint num_events,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
-                                            _cl_event* const* event_list);
+                                            _cl_event* const* event_list,
+                                            std::unique_lock<std::mutex>& lock);
 
     void detach_from_context();
 
