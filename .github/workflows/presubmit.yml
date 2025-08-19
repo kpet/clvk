@@ -89,9 +89,9 @@ jobs:
         run: |
           mkdir ndk
           cd ndk
-          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-          unzip android-ndk-r25c-linux.zip
-          rm android-ndk-r25c-linux.zip
+          wget https://dl.google.com/android/repository/android-ndk-r27b-linux.zip
+          unzip android-ndk-r27b-linux.zip
+          rm android-ndk-r27b-linux.zip
           ls -l
       - name: Select build directory
         shell: bash
@@ -113,7 +113,7 @@ jobs:
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33/libvulkan.so" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27b/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27b/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so" >> $GITHUB_ENV
       - name: Build Perfetto
         if: ${{ matrix.perfetto }}
         shell: bash
