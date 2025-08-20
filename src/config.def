@@ -212,6 +212,15 @@ OPTION(uint32_t, perfetto_trace_max_size, 1024u)
 OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS
 
+// Use `cvk_semaphore::poll` (instead of `cvk_semaphore::wait`) on the executor
+// thread to know where a semaphore
+// has reached an expected value.
+OPTION(bool, poll_executor, false)
+
+// Use `cvk_semaphore::poll` (instead of `cvk_semaphore::wait`) on the main
+// thread to know where a semaphore has reached an expected value.
+PROPERTY(bool, poll_main_thread, false)
+
 
 ////////////////////////////////////////////////////////////
 // LOGGING & VALIDATION ////////////////////////////////////
