@@ -367,7 +367,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     // Now wait for all the events
     for (cl_uint i = 0; i < num_events; i++) {
         cvk_event* event = icd_downcast(event_list[i]);
-        if (event->wait() != CL_COMPLETE) {
+        bool poll = config.poll_main_thread();
+        if (!event->is_user_event()) {
+            poll = event->queue()->device()->poll_main_thread();
+        }
+        if (event->wait(poll) != CL_COMPLETE) {
             ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
         }
     }
@@ -378,11 +382,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 void cvk_command_group::execute_cmds_in_executor() {
     CVK_ASSERT(commands.size() > 0);
     cvk_command_queue_holder queue = commands.front()->queue();
-    execute_cmds();
+    execute_cmds(config.poll_executor);
     queue->group_completed();
 }
 
-cl_int cvk_command_group::execute_cmds() {
+cl_int cvk_command_group::execute_cmds(bool poll) {
     TRACE_FUNCTION();
     cl_int global_status = CL_SUCCESS;
     while (!commands.empty()) {
@@ -390,7 +394,7 @@ cl_int cvk_command_group::execute_cmds() {
         cvk_debug_fn("executing command %p (%s), event %p", cmd,
                      cl_command_type_to_string(cmd->type()), cmd->event());
 
-        cl_int status = cmd->execute();
+        cl_int status = cmd->execute(poll);
         if (status != CL_COMPLETE && global_status == CL_SUCCESS)
             global_status = status;
         cvk_debug_fn("command returned %d", status);
@@ -416,7 +420,7 @@ cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
 
     lock.unlock();
     auto cmds = exec->extract_cmds_required_by(true, num_events, event_list);
-    auto ret = cmds.execute_cmds();
+    auto ret = cmds.execute_cmds(m_device->poll_main_thread());
     lock.lock();
 
     return ret;
@@ -575,7 +579,7 @@ cl_int cvk_command_queue::finish() {
     if (m_finish_event != nullptr) {
         _cl_event* evt_list = (_cl_event*)&*m_finish_event;
         execute_cmds_required_by_no_lock(1, &evt_list, lock);
-        m_finish_event->wait();
+        m_finish_event->wait(m_device->poll_main_thread());
     }
 
     return CL_SUCCESS;

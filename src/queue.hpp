@@ -34,7 +34,7 @@ using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 struct cvk_command_group {
     std::deque<cvk_command*> commands;
-    cl_int execute_cmds();
+    cl_int execute_cmds(bool poll);
     void execute_cmds_in_executor();
 };
 
@@ -471,12 +471,12 @@ struct cvk_command {
         m_event_deps.push_back(dep);
     }
 
-    CHECK_RETURN cl_int execute() {
+    CHECK_RETURN cl_int execute(bool poll) {
 
         // First wait for dependencies
         cl_int status = CL_COMPLETE;
         for (auto& ev : m_event_deps) {
-            if (ev->wait() != CL_COMPLETE) {
+            if (ev->wait(poll) != CL_COMPLETE) {
                 status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
             }
         }
