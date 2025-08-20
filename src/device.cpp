@@ -593,7 +593,7 @@ void cvk_device::build_extension_ils_list() {
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_3d_image_writes"),
         // MAKE_NAME_VERSION(0, 9, 0, "cl_khr_semaphore"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_spirv_linkonce_odr"),
-        MAKE_NAME_VERSION(0, 9, 0, "cl_khr_command_buffer"),
+        MAKE_NAME_VERSION(0, 9, 8, "cl_khr_command_buffer"),
     };
 
     if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)) {
@@ -1231,10 +1231,12 @@ void cvk_device::select_work_group_size(
     cvk_kernel* kernel, const std::array<uint32_t, 3>& global_size,
     std::array<uint32_t, 3>& local_size) const {
 
-    auto required_work_group_size = kernel->required_work_group_size();
-    if (required_work_group_size[0] != 0) {
-        local_size = required_work_group_size;
-        return;
+    if (kernel != nullptr) {
+        auto required_work_group_size = kernel->required_work_group_size();
+        if (required_work_group_size[0] != 0) {
+            local_size = required_work_group_size;
+            return;
+        }
     }
     // Start at (1,1,1), which is always valid.
     local_size = {1, 1, 1};
