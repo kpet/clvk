@@ -77,6 +77,7 @@ add_library(OpenCL-objects OBJECT
   exports.map
 )
 target_link_libraries(OpenCL-objects clvk-config-definitions)
+target_compile_definitions(OpenCL-objects PUBLIC CL_ENABLE_BETA_EXTENSIONS)
 
 if (CLVK_UNIT_TESTING)
    target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)

@@ -298,10 +298,13 @@ cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
         format_feature_flags_WO = VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT;
     }
 
-    if (flags & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
-        format_feature_flags |= format_feature_flags_WO;
-    } else if (flags & CL_MEM_READ_ONLY) {
+    bool read_write = config.enable_fill_image_on_device() ||
+                      config.fill_image_on_device() ||
+                      (flags & CL_MEM_KERNEL_READ_AND_WRITE);
+    if (!read_write && (flags & CL_MEM_READ_ONLY)) {
         format_feature_flags |= format_feature_flags_RO;
+    } else if (!read_write && (flags & CL_MEM_WRITE_ONLY)) {
+        format_feature_flags |= format_feature_flags_WO;
     } else {
         format_feature_flags |=
             format_feature_flags_RO | format_feature_flags_WO;
