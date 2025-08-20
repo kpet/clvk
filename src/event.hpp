@@ -40,7 +40,8 @@ struct cvk_condition_variable {
     virtual ~cvk_condition_variable() {}
 
     virtual void notify() = 0;
-    CHECK_RETURN virtual bool wait(std::unique_lock<std::mutex>&) = 0;
+    CHECK_RETURN virtual bool wait(std::unique_lock<std::mutex>& lock,
+                                   bool poll) = 0;
 
     virtual cvk_semaphore* get_semaphore() {
         CVK_ASSERT(false && "Should never be called");
@@ -64,9 +65,15 @@ struct cvk_semaphore_condition_variable final : public cvk_condition_variable {
     ~cvk_semaphore_condition_variable() { m_sem->release(); }
 
     void notify() override final { m_sem->notify(m_value); }
-    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock) override final {
+    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock,
+                           bool poll) override final {
         lock.unlock();
-        bool ret = m_sem->wait(m_value);
+        bool ret;
+        if (poll) {
+            ret = m_sem->poll(m_value);
+        } else {
+            ret = m_sem->wait(m_value);
+        }
         lock.lock();
         return ret;
     }
@@ -83,7 +90,9 @@ private:
 
 struct cvk_std_condition_variable final : public cvk_condition_variable {
     void notify() override final { m_cv.notify_all(); }
-    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock) override final {
+    CHECK_RETURN bool wait(std::unique_lock<std::mutex>& lock,
+                           bool poll) override final {
+        UNUSED(poll);
         m_cv.wait(lock);
         return true;
     }
@@ -118,7 +127,7 @@ struct cvk_event : public _cl_event, api_object<object_magic::event> {
         return m_queue;
     }
 
-    virtual cl_int wait() = 0;
+    virtual cl_int wait(bool poll) = 0;
 
     virtual uint64_t get_profiling_info(cl_profiling_info pinfo) const = 0;
 
@@ -172,7 +181,7 @@ struct cvk_event_command : public cvk_event {
         return m_status;
     }
 
-    cl_int wait() override final {
+    cl_int wait(bool poll) override final {
         std::unique_lock<std::mutex> lock(m_lock);
         cvk_debug_group(loggroup::event,
                         "cvk_event::wait: event = %p, status = %d", this,
@@ -180,7 +189,7 @@ struct cvk_event_command : public cvk_event {
         if (m_status > 0) {
             TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
                               "command", (uintptr_t)m_cmd);
-            auto ret = m_cv->wait(lock);
+            auto ret = m_cv->wait(lock, poll);
             TRACE_END();
             if (!ret) {
                 m_status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
@@ -279,7 +288,7 @@ struct cvk_event_combine : public cvk_event {
         return start_status;
     }
 
-    cl_int wait() override final { return m_end_event->wait(); }
+    cl_int wait(bool poll) override final { return m_end_event->wait(poll); }
 
     uint64_t get_profiling_info(cl_profiling_info pinfo) const override final {
         if (pinfo == CL_PROFILING_COMMAND_END) {
