@@ -142,19 +142,19 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
     if (config.enqueue_command_retry_sleep_us == UINT32_MAX ||
         err != CL_OUT_OF_RESOURCES) {
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
         }
         return err;
     }
     if (m_nb_group_in_flight == 0) {
         err = end_current_command_batch();
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
             return err;
         }
         err = flush_no_lock();
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
             return err;
         }
     }
@@ -170,7 +170,7 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
         err = enqueue_command(cmd, event);
     } while (err == CL_OUT_OF_RESOURCES && m_nb_group_in_flight != 0);
     if (err != CL_SUCCESS) {
-        delete cmd;
+        cmd->release();
     }
     return err;
 }
@@ -374,11 +374,7 @@ cl_int cvk_command_group::execute_cmds() {
         // Deleting batch with many commands can take a while. Trace it to be
         // able to understand it easily.
         TRACE_BEGIN("delete_cmd");
-        delete cmd;
-        // TODO explain lifetime
-        // if (!cmd->is_part_of_api_command_buffer()) {
-        //    delete cmd;
-        // }
+        cmd->release();
         TRACE_END();
     }
     return global_status;
@@ -579,7 +575,7 @@ void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
 }
 
 bool cvk_command_buffer::begin() {
-
+    CVK_ASSERT(m_command_buffer == VK_NULL_HANDLE);
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return false;
     }
@@ -1036,8 +1032,10 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
     // specified.
 
-    m_argument_values = m_kernel->argument_values();
-    m_argument_values->retain_resources();
+    if (m_argument_values == nullptr) {
+        m_argument_values = m_kernel->argument_values();
+        m_argument_values->retain_resources();
+    }
 
     // Setup descriptors
     if (!m_argument_values->setup_descriptor_sets()) {
@@ -1192,18 +1190,19 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     VkQueryPoolCreateInfo query_pool_create_info = {
         VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
         nullptr,
-        0,                            // flags
-        VK_QUERY_TYPE_TIMESTAMP,      // queryType
-        NUM_POOL_QUERIES_PER_COMMAND, // queryCount
-        0,                            // pipelineStatistics
+        0,                                               // flags
+        VK_QUERY_TYPE_TIMESTAMP,                         // queryType
+        cvk_event_command::NUM_POOL_QUERIES_PER_COMMAND, // queryCount
+        0,                                               // pipelineStatistics
     };
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+    auto query_pool = m_event->get_query_pool();
 
     if (profiling && m_queue->profiling_on_device()) {
         auto vkdev = m_queue->device()->vulkan_device();
         auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
-                                     &m_query_pool);
+                                     query_pool);
         if (res != VK_SUCCESS) {
             return CL_OUT_OF_RESOURCES;
         }
@@ -1211,11 +1210,11 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
 
     // Sample timestamp if profiling
     if (profiling && m_queue->profiling_on_device()) {
-        vkCmdResetQueryPool(command_buffer, m_query_pool, 0,
-                            NUM_POOL_QUERIES_PER_COMMAND);
+        vkCmdResetQueryPool(command_buffer, *query_pool, 0,
+                            cvk_event_command::NUM_POOL_QUERIES_PER_COMMAND);
         vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_CMD_START);
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, *query_pool,
+                            cvk_event_command::POOL_QUERY_CMD_START);
     }
 
     auto err = build_batchable_inner(command_buffer);
@@ -1226,34 +1225,11 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     // Sample timestamp if profiling
     if (profiling && m_queue->profiling_on_device()) {
         vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_CMD_END);
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, *query_pool,
+                            cvk_event_command::POOL_QUERY_CMD_END);
     }
 
     return CL_SUCCESS;
-}
-
-cl_int cvk_command_batchable::get_timestamp_query_results(cl_ulong* start,
-                                                          cl_ulong* end) {
-    uint64_t timestamps[NUM_POOL_QUERIES_PER_COMMAND];
-    auto dev = m_queue->device();
-    auto res = vkGetQueryPoolResults(
-        dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_COMMAND,
-        sizeof(timestamps), timestamps, sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("vkGetQueryPoolResults failed %d %s", res,
-                     vulkan_error_string(res));
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    auto ts_start_raw = timestamps[POOL_QUERY_CMD_START];
-    auto ts_end_raw = timestamps[POOL_QUERY_CMD_END];
-
-    *start = dev->timestamp_to_ns(ts_start_raw);
-    *end = dev->timestamp_to_ns(ts_end_raw);
-
-    return CL_COMPLETE;
 }
 
 cl_int cvk_command_batchable::do_action() {
@@ -1899,4 +1875,179 @@ cvk_command_image_init::build_batchable_inner(cvk_command_buffer& cmdbuf) {
     }
 
     return CL_SUCCESS;
+}
+
+cl_int cvk_command_fill_image_on_device::build_batchable_inner(
+    cvk_command_buffer& cmdbuf) {
+    if (m_cmd_kernel != nullptr) {
+        return m_cmd_kernel->build_batchable_inner(cmdbuf);
+    }
+    char source[1024];
+    char color[512];
+    const char* kernel_name = "fill_image";
+    const char* type = get_image_type();
+    const char* access_qualifier = get_image_access_qualifier();
+    const char* coord = get_image_coord();
+    get_image_color(color);
+    sprintf(source,
+            "kernel void %s(write_only %s image) { write_image%s(image, "
+            "%s, %s); }",
+            kernel_name, type, access_qualifier, coord, color);
+
+    auto program = std::make_unique<cvk_program>(m_queue->context());
+    program->append_source(source, strlen(source));
+    const cl_device_id device = static_cast<cl_device_id>(m_queue->device());
+    auto err = program->build(build_operation::build, 1, &device, nullptr, 0,
+                              nullptr, nullptr, nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to build program (%u)", err);
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    auto prog = program.release();
+    auto kernel = std::make_unique<cvk_kernel>(prog, kernel_name);
+    prog->release();
+    err = kernel->init();
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to init kernel (%u)", err);
+        return err;
+    }
+    err = kernel->set_arg(0, sizeof(m_mem), &m_mem);
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to set arg (%u)", err);
+        return err;
+    }
+
+    cl_uint work_dim = dimensions();
+    cvk_ndrange ndrange(work_dim, m_work_offset.data(), m_work_size.data(),
+                        nullptr);
+    auto kern = kernel.release();
+    m_cmd_kernel =
+        std::make_unique<cvk_command_kernel>(m_queue, kern, work_dim, ndrange);
+    kern->release();
+    return m_cmd_kernel->build_batchable_inner(cmdbuf);
+}
+
+cl_uint cvk_command_fill_image_on_device::dimensions() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return 0;
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return 1;
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D:
+        return 2;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE3D:
+        return 3;
+    }
+}
+
+const char*
+cvk_command_fill_image_on_device::get_image_access_qualifier() const {
+    switch (m_image->format().image_channel_data_type) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_UNORM_SHORT_565:
+    case CL_UNORM_SHORT_555:
+    case CL_UNORM_INT_101010:
+    case CL_UNORM_INT_101010_2:
+    case CL_UNORM_INT8:
+    case CL_UNORM_INT16:
+        return "ui";
+    case CL_UNSIGNED_INT8:
+    case CL_UNSIGNED_INT16:
+    case CL_UNSIGNED_INT32:
+    case CL_SIGNED_INT8:
+    case CL_SIGNED_INT16:
+    case CL_SIGNED_INT32:
+    case CL_FLOAT:
+    case CL_HALF_FLOAT:
+        return "f";
+    case CL_SNORM_INT8:
+    case CL_SNORM_INT16:
+        return "i";
+    }
+}
+
+const char* cvk_command_fill_image_on_device::get_image_type() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_MEM_OBJECT_IMAGE1D:
+        return "image1d_t";
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return "image1d_buffer_t";
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        return "image1d_array_t";
+    case CL_MEM_OBJECT_IMAGE2D:
+        return "image2d_t";
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        return "image2d_array_t";
+    case CL_MEM_OBJECT_IMAGE3D:
+        return "image3d";
+    }
+}
+
+const char* cvk_command_fill_image_on_device::get_image_coord() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return "get_global_id(0)";
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D:
+        return "(int2)(get_global_id(0), get_global_id(1))";
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE3D:
+        return "(int4)(get_global_id(0), get_global_id(1), "
+               "get_global_id(2), 0)";
+    }
+}
+
+void cvk_command_fill_image_on_device::get_image_color(char* color) const {
+    switch (m_image->format().image_channel_data_type) {
+    default:
+        CVK_ASSERT(false);
+        break;
+    case CL_UNORM_SHORT_565:
+    case CL_UNORM_SHORT_555:
+    case CL_UNORM_INT_101010:
+    case CL_UNORM_INT_101010_2:
+    case CL_UNORM_INT8:
+    case CL_UNORM_INT16: {
+        auto fill_color = static_cast<const uint32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color, "(uint4)(%u, %u, %u, %u)", fill_color[0], fill_color[1],
+                fill_color[2], fill_color[3]);
+    } break;
+    case CL_UNSIGNED_INT8:
+    case CL_UNSIGNED_INT16:
+    case CL_UNSIGNED_INT32:
+    case CL_SIGNED_INT8:
+    case CL_SIGNED_INT16:
+    case CL_SIGNED_INT32:
+    case CL_FLOAT:
+    case CL_HALF_FLOAT: {
+        auto fill_color = static_cast<const uint32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color,
+                "(float4)(as_float(0x%x), as_float(0x%x), as_float(0x%x), "
+                "as_float(0x%x))",
+                fill_color[0], fill_color[1], fill_color[2], fill_color[3]);
+    } break;
+    case CL_SNORM_INT8:
+    case CL_SNORM_INT16: {
+        auto fill_color = static_cast<const int32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color, "(int4)(%i, %i, %i, %i)", fill_color[0], fill_color[1],
+                fill_color[2], fill_color[3]);
+    } break;
+    }
 }
