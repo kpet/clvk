@@ -216,6 +216,15 @@ OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 // the application point of view.
 PROPERTY(bool, reuse_descriptor_set, false)
 
+// Use `cvk_semaphore::poll` (instead of `cvk_semaphore::wait`) on the executor
+// thread to know where a semaphore
+// has reached an expected value.
+OPTION(bool, poll_executor, false)
+
+// Use `cvk_semaphore::poll` (instead of `cvk_semaphore::wait`) on the main
+// thread to know where a semaphore has reached an expected value.
+PROPERTY(bool, poll_main_thread, false)
+
 
 ////////////////////////////////////////////////////////////
 // LOGGING & VALIDATION ////////////////////////////////////

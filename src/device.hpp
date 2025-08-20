@@ -302,6 +302,10 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->max_compute_units();
     }
 
+    bool poll_main_thread() const {
+        return m_clvk_properties->poll_main_thread();
+    }
+
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
         // number of supported samplers to that to help with negative testing of
