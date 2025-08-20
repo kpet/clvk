@@ -325,7 +325,21 @@ cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
     return image.release();
 }
 
-bool cvk_image::init_vulkan_image() {
+cvk_image* cvk_image::create_write_enable_image_from(cvk_image* image) {
+    auto properties = image->properties();
+    auto image_write_enabled =
+        std::make_unique<cvk_image>(image->m_context, CL_MEM_WRITE_ONLY,
+                                    (const cl_image_desc*)&(image->m_desc),
+                                    (const cl_image_format*)&(image->m_format),
+                                    nullptr, std::move(properties));
+    if (!image_write_enabled->init(image->m_memory)) {
+        return nullptr;
+    }
+    return image_write_enabled.release();
+}
+
+bool cvk_image::init_vulkan_image(
+    std::shared_ptr<cvk_memory_allocation> memory) {
     // Translate image type and size
     VkImageType image_type;
     VkImageViewType view_type;
@@ -431,25 +445,29 @@ bool cvk_image::init_vulkan_image() {
         return false;
     }
 
-    CVK_ASSERT(m_desc.image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
-    // Select memory type
-    cvk_device::allocation_parameters params =
-        device->select_memory_for(m_image);
-    if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
-        cvk_error_fn("Could not get memory type!");
-        return false;
-    }
+    if (memory != nullptr) {
+        m_memory = memory;
+    } else {
+        CVK_ASSERT(m_desc.image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
+        // Select memory type
+        cvk_device::allocation_parameters params =
+            device->select_memory_for(m_image);
+        if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
+            cvk_error_fn("Could not get memory type!");
+            return false;
+        }
 
-    // Allocate memory
-    m_memory = std::make_unique<cvk_memory_allocation>(
-        vkdev, params.size, params.memory_type_index, params.memory_coherent,
-        device->keep_memory_allocations_mapped());
+        // Allocate memory
+        m_memory = std::make_unique<cvk_memory_allocation>(
+            vkdev, params.size, params.memory_type_index,
+            params.memory_coherent, device->keep_memory_allocations_mapped());
 
-    res = m_memory->allocate(device->uses_physical_addressing());
+        res = m_memory->allocate(device->uses_physical_addressing());
 
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("Could not allocate memory!");
-        return false;
+        if (res != VK_SUCCESS) {
+            cvk_error_fn("Could not allocate memory!");
+            return false;
+        }
     }
 
     // Bind the image to memory
@@ -582,11 +600,11 @@ bool cvk_image::init_vulkan_texel_buffer() {
     return true;
 }
 
-bool cvk_image::init() {
+bool cvk_image::init(std::shared_ptr<cvk_memory_allocation> memory) {
     if (is_backed_by_buffer_view()) {
         return init_vulkan_texel_buffer();
     } else {
-        return init_vulkan_image();
+        return init_vulkan_image(memory);
     }
 }
 
