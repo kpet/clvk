@@ -616,18 +616,6 @@ void cvk_device::init_compiler_options() {
     m_device_compiler_options += " -cl-arm-non-uniform-work-group-size ";
 }
 
-// The VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR was first introduced in
-// Vulkan-Headers in v1.3.277 and was later promoted to core in Vulkan 1.4 as
-// VK_SUBGROUP_FEATURE_ROTATE_BIT.
-#if defined(VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR)
-#define CLVK_ROTATE_BIT VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR
-#elif defined(VK_SUBGROUP_FEATURE_ROTATE_BIT)
-#define CLVK_ROTATE_BIT VK_SUBGROUP_FEATURE_ROTATE_BIT
-#else
-// For older Vulkan Headers (1.3.276 or earlier)
-#define CLVK_ROTATE_BIT (0)
-#endif
-
 void cvk_device::build_extension_ils_list() {
 
     m_extensions = {
@@ -670,12 +658,11 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_shuffle"));
         }
-#if CLVK_ROTATE_BIT
-        if (m_subgroup_properties.supportedOperations & CLVK_ROTATE_BIT) {
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_rotate"));
         }
-#endif
         if (m_subgroup_properties.supportedOperations &
             VK_SUBGROUP_FEATURE_BALLOT_BIT) {
             m_extensions.push_back(
@@ -1278,7 +1265,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_subgroup_properties.supportedOperations &
                VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
     case spv::CapabilityGroupNonUniformRotateKHR:
-        return m_subgroup_properties.supportedOperations & CLVK_ROTATE_BIT;
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
