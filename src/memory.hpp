@@ -608,10 +608,13 @@ struct cvk_image : public cvk_mem {
         VkImageUsageFlags usage_flags =
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        if (flags() & (CL_MEM_KERNEL_READ_AND_WRITE | CL_MEM_WRITE_ONLY)) {
-            usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
-        } else if (flags() & CL_MEM_READ_ONLY) {
+        bool read_write = config.fill_image_on_device() ||
+                          config.enable_fill_image_on_device() ||
+                          (flags() & CL_MEM_KERNEL_READ_AND_WRITE);
+        if (!read_write && (flags() & CL_MEM_READ_ONLY)) {
             usage_flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        } else if (!read_write && (flags() & CL_MEM_WRITE_ONLY)) {
+            usage_flags |= VK_IMAGE_USAGE_STORAGE_BIT;
         } else {
             usage_flags |=
                 VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
@@ -685,6 +688,7 @@ struct cvk_image : public cvk_mem {
     cvk_mem* buffer() const { return icd_downcast(m_desc.buffer); }
     cl_uint num_mip_levels() const { return m_desc.num_mip_levels; }
     cl_uint num_samples() const { return m_desc.num_samples; }
+    cl_image_info image_type() const { return m_desc.image_type; }
 
     bool has_same_format(const cvk_image* other) const {
         auto fmt = format();

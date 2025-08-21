@@ -142,19 +142,19 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
     if (config.enqueue_command_retry_sleep_us == UINT32_MAX ||
         err != CL_OUT_OF_RESOURCES) {
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
         }
         return err;
     }
     if (m_nb_group_in_flight == 0) {
         err = end_current_command_batch();
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
             return err;
         }
         err = flush_no_lock();
         if (err != CL_SUCCESS) {
-            delete cmd;
+            cmd->release();
             return err;
         }
     }
@@ -170,13 +170,14 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
         err = enqueue_command(cmd, event);
     } while (err == CL_OUT_OF_RESOURCES && m_nb_group_in_flight != 0);
     if (err != CL_SUCCESS) {
-        delete cmd;
+        cmd->release();
     }
     return err;
 }
 
 cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
 
+    CVK_ASSERT(cmd->queue() == this);
     cl_int err;
 
     // Enqueue data movement/consistency commands if needed
@@ -373,7 +374,7 @@ cl_int cvk_command_group::execute_cmds() {
         // Deleting batch with many commands can take a while. Trace it to be
         // able to understand it easily.
         TRACE_BEGIN("delete_cmd");
-        delete cmd;
+        cmd->release();
         TRACE_END();
     }
     return global_status;
@@ -574,7 +575,7 @@ void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
 }
 
 bool cvk_command_buffer::begin() {
-
+    CVK_ASSERT(m_command_buffer == VK_NULL_HANDLE);
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return false;
     }
@@ -1031,8 +1032,10 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     // TODO CL_INVALID_KERNEL_ARGS if the kernel argument values have not been
     // specified.
 
-    m_argument_values = m_kernel->argument_values();
-    m_argument_values->retain_resources();
+    if (m_argument_values == nullptr) {
+        m_argument_values = m_kernel->argument_values();
+        m_argument_values->retain_resources();
+    }
 
     // Setup descriptors
     if (!m_argument_values->setup_descriptor_sets()) {
@@ -1187,18 +1190,19 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     VkQueryPoolCreateInfo query_pool_create_info = {
         VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
         nullptr,
-        0,                            // flags
-        VK_QUERY_TYPE_TIMESTAMP,      // queryType
-        NUM_POOL_QUERIES_PER_COMMAND, // queryCount
-        0,                            // pipelineStatistics
+        0,                                               // flags
+        VK_QUERY_TYPE_TIMESTAMP,                         // queryType
+        cvk_event_command::NUM_POOL_QUERIES_PER_COMMAND, // queryCount
+        0,                                               // pipelineStatistics
     };
 
     bool profiling = m_queue->has_property(CL_QUEUE_PROFILING_ENABLE);
+    auto query_pool = m_event->get_query_pool();
 
     if (profiling && m_queue->profiling_on_device()) {
         auto vkdev = m_queue->device()->vulkan_device();
         auto res = vkCreateQueryPool(vkdev, &query_pool_create_info, nullptr,
-                                     &m_query_pool);
+                                     query_pool);
         if (res != VK_SUCCESS) {
             return CL_OUT_OF_RESOURCES;
         }
@@ -1206,11 +1210,11 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
 
     // Sample timestamp if profiling
     if (profiling && m_queue->profiling_on_device()) {
-        vkCmdResetQueryPool(command_buffer, m_query_pool, 0,
-                            NUM_POOL_QUERIES_PER_COMMAND);
+        vkCmdResetQueryPool(command_buffer, *query_pool, 0,
+                            cvk_event_command::NUM_POOL_QUERIES_PER_COMMAND);
         vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_CMD_START);
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, *query_pool,
+                            cvk_event_command::POOL_QUERY_CMD_START);
     }
 
     auto err = build_batchable_inner(command_buffer);
@@ -1221,34 +1225,11 @@ cl_int cvk_command_batchable::build(cvk_command_buffer& command_buffer) {
     // Sample timestamp if profiling
     if (profiling && m_queue->profiling_on_device()) {
         vkCmdWriteTimestamp(command_buffer,
-                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, m_query_pool,
-                            POOL_QUERY_CMD_END);
+                            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, *query_pool,
+                            cvk_event_command::POOL_QUERY_CMD_END);
     }
 
     return CL_SUCCESS;
-}
-
-cl_int cvk_command_batchable::get_timestamp_query_results(cl_ulong* start,
-                                                          cl_ulong* end) {
-    uint64_t timestamps[NUM_POOL_QUERIES_PER_COMMAND];
-    auto dev = m_queue->device();
-    auto res = vkGetQueryPoolResults(
-        dev->vulkan_device(), m_query_pool, 0, NUM_POOL_QUERIES_PER_COMMAND,
-        sizeof(timestamps), timestamps, sizeof(uint64_t),
-        VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT);
-    if (res != VK_SUCCESS) {
-        cvk_error_fn("vkGetQueryPoolResults failed %d %s", res,
-                     vulkan_error_string(res));
-        return CL_OUT_OF_RESOURCES;
-    }
-
-    auto ts_start_raw = timestamps[POOL_QUERY_CMD_START];
-    auto ts_end_raw = timestamps[POOL_QUERY_CMD_END];
-
-    *start = dev->timestamp_to_ns(ts_start_raw);
-    *end = dev->timestamp_to_ns(ts_end_raw);
-
-    return CL_COMPLETE;
 }
 
 cl_int cvk_command_batchable::do_action() {
