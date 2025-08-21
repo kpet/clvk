@@ -71,6 +71,10 @@ struct cvk_device_properties {
         return no_disabled_formats;
     }
 
+    virtual bool get_poll_main_thread() const {
+        return config.poll_main_thread();
+    }
+
     virtual ~cvk_device_properties() {}
 };
 
