@@ -71,6 +71,10 @@ struct cvk_device_properties {
         return no_disabled_formats;
     }
 
+    virtual bool reuse_descriptor_set() const {
+        return config.reuse_descriptor_set();
+    }
+
     virtual ~cvk_device_properties() {}
 };
 
