@@ -120,37 +120,6 @@ void cvk_device::init_clvk_runtime_behaviors() {
     m_clvk_properties = create_cvk_device_properties(
         m_properties.deviceName, m_properties.vendorID, m_properties.deviceID,
         m_properties.driverVersion, m_driver_properties.driverID);
-#define SET_DEVICE_PROPERTY(option, print)                                     \
-    do {                                                                       \
-        if (config.option.set) {                                               \
-            m_##option = config.option;                                        \
-        } else {                                                               \
-            m_##option = m_clvk_properties->get_##option();                    \
-        }                                                                      \
-        print(option);                                                         \
-    } while (0)
-
-#define PRINT_U(option) cvk_info_fn(#option ": %u", m_##option);
-#define SET_DEVICE_PROPERTY_U(option) SET_DEVICE_PROPERTY(option, PRINT_U)
-
-#define PRINT_S(option) cvk_info_fn(#option ": %s", m_##option.c_str());
-#define SET_DEVICE_PROPERTY_S(option) SET_DEVICE_PROPERTY(option, PRINT_S)
-
-    SET_DEVICE_PROPERTY_U(max_cmd_batch_size);
-    SET_DEVICE_PROPERTY_U(max_first_cmd_batch_size);
-    SET_DEVICE_PROPERTY_U(max_cmd_group_size);
-    SET_DEVICE_PROPERTY_U(max_first_cmd_group_size);
-
-    SET_DEVICE_PROPERTY_U(physical_addressing);
-    SET_DEVICE_PROPERTY_S(spirv_arch);
-
-    SET_DEVICE_PROPERTY_U(preferred_subgroup_size);
-
-#undef PRINT_U
-#undef PRINT_S
-#undef SET_DEVICE_PROPERTY_U
-#undef SET_DEVICE_PROPERTY_S
-#undef SET_DEVICE_PROPERTY
 }
 
 void cvk_device::init_driver_behaviors() {
@@ -536,13 +505,14 @@ void cvk_device::init_compiler_options() {
         m_device_compiler_options += " -decorate-nonuniform ";
     }
 
+#if COMPILER_AVAILABLE
     // Device specific options
-    m_device_compiler_options +=
-        " " + m_clvk_properties->get_compile_options() + " ";
+    m_device_compiler_options += " " + m_clvk_properties->clspv_options() + " ";
+#endif
 
-    m_device_compiler_options += " -arch=" + m_spirv_arch + " ";
+    m_device_compiler_options += " -arch=" + config.spirv_arch() + " ";
 
-    if (m_physical_addressing) {
+    if (config.physical_addressing()) {
         m_device_compiler_options += " -physical-storage-buffers ";
     }
 
@@ -551,24 +521,8 @@ void cvk_device::init_compiler_options() {
     }
 
     // Builtin options
-    auto parse_builtins = [](std::string s) {
-        std::set<std::string> builtins;
-        size_t pos = 0;
-        size_t comma = s.find(',', pos);
-        while (comma != std::string::npos) {
-            builtins.insert(s.substr(pos, comma - pos));
-            pos = comma + 1;
-            comma = s.find(',', pos);
-        }
-        builtins.insert(s.substr(pos));
-        return builtins;
-    };
-    auto clspv_library_builtins =
-        parse_builtins(config.clspv_library_builtins());
-    auto native_builtins = m_clvk_properties->get_native_builtins();
-    auto clspv_native_builtins = parse_builtins(config.clspv_native_builtins());
-    native_builtins.insert(clspv_native_builtins.begin(),
-                           clspv_native_builtins.end());
+    auto clspv_library_builtins = config.clspv_library_builtins();
+    auto native_builtins = m_clvk_properties->clspv_native_builtins();
 
     std::string builtin_list = "";
     for (const auto& builtin : native_builtins) {
@@ -729,19 +683,7 @@ void cvk_device::build_extension_ils_list() {
             1, 0, 0, "cl_arm_integer_dot_product_accumulate_int16"));
     }
 
-    auto split_string = [](std::string input, char delimiter) {
-        std::vector<std::string> outputs;
-        size_t pos = 0;
-        while ((pos = input.find(delimiter)) != std::string::npos) {
-            outputs.push_back(input.substr(0, pos));
-            input.erase(0, pos + 1);
-        }
-        if (input.size() > 0) {
-            outputs.push_back(input);
-        }
-        return outputs;
-    };
-    auto config_extensions = split_string(config.device_extensions(), ',');
+    auto config_extensions = config.device_extensions();
     for (auto& config_extension : config_extensions) {
         cl_name_version extension;
         extension.version = CL_MAKE_VERSION(0, 0, 0);
@@ -751,8 +693,7 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(extension);
     }
 
-    auto config_extensions_masked =
-        split_string(config.device_extensions_masked(), ',');
+    auto config_extensions_masked = config.device_extensions_masked();
     for (auto& config_extension_masked : config_extensions_masked) {
         for (auto it = m_extensions.begin(); it != m_extensions.end(); it++) {
             if (strcmp(config_extension_masked.c_str(),

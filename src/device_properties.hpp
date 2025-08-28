@@ -17,66 +17,85 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_set>
 
 #include "cl_headers.hpp"
 #include "config.hpp"
-#include "image_format.hpp"
+#include "utils.hpp"
+
+#define OPTION(type, name, valdef)
+#define EARLY_OPTION OPTION
+struct cvk_device_properties_virtual {
+#define PROPERTY(type, name, valdef)                                           \
+    virtual type name() const { return init(config.name(), type()); }
+#include "config.def"
+#undef PROPERTY
+
+    static std::set<std::string> init(std::set<std::string> config,
+                                      std::set<std::string> property) {
+        std::set<std::string> set;
+        set.insert(config.begin(), config.end());
+        set.insert(property.begin(), property.end());
+        return set;
+    }
+    static image_format_set init(image_format_set config,
+                                 image_format_set property) {
+        image_format_set set;
+        set.insert(config.begin(), config.end());
+        set.insert(property.begin(), property.end());
+        return set;
+    }
+    static std::string init(std::string config, std::string property) {
+        UNUSED(property);
+        return config;
+    }
+    static uint32_t init(uint32_t config, uint32_t property) {
+        UNUSED(property);
+        return config;
+    }
+    static bool init(bool config, uint32_t property) {
+        UNUSED(property);
+        return config;
+    }
+
+    virtual ~cvk_device_properties_virtual() {}
+};
 
 struct cvk_device_properties {
-    virtual std::string vendor() const { return "Unknown vendor"; }
-    virtual cl_ulong get_global_mem_cache_size() const { return 0; }
-    virtual cl_ulong get_num_compute_units() const {
-        return config.max_compute_units();
-    }
+    static constexpr uint32_t txt_size = FILENAME_MAX;
 
-    virtual cl_uint get_max_cmd_batch_size() const {
-        return config.max_cmd_batch_size();
+    cvk_device_properties(
+        std::unique_ptr<cvk_device_properties_virtual> properties) {
+        cvk_info_group_fn(loggroup::cfg, "");
+#define PROPERTY(type, name, valdef)                                           \
+    if (config.name.set) {                                                     \
+        m_##name = cvk_device_properties_virtual::init(config.name(),          \
+                                                       properties->name());    \
+    } else {                                                                   \
+        m_##name = properties->name();                                         \
+    };                                                                         \
+    {                                                                          \
+        config_value<type> val(m_##name);                                      \
+        char* txt = print_option(option_type<type>(), &val);                   \
+        if (m_##name != config.name()) {                                       \
+            cvk_info_group(loggroup::cfg, "  *" #name ": %s", txt);            \
+        } else {                                                               \
+            cvk_debug_group(loggroup::cfg, "  " #name ": %s", txt);            \
+        }                                                                      \
     }
-    virtual cl_uint get_max_first_cmd_batch_size() const {
-        return config.max_first_cmd_batch_size();
+#include "config.def"
+#undef PROPERTY
     }
-    virtual cl_uint get_max_cmd_group_size() const {
-        return config.max_cmd_group_size();
-    }
-    virtual cl_uint get_max_first_cmd_group_size() const {
-        return config.max_first_cmd_group_size();
-    }
-
-    virtual std::string get_spirv_arch() const { return config.spirv_arch(); }
-    virtual bool get_physical_addressing() const {
-        return config.physical_addressing();
-    }
-
-    virtual std::string get_compile_options() const { return ""; }
-
-    virtual const std::set<std::string> get_native_builtins() const {
-        return std::set<std::string>();
-    }
-
-    virtual uint32_t get_preferred_subgroup_size() const {
-        return config.preferred_subgroup_size();
-    }
-
-    virtual bool is_non_uniform_decoration_broken() const { return false; }
-
-    virtual bool is_bgra_format_not_supported_for_image1d_buffer() const {
-        return false;
-    }
-
-    using image_format_set =
-        std::unordered_set<cl_image_format, ClFormatHash, ClFormatEqual>;
-    virtual const image_format_set& get_disabled_image_formats() const {
-        static image_format_set no_disabled_formats{};
-        return no_disabled_formats;
-    }
-
-    virtual bool keep_memory_allocations_mapped() const {
-        return config.keep_memory_allocations_mapped();
-    }
-
-    virtual ~cvk_device_properties() {}
+#define PROPERTY(type, name, valdef)                                           \
+    type name() const { return m_##name; }
+#include "config.def"
+#undef PROPERTY
+private:
+#define PROPERTY(type, name, valdef) type m_##name;
+#include "config.def"
+#undef PROPERTY
 };
+#undef EARLY_OPTION
+#undef OPTION
 
 std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
     const char* name, const uint32_t vendorID, const uint32_t deviceID,
