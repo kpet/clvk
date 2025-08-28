@@ -414,6 +414,11 @@ using the name of the corresponding environment variable.
 
   All groups are enabled by default. The first group enabled replaces the default.
 
+* `CLVK_LOG_GROUPS_ONLY` controls whether warnings/errors/fatals log messages
+  from disabled groups should still be printed out or not (default: false,
+  meaning that all warnings/errors/fatals log messages will be printed out even
+  if their group is disabled).
+
 * `CLVK_CLSPV_PATH` to provide a path to the clspv binary to use
 
 * `CLVK_LLVMSPIRV_BIN` to provide a path to the llvm-spirv binary to use

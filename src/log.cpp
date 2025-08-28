@@ -225,7 +225,8 @@ void cvk_log(uint64_t group_mask, loglevel level, const char* fmt, ...) {
         return;
     }
 
-    if (!cvk_log_group_enabled(group_mask)) {
+    if (!cvk_log_group_enabled(group_mask) &&
+        (level > loglevel::warn || config.log_groups_only)) {
         return;
     }
 
