@@ -25,6 +25,7 @@
 #include <vulkan/vulkan.h>
 
 #include "cl_headers.hpp"
+#include "config.hpp"
 #include "device_properties.hpp"
 #include "icd.hpp"
 #include "objects.hpp"
@@ -293,11 +294,11 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_ulong global_mem_cache_size() const {
-        return m_clvk_properties->get_global_mem_cache_size();
+        return m_clvk_properties->global_mem_cache_size();
     }
 
-    cl_uint num_compute_units() const {
-        return m_clvk_properties->get_num_compute_units();
+    cl_uint max_compute_units() const {
+        return m_clvk_properties->max_compute_units();
     }
 
     cl_uint max_samplers() const {
@@ -327,6 +328,8 @@ struct cvk_device : public _cl_device_id,
                             config.force_subgroup_size(), min_sub_group_size(),
                             max_sub_group_size());
             }
+            auto m_preferred_subgroup_size =
+                m_clvk_properties->preferred_subgroup_size();
             if (m_preferred_subgroup_size != 0 &&
                 m_preferred_subgroup_size >= min_sub_group_size() &&
                 m_preferred_subgroup_size <= max_sub_group_size()) {
@@ -460,7 +463,7 @@ struct cvk_device : public _cl_device_id,
         return (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) ||
                 is_vulkan_extension_enabled(
                     VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME)) &&
-               !m_clvk_properties->is_non_uniform_decoration_broken();
+               !m_clvk_properties->non_uniform_decoration_broken();
     }
 
     bool supports_atomic_order_acq_rel() const {
@@ -680,17 +683,25 @@ struct cvk_device : public _cl_device_id,
         };
     }
 
-    cl_uint get_max_cmd_batch_size() const { return m_max_cmd_batch_size; }
-    cl_uint get_max_first_cmd_batch_size() const {
-        return m_max_first_cmd_batch_size;
+    cl_uint get_max_cmd_batch_size() const {
+        return m_clvk_properties->max_cmd_batch_size();
     }
-    cl_uint get_max_cmd_group_size() const { return m_max_cmd_group_size; }
+    cl_uint get_max_first_cmd_batch_size() const {
+        return m_clvk_properties->max_first_cmd_batch_size();
+    }
+    cl_uint get_max_cmd_group_size() const {
+        return m_clvk_properties->max_cmd_group_size();
+    }
     cl_uint get_max_first_cmd_group_size() const {
-        return m_max_first_cmd_group_size;
+        return m_clvk_properties->max_first_cmd_group_size();
     }
 
-    cl_uint address_bits() const { return m_spirv_arch == "spir64" ? 64 : 32; }
-    bool uses_physical_addressing() const { return m_physical_addressing; }
+    cl_uint address_bits() const {
+        return config.spirv_arch() == "spir64" ? 64 : 32;
+    }
+    bool uses_physical_addressing() const {
+        return config.physical_addressing();
+    }
 
     const std::string& get_device_specific_compile_options() const {
         return m_device_compiler_options;
@@ -700,12 +711,12 @@ struct cvk_device : public _cl_device_id,
 
     bool is_bgra_format_not_supported_for_image1d_buffer() const {
         return m_clvk_properties
-            ->is_bgra_format_not_supported_for_image1d_buffer();
+            ->bgra_format_not_supported_for_image1d_buffer();
     }
 
     bool is_image_format_disabled(cl_image_format format) const {
-        return m_clvk_properties->get_disabled_image_formats().count(format) !=
-               0;
+        return m_clvk_properties->disabled_image_formats().count(format) != 0 &&
+               config.enabled_image_formats().count(format) == 0;
     }
 
     bool keep_memory_allocations_mapped() const {
@@ -815,16 +826,6 @@ private:
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
     bool m_has_subgroup_size_selection{};
-
-    cl_uint m_max_cmd_batch_size;
-    cl_uint m_max_first_cmd_batch_size;
-    cl_uint m_max_cmd_group_size;
-    cl_uint m_max_first_cmd_group_size;
-
-    std::string m_spirv_arch;
-    bool m_physical_addressing;
-
-    cl_uint m_preferred_subgroup_size{};
 
     CHECK_RETURN cl_int update_device_host_timer_no_lock();
     std::mutex m_sync_mutex;
