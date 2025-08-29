@@ -55,6 +55,8 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity) {
     ASSERT_LT(ts_submit - ts_queued, max_diff);
     ASSERT_LT(ts_start - ts_submit, max_diff);
     ASSERT_LT(ts_end - ts_start, max_diff);
+
+    clReleaseEvent(event);
 }
 
 TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
@@ -108,6 +110,9 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
         ASSERT_EQ(ts_start_1, ts_start_2);
         ASSERT_EQ(ts_end_1, ts_end_2);
     }
+
+    clReleaseEvent(ev1);
+    clReleaseEvent(ev2);
 }
 
 TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
@@ -181,6 +186,8 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
     ASSERT_LT(timer_after_flush, ts_start);
     ASSERT_GT(timer_after_completion, ts_start);
     ASSERT_GT(timer_after_completion, ts_end);
+
+    clReleaseEvent(kevent);
 }
 
 TEST_F(WithContext, DeviceAndHostTimerEquality) {
