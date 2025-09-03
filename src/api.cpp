@@ -2923,6 +2923,11 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
         return CL_INVALID_ARG_VALUE;
     }
 
+    if (arg_size == 0 &&
+        (kernel->arg_kind(arg_index) == kernel_argument_kind::local)) {
+        return CL_INVALID_ARG_SIZE;
+    }
+
     return kernel->set_arg(arg_index, arg_size, arg_value);
 }
 
