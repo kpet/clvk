@@ -310,13 +310,10 @@ void parse_config_file(bool early_option) {
     config_file_paths.push_back("~/.config/clvk.conf");
     config_file_paths.push_back(
         (std::filesystem::current_path() / conf_file).string());
-    // First check if env var has file
-    std::string conv_file_env_var = "CLVK_CONFIG_FILE";
-    const char* conf_file_env_path = getenv(conv_file_env_var.c_str());
-
-    if (conf_file_env_path != nullptr) {
-        config_file_paths.push_back(conf_file_env_path);
+    if (!config.config_file().empty()) {
+        config_file_paths.push_back(config.config_file());
     }
+
     for (auto& curr_path : config_file_paths) {
         if (!std::filesystem::exists(curr_path)) {
             continue;
@@ -335,6 +332,9 @@ void parse_config_file(bool early_option) {
             continue;
         }
         if (file_config_values.find(opt.name) == file_config_values.end()) {
+            continue;
+        }
+        if (opt.set) { // means already set by 'parse_env'
             continue;
         }
         CVK_ASSERT(file_config_values[opt.name].length() > 0);
@@ -412,12 +412,12 @@ char* print_option(config_option_type type, void* val) {
 }
 
 void init_config() {
-    parse_config_file(false);
     parse_env(false);
+    parse_config_file(false);
     print_config();
 }
 
 void init_early_config() {
-    parse_config_file(true);
     parse_env(true);
+    parse_config_file(true);
 }
