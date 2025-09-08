@@ -246,6 +246,9 @@ EARLY_OPTION(std::string, log_groups, "")
 // should still be printed out or not.
 EARLY_OPTION(bool, log_groups_only, false)
 
+// Specify the path to an additional configuration file
+EARLY_OPTION(std::string, config_file, "")
+
 // Allow enabling Vulkan validation layers:
 //  * 0: disabled (default)
 //  * 1: enabled
