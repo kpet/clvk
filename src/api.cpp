@@ -5450,6 +5450,19 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
     // Create image map command
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
 
+    if (config.fill_image_on_device()) {
+        std::array<size_t, 3> org = {origin[0], origin[1], origin[2]};
+        std::array<uint8_t, 16> fill_color_array;
+        std::memcpy(fill_color_array.data(), fill_color,
+                    sizeof(fill_color_array));
+
+        auto cmd_fill_on_device = new cvk_command_fill_image_on_device(
+            command_queue, image, fill_color_array, org, reg);
+        return command_queue->enqueue_command_with_deps(cmd_fill_on_device,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
+    }
+
     void* map_ptr;
     _cl_event* evt_map;
     size_t image_row_pitch, image_slice_pitch;
