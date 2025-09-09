@@ -194,11 +194,7 @@ struct cvk_kernel_argument_values {
           m_descriptor_sets_refcount(0) {}
 
     ~cvk_kernel_argument_values() {
-        for (auto ds : m_descriptor_sets) {
-            if (ds != VK_NULL_HANDLE) {
-                m_entry_point->free_descriptor_set(ds);
-            }
-        }
+        m_entry_point->free_descriptor_sets(m_descriptor_sets);
     }
 
     static std::shared_ptr<cvk_kernel_argument_values>
@@ -385,12 +381,7 @@ struct cvk_kernel_argument_values {
         std::lock_guard<std::mutex> lock(m_lock);
         if (--m_descriptor_sets_refcount == 0) {
             m_is_enqueued = false;
-            for (auto& ds : m_descriptor_sets) {
-                if (ds != VK_NULL_HANDLE) {
-                    m_entry_point->free_descriptor_set(ds);
-                    ds = VK_NULL_HANDLE;
-                }
-            }
+            m_entry_point->free_descriptor_sets(m_descriptor_sets);
         }
     }
 
@@ -437,7 +428,6 @@ private:
     std::vector<bool> m_args_set;
 
     std::unique_ptr<cvk_buffer> m_pod_buffer;
-    std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>
-        m_descriptor_sets;
+    cvk_descriptor_set_array m_descriptor_sets;
     uint32_t m_descriptor_sets_refcount;
 };
