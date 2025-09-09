@@ -38,7 +38,7 @@ struct cvk_api_command_buffer : public _cl_command_buffer_khr,
     const std::vector<cl_command_properties_khr>& properties() const {
         return m_properties;
     }
-    cl_command_buffer_state_khr state() { return get_updated_state(); }
+    cl_command_buffer_state_khr state() { return m_state; }
 
     cl_int add_command(cvk_command* command,
                        cl_uint num_sync_points_in_wait_list,
@@ -52,8 +52,6 @@ struct cvk_api_command_buffer : public _cl_command_buffer_khr,
                    const cl_event* event_wait_list, cl_event* event);
 
 private:
-    cl_command_buffer_state_khr get_updated_state();
-
     cl_sync_point_khr m_sync_point;
     std::vector<cvk_command_queue_holder> m_queues;
     std::vector<cl_command_properties_khr> m_properties;

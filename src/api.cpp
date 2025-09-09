@@ -965,8 +965,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_int_dot_product_props);
         break;
     case CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR:
-        val_command_buffer_capabilities =
-            CL_COMMAND_BUFFER_CAPABILITY_KERNEL_PRINTF_KHR;
+        val_command_buffer_capabilities = 0;
         copy_ptr = &val_command_buffer_capabilities;
         size_ret = sizeof(val_command_buffer_capabilities);
         break;
@@ -7087,6 +7086,11 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
         props += 2;
     }
 
+    auto kern = icd_downcast(kernel);
+    if (kern->uses_printf()) {
+        return CL_INVALID_OPERATION;
+    }
+
     cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
                         local_work_size);
 
@@ -7098,8 +7102,7 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
         return CL_INVALID_CONTEXT;
     }
 
-    auto cmd =
-        new cvk_command_kernel(queue, icd_downcast(kernel), work_dim, ndrange);
+    auto cmd = new cvk_command_kernel(queue, kern, work_dim, ndrange);
 
     return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
                                sync_point_wait_list, sync_point);

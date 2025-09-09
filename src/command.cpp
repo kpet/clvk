@@ -47,7 +47,7 @@ cvk_api_command_buffer::enqueue(const std::vector<cvk_command_queue*>& queues,
                                 const cl_event* event_wait_list,
                                 cl_event* event) {
     std::unique_lock<std::mutex> lock(m_lock);
-    if (get_updated_state() != CL_COMMAND_BUFFER_STATE_EXECUTABLE_KHR) {
+    if (m_state != CL_COMMAND_BUFFER_STATE_EXECUTABLE_KHR) {
         return CL_INVALID_OPERATION;
     }
     std::vector<cvk_command_queue*> queues_to_enqueue;
@@ -112,14 +112,5 @@ cvk_api_command_buffer::enqueue(const std::vector<cvk_command_queue*>& queues,
             icd_downcast(events[i])->release();
         }
     }
-    m_state = CL_COMMAND_BUFFER_STATE_PENDING_KHR;
     return err;
-}
-
-cl_command_buffer_state_khr cvk_api_command_buffer::get_updated_state() {
-    if (m_state == CL_COMMAND_BUFFER_STATE_PENDING_KHR &&
-        last_enqueue_event != nullptr && last_enqueue_event->completed()) {
-        m_state = CL_COMMAND_BUFFER_STATE_EXECUTABLE_KHR;
-    }
-    return m_state;
 }
