@@ -640,6 +640,8 @@ struct cvk_image : public cvk_mem {
                              std::vector<cl_mem_properties>&& properties,
                              cl_int* errcode_ret);
 
+    static cvk_image* create_write_enabled_image_from(cvk_image* image);
+
     bool is_backed_by_buffer_view() const {
         return type() == CL_MEM_OBJECT_IMAGE1D_BUFFER;
     }
@@ -831,9 +833,9 @@ struct cvk_image : public cvk_mem {
                               size_t* size_ret) const;
 
 private:
-    cl_int init_vulkan_image();
+    cl_int init_vulkan_image(std::shared_ptr<cvk_memory_allocation> memory);
     cl_int init_vulkan_texel_buffer();
-    cl_int init();
+    cl_int init(std::shared_ptr<cvk_memory_allocation> memory = nullptr);
 
     size_t num_channels() const {
         switch (m_format.image_channel_order) {
