@@ -1115,3 +1115,59 @@ struct cvk_command_image_init final : public cvk_command_batchable {
 private:
     cvk_image_holder m_image;
 };
+
+struct cvk_command_fill_image_on_device final : public cvk_command_batchable {
+    cvk_command_fill_image_on_device(cvk_command_queue* queue, cl_mem image,
+                                     const std::array<uint8_t, 16> fill_color,
+                                     const std::array<size_t, 3> work_offset,
+                                     const std::array<size_t, 3> work_size)
+        : cvk_command_batchable(CL_COMMAND_FILL_IMAGE, queue),
+          m_image(static_cast<cvk_image*>(icd_downcast(image))),
+          m_fill_color(fill_color), m_work_offset(work_offset),
+          m_work_size(work_size) {
+        const std::array<uint32_t, 3> global_size = {(uint32_t)work_size[0],
+                                                     (uint32_t)work_size[1],
+                                                     (uint32_t)work_size[2]};
+        std::array<uint32_t, 3> local_size;
+        queue->device()->select_work_group_size(nullptr, global_size,
+                                                local_size);
+        m_local_size[0] = local_size[0];
+        m_local_size[1] = local_size[1];
+        m_local_size[2] = local_size[2];
+
+        if (!m_image->has_any_flag(CL_MEM_WRITE_ONLY | CL_MEM_READ_WRITE)) {
+            m_image_write_enabled.reset(
+                cvk_image::create_write_enable_image_from(m_image));
+            m_mem = m_image_write_enabled;
+        } else {
+            m_mem = image;
+        }
+    }
+
+    CHECK_RETURN cl_int
+    build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
+
+    bool can_be_batched() const override final {
+        return cvk_command_batchable::can_be_batched();
+    }
+
+    const std::vector<cvk_mem*> memory_objects() const override {
+        return {m_image};
+    }
+
+private:
+    cl_uint dimensions() const;
+    const char* get_image_access_qualifier() const;
+    const char* get_image_type() const;
+    const char* get_image_coord() const;
+    void get_image_color(char* color) const;
+
+    cl_mem m_mem;
+    cvk_image_holder m_image;
+    cvk_image_holder m_image_write_enabled;
+    std::array<uint8_t, 16> m_fill_color;
+    std::array<size_t, 3> m_work_offset;
+    std::array<size_t, 3> m_work_size;
+    std::array<size_t, 3> m_local_size;
+    std::unique_ptr<cvk_command_kernel> m_cmd_kernel;
+};
