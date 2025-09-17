@@ -237,7 +237,8 @@ struct cvk_command_queue : public _cl_command_queue,
     cl_int execute_cmds_required_by(cl_uint num_events,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
-                                            _cl_event* const* event_list);
+                                            _cl_event* const* event_list,
+                                            std::unique_lock<std::mutex>& lock);
 
     void detach_from_context();
 
@@ -391,7 +392,7 @@ struct cvk_command {
 
     cvk_command(cl_command_type type, cvk_command_queue* queue)
         : m_type(type), m_queue(queue),
-          m_event(new cvk_event(m_queue->context(), this, queue)) {}
+          m_event(new cvk_event_command(m_queue->context(), this, queue)) {}
 
     virtual ~cvk_command() { m_event->release(); }
 
@@ -458,9 +459,7 @@ struct cvk_command {
         return status;
     }
 
-    CHECK_RETURN virtual cl_int do_action() = 0;
-
-    cvk_event* event() const { return m_event; }
+    cvk_event_command* event() const { return m_event; }
 
     cl_command_type type() const { return m_type; }
 
@@ -485,9 +484,11 @@ struct cvk_command {
 protected:
     cl_command_type m_type;
     cvk_command_queue_holder m_queue;
-    cvk_event* m_event;
+    cvk_event_command* m_event;
 
 private:
+    CHECK_RETURN virtual cl_int do_action() = 0;
+
     std::vector<cvk_event*> m_event_deps;
 };
 
@@ -523,13 +524,13 @@ struct cvk_command_buffer_host_copy final
         : cvk_command_buffer_base_region(q, type, buffer, offset, size),
           m_ptr(const_cast<void*>(ptr)) {}
 
-    CHECK_RETURN cl_int do_action() override final;
-
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     void* m_ptr;
 };
 
@@ -601,13 +602,13 @@ struct cvk_command_copy_host_buffer_rect final : public cvk_command {
                    elem_size),
           m_buffer(buffer), m_hostptr(hostptr) {}
 
-    CHECK_RETURN cl_int do_action() override final;
-
     const std::vector<cvk_mem*> memory_objects() const override final {
         return {m_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     cvk_rectangle_copier m_copier;
     cvk_buffer_holder m_buffer;
     void* m_hostptr;
@@ -621,13 +622,13 @@ struct cvk_command_copy_buffer final : public cvk_command {
         : cvk_command(type, q), m_src_buffer(src), m_dst_buffer(dst),
           m_src_offset(src_offset), m_dst_offset(dst_offset), m_size(size) {}
 
-    CHECK_RETURN cl_int do_action() override final;
-
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_src_buffer, m_dst_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     cvk_buffer_holder m_src_buffer;
     cvk_buffer_holder m_dst_buffer;
     size_t m_src_offset;
@@ -647,13 +648,13 @@ struct cvk_command_copy_buffer_rect final : public cvk_command {
                    src_slice_pitch, dst_row_pitch, dst_slice_pitch, 1),
           m_src_buffer(src_buffer), m_dst_buffer(dst_buffer) {}
 
-    CHECK_RETURN cl_int do_action() override final;
-
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_src_buffer, m_dst_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     cvk_rectangle_copier m_copier;
     cvk_buffer_holder m_src_buffer;
     cvk_buffer_holder m_dst_buffer;
@@ -669,13 +670,13 @@ struct cvk_command_fill_buffer final : public cvk_command_buffer_base_region {
         memcpy(m_pattern.data(), pattern, pattern_size);
     }
 
-    CHECK_RETURN cl_int do_action() override final;
-
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     static constexpr int MAX_PATTERN_SIZE = 128;
     std::array<char, MAX_PATTERN_SIZE> m_pattern;
     size_t m_pattern_size;
@@ -702,8 +703,6 @@ struct cvk_command_batchable : public cvk_command {
     CHECK_RETURN cl_int build(cvk_command_buffer& cmdbuf);
     CHECK_RETURN virtual cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
-    CHECK_RETURN cl_int do_action() override;
-    CHECK_RETURN virtual cl_int do_post_action() { return CL_SUCCESS; }
 
     CHECK_RETURN cl_int set_profiling_info_end() {
         // If it has already been set, don't override it
@@ -747,6 +746,9 @@ struct cvk_command_batchable : public cvk_command {
     }
 
 private:
+    CHECK_RETURN virtual cl_int do_post_action() { return CL_SUCCESS; }
+    CHECK_RETURN cl_int do_action() override;
+
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
     VkQueryPool m_query_pool;
 
@@ -804,8 +806,6 @@ struct cvk_command_kernel final : public cvk_command_batchable {
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
 
-    CHECK_RETURN cl_int do_post_action() override final;
-
     bool can_be_batched() const override final {
         return !m_kernel->uses_printf() &&
                cvk_command_batchable::can_be_batched();
@@ -821,6 +821,8 @@ struct cvk_command_kernel final : public cvk_command_batchable {
     }
 
 private:
+    CHECK_RETURN cl_int do_post_action() override final;
+
     CHECK_RETURN cl_int
     build_and_dispatch_regions(cvk_command_buffer& command_buffer);
     CHECK_RETURN cl_int
@@ -845,7 +847,6 @@ struct cvk_command_batch : public cvk_command {
     cvk_command_batch(cvk_command_queue* queue)
         : cvk_command(CLVK_COMMAND_BATCH, queue) {}
 
-    cl_int do_action() override final;
     cl_int add_command(cvk_command_batchable* cmd) {
         if (!m_command_buffer) {
             // Create command buffer and start recording on first call
@@ -911,6 +912,8 @@ struct cvk_command_batch : public cvk_command {
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     std::vector<std::unique_ptr<cvk_command_batchable>> m_commands;
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
 };
@@ -929,13 +932,14 @@ struct cvk_command_map_buffer final : public cvk_command_buffer_base_region {
         }
     }
     CHECK_RETURN cl_int build(void** map_ptr);
-    CHECK_RETURN cl_int do_action() override final;
 
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     cl_map_flags m_flags;
     cvk_buffer_mapping m_mapping;
     bool m_mapping_needs_releasing_on_destruction;
@@ -948,13 +952,14 @@ struct cvk_command_unmap_buffer final : public cvk_command_buffer_base {
                              void* map_ptr)
         : cvk_command_buffer_base(queue, CL_COMMAND_UNMAP_MEM_OBJECT, buffer),
           m_mapped_ptr(map_ptr) {}
-    CHECK_RETURN cl_int do_action() override final;
 
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_buffer};
     }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     void* m_mapped_ptr;
 };
 
@@ -962,9 +967,10 @@ struct cvk_command_dep : public cvk_command {
     cvk_command_dep(cvk_command_queue* q, cl_command_type type)
         : cvk_command(type, q) {}
 
-    CHECK_RETURN cl_int do_action() override final { return CL_COMPLETE; }
-
     const std::vector<cvk_mem*> memory_objects() const override { return {}; }
+
+private:
+    CHECK_RETURN cl_int do_action() override final { return CL_COMPLETE; }
 };
 
 struct cvk_command_buffer_image_copy final : public cvk_command_batchable {
@@ -1008,143 +1014,39 @@ private:
     cl_command_type m_copy_type;
 };
 
-struct cvk_command_combine final : public cvk_command {
-    cvk_command_combine(cvk_command_queue* queue, cl_command_type type,
-                        std::vector<std::unique_ptr<cvk_command>>&& commands)
-        : cvk_command(type, queue), m_commands(std::move(commands)) {}
-
-    CHECK_RETURN cl_int do_action() override final {
-        for (auto& cmd : m_commands) {
-            cl_int ret = cmd->do_action();
-            if (ret != CL_COMPLETE) {
-                return ret;
-            }
-        }
-
-        return CL_COMPLETE;
-    }
-    const std::vector<cvk_mem*> memory_objects() const override {
-        std::vector<cvk_mem*> ret;
-        // Reduce the number of reallocations
-        ret.reserve(m_commands.size() * 2);
-        for (auto& cmd : m_commands) {
-            auto const mems = cmd->memory_objects();
-            ret.insert(std::end(ret), std::begin(mems), std::end(mems));
-        }
-        return ret;
-    }
-
-private:
-    std::vector<std::unique_ptr<cvk_command>> m_commands;
-};
-
 struct cvk_command_map_image final : public cvk_command {
-    cvk_command_map_image(cvk_command_queue* q, cvk_image* img,
-                          const std::array<size_t, 3>& origin,
-                          const std::array<size_t, 3>& region,
-                          cl_map_flags flags, bool update_host_ptr = false)
-        : cvk_command(CL_COMMAND_MAP_IMAGE, q), m_image(img),
-          m_mapping_needs_releasing_on_destruction(false), m_origin(origin),
-          m_region(region), m_flags(flags),
-          m_update_host_ptr(update_host_ptr &&
-                            m_image->has_flags(CL_MEM_USE_HOST_PTR)) {}
-    ~cvk_command_map_image() {
-        if (m_mapping_needs_releasing_on_destruction) {
-            m_image->cleanup_mapping(m_mapping);
-        }
-    }
-    CHECK_RETURN cl_int build(void** map_ptr);
-    CHECK_RETURN cl_int do_action() override final;
-    cvk_buffer* map_buffer() { return m_mapping.buffer; }
-    size_t row_pitch() const {
-        if (m_update_host_ptr) {
-            return m_image->row_pitch();
-        } else {
-            return m_image->map_buffer_row_pitch(m_mapping);
-        }
-    }
-    size_t slice_pitch() const {
-        if (m_update_host_ptr) {
-            return m_image->slice_pitch();
-        } else {
-            return m_image->map_buffer_slice_pitch(m_mapping);
-        }
-    }
+    // This command intend to manage the dependency with m_image initialization
+    cvk_command_map_image(cvk_command_queue* q, cvk_image* img)
+        : cvk_command(CL_COMMAND_MAP_IMAGE, q), m_image(img) {}
 
     const std::vector<cvk_mem*> memory_objects() const override {
         return {m_image};
     }
 
 private:
-    bool needs_copy() const {
-        return (m_flags & CL_MAP_WRITE_INVALIDATE_REGION) == 0;
-    }
+    CHECK_RETURN cl_int do_action() override final { return CL_COMPLETE; };
 
     cvk_image_holder m_image;
-    cvk_image_mapping m_mapping;
-    bool m_mapping_needs_releasing_on_destruction;
-    std::array<size_t, 3> m_origin;
-    std::array<size_t, 3> m_region;
-    cl_map_flags m_flags;
-    std::unique_ptr<cvk_command_buffer_image_copy> m_cmd_copy;
-    std::unique_ptr<cvk_command_copy_host_buffer_rect> m_cmd_host_ptr_update;
-    bool m_update_host_ptr;
 };
 
 struct cvk_command_unmap_image final : public cvk_command {
 
-    cvk_command_unmap_image(cvk_command_queue* q, cvk_image* image,
-                            void* mapptr, bool update_host_ptr = false)
-        : cvk_command_unmap_image(q, image, mapptr, image->mapping_for(mapptr),
-                                  update_host_ptr) {
-    } // FIXME crashes when the mapping doesn't exist
-
     cvk_command_unmap_image(cvk_command_queue* queue, cvk_image* image,
-                            void* mapped_ptr, const cvk_image_mapping& mapping,
-                            bool update_host_ptr)
+                            void* mapped_ptr)
         : cvk_command(CL_COMMAND_UNMAP_MEM_OBJECT, queue),
-          m_needs_copy((mapping.flags &
-                        (CL_MAP_WRITE | CL_MAP_WRITE_INVALIDATE_REGION)) != 0),
-          m_mapped_ptr(mapped_ptr), m_image(image),
-          m_cmd_copy(CL_COMMAND_UNMAP_MEM_OBJECT, queue, mapping.buffer, image,
-                     0, mapping.origin, mapping.region),
-          m_update_host_ptr(update_host_ptr &&
-                            m_image->has_flags(CL_MEM_USE_HOST_PTR)) {}
-    cl_int build() {
-        if (m_needs_copy) {
-            auto err = m_cmd_copy.build();
-            if (err != CL_SUCCESS) {
-                return err;
-            }
-            if (m_update_host_ptr) {
-                size_t zero_origin[3] = {0, 0, 0};
-                auto const& mapping = m_image->mapping_for(m_mapped_ptr);
-                m_cmd_host_ptr_update =
-                    std::make_unique<cvk_command_copy_host_buffer_rect>(
-                        m_queue, CL_COMMAND_WRITE_BUFFER_RECT, mapping.buffer,
-                        m_image->host_ptr(), mapping.origin.data(), zero_origin,
-                        mapping.region.data(), m_image->row_pitch(),
-                        m_image->slice_pitch(),
-                        m_image->map_buffer_row_pitch(mapping),
-                        m_image->map_buffer_slice_pitch(mapping),
-                        m_image->element_size());
-            }
-        }
-        return CL_SUCCESS;
+          m_mapped_ptr(mapped_ptr),
+          m_image(image) { // FIXME crashes when the mapping doesn't exist
     }
-    CHECK_RETURN cl_int do_action() override final;
 
     const std::vector<cvk_mem*> memory_objects() const override final {
         return {m_image};
     }
 
 private:
-    bool m_needs_copy;
+    CHECK_RETURN cl_int do_action() override final;
+
     void* m_mapped_ptr;
     cvk_image_holder m_image;
-    cvk_command_buffer_image_copy m_cmd_copy;
-    std::unique_ptr<cvk_command_copy_host_buffer_rect> m_cmd_host_ptr_update;
-    bool m_update_host_ptr;
 };
 
 struct cvk_command_image_image_copy final : public cvk_command_batchable {
@@ -1181,11 +1083,12 @@ struct cvk_command_fill_image final : public cvk_command {
                            const std::array<size_t, 3>& region)
         : cvk_command(CL_COMMAND_FILL_IMAGE, queue), m_ptr(ptr),
           m_pattern(pattern), m_pattern_size(pattern_size), m_region(region) {}
-    CHECK_RETURN cl_int do_action() override final;
 
     const std::vector<cvk_mem*> memory_objects() const override { return {}; }
 
 private:
+    CHECK_RETURN cl_int do_action() override final;
+
     void* m_ptr;
     cvk_image::fill_pattern_array m_pattern;
     size_t m_pattern_size;

@@ -380,16 +380,17 @@ cl_int cvk_command_group::execute_cmds() {
 }
 
 cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
-    cl_uint num_events, _cl_event* const* event_list) {
+    cl_uint num_events, _cl_event* const* event_list,
+    std::unique_lock<std::mutex>& lock) {
     auto* exec = m_executor;
     if (exec == nullptr) {
         return CL_SUCCESS;
     }
 
-    m_lock.unlock();
+    lock.unlock();
     auto cmds = exec->extract_cmds_required_by(false, num_events, event_list);
     auto ret = cmds.execute_cmds();
-    m_lock.lock();
+    lock.lock();
 
     return ret;
 }
@@ -398,7 +399,7 @@ cl_int
 cvk_command_queue::execute_cmds_required_by(cl_uint num_events,
                                             _cl_event* const* event_list) {
     std::unique_lock<std::mutex> lock(m_lock);
-    return execute_cmds_required_by_no_lock(num_events, event_list);
+    return execute_cmds_required_by_no_lock(num_events, event_list, lock);
 }
 
 cvk_command_group
@@ -537,7 +538,7 @@ cl_int cvk_command_queue::flush() {
 }
 
 cl_int cvk_command_queue::finish() {
-    std::lock_guard<std::mutex> lock(m_lock);
+    std::unique_lock<std::mutex> lock(m_lock);
 
     auto status = flush_no_lock();
     if (status != CL_SUCCESS) {
@@ -546,7 +547,7 @@ cl_int cvk_command_queue::finish() {
 
     if (m_finish_event != nullptr) {
         _cl_event* evt_list = (_cl_event*)&*m_finish_event;
-        execute_cmds_required_by_no_lock(1, &evt_list);
+        execute_cmds_required_by_no_lock(1, &evt_list, lock);
         m_finish_event->wait();
     }
 
@@ -1538,20 +1539,6 @@ cl_int cvk_command_unmap_image::do_action() {
     // TODO flush caches on non-coherent memory
     m_image->remove_mapping(m_mapped_ptr);
 
-    if (m_needs_copy) {
-        cl_int err;
-        if (m_update_host_ptr) {
-            err = m_cmd_host_ptr_update->do_action();
-            if (err != CL_COMPLETE) {
-                return err;
-            }
-        }
-        err = m_cmd_copy.do_action();
-        if (err != CL_COMPLETE) {
-            return err;
-        }
-    }
-
     return CL_COMPLETE;
 }
 
@@ -1646,65 +1633,6 @@ VkBufferImageCopy prepare_buffer_image_copy(const cvk_image* image,
         extent,       // imageExtent
     };
     return ret;
-}
-
-cl_int cvk_command_map_image::build(void** map_ptr) {
-    // Get a mapping
-    if (!m_image->find_or_create_mapping(m_mapping, m_origin, m_region, m_flags,
-                                         m_update_host_ptr)) {
-        cvk_error("cannot find or create a mapping");
-        return CL_OUT_OF_RESOURCES;
-    }
-    m_mapping_needs_releasing_on_destruction = true;
-
-    *map_ptr = m_mapping.ptr;
-
-    if (needs_copy()) {
-        m_cmd_copy = std::make_unique<cvk_command_buffer_image_copy>(
-            CL_COMMAND_MAP_IMAGE, m_queue, m_mapping.buffer, m_image, 0,
-            m_origin, m_region);
-
-        cl_int err = m_cmd_copy->build();
-        if (err != CL_SUCCESS) {
-            return err;
-        }
-
-        if (m_update_host_ptr && m_image->has_flags(CL_MEM_USE_HOST_PTR)) {
-            size_t zero_origin[3] = {0, 0, 0};
-            m_cmd_host_ptr_update =
-                std::make_unique<cvk_command_copy_host_buffer_rect>(
-                    m_queue, CL_COMMAND_READ_BUFFER_RECT, m_mapping.buffer,
-                    m_image->host_ptr(), m_origin.data(), zero_origin,
-                    m_region.data(), m_image->row_pitch(),
-                    m_image->slice_pitch(),
-                    m_image->map_buffer_row_pitch(m_region),
-                    m_image->map_buffer_slice_pitch(m_region),
-                    m_image->element_size());
-        }
-    }
-
-    return CL_SUCCESS;
-}
-
-cl_int cvk_command_map_image::do_action() {
-    if (needs_copy()) {
-        auto err = m_cmd_copy->do_action();
-        if (err != CL_COMPLETE) {
-            return CL_OUT_OF_RESOURCES;
-        }
-
-        if (m_update_host_ptr) {
-            if (m_cmd_host_ptr_update->do_action() != CL_COMPLETE) {
-                return CL_OUT_OF_RESOURCES;
-            }
-        }
-    }
-
-    m_mapping_needs_releasing_on_destruction = false;
-
-    // TODO invalidate buffer if the memory isn't coherent
-
-    return CL_COMPLETE;
 }
 
 void cvk_command_buffer_image_copy::build_inner_image_to_buffer(

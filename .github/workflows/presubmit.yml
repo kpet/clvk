@@ -14,7 +14,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format clang-format-15
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Check format
@@ -54,7 +54,7 @@ jobs:
             unit: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           submodules: recursive
@@ -89,9 +89,9 @@ jobs:
         run: |
           mkdir ndk
           cd ndk
-          wget https://dl.google.com/android/repository/android-ndk-r25c-linux.zip
-          unzip android-ndk-r25c-linux.zip
-          rm android-ndk-r25c-linux.zip
+          wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+          unzip android-ndk-r27d-linux.zip
+          rm android-ndk-r27d-linux.zip
           ls -l
       - name: Select build directory
         shell: bash
@@ -113,7 +113,7 @@ jobs:
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r25c/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/33/libvulkan.so" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27d/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so" >> $GITHUB_ENV
       - name: Build Perfetto
         if: ${{ matrix.perfetto }}
         shell: bash

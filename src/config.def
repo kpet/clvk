@@ -66,6 +66,8 @@ OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meani
 
 OPTION(bool, supports_filter_linear, true)
 
+OPTION(bool, keep_memory_allocations_mapped, false)
+
 OPTION(std::string, device_extensions, "")
 OPTION(std::string, device_extensions_masked, "")
 

@@ -71,6 +71,10 @@ struct cvk_device_properties {
         return no_disabled_formats;
     }
 
+    virtual bool keep_memory_allocations_mapped() const {
+        return config.keep_memory_allocations_mapped();
+    }
+
     virtual ~cvk_device_properties() {}
 };
 

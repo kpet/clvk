@@ -324,6 +324,17 @@ struct cvk_kernel_argument_values {
                     return CL_INVALID_MEM_OBJECT;
                 }
                 auto mem = icd_downcast(apimem);
+                if ((arg.info.access_qualifier ==
+                         CL_KERNEL_ARG_ACCESS_READ_ONLY &&
+                     mem->has_flags(CL_MEM_WRITE_ONLY)) ||
+                    (arg.info.access_qualifier ==
+                         CL_KERNEL_ARG_ACCESS_WRITE_ONLY &&
+                     mem->has_flags(CL_MEM_READ_ONLY)) ||
+                    (arg.info.access_qualifier ==
+                         CL_KERNEL_ARG_ACCESS_READ_WRITE &&
+                     !mem->has_flags(CL_MEM_READ_WRITE))) {
+                    return CL_INVALID_ARG_VALUE;
+                }
                 if (!mem->is_valid()) {
                     return CL_INVALID_MEM_OBJECT;
                 }
