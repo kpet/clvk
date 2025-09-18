@@ -645,8 +645,7 @@ void cvk_device::build_extension_ils_list() {
         m_extensions.push_back(
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
         VkSubgroupFeatureFlags required_subgroup_ops =
-            VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
-            VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT;
+            VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
         if ((m_subgroup_properties.supportedOperations &
              required_subgroup_ops) == required_subgroup_ops &&
             (m_features_shader_subgroup_extended_types
@@ -658,8 +657,7 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_shuffle"));
         }
-        if (m_subgroup_properties.supportedOperations &
-            VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR) {
+        if (supports_subgroup_rotate()) {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_rotate"));
         }
@@ -1265,8 +1263,7 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_subgroup_properties.supportedOperations &
                VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
     case spv::CapabilityGroupNonUniformRotateKHR:
-        return m_subgroup_properties.supportedOperations &
-               VK_SUBGROUP_FEATURE_ROTATE_BIT_KHR;
+        return supports_subgroup_rotate();
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:

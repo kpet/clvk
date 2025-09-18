@@ -443,6 +443,15 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_subgroups() const { return m_has_subgroups_support; }
 
+    bool supports_subgroup_rotate() const {
+#ifdef VK_VERSION_1_4
+        return m_subgroup_properties.supportedOperations &
+               VK_SUBGROUP_FEATURE_ROTATE_BIT;
+#else
+        return false;
+#endif
+    }
+
     bool supports_subgroup_size_selection() const {
         return m_has_subgroup_size_selection;
     }
