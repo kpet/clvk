@@ -657,6 +657,20 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_shuffle"));
         }
+        if (supports_subgroup_rotate()) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_rotate"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_BALLOT_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_ballot"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_VOTE_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_non_uniform_vote"));
+        }
     }
 
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
@@ -1248,6 +1262,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityGroupNonUniformShuffle:
         return m_subgroup_properties.supportedOperations &
                VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    case spv::CapabilityGroupNonUniformRotateKHR:
+        return supports_subgroup_rotate();
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
