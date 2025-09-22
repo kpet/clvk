@@ -57,6 +57,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
     m_integer_dot_product_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES;
+    m_timeline_semaphore_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_PROPERTIES;
 
     //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
     // allocation size and default init when the extension is not supported
@@ -87,6 +89,9 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_float_controls_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 3, 0), nullptr,
                          m_integer_dot_product_properties),
+            VER_EXT_PROP(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+                         m_timeline_semaphore_properties),
         };
 #undef VER_EXT_PROP
 
@@ -283,6 +288,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
+        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -346,6 +352,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES;
     m_features_queue_global_priority.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
+    m_features_timeline_semaphore.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -382,7 +390,9 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_shader_integer_dot_product),
             VER_EXT_FEAT(0, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
                          m_features_queue_global_priority),
-
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+                         m_features_timeline_semaphore),
 #undef VER_EXT_FEAT
         };
 
@@ -429,6 +439,8 @@ void cvk_device::init_features(VkInstance instance) {
     cvk_info(
         "subgroup extended types: %d",
         m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
+    cvk_info("timeline semaphore: %d",
+             m_features_timeline_semaphore.timelineSemaphore);
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
