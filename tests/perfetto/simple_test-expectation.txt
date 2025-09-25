@@ -29,7 +29,7 @@
 "execute_cmds"
 "extract_cmds_required_by"
 "flush_no_lock"
-"free_descriptor_set"
+"free_descriptor_sets"
 "name"
 "set_event_status"
 "vkQueueSubmit"
