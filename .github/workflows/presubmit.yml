@@ -265,6 +265,7 @@ jobs:
         env:
           CLVK_LOG: 1
           CLVK_LOG_GROUPS: validation
+          CLVK_LOG_GROUPS_ONLY: 1
           CLVK_LOG_DEST: file:validation.log
           CLVK_VALIDATION_LAYERS: 1
           VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
