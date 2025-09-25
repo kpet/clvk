@@ -670,7 +670,7 @@ cl_int cvk_command_kernel::update_global_push_constants(
         CVK_ASSERT(pc->size == 8);
         CVK_ASSERT(program->uses_printf());
 
-        auto buffer = m_queue->get_printf_buffer();
+        auto buffer = get_printf_buffer();
         if (buffer == nullptr) {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
@@ -1044,11 +1044,7 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     // Setup printf buffer descriptor if needed
     if (m_kernel->program()->uses_printf()) {
         // Create and initialize the printf buffer
-        auto buffer = m_queue->get_or_create_printf_buffer();
-        auto err = m_queue->reset_printf_buffer();
-        if (err != CL_SUCCESS) {
-            return err;
-        }
+        auto buffer = create_printf_buffer();
 
         if (m_kernel->program()->printf_buffer_info().type ==
             module_buffer_type::storage_buffer) {
@@ -1124,7 +1120,7 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
 
 cl_int cvk_command_kernel::do_post_action() {
     if (m_kernel->uses_printf()) {
-        auto buffer = m_queue->get_printf_buffer();
+        auto buffer = get_printf_buffer();
         if (buffer == nullptr) {
             cvk_error_fn("printf buffer was not created");
             return CL_OUT_OF_RESOURCES;
