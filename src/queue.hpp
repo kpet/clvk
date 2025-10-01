@@ -714,6 +714,10 @@ struct cvk_command_batchable : public cvk_command {
         if (perr != CL_COMPLETE) {
             return perr;
         }
+        CVK_ASSERT(start_dev < end_dev);
+        m_event->set_profiling_info(CLVK_PROFILING_COMMAND_START_DEVICE,
+                                    start_dev);
+        m_event->set_profiling_info(CLVK_PROFILING_COMMAND_END_DEVICE, end_dev);
         cl_ulong start_host, end_host;
         perr = m_queue->device()->device_timer_to_host(start_dev, start_host);
         if (perr != CL_SUCCESS) {
@@ -722,6 +726,16 @@ struct cvk_command_batchable : public cvk_command {
         perr = m_queue->device()->device_timer_to_host(end_dev, end_host);
         if (perr != CL_SUCCESS) {
             return perr;
+        }
+        auto submit_time =
+            m_event->get_profiling_info(CL_PROFILING_COMMAND_SUBMIT);
+        if (submit_time > end_host) {
+            end_host =
+                recalibrate_end_time(end_host, submit_time, start_dev, end_dev);
+            start_host = submit_time;
+        } else if (start_host >= end_host || submit_time > start_host) {
+            start_host = recalibrate_start_time(
+                start_host, end_host, submit_time, start_dev, end_dev);
         }
         m_event->set_profiling_info(CL_PROFILING_COMMAND_START, start_host);
         m_event->set_profiling_info(CL_PROFILING_COMMAND_END, end_host);
@@ -738,7 +752,7 @@ struct cvk_command_batchable : public cvk_command {
             pinfo == CL_PROFILING_COMMAND_SUBMIT) {
             return cvk_command::set_profiling_info(pinfo);
         } else if (pinfo == CL_PROFILING_COMMAND_START) {
-            return m_queue->device()->update_device_host_timer();
+            return CL_SUCCESS;
         } else {
             CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
             return set_profiling_info_end();

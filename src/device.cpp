@@ -1366,19 +1366,10 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     return CL_SUCCESS;
 }
 
-cl_int cvk_device::update_device_host_timer_no_lock() {
-    return get_device_host_timer(&m_sync_dev, &m_sync_host);
-}
-
-cl_int cvk_device::update_device_host_timer() {
-    std::lock_guard<std::mutex> lock(m_sync_mutex);
-    return update_device_host_timer_no_lock();
-}
-
 cl_int cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong& host) {
     std::lock_guard<std::mutex> lock(m_sync_mutex);
     if (dev > m_sync_dev) {
-        cl_int err = update_device_host_timer_no_lock();
+        cl_int err = get_device_host_timer(&m_sync_dev, &m_sync_host);
         if (err != CL_SUCCESS) {
             return err;
         }
