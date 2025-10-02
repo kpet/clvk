@@ -28,11 +28,12 @@ add_gtest_executable(api_tests
     split_region.cpp
     subgroup_size.cpp
     workgroup.cpp
+    buffer_device_address.cpp
 )
 
-target_include_directories(api_tests SYSTEM BEFORE PRIVATE
-    ${SPIRV_HEADERS_SOURCE_DIR}/include
-)
+if (${CLVK_COMPILER_AVAILABLE})
+  add_definitions(-DCOMPILER_AVAILABLE)
+endif()
 
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   add_definitions(-DUSING_SWIFTSHADER)
