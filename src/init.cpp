@@ -118,6 +118,7 @@ void clvk_global_state::init_vulkan() {
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
         VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
         VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
     };
 
     for (size_t i = 0; i < numExtensionProperties; i++) {
@@ -138,6 +139,11 @@ void clvk_global_state::init_vulkan() {
                   VK_EXT_DEBUG_REPORT_EXTENSION_NAME) !=
         enabledExtensions.end();
 
+    bool portability_enumeration_enabled =
+        std::find(enabledExtensions.begin(), enabledExtensions.end(),
+                  VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) !=
+        enabledExtensions.end();
+
     // Create the instance
     VkApplicationInfo appInfo = {
         VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -152,7 +158,7 @@ void clvk_global_state::init_vulkan() {
     VkInstanceCreateInfo info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,      // sType
         nullptr,                                     // pNext
-        0,                                           // flags
+        static_cast<VkInstanceCreateFlags>(portability_enumeration_enabled ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0), // flags
         &appInfo,                                    // pApplicationInfo
         static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
         enabledLayers.data(),                        // ppEnabledLayerNames

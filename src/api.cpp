@@ -303,6 +303,7 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clCreateCommandQueueWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clGetKernelSuggestedLocalWorkSizeKHR),
     {"clGetKernelSubGroupInfoKHR", FUNC_PTR(clGetKernelSubGroupInfo)},
+    EXTENSION_ENTRYPOINT(clSetKernelArgDevicePointerEXT),
     EXTENSION_ENTRYPOINT(clCreateSemaphoreWithPropertiesKHR),
     EXTENSION_ENTRYPOINT(clEnqueueWaitSemaphoresKHR),
     EXTENSION_ENTRYPOINT(clEnqueueSignalSemaphoresKHR),
@@ -2126,6 +2127,17 @@ cl_int CLVK_API_CALL clGetMemObjectInfo(cl_mem mem, cl_mem_info param_name,
         copy_ptr = memobj->properties().data();
         ret_size = memobj->properties().size() * sizeof(cl_mem_properties);
         break;
+    case CL_MEM_DEVICE_ADDRESS_EXT: {
+        auto buffer = static_cast<cvk_buffer*>(memobj);
+        if (!buffer->is_buffer_type()) {
+            ret = CL_INVALID_MEM_OBJECT;
+            break;
+        }
+        cl_mem_device_address_ext device_addr = buffer->device_address();
+        copy_ptr = &device_addr;
+        ret_size = sizeof(device_addr);
+        break;
+    }
     default:
         ret = CL_INVALID_VALUE;
     }
@@ -6269,6 +6281,28 @@ cl_int clGetSemaphoreInfoKHR(const cl_semaphore_khr sema_object,
     }
 
     return ret;
+}
+
+cl_int CLVK_API_CALL clSetKernelArgDevicePointerEXT(cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_ext arg_value) {
+    TRACE_FUNCTION("kernel", (uintptr_t)kernel, "arg_index", arg_index);
+    LOG_API_CALL("kernel = %p, arg_index = %u, arg_value = %p",
+                 kernel, arg_index, (void*)arg_value);
+
+    auto kern = icd_downcast(kernel);
+
+    // Validate kernel
+    if (!is_valid_kernel(kern)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    // Validate argument index 
+    if (arg_index >= kern->num_args()) {
+        cvk_error_fn("the program has only %u arguments", kern->num_args());
+        return CL_INVALID_ARG_INDEX;
+    }
+
+    // Set the argument using the device address
+    return kern->set_arg_device_pointer(arg_index, arg_value);
 }
 
 cl_int clReleaseSemaphoreKHR(cl_semaphore_khr sema_object) {

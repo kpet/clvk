@@ -177,6 +177,34 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     return ret;
 }
 
+cl_int cvk_kernel::set_arg_device_pointer(cl_uint index, cl_mem_device_address_ext dev_addr) {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    // Clone argument values if they have been used in an enqueue
+    if (m_argument_values->is_enqueued()) {
+        m_argument_values =
+            cvk_kernel_argument_values::create(*m_argument_values);
+        if (m_argument_values == nullptr) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
+    auto const& arg = m_args[index];
+
+    // Validate this is a POD pointer argument
+    if (!arg.is_pod_pointer()) {
+        return CL_INVALID_ARG_VALUE;
+    }
+
+    // Set the device address directly as POD data
+    m_argument_values->set_pod_data(arg.offset, arg.size, &dev_addr);
+    
+    // Mark the argument as set
+    m_argument_values->set_arg_as_set(arg.pos);
+    
+    return CL_SUCCESS;
+}
+
 bool cvk_kernel::args_valid() const { return m_argument_values->args_valid(); }
 
 bool cvk_kernel_argument_values::setup_descriptor_sets() {
