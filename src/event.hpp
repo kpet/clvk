@@ -27,6 +27,34 @@
 struct cvk_command;
 struct cvk_command_queue;
 
+#define CLVK_PROFILING_COMMAND_START_DEVICE (CL_PROFILING_COMMAND_END + 1)
+#define CLVK_PROFILING_COMMAND_END_DEVICE (CL_PROFILING_COMMAND_END + 2)
+
+static inline cl_ulong recalibrate_start_time(cl_ulong start_time,
+                                              cl_ulong end_time,
+                                              cl_ulong submit_time,
+                                              cl_ulong start_dev_time,
+                                              cl_ulong end_dev_time) {
+    cvk_warn_fn(
+        "Host start time %lu is not between submit and end time ([%lu, %lu]), "
+        "most likely this is due to a drift in the device timer. Recalibrating "
+        "the host start time using the device timestamps.",
+        start_time, submit_time, end_time);
+    start_time = end_time - (end_dev_time - start_dev_time);
+    // Make sure submit time happens before start time.
+    return std::max(start_time, submit_time);
+}
+static inline cl_ulong recalibrate_end_time(cl_ulong end_time,
+                                            cl_ulong submit_time,
+                                            cl_ulong start_dev_time,
+                                            cl_ulong end_dev_time) {
+    cvk_warn_fn("Host end time %lu is below submit %lu, most likely this is "
+                "due to a drift in the device timer. Recalibrating the host "
+                "end time using the device timestamps.",
+                end_time, submit_time);
+    return submit_time + (end_dev_time - start_dev_time);
+}
+
 using cvk_event_callback_pointer_type = void(CL_CALLBACK*)(
     cl_event event, cl_int event_command_exec_status, void* user_data);
 
@@ -140,7 +168,7 @@ private:
     std::mutex m_lock;
     std::condition_variable m_cv;
     cl_int m_status;
-    cl_ulong m_profiling_data[4]{};
+    cl_ulong m_profiling_data[6]{};
     cvk_command* m_cmd;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
 };
@@ -188,7 +216,36 @@ struct cvk_event_combine : public cvk_event {
 
     uint64_t get_profiling_info(cl_profiling_info pinfo) const override final {
         if (pinfo == CL_PROFILING_COMMAND_END) {
-            return m_end_event->get_profiling_info(pinfo);
+            auto end_time =
+                m_end_event->get_profiling_info(CL_PROFILING_COMMAND_END);
+            auto submit_time =
+                m_start_event->get_profiling_info(CL_PROFILING_COMMAND_SUBMIT);
+            if (submit_time >= end_time) {
+                auto start_dev_time = m_start_event->get_profiling_info(
+                    CLVK_PROFILING_COMMAND_START_DEVICE);
+                auto end_dev_time = m_end_event->get_profiling_info(
+                    CLVK_PROFILING_COMMAND_END_DEVICE);
+                end_time = recalibrate_end_time(end_time, submit_time,
+                                                start_dev_time, end_dev_time);
+            }
+            return end_time;
+        } else if (pinfo == CL_PROFILING_COMMAND_START) {
+            auto start_time =
+                m_start_event->get_profiling_info(CL_PROFILING_COMMAND_START);
+            auto end_time =
+                m_end_event->get_profiling_info(CL_PROFILING_COMMAND_END);
+            auto submit_time =
+                m_start_event->get_profiling_info(CL_PROFILING_COMMAND_SUBMIT);
+            if (start_time >= end_time || submit_time > start_time) {
+                auto start_dev_time = m_start_event->get_profiling_info(
+                    CLVK_PROFILING_COMMAND_START_DEVICE);
+                auto end_dev_time = m_end_event->get_profiling_info(
+                    CLVK_PROFILING_COMMAND_END_DEVICE);
+                start_time =
+                    recalibrate_start_time(start_time, end_time, submit_time,
+                                           start_dev_time, end_dev_time);
+            }
+            return start_time;
         } else {
             return m_start_event->get_profiling_info(pinfo);
         }
