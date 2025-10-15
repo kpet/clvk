@@ -22,8 +22,8 @@ OPTION(bool, keep_temporaries, false)
 OPTION(std::string, spirv_arch, "spir")
 OPTION(bool, physical_addressing, false)
 
-OPTION(std::string, clspv_native_builtins, "")
-OPTION(std::string, clspv_library_builtins, "")
+PROPERTY(std::set<std::string>, clspv_native_builtins, std::set<std::string>())
+OPTION(std::set<std::string>, clspv_library_builtins, std::set<std::string>())
 
 OPTION(uint32_t, printf_buffer_size, 1024*1024u)
 
@@ -34,7 +34,7 @@ OPTION(bool, build_in_separate_thread, false)
 OPTION(bool, init_image_at_creation, false)
 
 #if COMPILER_AVAILABLE
-OPTION(std::string, clspv_options, "")
+PROPERTY(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER
 OPTION(std::string, clspv_path, DEFAULT_CLSPV_BINARY_PATH)
 #if ENABLE_SPIRV_IL
@@ -43,19 +43,28 @@ OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif // !CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
+//
+// Device properties
+//
+PROPERTY(std::string, vendor, "Unknown vendor")
 OPTION(uint32_t, force_subgroup_size, 0u) // 0 meaning not forced
-OPTION(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
+PROPERTY(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
 
-OPTION(uint32_t, max_compute_units, 1u)
+PROPERTY(uint32_t, max_compute_units, 1u)
+PROPERTY(uint32_t, global_mem_cache_size, 0u)
+PROPERTY(bool, non_uniform_decoration_broken, false)
+PROPERTY(bool, bgra_format_not_supported_for_image1d_buffer, false)
+PROPERTY(image_format_set, disabled_image_formats, image_format_set())
+PROPERTY(image_format_set, enabled_image_formats, image_format_set())
 
 //
 // Command execution
 //
 OPTION(uint32_t, queue_global_priority, 1u)
-OPTION(uint32_t, max_cmd_batch_size, 10000u)
-OPTION(uint32_t, max_first_cmd_batch_size, 10000u)
-OPTION(uint32_t, max_cmd_group_size, UINT32_MAX)
-OPTION(uint32_t, max_first_cmd_group_size, UINT32_MAX)
+PROPERTY(uint32_t, max_cmd_batch_size, 10000u)
+PROPERTY(uint32_t, max_first_cmd_batch_size, 10000u)
+PROPERTY(uint32_t, max_cmd_group_size, UINT32_MAX)
+PROPERTY(uint32_t, max_first_cmd_group_size, UINT32_MAX)
 OPTION(bool, ignore_out_of_order_execution, false) // false meaning dont ignore
 
 // experimental
@@ -66,10 +75,10 @@ OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meani
 
 OPTION(bool, supports_filter_linear, true)
 
-OPTION(bool, keep_memory_allocations_mapped, false)
+PROPERTY(bool, keep_memory_allocations_mapped, false)
 
-OPTION(std::string, device_extensions, "")
-OPTION(std::string, device_extensions_masked, "")
+OPTION(std::set<std::string>, device_extensions, std::set<std::string>())
+OPTION(std::set<std::string>, device_extensions_masked, std::set<std::string>())
 
 //
 // Logging
@@ -79,6 +88,8 @@ EARLY_OPTION(bool, log_colour, false)
 EARLY_OPTION(std::string, log_dest, "")
 EARLY_OPTION(std::string, log_groups, "")
 EARLY_OPTION(bool, log_groups_only, false)
+
+EARLY_OPTION(std::string, config_file, "")
 
 //
 // Debug
