@@ -467,6 +467,10 @@ struct cvk_device : public _cl_device_id,
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     }
 
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
+    }
+
     bool supports_atomic_scope_device() const {
         return m_features_vulkan_memory_model.vulkanMemoryModelDeviceScope;
     }
