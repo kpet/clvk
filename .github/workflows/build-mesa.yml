@@ -121,7 +121,7 @@ jobs:
           else
             cp -vf 'C:/Program Files (x86)/LLVM/bin/LLVM-C.dll' .
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: mesa-${{ runner.os }}
           path: ${{ github.workspace }}/mesa-artifact
