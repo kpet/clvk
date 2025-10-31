@@ -840,9 +840,11 @@ public:
         return m_binary.printf_buffer_info();
     }
 
-    bool options_allow_split_region(std::string options) {
-        if (options.find("-uniform-workgroup-size") != std::string::npos)
+    bool options_allow_split_region(const std::string& options) const {
+        if (options.find("-uniform-workgroup-size") != std::string::npos ||
+            options.find("-cl-uniform-work-group-size") != std::string::npos) {
             return false;
+        }
         return true;
     }
 
