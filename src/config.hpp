@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 enum class config_option_type
