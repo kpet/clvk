@@ -980,6 +980,11 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 #if COMPILER_AVAILABLE
     options += " " + config.clspv_options() + " ";
 #endif
+
+    if (options_allow_split_region(options)) {
+        options += "-cl-arm-non-uniform-work-group-size";
+    }
+
     // split options into a vector
     std::istringstream iss(options);
     std::vector<std::string> vector_options;
