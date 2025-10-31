@@ -613,7 +613,6 @@ void cvk_device::init_compiler_options() {
     m_device_compiler_options += " -global-offset ";
     m_device_compiler_options += " -long-vector ";
     m_device_compiler_options += " -module-constants-in-storage-buffer ";
-    m_device_compiler_options += " -cl-arm-non-uniform-work-group-size ";
 }
 
 void cvk_device::build_extension_ils_list() {
