@@ -16,7 +16,7 @@
 // Compiler
 //
 OPTION(std::string, cache_dir, "")
-OPTION(std::string, compiler_temp_dir, "")
+OPTION(std::string, compiler_temp_dir, (std::filesystem::temp_directory_path().string().c_str()))
 OPTION(bool, skip_spirv_capability_check, false)
 OPTION(bool, keep_temporaries, false)
 OPTION(std::string, spirv_arch, "spir")
