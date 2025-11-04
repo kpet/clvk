@@ -58,6 +58,9 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - name: patch clspv
+        run: |
+          git -C "${{ github.workspace }}/external/clspv" apply $(realpath "${{ github.workspace }}/clspv.patch")
       - name: Free space on runner
         if: ${{ matrix.android-abi != '' }}
         run: |
