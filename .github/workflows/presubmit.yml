@@ -110,10 +110,30 @@ jobs:
         with:
           version: 1.4.309.0
           rt-dir: ${{ github.workspace }}/vulkanrt
+      - name: Build libclc
+        if: ${{ matrix.android-abi != '' }}
+        env:
+          LIBCLC_DIR: ${{ github.workspace }}/libclc
+          BUILD_LIBCLC_DIR: ${{ github.workspace }}/build_libclc
+        run: |
+          set -x
+          echo "libclc=${LIBCLC_DIR}" >> $GITHUB_ENV
+          cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/llvm' -B ${BUILD_LIBCLC_DIR} -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_PROJECTS=clang \
+            -DLLVM_ENABLE_RUNTIMES=libclc \
+            -DLLVM_TARGETS_TO_BUILD=Native \
+            -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
+          cmake --build ${BUILD_LIBCLC_DIR} --target libclc
+          mkdir -p ${LIBCLC_DIR}
+          cp $(dirname $(find ${BUILD_LIBCLC_DIR} -name clspv--.bc))/*.bc ${LIBCLC_DIR}
+          rm -rf ${BUILD_LIBCLC_DIR}
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27d/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27d/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so -DCLSPV_EXTERNAL_LIBCLC_DIR=${{ env.libclc }}" >> $GITHUB_ENV
       - name: Build Perfetto
         if: ${{ matrix.perfetto }}
         shell: bash
