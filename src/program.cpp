@@ -1022,7 +1022,7 @@ cl_int cvk_program::parse_user_spec_constants() {
     std::string tmp_folder = tmp;
     cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
 
-    std::string llvmspirv_input_file = tmp_folder + "/source.spv";
+    std::string llvmspirv_input_file = append_paths(tmp_folder, "source.spv");
 
     if (!save_il_to_file(llvmspirv_input_file, m_il)) {
         cvk_error_fn("Couldn't save IL to file!");
@@ -1110,7 +1110,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     std::string cmd{config.clspv_path};
     cmd += " ";
 
-    std::string clspv_input_file{tmp_folder + "/source"};
+    std::string clspv_input_file = append_paths(tmp_folder, "source");
     // Save input program to a file
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
@@ -1118,7 +1118,8 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                      "CLVK_ENABLE_SPIRV_IL=OFF");
         return CL_BUILD_ERROR;
 #else  // ENABLE_SPIRV_IL
-        std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
+        std::string llvmspirv_input_file =
+            append_paths(tmp_folder, "source.spv");
         clspv_input_file += ".bc";
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
             cvk_error_fn("Couldn't save IL to file!");
@@ -1226,7 +1227,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         }
     }
 
-    std::string clspv_output_file{tmp_folder + "/compiled"};
+    std::string clspv_output_file = append_paths(tmp_folder, "compiled");
     if (build_to_ir) {
         clspv_output_file += ".bc";
     } else {
@@ -1445,7 +1446,7 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
     if (use_tmp_folder && m_operation == build_operation::compile) {
         build_options += "-I" + tmp_folder;
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
-            std::string fname{tmp_folder + "/" + m_header_include_names[i]};
+            auto fname = append_paths(tmp_folder, m_header_include_names[i]);
             if (!save_string_to_file(fname, m_input_programs[i]->source())) {
                 cvk_error_fn("Couldn't save header to file!");
                 return CL_BUILD_ERROR;
