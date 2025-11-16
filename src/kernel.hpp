@@ -56,6 +56,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     void set_image_metadata(cl_uint index, const void* image);
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
+    CHECK_RETURN cl_int set_arg_device_pointer(cl_uint index, cl_mem_device_address_ext dev_addr);
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
@@ -266,6 +267,10 @@ struct cvk_kernel_argument_values {
 
     void set_pod_data(uint32_t offset, size_t size, const void* value) {
         memcpy(&pod_data()[offset], value, size);
+    }
+
+    void set_arg_as_set(uint32_t pos) {
+        m_args_set[pos] = true;
     }
 
     cl_int set_arg(const kernel_argument& arg, size_t size, const void* value) {
