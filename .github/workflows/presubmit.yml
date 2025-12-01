@@ -141,7 +141,7 @@ jobs:
           PERFETTO_DIR: ${{ github.workspace }}/external/perfetto
         run: |
           echo "perfettodir=${PERFETTO_DIR}" >> $GITHUB_ENV
-          git clone --depth 1 --branch v46.0 https://android.googlesource.com/platform/external/perfetto ${PERFETTO_DIR}
+          git clone --depth 1 --branch v53.0 https://github.com/google/perfetto ${PERFETTO_DIR}
           ${PERFETTO_DIR}/tools/install-build-deps
           ${PERFETTO_DIR}/tools/setup_all_configs.py
           ${PERFETTO_DIR}/tools/ninja -C ${PERFETTO_DIR}/out/linux_clang_release trace_processor_shell
