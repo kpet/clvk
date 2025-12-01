@@ -1738,7 +1738,8 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
       m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0),
       m_first_allocation_failure(true) {
     TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
-                       "clvk-entry_point_" + std::to_string((uintptr_t)this));
+                       "clvk-entry_point_" + std::to_string((uintptr_t)this),
+                       dev->track());
     TRACE_CNT(descriptor_set_allocated_counter, 0);
 }
 

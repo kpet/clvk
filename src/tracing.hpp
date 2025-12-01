@@ -53,10 +53,29 @@ PERFETTO_DEFINE_CATEGORIES(
 #define TRACE_CNT_VAR(name)                                                    \
     std::string string_##name;                                                 \
     std::unique_ptr<perfetto::CounterTrack> name
-#define TRACE_CNT_VAR_INIT(name, value)                                        \
+#define TRACE_CNT_VAR_INIT(name, value, track)                                 \
     string_##name = value;                                                     \
     name = std::make_unique<perfetto::CounterTrack>(                           \
-        perfetto::DynamicString(string_##name))
+        perfetto::DynamicString(string_##name), 0, track)
+
+#define TRACE_TRACK_VAR(name)                                                  \
+    std::string string_##name {}
+#define TRACE_TRACK_FCT(name, value)                                           \
+    perfetto::Track track() {                                                  \
+        bool to_init = string_##name.empty();                                  \
+        if (to_init) {                                                         \
+            string_##name = value;                                             \
+            CVK_ASSERT(!string_##name.empty());                                \
+        }                                                                      \
+        auto track =                                                           \
+            perfetto::NamedTrack(perfetto::DynamicString(string_##name));      \
+        if (to_init) {                                                         \
+            TRACE_EVENT_INSTANT(CLVK_PERFETTO_CATEGORY,                        \
+                                perfetto::DynamicString(string_##name),        \
+                                track);                                        \
+        }                                                                      \
+        return track;                                                          \
+    }
 
 #elif CVK_ENABLE_TIMING
 
@@ -79,7 +98,10 @@ PERFETTO_DEFINE_CATEGORIES(
 
 #define TRACE_CNT(str, value) UNUSED(value)
 #define TRACE_CNT_VAR(name)
-#define TRACE_CNT_VAR_INIT(name, value)
+#define TRACE_CNT_VAR_INIT(name, value, track)
+
+#define TRACE_TRACK_VAR(name)
+#define TRACE_TRACK_FCT(name, value)
 
 #else // CLVK_PERFETTO_ENABLE
 
@@ -92,7 +114,10 @@ PERFETTO_DEFINE_CATEGORIES(
 
 #define TRACE_CNT(str, value) UNUSED(value)
 #define TRACE_CNT_VAR(name)
-#define TRACE_CNT_VAR_INIT(name, value)
+#define TRACE_CNT_VAR_INIT(name, value, track)
+
+#define TRACE_TRACK_VAR(name)
+#define TRACE_TRACK_FCT(name, value)
 
 #endif // CLVK_PERFETTO_ENABLE
 
