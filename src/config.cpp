@@ -39,7 +39,7 @@ DEFINE_OPTION_TYPE_GETTER(std::string, config_option_type::string)
 DEFINE_OPTION_TYPE_GETTER(uint32_t, config_option_type::uint32)
 DEFINE_OPTION_TYPE_GETTER(bool, config_option_type::boolean)
 
-config_option gConfigOptions[] = {
+std::vector<config_option> gConfigOptions = {
 #define OPTION(type, name, valdef)                                             \
     {option_type<type>(), #name, &config.name, false},
 #define EARLY_OPTION(type, name, valdef)                                       \
@@ -69,6 +69,25 @@ void parse_uint32(void* value_ptr, const char* txt) {
     }
     cfgval->value = std::stoul(txt, nullptr, base);
     cfgval->set = true;
+}
+
+#define TXT_SIZE FILENAME_MAX
+bool print_string(char* txt, void* value_ptr) {
+    auto cfgval = static_cast<config_value<std::string>*>(value_ptr);
+    snprintf(txt, TXT_SIZE, "'%s'", cfgval->value.c_str());
+    return cfgval->set;
+}
+
+bool print_boolean(char* txt, void* value_ptr) {
+    auto cfgval = static_cast<config_value<bool>*>(value_ptr);
+    snprintf(txt, TXT_SIZE, "%s", cfgval->value ? "true" : "false");
+    return cfgval->set;
+}
+
+bool print_uint32(char* txt, void* value_ptr) {
+    auto cfgval = static_cast<config_value<uint32_t>*>(value_ptr);
+    snprintf(txt, TXT_SIZE, "%u (0x%x)", cfgval->value, cfgval->value);
+    return cfgval->set;
 }
 
 // Helper function to trim whitespace.
@@ -211,11 +230,41 @@ void parse_env(bool early_option) {
     }
 }
 
+void print_config() {
+    cvk_info_group_fn(loggroup::cfg, "");
+    std::sort(gConfigOptions.begin(), gConfigOptions.end(),
+              [](const config_option& a, const config_option& b) {
+                  return a.name < b.name;
+              });
+    for (auto& opt : gConfigOptions) {
+        char txt[TXT_SIZE];
+        void* optval = const_cast<void*>(opt.value);
+        int set;
+        switch (opt.type) {
+        case config_option_type::string:
+            set = print_string(txt, optval);
+            break;
+        case config_option_type::boolean:
+            set = print_boolean(txt, optval);
+            break;
+        case config_option_type::uint32:
+            set = print_uint32(txt, optval);
+            break;
+        }
+        if (set) {
+            cvk_info_group(loggroup::cfg, "  *%s: %s", opt.name.c_str(), txt);
+        } else {
+            cvk_debug_group(loggroup::cfg, "  %s: %s", opt.name.c_str(), txt);
+        }
+    }
+}
+
 } // namespace
 
 void init_config() {
     parse_config_file(false);
     parse_env(false);
+    print_config();
 }
 
 void init_early_config() {
