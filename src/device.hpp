@@ -44,6 +44,7 @@ static cl_version gOpenCLCVersion = CL_MAKE_VERSION(1, 2, 0);
 static constexpr bool devices_support_images() { return true; }
 
 struct cvk_platform;
+struct cvk_kernel;
 
 struct cvk_device : public _cl_device_id,
                     object_magic_header<object_magic::device> {
@@ -602,7 +603,8 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_non_uniform_workgroup() const { return true; }
 
-    void select_work_group_size(const std::array<uint32_t, 3>& global_size,
+    void select_work_group_size(cvk_kernel* kernel,
+                                const std::array<uint32_t, 3>& global_size,
                                 std::array<uint32_t, 3>& local_size) const;
 
     bool is_vulkan_extension_enabled(const char* ext) const {
