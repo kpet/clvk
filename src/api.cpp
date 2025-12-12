@@ -4128,6 +4128,7 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     auto reqd_work_group_size = kernel->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
         if (reqd_work_group_size != ndrange.lws) {
+            cvk_error_fn("work-group size does not match the required size");
             return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
@@ -4135,6 +4136,7 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // Check uniformity of the NDRange if needed
     if (!command_queue->device()->supports_non_uniform_workgroup()) {
         if (!ndrange.is_uniform()) {
+            cvk_error_fn("non uniform workgroup not supported");
             return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
@@ -4193,7 +4195,8 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
     if (local_work_size == nullptr) {
         icd_downcast(command_queue)
             ->device()
-            ->select_work_group_size(ndrange.gws, ndrange.lws);
+            ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
+                                     ndrange.lws);
         cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
                     ndrange.lws[1], ndrange.lws[2]);
     }
@@ -6586,7 +6589,8 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
 
     icd_downcast(command_queue)
         ->device()
-        ->select_work_group_size(ndrange.gws, ndrange.lws);
+        ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
+                                 ndrange.lws);
 
     for (cl_uint i = 0; i < work_dim; i++) {
         suggested_local_work_size[i] = ndrange.lws[i];
