@@ -1336,6 +1336,11 @@ cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
         return CL_INVALID_EVENT_WAIT_LIST;
     }
 
+    if (!is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
     auto cmd = new cvk_command_dep(command_queue, CL_COMMAND_MARKER);
 
     return command_queue->enqueue_command_with_deps(
