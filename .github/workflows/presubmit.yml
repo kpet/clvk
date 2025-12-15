@@ -158,7 +158,7 @@ jobs:
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
               -DCLVK_ENABLE_ASSERTIONS=ON \
-              -DCLVK_VULKAN_IMPLEMENTATION=swiftshader \
+              -DCLVK_VULKAN_IMPLEMENTATION=system \
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
               -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
