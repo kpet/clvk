@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-latest, windows-2019]
+        os: [ubuntu-24.04, macos-latest, windows-2022]
         online-compiler: [true, false]
         compiler-available: [true]
         android: ['']
@@ -209,7 +209,7 @@ jobs:
           fi
           ./tests/fixup-mesa-icd-json.py --input $SOURCE_JSON --output '${{ github.workspace }}'/mesa/lvp_icd.json --runner-os $RUNNER_OS
       - name: Register Mesa ICD
-        if: ${{ matrix.os == 'windows-2019' }}
+        if: ${{ matrix.os == 'windows-2022' }}
         run: |
           reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers'
           reg add 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers' /v '${{ github.workspace }}\mesa\lvp_icd.json' /t REG_DWORD /d 0
