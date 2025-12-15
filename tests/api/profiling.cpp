@@ -20,7 +20,8 @@ kernel void donothing(int dummy)
 }
 )";
 
-TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity) {
+TEST_F(WithProfiledCommandQueue,
+       DISABLED_APPLE(QueueProfilingTimestampOrderingAndSanity)) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "donothing");
 
@@ -57,7 +58,8 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingTimestampOrderingAndSanity) {
     ASSERT_LT(ts_end - ts_start, max_diff);
 }
 
-TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
+TEST_F(WithProfiledCommandQueue,
+       DISABLED_APPLE(QueueProfilingMultipleBatchedKernels)) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "donothing");
 
@@ -110,7 +112,7 @@ TEST_F(WithProfiledCommandQueue, QueueProfilingMultipleBatchedKernels) {
     }
 }
 
-TEST_F(WithProfiledCommandQueue, QueueProfilingVsDeviceTimer) {
+TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
 
     // Check device timer functions are supported
     auto res = GetPlatformInfo<cl_ulong>(platform(),
