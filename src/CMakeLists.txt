@@ -208,11 +208,26 @@ if(NOT APPLE)
     VERSION ${PROJECT_VERSION}
     SOVERSION 1)
 else()
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  set(CLVK_EXPORTED_SYMBOLS_LIST_OSX "${CMAKE_CURRENT_BINARY_DIR}/clvk_exported_symbols_osx.txt")
+  add_custom_command(
+    OUTPUT ${CLVK_EXPORTED_SYMBOLS_LIST_OSX}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/gen_osx_exports.py ${CMAKE_CURRENT_SOURCE_DIR}/exports.map ${CLVK_EXPORTED_SYMBOLS_LIST_OSX}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_osx_exports.py ${CMAKE_CURRENT_SOURCE_DIR}/exports.map
+    COMMENT "Generating macOS exported symbols list"
+    VERBATIM
+  )
+  add_custom_target(gen_clvk_exported_symbols_osx DEPENDS ${CLVK_EXPORTED_SYMBOLS_LIST_OSX})
+  add_dependencies(OpenCL gen_clvk_exported_symbols_osx)
+  add_dependencies(OpenCL-static gen_clvk_exported_symbols_osx)
+  target_link_libraries(OpenCL-static INTERFACE "-Wl,-exported_symbols_list,${CLVK_EXPORTED_SYMBOLS_LIST_OSX}")
+
   set_target_properties(OpenCL PROPERTIES
     FRAMEWORK TRUE
     FRAMEWORK_VERSION A
     MACOSX_FRAMEWORK_IDENTIFIER com.apple.opencl
     SOVERSION 1.0.0
+    LINK_FLAGS "-exported_symbols_list ${CLVK_EXPORTED_SYMBOLS_LIST_OSX}"
   )
 endif()
 # Basic install rules
