@@ -49,7 +49,7 @@ jobs:
             else
               echo "artifact-dir=Linux" >> $GITHUB_ENV
             fi
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: swiftshader-${{ runner.os }}
           path: ./build/${{ env.artifact-dir }}
