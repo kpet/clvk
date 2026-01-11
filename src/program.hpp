@@ -21,6 +21,7 @@
 #include <fstream>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <vulkan/vulkan.h>
@@ -422,6 +423,118 @@ enum class build_operation
     link
 };
 
+const std::string m_source_languages[8] = {
+    "Unknown", "CL1.0", "CL1.1", "CL1.2",
+    "CL2.0",   "CL3.0", "CLC++", "CLC++2021",
+};
+class cvk_build_options {
+public:
+    cvk_build_options(std::string options)
+        : m_build_options(options), m_first_append(true) {
+        m_source_language = parse_source_language(options);
+    }
+
+    void append(std::string options) {
+        auto binary_header_options_all =
+            parse_binary_header_options_all(options);
+        if (m_first_append) {
+            m_first_append = false;
+            m_binary_header_options_all = binary_header_options_all;
+        } else {
+            std::unordered_set<std::string> to_remove;
+            for (auto option : m_binary_header_options_all) {
+                if (binary_header_options_all.count(option) == 0) {
+                    to_remove.insert(option);
+                }
+            }
+            for (auto option : to_remove) {
+                m_binary_header_options_all.erase(option);
+            }
+        }
+        for (auto option : parse_binary_header_options_one(options)) {
+            m_binary_header_options_one.insert(option);
+        }
+        m_source_language =
+            std::max(m_source_language, parse_source_language(options));
+    }
+
+    std::string operator()() const {
+        return m_build_options + binary_header_options();
+    }
+    std::string::size_type find(const char* s) const {
+        return operator()().find(s);
+    }
+    std::string::size_type size() const { return operator()().size(); }
+
+    std::string binary_header_options() const {
+        std::string build_options;
+        for (auto option : m_binary_header_options_all) {
+            build_options += " ";
+            build_options += option;
+        }
+        for (auto option : m_binary_header_options_one) {
+            build_options += " ";
+            build_options += option;
+        }
+        if (m_source_language > 0) {
+            build_options += " -cl-std=";
+            build_options += m_source_languages[m_source_language];
+        }
+        return build_options;
+    }
+
+private:
+    unsigned parse_source_language(const std::string& options) {
+        std::string cl_std = "-cl-std=";
+        auto pos = options.find(cl_std);
+        if (pos == std::string::npos) {
+            return 0;
+        }
+        std::string substr = options.substr(pos);
+        for (unsigned source_language = 1; source_language < 8;
+             source_language++) {
+            std::string match = cl_std + m_source_languages[source_language];
+            if (strncmp(substr.data(), match.data(), match.size()) == 0) {
+                return source_language;
+            }
+        }
+        return 0;
+    }
+#define PARSE(option)                                                          \
+    do {                                                                       \
+        if (options.find(option) != std::string::npos) {                       \
+            set.insert(option);                                                \
+        }                                                                      \
+    } while (0)
+    std::unordered_set<std::string>
+    parse_binary_header_options_all(const std::string& options) {
+        std::unordered_set<std::string> set;
+        PARSE("-cl-single-precision-constant");
+        PARSE("-cl-denorms-are-zero");
+        PARSE("-cl-mad-enable");
+        PARSE("-cl-no-signed-zeros");
+        PARSE("-cl-unsafe-math-optimizations");
+        PARSE("-cl-finite-math-only");
+        PARSE("-cl-fast-relaxed-math");
+        return set;
+    }
+    std::unordered_set<std::string>
+    parse_binary_header_options_one(const std::string& options) {
+        std::unordered_set<std::string> set;
+        PARSE("-cl-fp32-correctly-rounded-divide-sqrt");
+        PARSE("-cl-opt-disable");
+        PARSE("-cl-kernel-arg-info");
+        PARSE("-g");
+        return set;
+    }
+#undef PARSE
+    std::string m_build_options;
+    std::unordered_set<std::string> m_binary_header_options_all;
+    std::unordered_set<std::string> m_binary_header_options_one;
+    unsigned m_source_language;
+    bool m_first_append;
+};
+
 using cvk_program_callback = void(CL_CALLBACK*)(cl_program, void*);
 
 using cvk_spec_constant_map = std::map<uint32_t, uint32_t>;
@@ -579,7 +692,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),
           m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
-          m_shader_module(VK_NULL_HANDLE),
+          m_shader_module(VK_NULL_HANDLE), m_build_options(""),
           m_binary(m_context->device()->vulkan_spirv_env()) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
@@ -645,7 +758,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return CL_SUCCESS;
     }
 
-    const std::string& build_options() const { return m_build_options; }
+    std::string build_options() const { return m_build_options(); }
 
     cl_build_status build_status(const cvk_device* device) const {
         return m_dev_status.at(device);
@@ -723,6 +836,8 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
 
 private:
     bool read_llvm_bitcode(const unsigned char* src, size_t size);
+
+    size_t binary_header_size() const;
 
     void write_binary_header(unsigned char* dst) const;
     CHECK_RETURN cl_program_binary_type
@@ -847,7 +962,7 @@ public:
     }
 
     bool can_split_region() {
-        int status = options_allow_split_region(m_build_options);
+        int status = options_allow_split_region(m_build_options());
 #if COMPILER_AVAILABLE
         status &= options_allow_split_region(config.clspv_options);
 #endif
@@ -910,7 +1025,7 @@ private:
     VkShaderModule m_shader_module;
     std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>
         m_dev_status;
-    std::string m_build_options;
+    cvk_build_options m_build_options;
     spir_binary m_binary;
     std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;
