@@ -26,8 +26,9 @@ struct cvk_device_properties_mali : public cvk_device_properties {
     cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
     cl_uint get_max_cmd_group_size() const override final { return 1; }
 
-    cvk_device_properties_mali(const uint32_t deviceID)
-        : m_deviceID(deviceID) {}
+    cvk_device_properties_mali(const uint32_t deviceID,
+                               const VkDriverId driverID)
+        : m_deviceID(deviceID), m_driverID(driverID) {}
 
     bool is_non_uniform_decoration_broken() const override final {
 #define GPU_ID2_ARCH_MAJOR_SHIFT 28
@@ -37,24 +38,31 @@ struct cvk_device_properties_mali : public cvk_device_properties {
         return (m_deviceID & GPU_ID2_ARCH_MAJOR) <= bifrost_arch_major;
     }
 
+    bool reuse_descriptor_set() const override final {
+        return m_driverID == VK_DRIVER_ID_ARM_PROPRIETARY;
+    }
+
 private:
     const uint32_t m_deviceID;
+    const VkDriverId m_driverID;
 };
 
 struct cvk_device_properties_mali_exynos9820
     : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 12; }
-    cvk_device_properties_mali_exynos9820(const uint32_t deviceID)
-        : cvk_device_properties_mali(deviceID) {}
+    cvk_device_properties_mali_exynos9820(const uint32_t deviceID,
+                                          const VkDriverId driverID)
+        : cvk_device_properties_mali(deviceID, driverID) {}
 };
 
 struct cvk_device_properties_mali_exynos990
     : public cvk_device_properties_mali {
     cl_ulong get_global_mem_cache_size() const override final { return 262144; }
     cl_ulong get_num_compute_units() const override final { return 11; }
-    cvk_device_properties_mali_exynos990(const uint32_t deviceID)
-        : cvk_device_properties_mali(deviceID) {}
+    cvk_device_properties_mali_exynos990(const uint32_t deviceID,
+                                         const VkDriverId driverID)
+        : cvk_device_properties_mali(deviceID, driverID) {}
 };
 
 static bool isMaliDevice(const char* name, const uint32_t vendorID) {
@@ -264,9 +272,9 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
             cvk_warn("Unable to query 'ro.hardware' system property, some "
                      "device properties will be incorrect.");
         } else if (strcmp(soc, "exynos9820") == 0) {
-            RETURN(cvk_device_properties_mali_exynos9820, deviceID);
+            RETURN(cvk_device_properties_mali_exynos9820, deviceID, driverID);
         } else if (strcmp(soc, "exynos990") == 0) {
-            RETURN(cvk_device_properties_mali_exynos990, deviceID);
+            RETURN(cvk_device_properties_mali_exynos990, deviceID, driverID);
         } else {
             cvk_warn("Unrecognized 'ro.hardware' value '%s', some device "
                      "properties will be incorrect.",
@@ -276,7 +284,7 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
         cvk_warn("Unrecognized Mali device, some device properties will be "
                  "incorrect.");
 #endif
-        RETURN(cvk_device_properties_mali, deviceID);
+        RETURN(cvk_device_properties_mali, deviceID, driverID);
     } else if (strcmp(name, "Adreno (TM) 615") == 0) {
         RETURN(cvk_device_properties_adreno_615);
     } else if (strcmp(name, "Adreno (TM) 620") == 0) {
