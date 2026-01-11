@@ -946,9 +946,9 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
                 cvk_error_fn(
                     "Splitting this region is required, but it is not possible "
                     "because the support has been disabled (most probably by "
-                    "'-uniform-workgroup-size').");
+                    "'-cl-uniform-work-group-size').");
 
-                return CL_INVALID_WORK_ITEM_SIZE;
+                return CL_INVALID_WORK_GROUP_SIZE;
             }
         }
     }
@@ -976,6 +976,15 @@ cl_int cvk_command_kernel::dispatch_uniform_region(
 
 cl_int cvk_command_kernel::build_and_dispatch_regions(
     cvk_command_buffer& command_buffer) {
+
+    auto program = m_kernel->program();
+    if (!program->can_split_region()) {
+        for (uint32_t dim = 0; dim < m_dimensions; dim++) {
+            if ((m_ndrange.gws[dim] % m_ndrange.lws[dim]) != 0) {
+                return CL_INVALID_WORK_GROUP_SIZE;
+            }
+        }
+    }
 
     // Split non-uniform NDRange into uniform regions
     cvk_ndrange regions[8];
