@@ -156,6 +156,7 @@ jobs:
             mkdir '${{ env.builddir }}'
             cd '${{ env.builddir }}'
             mkdir install
+            cmake --version
             cmake '${{ github.workspace }}' -G Ninja \
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
