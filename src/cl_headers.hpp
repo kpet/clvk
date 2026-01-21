@@ -21,3 +21,21 @@
 #include "CL/cl_ext.h"
 #include "CL/cl_half.h"
 #include "CL/cl_icd.h"
+
+// cl_ext_buffer_device_address extension definitions
+// These will be provided by OpenCL-Headers once the extension is released
+#ifndef cl_ext_buffer_device_address
+#define cl_ext_buffer_device_address 1
+
+typedef cl_ulong cl_mem_device_address_ext;
+
+#define CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT           0x4200
+#define CL_MEM_DEVICE_ADDRESS_EXT                   0x4201
+#define CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT         0x11B8
+
+typedef cl_int (CL_API_CALL *clSetKernelArgDevicePointerEXT_fn)(
+    cl_kernel kernel,
+    cl_uint arg_index,
+    cl_mem_device_address_ext arg_value);
+
+#endif // cl_ext_buffer_device_address

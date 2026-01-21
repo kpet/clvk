@@ -629,7 +629,6 @@ void cvk_device::build_extension_ils_list() {
         // Add always supported extensions
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_extended_versioning"),
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_create_command_queue"),
-        MAKE_NAME_VERSION(1, 0, 0, "cl_ext_buffer_device_address"),
 #ifdef ENABLE_SPIRV_IL
         MAKE_NAME_VERSION(1, 0, 0, "cl_khr_il_program"),
 #endif
@@ -672,6 +671,11 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_non_uniform_vote"));
         }
+    }
+
+    if (supports_buffer_device_address()) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(0, 3, 0, "cl_ext_buffer_device_address"));
     }
 
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16

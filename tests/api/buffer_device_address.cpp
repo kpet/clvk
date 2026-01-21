@@ -13,32 +13,11 @@
 // limitations under the License.
 
 #include "testcl.hpp"
-
-// Extension definitions
-#ifndef cl_ext_buffer_device_address
-#define cl_ext_buffer_device_address 1
-#define CL_DEVICE_PTR_EXT 0xff01
-#define CL_MEM_DEVICE_ADDRESS_EXT (1ul << 31)
-#define CL_MEM_DEVICE_PTR_EXT 0xff01
-typedef cl_ulong cl_mem_device_address_EXT;
-typedef cl_int(CL_API_CALL *clSetKernelArgDevicePointerEXT_fn)(
-    cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_EXT dev_addr);
-#endif
+#include "cl_headers.hpp"
+#include <cmath>
 
 TEST_F(WithCommandQueue, BufferDeviceAddress) {
-    // First check if device supports the extension
-    size_t ext_size;
-    GetDeviceInfo(CL_DEVICE_EXTENSIONS, 0, nullptr, &ext_size);
-    
-    std::vector<char> extensions(ext_size);
-    GetDeviceInfo(CL_DEVICE_EXTENSIONS, ext_size, extensions.data(), nullptr);
-
-    bool hasBufferDeviceAddress = 
-        std::string(extensions.data()).find("cl_ext_buffer_device_address") != std::string::npos;
-
-    if (!hasBufferDeviceAddress) {
-        GTEST_SKIP() << "Device does not support cl_ext_buffer_device_address extension";
-    }
+    REQUIRE_EXTENSION("cl_ext_buffer_device_address");
 
     // Get the extension function pointer
     auto clSetKernelArgDevicePointerEXT = 
@@ -60,13 +39,19 @@ TEST_F(WithCommandQueue, BufferDeviceAddress) {
     const size_t NUM_ELEMENTS = BUFFER_SIZE / sizeof(cl_int);
 
     // Create buffer with device address extension flag
-    auto buffer = CreateBuffer(CL_MEM_READ_WRITE | CL_MEM_DEVICE_ADDRESS_EXT,
-                             BUFFER_SIZE, nullptr);
+    cl_mem_properties props[] = {
+        CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT, CL_TRUE,
+        0
+    };
+    cl_int err;
+    auto buffer = clCreateBufferWithProperties(m_context, props, CL_MEM_READ_WRITE,
+                                              BUFFER_SIZE, nullptr, &err);
+    ASSERT_CL_SUCCESS(err);
 
     // Get device pointer
-    cl_mem_device_address_EXT device_ptr;
-    cl_int err = clGetMemObjectInfo(buffer, CL_MEM_DEVICE_PTR_EXT, 
-                                   sizeof(device_ptr), &device_ptr, nullptr);
+    cl_mem_device_address_ext device_ptr;
+    err = clGetMemObjectInfo(buffer, CL_MEM_DEVICE_ADDRESS_EXT, 
+                            sizeof(device_ptr), &device_ptr, nullptr);
     ASSERT_EQ(err, CL_SUCCESS) << "Failed to get device pointer";
 
     // Initialize buffer with test data
@@ -102,4 +87,126 @@ TEST_F(WithCommandQueue, BufferDeviceAddress) {
     }
 
     EXPECT_TRUE(success);
+}
+
+TEST_F(WithCommandQueue, BufferDeviceAddressMatrixMultiply) {
+    REQUIRE_EXTENSION("cl_ext_buffer_device_address");
+
+    // Get the extension function pointer
+    auto clSetKernelArgDevicePointerEXT = 
+        (clSetKernelArgDevicePointerEXT_fn)
+        clGetExtensionFunctionAddressForPlatform(platform(), "clSetKernelArgDevicePointerEXT");
+    
+    ASSERT_NE(clSetKernelArgDevicePointerEXT, nullptr);
+
+    // Matrix multiply kernel
+    static const char* program_source = R"(
+    kernel void matmul(
+        global const float* A,
+        global const float* B,
+        global float* C,
+        int M, int N, int K)
+    {
+        int row = get_global_id(0);
+        int col = get_global_id(1);
+        
+        if (row >= M || col >= N) return;
+        
+        float sum = 0.0f;
+        for (int k = 0; k < K; k++) {
+            sum += A[row * K + k] * B[k * N + col];
+        }
+        C[row * N + col] = sum;
+    }
+    )";
+
+    // Small matrices for testing: 64x64
+    const int M = 64, N = 64, K = 64;
+    const size_t size_A = M * K * sizeof(float);
+    const size_t size_B = K * N * sizeof(float);
+    const size_t size_C = M * N * sizeof(float);
+
+    // Create buffers with device address
+    cl_mem_properties props[] = {
+        CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT, CL_TRUE,
+        0
+    };
+    cl_int err;
+
+    auto bufA = clCreateBufferWithProperties(m_context, props, CL_MEM_READ_ONLY, size_A, nullptr, &err);
+    ASSERT_CL_SUCCESS(err);
+    
+    auto bufB = clCreateBufferWithProperties(m_context, props, CL_MEM_READ_ONLY, size_B, nullptr, &err);
+    ASSERT_CL_SUCCESS(err);
+    
+    auto bufC = clCreateBufferWithProperties(m_context, props, CL_MEM_WRITE_ONLY, size_C, nullptr, &err);
+    ASSERT_CL_SUCCESS(err);
+
+    // Get device addresses
+    cl_mem_device_address_ext addrA, addrB, addrC;
+    err = clGetMemObjectInfo(bufA, CL_MEM_DEVICE_ADDRESS_EXT, sizeof(addrA), &addrA, nullptr);
+    ASSERT_CL_SUCCESS(err);
+    err = clGetMemObjectInfo(bufB, CL_MEM_DEVICE_ADDRESS_EXT, sizeof(addrB), &addrB, nullptr);
+    ASSERT_CL_SUCCESS(err);
+    err = clGetMemObjectInfo(bufC, CL_MEM_DEVICE_ADDRESS_EXT, sizeof(addrC), &addrC, nullptr);
+    ASSERT_CL_SUCCESS(err);
+
+    // Initialize matrices
+    std::vector<float> hostA(M * K), hostB(K * N), hostC(M * N, 0.0f);
+    for (int i = 0; i < M * K; i++) hostA[i] = static_cast<float>(i % 10) * 0.1f;
+    for (int i = 0; i < K * N; i++) hostB[i] = static_cast<float>(i % 10) * 0.1f;
+
+    EnqueueWriteBuffer(bufA, CL_TRUE, 0, size_A, hostA.data());
+    EnqueueWriteBuffer(bufB, CL_TRUE, 0, size_B, hostB.data());
+
+    // Build and run kernel
+    auto kernel = CreateKernel(program_source, "matmul");
+    
+    err = clSetKernelArgDevicePointerEXT(kernel, 0, addrA);
+    ASSERT_CL_SUCCESS(err);
+    err = clSetKernelArgDevicePointerEXT(kernel, 1, addrB);
+    ASSERT_CL_SUCCESS(err);
+    err = clSetKernelArgDevicePointerEXT(kernel, 2, addrC);
+    ASSERT_CL_SUCCESS(err);
+    
+    int m = M, n = N, k = K;
+    clSetKernelArg(kernel, 3, sizeof(int), &m);
+    clSetKernelArg(kernel, 4, sizeof(int), &n);
+    clSetKernelArg(kernel, 5, sizeof(int), &k);
+
+    size_t gws[2] = {static_cast<size_t>(M), static_cast<size_t>(N)};
+    EnqueueNDRangeKernel(kernel, 2, nullptr, gws, nullptr);
+    Finish();
+
+    // Read results
+    EnqueueReadBuffer(bufC, CL_TRUE, 0, size_C, hostC.data());
+
+    // CPU reference computation
+    std::vector<float> cpuC(M * N, 0.0f);
+    for (int i = 0; i < M; i++) {
+        for (int j = 0; j < N; j++) {
+            float sum = 0.0f;
+            for (int kk = 0; kk < K; kk++) {
+                sum += hostA[i * K + kk] * hostB[kk * N + j];
+            }
+            cpuC[i * N + j] = sum;
+        }
+    }
+
+    // Verify results
+    bool success = true;
+    const float epsilon = 1e-3f;
+    for (int i = 0; i < M * N; i++) {
+        if (std::fabs(hostC[i] - cpuC[i]) > epsilon) {
+            printf("Mismatch at %d: GPU=%f CPU=%f\n", i, hostC[i], cpuC[i]);
+            success = false;
+            if (i >= 10) break;
+        }
+    }
+
+    EXPECT_TRUE(success) << "Matrix multiply results don't match CPU reference";
+
+    clReleaseMemObject(bufA);
+    clReleaseMemObject(bufB);
+    clReleaseMemObject(bufC);
 }
