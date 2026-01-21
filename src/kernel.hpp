@@ -21,6 +21,7 @@
 
 #include "spirv/unified1/NonSemanticClspvReflection.h"
 
+#include "cl_headers.hpp"
 #include "memory.hpp"
 #include "objects.hpp"
 #include "program.hpp"
@@ -56,6 +57,7 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     void set_image_metadata(cl_uint index, const void* image);
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
+    CHECK_RETURN cl_int set_arg_device_address(cl_uint index, cl_mem_device_address_ext dev_addr);
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
@@ -318,6 +320,20 @@ struct cvk_kernel_argument_values {
                 }
 
                 m_kernel_resources[arg.binding] = sampler;
+            } else if (arg.kind == kernel_argument_kind::buffer) {
+                auto device_ptr =
+                    *reinterpret_cast<const cl_mem_device_address_ext*>(value);
+                auto& device_to_buffer_map = m_entry_point->program()
+                                                ->context()
+                                                ->device_to_buffer_map;
+                auto it = device_to_buffer_map.find(device_ptr);
+                if (it == device_to_buffer_map.end()) {
+                    return CL_INVALID_MEM_OBJECT;
+                }
+
+                // device pointer found in map, get the buffer pointer
+                auto buffer_ptr = it->second;
+                m_kernel_resources[arg.binding] = buffer_ptr;
             } else {
                 auto apimem = *reinterpret_cast<const cl_mem*>(value);
                 if (apimem == nullptr) {

@@ -712,6 +712,10 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->keep_memory_allocations_mapped();
     }
 
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
+    }
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
