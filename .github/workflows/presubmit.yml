@@ -76,6 +76,9 @@ jobs:
           sudo rm -rf /usr/local/lib/node_modules
           dpkg-query -Wf '${Installed-Size}\t${Package}\n' | sort -n | tail -n 100
           df -h
+      - name: Update CMake on Windows
+        if: ${{ matrix.os == 'windows-2022' }}
+        run: choco install cmake
       - name: Setup Ninja
         uses: ./.github/actions/setup-ninja
       - name: Setup ccache
@@ -153,6 +156,7 @@ jobs:
             mkdir '${{ env.builddir }}'
             cd '${{ env.builddir }}'
             mkdir install
+            cmake --version
             cmake '${{ github.workspace }}' -G Ninja \
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
