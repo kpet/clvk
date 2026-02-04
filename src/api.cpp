@@ -957,7 +957,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
-        memcpy(param_value, copy_ptr, std::min(param_value_size, size_ret));
+        if (param_value_size < size_ret) {
+            return CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, size_ret);
     }
 
     if (param_value_size_ret != nullptr) {
@@ -1185,7 +1188,10 @@ cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
-        memcpy(param_value, copy_ptr, std::min(param_value_size, size_ret));
+        if (param_value_size < size_ret) {
+            return CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, size_ret);
     }
 
     if (param_value_size_ret != nullptr) {
