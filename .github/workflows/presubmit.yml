@@ -192,7 +192,7 @@ jobs:
         shell: bash
         run: df -h
       - name: Download Swiftshader artifacts
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v14
         with:
           workflow: build-mesa.yml
           workflow_conclusion: success
