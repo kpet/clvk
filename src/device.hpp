@@ -714,6 +714,10 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->keep_memory_allocations_mapped();
     }
 
+    bool reuse_descriptor_set() const {
+        return m_clvk_properties->reuse_descriptor_set();
+    }
+
     TRACE_TRACK_FCT(device_track,
                     "clvk-device_" + std::to_string((uintptr_t)this))
 

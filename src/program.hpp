@@ -428,6 +428,9 @@ using cvk_spec_constant_map = std::map<uint32_t, uint32_t>;
 
 struct cvk_program;
 
+using cvk_descriptor_set_array =
+    std::array<VkDescriptorSet, spir_binary::MAX_DESCRIPTOR_SETS>;
+
 class cvk_entry_point {
 public:
     cvk_entry_point(cvk_device* dev, cvk_program* program,
@@ -439,6 +442,11 @@ public:
             cvk_info("destroying pipeline %p for kernel %s", pipeline.second,
                      m_name.c_str());
             vkDestroyPipeline(vkdev, pipeline.second, nullptr);
+        }
+        for (auto& descriptor_sets : m_descriptor_sets_array) {
+            vkFreeDescriptorSets(m_device->vulkan_device(), m_descriptor_pool,
+                                 descriptor_sets.size(),
+                                 descriptor_sets.data());
         }
         if (m_descriptor_pool != VK_NULL_HANDLE) {
             vkDestroyDescriptorPool(vkdev, m_descriptor_pool, nullptr);
@@ -458,14 +466,23 @@ public:
 
     CHECK_RETURN bool allocate_descriptor_sets(VkDescriptorSet* ds);
 
-    void free_descriptor_set(VkDescriptorSet ds) {
+    void free_descriptor_sets(cvk_descriptor_set_array& descriptor_sets) {
         TRACE_FUNCTION();
+        if (descriptor_sets == cvk_descriptor_set_array{VK_NULL_HANDLE}) {
+            return;
+        }
         std::lock_guard<std::mutex> lock(m_descriptor_pool_lock);
-        vkFreeDescriptorSets(m_device->vulkan_device(), m_descriptor_pool, 1,
-                             &ds);
-        m_nb_descriptor_set_allocated--;
-        TRACE_CNT(descriptor_set_allocated_counter,
-                  m_nb_descriptor_set_allocated);
+        if (m_device->reuse_descriptor_set()) {
+            m_descriptor_sets_array.push_back(descriptor_sets);
+        } else {
+            vkFreeDescriptorSets(m_device->vulkan_device(), m_descriptor_pool,
+                                 descriptor_sets.size(),
+                                 descriptor_sets.data());
+            m_nb_descriptor_set_allocated -= m_descriptor_set_layouts.size();
+            TRACE_CNT(descriptor_set_allocated_counter,
+                      m_nb_descriptor_set_allocated);
+        }
+        descriptor_sets = cvk_descriptor_set_array{VK_NULL_HANDLE};
     }
 
     uint32_t num_set_layouts() const { return m_descriptor_set_layouts.size(); }
@@ -572,6 +589,8 @@ private:
     TRACE_CNT_VAR(descriptor_set_allocated_counter);
 
     bool m_first_allocation_failure;
+
+    std::vector<cvk_descriptor_set_array> m_descriptor_sets_array;
 };
 
 struct cvk_program : public _cl_program, api_object<object_magic::program> {
