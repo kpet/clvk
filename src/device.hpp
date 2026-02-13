@@ -714,6 +714,10 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->keep_memory_allocations_mapped();
     }
 
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
+    }
+
     TRACE_TRACK_FCT(device_track,
                     "clvk-device_" + std::to_string((uintptr_t)this))
 
