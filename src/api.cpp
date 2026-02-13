@@ -588,7 +588,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_sizet);
         break;
     case CL_DEVICE_MAX_COMPUTE_UNITS:
-        val_uint = device->num_compute_units();
+        val_uint = device->max_compute_units();
         copy_ptr = &val_uint;
         size_ret = sizeof(val_uint);
         break;
