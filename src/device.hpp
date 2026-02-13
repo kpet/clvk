@@ -716,6 +716,9 @@ struct cvk_device : public _cl_device_id,
         return m_features_buffer_device_address.bufferDeviceAddress;
     }
 
+    TRACE_TRACK_FCT(device_track,
+                    "clvk-device_" + std::to_string((uintptr_t)this))
+
 private:
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
@@ -838,6 +841,8 @@ private:
     spv_target_env m_vulkan_spirv_env;
 
     std::unique_ptr<cvk_device_properties> m_clvk_properties;
+
+    TRACE_TRACK_VAR(device_track);
 };
 
 static inline cvk_device* icd_downcast(cl_device_id device) {
