@@ -242,6 +242,9 @@ struct cvk_command_queue : public _cl_command_queue,
 
     void detach_from_context();
 
+    TRACE_TRACK_FCT(queue_track,
+                    "clvk-queue_" + std::to_string((uintptr_t)this))
+
 private:
     CHECK_RETURN cl_int satisfy_data_dependencies(cvk_command* cmd);
     void enqueue_command(cvk_command* cmd);
@@ -276,6 +279,8 @@ private:
 
     TRACE_CNT_VAR(batch_in_flight_counter);
     TRACE_CNT_VAR(group_in_flight_counter);
+
+    TRACE_TRACK_VAR(queue_track);
 
     std::unique_ptr<cvk_buffer> m_printf_buffer;
 

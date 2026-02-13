@@ -25,20 +25,25 @@ cvk_queue_controller_batch_parameters::cvk_queue_controller_batch_parameters(
       m_no_batch_in_flight_since_last_flush(false),
       m_executor_idle_since_last_flush(false) {
     TRACE_CNT_VAR_INIT(max_cmd_batch_size_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-max_batch_size");
+                       "clvk-queue_" + std::to_string((uintptr_t)queue) +
+                           "-max_batch_size",
+                       queue->track());
     TRACE_CNT_VAR_INIT(max_first_cmd_batch_size_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-max_first_batch_size");
+                       "clvk-queue_" + std::to_string((uintptr_t)queue) +
+                           "-max_first_batch_size",
+                       queue->track());
     TRACE_CNT_VAR_INIT(max_first_cmd_batch_size_limit_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-max_first_batch_size_limit");
+                       "clvk-queue_" + std::to_string((uintptr_t)queue) +
+                           "-max_first_batch_size_limit",
+                       queue->track());
     TRACE_CNT_VAR_INIT(max_first_cmd_batch_size_limit_hit_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-max_first_batch_size_limit_hit");
+                       "clvk-queue_" + std::to_string((uintptr_t)queue) +
+                           "-max_first_batch_size_limit_hit",
+                       queue->track());
     TRACE_CNT_VAR_INIT(last_batch_size_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-last_batch_size");
+                       "clvk-queue_" + std::to_string((uintptr_t)queue) +
+                           "-last_batch_size",
+                       queue->track());
 
     TRACE_CNT(max_cmd_batch_size_counter, queue->m_max_cmd_batch_size);
     TRACE_CNT(max_first_cmd_batch_size_counter,
