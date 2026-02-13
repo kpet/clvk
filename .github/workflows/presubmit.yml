@@ -8,13 +8,13 @@ on:
 jobs:
   format:
     name: Code formatting check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Install packages
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format clang-format-15
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Check format
@@ -29,15 +29,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-2022]
+        os: [ubuntu-24.04, macos-latest, windows-2022]
         online-compiler: [true, false]
         compiler-available: [true]
         android: ['']
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             online-compiler: false
             compiler-available: false
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             online-compiler: true
             compiler-available: true
             android-abi: arm64-v8a
@@ -45,7 +45,7 @@ jobs:
           - os: windows-2022
             online-compiler: true
             unit: true
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             online-compiler: false
             unit: true
             perfetto: true
@@ -54,7 +54,7 @@ jobs:
             unit: true
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           submodules: recursive
@@ -110,10 +110,30 @@ jobs:
         with:
           version: 1.4.309.0
           rt-dir: ${{ github.workspace }}/vulkanrt
+      - name: Build libclc
+        if: ${{ matrix.android-abi != '' }}
+        env:
+          LIBCLC_DIR: ${{ github.workspace }}/libclc
+          BUILD_LIBCLC_DIR: ${{ github.workspace }}/build_libclc
+        run: |
+          set -x
+          echo "libclc=${LIBCLC_DIR}" >> $GITHUB_ENV
+          cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/llvm' -B ${BUILD_LIBCLC_DIR} -G Ninja \
+            -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_ENABLE_ZLIB=OFF \
+            -DLLVM_ENABLE_PROJECTS=clang \
+            -DLLVM_ENABLE_RUNTIMES=libclc \
+            -DLLVM_TARGETS_TO_BUILD=Native \
+            -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
+          cmake --build ${BUILD_LIBCLC_DIR} --target libclc
+          mkdir -p ${LIBCLC_DIR}
+          cp $(dirname $(find ${BUILD_LIBCLC_DIR} -name clspv--.bc))/*.bc ${LIBCLC_DIR}
+          rm -rf ${BUILD_LIBCLC_DIR}
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
         run: |
-          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27d/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so" >> $GITHUB_ENV
+          echo "android-cmake-args=-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/ndk/android-ndk-r27d/build/cmake/android.toolchain.cmake -DANDROID_ABI=${{ matrix.android-abi }} -DVulkan_LIBRARY=${{ github.workspace }}/ndk/android-ndk-r27d/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/35/libvulkan.so -DCLSPV_EXTERNAL_LIBCLC_DIR=${{ env.libclc }}" >> $GITHUB_ENV
       - name: Build Perfetto
         if: ${{ matrix.perfetto }}
         shell: bash
@@ -121,7 +141,7 @@ jobs:
           PERFETTO_DIR: ${{ github.workspace }}/external/perfetto
         run: |
           echo "perfettodir=${PERFETTO_DIR}" >> $GITHUB_ENV
-          git clone --depth 1 --branch v46.0 https://android.googlesource.com/platform/external/perfetto ${PERFETTO_DIR}
+          git clone --depth 1 --branch v53.0 https://github.com/google/perfetto ${PERFETTO_DIR}
           ${PERFETTO_DIR}/tools/install-build-deps
           ${PERFETTO_DIR}/tools/setup_all_configs.py
           ${PERFETTO_DIR}/tools/ninja -C ${PERFETTO_DIR}/out/linux_clang_release trace_processor_shell
@@ -137,7 +157,7 @@ jobs:
               -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
               -DCMAKE_BUILD_TYPE=Release \
               -DCLVK_ENABLE_ASSERTIONS=ON \
-              -DCLVK_VULKAN_IMPLEMENTATION=swiftshader \
+              -DCLVK_VULKAN_IMPLEMENTATION=system \
               -DCMAKE_INSTALL_PREFIX='${{ env.builddir}}'/install \
               -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
@@ -146,11 +166,11 @@ jobs:
               ${{ env.android-cmake-args }} \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
-        run: cmake --build '${{ env.builddir }}' --config Release -j2
+        run: cmake --build '${{ env.builddir }}' --config Release --parallel
       - name: Build clspv
-        run: cmake --build '${{ env.builddir }}' --config Release --target clspv -j2
+        run: cmake --build '${{ env.builddir }}' --config Release --parallel --target clspv
       - name: Build clang
-        run: cmake --build '${{ env.builddir }}' --config Release --target clang -j2
+        run: cmake --build '${{ env.builddir }}' --config Release --parallel --target clang
         if: ${{ matrix.compiler-available && matrix.android-abi == '' }}
       # Our build is complete, we can now delete all the static libraries and
       # intermediate objects to free up space.
@@ -164,7 +184,7 @@ jobs:
           df -h
       - name: Install
         run: cmake --install '${{ env.builddir }}'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: clvk-${{ matrix.os }}-${{ matrix.android }}-${{ matrix.android-abi }}-compiler-${{ matrix.compiler-available }}-online-${{ matrix.online-compiler }}
           path: ${{ env.builddir }}/install
@@ -172,24 +192,33 @@ jobs:
         shell: bash
         run: df -h
       - name: Download Swiftshader artifacts
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@v14
         with:
-          workflow: build-swiftshader.yml
+          workflow: build-mesa.yml
           workflow_conclusion: success
-          name: swiftshader-${{ runner.os }}
-          path: swiftshader
-      - name: Register Swiftshader ICD
+          name: mesa-${{ runner.os }}
+          path: mesa
+      - name: Fixup Mesa ICD JSON
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            SOURCE_JSON='${{ github.workspace }}'/mesa/lvp_icd.aarch64.json
+          else
+            SOURCE_JSON='${{ github.workspace }}'/mesa/lvp_icd.x86_64.json
+          fi
+          ./tests/fixup-mesa-icd-json.py --input $SOURCE_JSON --output '${{ github.workspace }}'/mesa/lvp_icd.json --runner-os $RUNNER_OS
+      - name: Register Mesa ICD
         if: ${{ matrix.os == 'windows-2022' }}
         run: |
           reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers'
-          reg add 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers' /v '${{ github.workspace }}\swiftshader\vk_swiftshader_icd.json' /t REG_DWORD /d 0
+          reg add 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers' /v '${{ github.workspace }}\mesa\lvp_icd.json' /t REG_DWORD /d 0
           reg query 'HKEY_LOCAL_MACHINE\SOFTWARE\Khronos\Vulkan\Drivers'
       - name: Prepare test execution
         shell: bash
         run: |
-          ls -l '${{ github.workspace }}'/swiftshader
+          ls -l '${{ github.workspace }}'/mesa
           ls -l '${{ env.builddir }}'
-          echo "VK_ICD_FILENAMES=${{ github.workspace }}/swiftshader/vk_swiftshader_icd.json" >> $GITHUB_ENV
+          echo "VK_ICD_FILENAMES=${{ github.workspace }}/mesa/lvp_icd.json" >> $GITHUB_ENV
           echo "CLVK_LOG=3" >> $GITHUB_ENV
           echo "CLVK_LOG_DEST=stderr" >> $GITHUB_ENV
           echo "VK_LOADER_DEBUG=all" >> $GITHUB_ENV
@@ -198,12 +227,18 @@ jobs:
           else
             echo "exe-ext=" >> $GITHUB_ENV
           fi
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            echo "LD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
+          fi
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            echo "DYLD_LIBRARY_PATH=${{ github.workspace }}/mesa/" >> $GITHUB_ENV
+          fi
           if [ "$RUNNER_OS" == "Windows" ]; then
             find '${{ env.builddir }}' -name clang.exe
             find '${{ env.builddir }}' -name OpenCL.dll
-            cat '${{ github.workspace }}'/swiftshader/vk_swiftshader_icd.json
+            cat '${{ github.workspace }}'/mesa/lvp_icd.json
             cp '${{ github.workspace }}'/vulkanrt/vulkan-1.dll '${{ env.builddir }}'
-            cp '${{ github.workspace }}'/swiftshader/vk_swiftshader.dll '${{ github.workspace }}'/..
+            cp '${{ github.workspace }}'/mesa/vulkan_lvp.dll '${{ github.workspace }}'/..
             cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
           echo "testbindir=${{ env.builddir }}" >> $GITHUB_ENV
@@ -265,10 +300,11 @@ jobs:
         env:
           CLVK_LOG: 1
           CLVK_LOG_GROUPS: validation
+          CLVK_LOG_GROUPS_ONLY: 1
           CLVK_LOG_DEST: file:validation.log
           CLVK_VALIDATION_LAYERS: 1
           VK_ADD_LAYER_PATH: ${{ env.VULKAN_SDK_LAYERS_MANIFEST_PATH }}
-          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}
+          LD_LIBRARY_PATH: ${{ env.VULKAN_SDK_LIB_PATH }}:${{ env.LD_LIBRARY_PATH }}
       - name: Perfetto test
         if: ${{ matrix.perfetto }}
         run: |

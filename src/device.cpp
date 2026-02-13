@@ -21,6 +21,7 @@
 #include "config.hpp"
 #include "device.hpp"
 #include "init.hpp"
+#include "kernel.hpp"
 #include "log.hpp"
 #include "memory.hpp"
 
@@ -657,6 +658,20 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_shuffle"));
         }
+        if (supports_subgroup_rotate()) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_rotate"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_BALLOT_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_ballot"));
+        }
+        if (m_subgroup_properties.supportedOperations &
+            VK_SUBGROUP_FEATURE_VOTE_BIT) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_non_uniform_vote"));
+        }
     }
 
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
@@ -1248,6 +1263,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityGroupNonUniformShuffle:
         return m_subgroup_properties.supportedOperations &
                VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    case spv::CapabilityGroupNonUniformRotateKHR:
+        return supports_subgroup_rotate();
     case spv::CapabilityVulkanMemoryModel:
         return m_features_vulkan_memory_model.vulkanMemoryModel;
     case spv::CapabilityShaderNonUniform:
@@ -1272,9 +1289,14 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
 }
 
 void cvk_device::select_work_group_size(
-    const std::array<uint32_t, 3>& global_size,
+    cvk_kernel* kernel, const std::array<uint32_t, 3>& global_size,
     std::array<uint32_t, 3>& local_size) const {
 
+    auto required_work_group_size = kernel->required_work_group_size();
+    if (required_work_group_size[0] != 0) {
+        local_size = required_work_group_size;
+        return;
+    }
     // Start at (1,1,1), which is always valid.
     local_size = {1, 1, 1};
 

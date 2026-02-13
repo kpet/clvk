@@ -26,7 +26,7 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-latest, windows-2022]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           submodules: false
@@ -121,7 +121,7 @@ jobs:
           else
             cp -vf 'C:/Program Files (x86)/LLVM/bin/LLVM-C.dll' .
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: mesa-${{ runner.os }}
           path: ${{ github.workspace }}/mesa-artifact

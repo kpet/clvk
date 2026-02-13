@@ -26,6 +26,12 @@
 #define DISABLED_NOCOMPILER(X) DISABLED_##X
 #endif
 
+#if !defined(__APPLE__)
+#define DISABLED_APPLE(X) X
+#else
+#define DISABLED_APPLE(X) DISABLED_##X
+#endif
+
 #define CL_TARGET_OPENCL_VERSION 300
 #define CL_USE_DEPRECATED_OPENCL_1_0_APIS
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
@@ -831,8 +837,8 @@ class WithCommandQueueAndPrintf : public WithCommandQueue {
 protected:
     void SetUp() override {
 
-        cl_context_properties properties[2] = {
-            CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback};
+        cl_context_properties properties[3] = {
+            CL_PRINTF_CALLBACK_ARM, (cl_context_properties)printf_callback, 0};
         WithCommandQueue::SetUpWithContextProperties(
             properties, reinterpret_cast<void*>(&m_printf_output));
     };

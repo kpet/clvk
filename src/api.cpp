@@ -131,7 +131,7 @@ bool is_same_context(cl_command_queue queue, cl_uint num_semas,
 }
 
 bool is_valid_device_type(cl_device_type type) {
-    return (type < (CL_DEVICE_TYPE_CUSTOM << 1)) ||
+    return (type < (CL_DEVICE_TYPE_CUSTOM << 1) && type != 0) ||
            (type == CL_DEVICE_TYPE_ALL);
 }
 
@@ -957,7 +957,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
-        memcpy(param_value, copy_ptr, std::min(param_value_size, size_ret));
+        if (param_value_size < size_ret) {
+            return CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, size_ret);
     }
 
     if (param_value_size_ret != nullptr) {
@@ -1022,6 +1025,36 @@ cl_int CLVK_API_CALL clReleaseDevice(cl_device_id device) {
     return CL_SUCCESS;
 }
 
+cvk_context* cvk_create_context(
+    const cl_context_properties* properties, cl_uint num_devices,
+    const cl_device_id* devices,
+    void(CL_CALLBACK* pfn_notify)(const char*, const void*, size_t, void*),
+    void* user_data, cl_int* errcode_ret) {
+    if ((devices == nullptr) || (num_devices == 0) ||
+        ((pfn_notify == nullptr) && (user_data != nullptr))) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    if (num_devices > 1) {
+        cvk_error("Only one device per context is supported.");
+        return nullptr;
+    } else if (!is_valid_device(devices[0])) {
+        *errcode_ret = CL_INVALID_DEVICE;
+        return nullptr;
+    }
+
+    auto context =
+        new cvk_context(icd_downcast(devices[0]), properties, user_data);
+
+    *errcode_ret = context->init();
+    if (*errcode_ret != CL_SUCCESS) {
+        return nullptr;
+    }
+
+    return context;
+}
+
 // Context APIs
 cl_context CLVK_API_CALL clCreateContext(
     const cl_context_properties* properties, cl_uint num_devices,
@@ -1034,26 +1067,12 @@ cl_context CLVK_API_CALL clCreateContext(
                  properties, num_devices, devices, pfn_notify, user_data,
                  errcode_ret);
 
-    if ((devices == nullptr) || (num_devices == 0) ||
-        ((pfn_notify == nullptr) && (user_data != nullptr))) {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = CL_INVALID_VALUE;
-        }
-        return nullptr;
-    }
-
-    if (num_devices > 1) {
-        cvk_error("Only one device per context is supported.");
-        return nullptr;
-    }
-
-    cl_context context =
-        new cvk_context(icd_downcast(devices[0]), properties, user_data);
-
+    cl_int err;
+    auto context = cvk_create_context(properties, num_devices, devices,
+                                      pfn_notify, user_data, &err);
     if (errcode_ret != nullptr) {
-        *errcode_ret = CL_SUCCESS;
+        *errcode_ret = err;
     }
-
     return context;
 }
 
@@ -1073,15 +1092,15 @@ cl_context CLVK_API_CALL clCreateContextFromType(
     // TODO introduce cvk_ functions to get correct logging
     cl_int err = clGetDeviceIDs(nullptr, device_type, 1, &device, nullptr);
 
+    cvk_context* context = nullptr;
     if (err == CL_SUCCESS) {
-        return clCreateContext(properties, 1, &device, pfn_notify, user_data,
-                               errcode_ret);
-    } else {
-        if (errcode_ret != nullptr) {
-            *errcode_ret = err;
-        }
-        return nullptr;
+        context = cvk_create_context(properties, 1, &device, pfn_notify,
+                                     user_data, &err);
     }
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+    return context;
 }
 
 cl_int CLVK_API_CALL clRetainContext(cl_context context) {
@@ -1185,7 +1204,10 @@ cl_int CLVK_API_CALL clGetContextInfo(cl_context ctx,
     }
 
     if ((param_value != nullptr) && (copy_ptr != nullptr)) {
-        memcpy(param_value, copy_ptr, std::min(param_value_size, size_ret));
+        if (param_value_size < size_ret) {
+            return CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, size_ret);
     }
 
     if (param_value_size_ret != nullptr) {
@@ -1334,6 +1356,11 @@ cl_int cvk_enqueue_marker_with_wait_list(cvk_command_queue* command_queue,
 
     if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
         return CL_INVALID_EVENT_WAIT_LIST;
+    }
+
+    if (!is_same_context(command_queue, num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
     }
 
     auto cmd = new cvk_command_dep(command_queue, CL_COMMAND_MARKER);
@@ -1501,13 +1528,25 @@ cvk_create_command_queue(cl_context context, cl_device_id device,
         return nullptr;
     }
 
-    if (!config.ignore_out_of_order_execution()) {
-        // We do not support out of order command queues so this must fail
-        if (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) {
-            *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
-            return nullptr;
-        }
+    const cl_command_queue_properties valid_properties =
+        CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE |
+        CL_QUEUE_ON_DEVICE | CL_QUEUE_ON_DEVICE_DEFAULT;
+    if ((properties & ~valid_properties) > 0) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
     }
+    cl_command_queue_properties supported_properties =
+        CL_QUEUE_PROFILING_ENABLE;
+    // We do not support out of order command queues, but allow the property to
+    // support application using it.
+    if (config.ignore_out_of_order_execution()) {
+        supported_properties |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+    }
+    if ((properties & ~supported_properties) > 0) {
+        *errcode_ret = CL_INVALID_QUEUE_PROPERTIES;
+        return nullptr;
+    }
+
     auto queue = std::make_unique<cvk_command_queue>(
         icd_downcast(context), icd_downcast(device), properties,
         std::move(properties_array));
@@ -2915,12 +2954,17 @@ cl_int CLVK_API_CALL clSetKernelArg(cl_kernel kern, cl_uint arg_index,
     // With opaque pointers, clspv is unable to infer the type of an unused
     // kernel argument so allow nullptr for its value. It will not have an
     // affect on the kernel's operation.
+    auto arg_kind = kernel->arg_kind(arg_index);
     if ((arg_value == nullptr) &&
-        !((kernel->arg_kind(arg_index) == kernel_argument_kind::local) ||
-          (kernel->arg_kind(arg_index) == kernel_argument_kind::unused))) {
+        !((arg_kind == kernel_argument_kind::local) ||
+          (arg_kind == kernel_argument_kind::unused))) {
         cvk_error_fn("passing a null pointer to clSetKernelArg is only "
                      "supported for local arguments");
-        return CL_INVALID_ARG_VALUE;
+        if (arg_kind == kernel_argument_kind::sampler) {
+            return CL_INVALID_SAMPLER;
+        } else {
+            return CL_INVALID_ARG_VALUE;
+        }
     }
 
     if (arg_size == 0 &&
@@ -4106,6 +4150,7 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     auto reqd_work_group_size = kernel->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
         if (reqd_work_group_size != ndrange.lws) {
+            cvk_error_fn("work-group size does not match the required size");
             return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
@@ -4113,6 +4158,7 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // Check uniformity of the NDRange if needed
     if (!command_queue->device()->supports_non_uniform_workgroup()) {
         if (!ndrange.is_uniform()) {
+            cvk_error_fn("non uniform workgroup not supported");
             return CL_INVALID_WORK_GROUP_SIZE;
         }
     }
@@ -4171,7 +4217,8 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
     if (local_work_size == nullptr) {
         icd_downcast(command_queue)
             ->device()
-            ->select_work_group_size(ndrange.gws, ndrange.lws);
+            ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
+                                     ndrange.lws);
         cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
                     ndrange.lws[1], ndrange.lws[2]);
     }
@@ -6564,7 +6611,8 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
 
     icd_downcast(command_queue)
         ->device()
-        ->select_work_group_size(ndrange.gws, ndrange.lws);
+        ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
+                                 ndrange.lws);
 
     for (cl_uint i = 0; i < work_dim; i++) {
         suggested_local_work_size[i] = ndrange.lws[i];

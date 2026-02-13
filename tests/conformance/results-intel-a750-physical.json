@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4210999,
+    "apiVersion": 4211006,
     "deviceID": 22177,
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 25.1.5",
+    "driverInfo": "Mesa 25.2.2",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 104861701
+    "driverVersion": 104865794
   },
   "test-results": {
     "API": {
@@ -111,7 +111,11 @@
         "negative_enqueue_map_image": "skip",
         "negative_get_platform_ids": "pass",
         "negative_get_platform_info": "pass",
+        "negative_invalid_arg_index": "pass",
+        "negative_invalid_arg_size_local": "pass",
+        "negative_invalid_kernel": "pass",
         "negative_set_immutable_memory_to_writeable_kernel_arg": "skip",
+        "negative_set_read_write_image_arg": "pass",
         "null_buffer_arg": "pass",
         "pipe_properties_queries": "skip",
         "platform_extensions": "pass",
@@ -132,6 +136,8 @@
         "set_kernel_arg_by_index": "pass",
         "set_kernel_arg_constant": "pass",
         "set_kernel_arg_struct_array": "pass",
+        "spirv_query_dependencies": "skip",
+        "spirv_query_requirements": "skip",
         "sub_group_dispatch": "pass",
         "work_group_suggested_local_size_1D": "pass",
         "work_group_suggested_local_size_2D": "pass",
@@ -460,7 +466,7 @@
         "execute_after_two_file_link": "pass",
         "features_macro": "pass",
         "features_macro_coupling": "pass",
-        "get_linked_program_info_kernel_names": "fail",
+        "get_linked_program_info_kernel_names": "pass",
         "get_program_build_info": "pass",
         "get_program_info": "pass",
         "get_program_info_kernel_names": "pass",
@@ -516,7 +522,7 @@
         "unload_repeated": "pass",
         "unload_valid": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Compute Info": {
       "duration": "00:00:00.032661",
@@ -1817,8 +1823,7 @@
         "semaphores_ooo_ops_cross_queue": "skip",
         "semaphores_ooo_ops_single_queue": "skip",
         "semaphores_reuse": "skip",
-        "semaphores_simple_1": "skip",
-        "semaphores_simple_2": "skip"
+        "semaphores_simple_1": "skip"
       },
       "retcode": 0
     }
