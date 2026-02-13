@@ -977,15 +977,13 @@ cvk_device::get_pipeline_cache_filename(const cvk_sha1_hash& sha1) const {
 
     // The pipeline cache file path is:
     // ${CLVK_CACHE_DIR}/clvk-pipeline-cache.<UUID>.<SHA1>.bin
-    std::string cache_path = config.cache_dir;
-    cache_path += "/";
-    cache_path += "clvk-pipeline-cache.";
+    std::string cache_path = "clvk-pipeline-cache.";
     cache_path += to_hex_string(m_properties.pipelineCacheUUID, VK_UUID_SIZE);
     cache_path += ".";
     cache_path += to_hex_string(reinterpret_cast<const uint8_t*>(sha1.data()),
                                 SHA1_DIGEST_NUM_BYTES);
     cache_path += ".bin";
-    return cache_path;
+    return append_paths(config.cache_dir, cache_path);
 }
 
 bool cvk_device::get_pipeline_cache(const std::vector<uint32_t>& spirv,
