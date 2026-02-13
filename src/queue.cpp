@@ -1891,3 +1891,178 @@ cvk_command_image_init::build_batchable_inner(cvk_command_buffer& cmdbuf) {
 
     return CL_SUCCESS;
 }
+
+cl_int cvk_command_fill_image_on_device::build_batchable_inner(
+    cvk_command_buffer& cmdbuf) {
+    if (m_cmd_kernel != nullptr) {
+        return m_cmd_kernel->build_batchable_inner(cmdbuf);
+    }
+    char source[1024];
+    char color[512];
+    const char* kernel_name = "fill_image";
+    const char* type = get_image_type();
+    const char* access_qualifier = get_image_access_qualifier();
+    const char* coord = get_image_coord();
+    get_image_color(color);
+    sprintf(source,
+            "kernel void %s(write_only %s image) { write_image%s(image, "
+            "%s, %s); }",
+            kernel_name, type, access_qualifier, coord, color);
+
+    auto program = std::make_unique<cvk_program>(m_queue->context());
+    program->append_source(source, strlen(source));
+    const cl_device_id device = static_cast<cl_device_id>(m_queue->device());
+    auto err = program->build(build_operation::build, 1, &device, nullptr, 0,
+                              nullptr, nullptr, nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to build program (%u)", err);
+        return CL_OUT_OF_RESOURCES;
+    }
+
+    auto prog = program.release();
+    auto kernel = std::make_unique<cvk_kernel>(prog, kernel_name);
+    prog->release();
+    err = kernel->init();
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to init kernel (%u)", err);
+        return err;
+    }
+    err = kernel->set_arg(0, sizeof(m_mem), &m_mem);
+    if (err != CL_SUCCESS) {
+        cvk_error_fn("fail to set arg (%u)", err);
+        return err;
+    }
+
+    cl_uint work_dim = dimensions();
+    cvk_ndrange ndrange(work_dim, m_work_offset.data(), m_work_size.data(),
+                        nullptr);
+    auto kern = kernel.release();
+    m_cmd_kernel =
+        std::make_unique<cvk_command_kernel>(m_queue, kern, work_dim, ndrange);
+    kern->release();
+    return m_cmd_kernel->build_batchable_inner(cmdbuf);
+}
+
+cl_uint cvk_command_fill_image_on_device::dimensions() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return 0;
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return 1;
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D:
+        return 2;
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE3D:
+        return 3;
+    }
+}
+
+const char*
+cvk_command_fill_image_on_device::get_image_access_qualifier() const {
+    switch (m_image->format().image_channel_data_type) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_UNORM_SHORT_565:
+    case CL_UNORM_SHORT_555:
+    case CL_UNORM_INT_101010:
+    case CL_UNORM_INT_101010_2:
+    case CL_UNORM_INT8:
+    case CL_UNORM_INT16:
+        return "ui";
+    case CL_UNSIGNED_INT8:
+    case CL_UNSIGNED_INT16:
+    case CL_UNSIGNED_INT32:
+    case CL_SIGNED_INT8:
+    case CL_SIGNED_INT16:
+    case CL_SIGNED_INT32:
+    case CL_FLOAT:
+    case CL_HALF_FLOAT:
+        return "f";
+    case CL_SNORM_INT8:
+    case CL_SNORM_INT16:
+        return "i";
+    }
+}
+
+const char* cvk_command_fill_image_on_device::get_image_type() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_MEM_OBJECT_IMAGE1D:
+        return "image1d_t";
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return "image1d_buffer_t";
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        return "image1d_array_t";
+    case CL_MEM_OBJECT_IMAGE2D:
+        return "image2d_t";
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        return "image2d_array_t";
+    case CL_MEM_OBJECT_IMAGE3D:
+        return "image3d";
+    }
+}
+
+const char* cvk_command_fill_image_on_device::get_image_coord() const {
+    switch (m_image->image_type()) {
+    default:
+        CVK_ASSERT(false);
+        return nullptr;
+    case CL_MEM_OBJECT_IMAGE1D:
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+        return "get_global_id(0)";
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE2D:
+        return "(int2)(get_global_id(0), get_global_id(1))";
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+    case CL_MEM_OBJECT_IMAGE3D:
+        return "(int4)(get_global_id(0), get_global_id(1), "
+               "get_global_id(2), 0)";
+    }
+}
+
+void cvk_command_fill_image_on_device::get_image_color(char* color) const {
+    switch (m_image->format().image_channel_data_type) {
+    default:
+        CVK_ASSERT(false);
+        break;
+    case CL_UNORM_SHORT_565:
+    case CL_UNORM_SHORT_555:
+    case CL_UNORM_INT_101010:
+    case CL_UNORM_INT_101010_2:
+    case CL_UNORM_INT8:
+    case CL_UNORM_INT16: {
+        auto fill_color = static_cast<const uint32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color, "(uint4)(%u, %u, %u, %u)", fill_color[0], fill_color[1],
+                fill_color[2], fill_color[3]);
+    } break;
+    case CL_UNSIGNED_INT8:
+    case CL_UNSIGNED_INT16:
+    case CL_UNSIGNED_INT32:
+    case CL_SIGNED_INT8:
+    case CL_SIGNED_INT16:
+    case CL_SIGNED_INT32:
+    case CL_FLOAT:
+    case CL_HALF_FLOAT: {
+        auto fill_color = static_cast<const uint32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color,
+                "(float4)(as_float(0x%x), as_float(0x%x), as_float(0x%x), "
+                "as_float(0x%x))",
+                fill_color[0], fill_color[1], fill_color[2], fill_color[3]);
+    } break;
+    case CL_SNORM_INT8:
+    case CL_SNORM_INT16: {
+        auto fill_color = static_cast<const int32_t*>(
+            static_cast<const void*>(m_fill_color.data()));
+        sprintf(color, "(int4)(%i, %i, %i, %i)", fill_color[0], fill_color[1],
+                fill_color[2], fill_color[3]);
+    } break;
+    }
+}

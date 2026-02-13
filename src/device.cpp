@@ -1292,10 +1292,12 @@ void cvk_device::select_work_group_size(
     cvk_kernel* kernel, const std::array<uint32_t, 3>& global_size,
     std::array<uint32_t, 3>& local_size) const {
 
-    auto required_work_group_size = kernel->required_work_group_size();
-    if (required_work_group_size[0] != 0) {
-        local_size = required_work_group_size;
-        return;
+    if (kernel != nullptr) {
+        auto required_work_group_size = kernel->required_work_group_size();
+        if (required_work_group_size[0] != 0) {
+            local_size = required_work_group_size;
+            return;
+        }
     }
     // Start at (1,1,1), which is always valid.
     local_size = {1, 1, 1};

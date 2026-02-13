@@ -71,6 +71,8 @@ OPTION(bool, keep_memory_allocations_mapped, false)
 OPTION(std::string, device_extensions, "")
 OPTION(std::string, device_extensions_masked, "")
 
+OPTION(bool, fill_image_on_device, false)
+
 //
 // Logging
 //
