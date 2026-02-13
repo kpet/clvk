@@ -2732,10 +2732,11 @@ cl_int CLVK_API_CALL clGetProgramBuildInfo(cl_program prog, cl_device_id dev,
         copy_ptr = program->build_log(device).c_str();
         ret_size = program->build_log(device).size() + 1;
         break;
-    case CL_PROGRAM_BUILD_OPTIONS:
-        copy_ptr = program->build_options().c_str();
-        ret_size = program->build_options().size() + 1;
-        break;
+    case CL_PROGRAM_BUILD_OPTIONS: {
+        auto build_options = program->build_options();
+        copy_ptr = build_options.c_str();
+        ret_size = build_options.size() + 1;
+    } break;
     case CL_PROGRAM_BINARY_TYPE:
         val_binarytype = program->binary_type(device);
         copy_ptr = &val_binarytype;

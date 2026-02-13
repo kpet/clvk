@@ -797,11 +797,12 @@ bool validate_binary(spir_binary const& binary,
 
 const uint32_t clvk_binary_magic =
     0x6B766C63; // "clvk" in ASCII in little-endian
-const uint32_t clvk_binary_version = 1;
+const uint32_t clvk_binary_version = 2;
 struct clvk_binary_header {
     uint32_t magic;
     uint32_t version;
     uint32_t binary_type;
+    uint32_t build_options_size;
 };
 #define COPY_WORD(dst, src)                                                    \
     do {                                                                       \
@@ -824,11 +825,21 @@ bool cvk_program::read_llvm_bitcode(const unsigned char* src, size_t size) {
     return false;
 }
 
+size_t cvk_program::binary_header_size() const {
+    return sizeof(struct clvk_binary_header) +
+           m_build_options.binary_header_options().size();
+}
+
 void cvk_program::write_binary_header(unsigned char* dst) const {
     struct clvk_binary_header* header = (struct clvk_binary_header*)dst;
+    auto build_options = m_build_options.binary_header_options();
+    uint32_t options_size = build_options.size();
     COPY_WORD(&header->magic, &clvk_binary_magic);
     COPY_WORD(&header->version, &clvk_binary_version);
     COPY_WORD(&header->binary_type, &m_binary_type);
+    COPY_WORD(&header->build_options_size, &options_size);
+    memcpy(dst + sizeof(struct clvk_binary_header), build_options.data(),
+           options_size);
 }
 
 cl_program_binary_type cvk_program::read_binary_header(const unsigned char* src,
@@ -837,7 +848,7 @@ cl_program_binary_type cvk_program::read_binary_header(const unsigned char* src,
     if (size < sizeof(header)) {
         return CL_PROGRAM_BINARY_TYPE_NONE;
     }
-    uint32_t magic, version, binary_type;
+    uint32_t magic, version, binary_type, options_size;
     COPY_WORD(&magic, &header->magic);
     COPY_WORD(&version, &header->version);
     COPY_WORD(&binary_type, &header->binary_type);
@@ -849,6 +860,12 @@ cl_program_binary_type cvk_program::read_binary_header(const unsigned char* src,
         cvk_warn_fn("wrong version");
         return CL_PROGRAM_BINARY_TYPE_NONE;
     }
+    COPY_WORD(&options_size, &header->build_options_size);
+    std::string build_options;
+    build_options.resize(options_size);
+    memcpy(build_options.data(), src + sizeof(struct clvk_binary_header),
+           options_size);
+    m_build_options = cvk_build_options(build_options);
     return binary_type;
 }
 
@@ -874,7 +891,7 @@ bool cvk_program::read(const unsigned char* src, size_t size) {
         return success;
     }
 
-    auto header_size = sizeof(struct clvk_binary_header);
+    auto header_size = binary_header_size();
     src += header_size;
     size -= header_size;
 
@@ -895,7 +912,7 @@ bool cvk_program::read(const unsigned char* src, size_t size) {
 
 bool cvk_program::write(unsigned char* dst) const {
     write_binary_header(dst);
-    dst += sizeof(struct clvk_binary_header);
+    dst += binary_header_size();
 
     switch (m_binary_type) {
     case CL_PROGRAM_BINARY_TYPE_LIBRARY:
@@ -909,7 +926,7 @@ bool cvk_program::write(unsigned char* dst) const {
 }
 
 size_t cvk_program::binary_size() const {
-    auto header_size = sizeof(struct clvk_binary_header);
+    auto header_size = binary_header_size();
     switch (m_binary_type) {
     case CL_PROGRAM_BINARY_TYPE_LIBRARY:
     case CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT:
@@ -925,7 +942,7 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     std::string options;
     if (m_build_options.size() > 0) {
         options += " ";
-        options += m_build_options;
+        options += m_build_options();
     }
     std::vector<std::pair<std::string, std::string>> option_substitutions = {
         // FIXME The 1.2 conformance tests shouldn't pass this option.
@@ -1661,6 +1678,9 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
 
     retain();
 
+    if (options != nullptr) {
+        m_build_options = cvk_build_options(options);
+    }
     for (cl_uint i = 0; i < num_input_programs; i++) {
         cvk_program* iprog =
             const_cast<cvk_program*>(icd_downcast(input_programs[i]));
@@ -1669,6 +1689,7 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
         if (header_include_names != nullptr) {
             m_header_include_names.push_back(header_include_names[i]);
         }
+        m_build_options.append(iprog->build_options());
     }
 
     // Mark build in-progress and save devices
@@ -1682,9 +1703,6 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
         }
     }
 
-    if (options != nullptr) {
-        m_build_options = options;
-    }
     m_num_input_programs = num_input_programs;
     m_operation = operation;
     m_operation_callback = cb;
