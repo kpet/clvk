@@ -37,11 +37,15 @@ cvk_command_queue::cvk_command_queue(
       m_properties_array(std::move(properties_array)), m_executor(nullptr),
       m_command_batch(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device, m_vulkan_queue.queue_family()),
+      m_semaphore_main_timeline(nullptr),
+      m_semaphore_image_init_timeline(nullptr),
+      m_semaphore_batch_timeline(nullptr),
       m_max_cmd_batch_size(device->get_max_cmd_batch_size()),
       m_max_first_cmd_batch_size(device->get_max_first_cmd_batch_size()),
       m_max_cmd_group_size(device->get_max_cmd_group_size()),
       m_max_first_cmd_group_size(device->get_max_first_cmd_group_size()),
-      m_nb_batch_in_flight(0), m_nb_group_in_flight(0) {
+      m_nb_batch_in_flight(0), m_nb_group_in_flight(0),
+      m_nb_synchronous_submit_command_in_flight(0) {
 
     m_groups.push_back(std::make_unique<cvk_command_group>());
 
@@ -71,6 +75,15 @@ cl_int cvk_command_queue::init() {
 }
 
 cvk_command_queue::~cvk_command_queue() {
+    if (m_semaphore_image_init_timeline != nullptr) {
+        m_semaphore_image_init_timeline->release();
+    }
+    if (m_semaphore_main_timeline != nullptr) {
+        m_semaphore_main_timeline->release();
+    }
+    if (m_semaphore_batch_timeline != nullptr) {
+        m_semaphore_batch_timeline->release();
+    }
     if (m_executor != nullptr) {
         get_thread_pool()->return_executor(m_executor);
     }
@@ -128,6 +141,9 @@ void cvk_command_queue::enqueue_command(cvk_command* cmd) {
         cmd->add_dependency(m_groups.back()->commands.back()->event());
     } else if (m_finish_event != nullptr) {
         cmd->add_dependency(m_finish_event);
+    }
+    if (cmd->is_synchronous_submit()) {
+        sync_submit_cmd_enqueued();
     }
     m_groups.back()->commands.push_back(cmd);
 }
@@ -196,6 +212,9 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
             return err;
         }
 
+        cmd->event()->set_profiling_info_from_monotonic_clock(
+            CL_PROFILING_COMMAND_QUEUED);
+
         // End command batch when size limit reached
         if (m_command_batch->batch_size() >= m_max_cmd_batch_size ||
             (m_nb_batch_in_flight == 0 &&
@@ -220,13 +239,13 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         }
 
         enqueue_command(cmd);
+
+        cmd->event()->set_profiling_info_from_monotonic_clock(
+            CL_PROFILING_COMMAND_QUEUED);
     }
 
     cvk_debug_fn("enqueued command %p (%s), event %p", cmd,
                  cl_command_type_to_string(cmd->type()), cmd->event());
-
-    cmd->event()->set_profiling_info_from_monotonic_clock(
-        CL_PROFILING_COMMAND_QUEUED);
 
     if (event != nullptr) {
         // The event will be returned to the app, retain it for the user
@@ -292,12 +311,20 @@ cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
         }
         enqueue_command(m_command_batch);
 
+        if (use_timeline_semaphore() &&
+            m_nb_synchronous_submit_command_in_flight == 1) {
+            m_command_batch->set_event_status(CL_SUBMITTED);
+            m_command_batch->set_event_status(CL_RUNNING);
+            if (m_command_batch->submit() != CL_COMPLETE) {
+                return CL_OUT_OF_RESOURCES;
+            }
+        }
+
         for (auto& controller : m_controllers) {
             controller->update_after_end_current_command_batch(from_flush);
         }
 
         m_command_batch = nullptr;
-
         batch_enqueued();
     }
     return CL_SUCCESS;
@@ -336,7 +363,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
     // Now wait for all the events
     for (cl_uint i = 0; i < num_events; i++) {
         cvk_event* event = icd_downcast(event_list[i]);
-        if (event->wait() != CL_COMPLETE) {
+        bool poll = config.poll_main_thread();
+        if (!event->is_user_event()) {
+            poll = event->queue()->device()->poll_main_thread();
+        }
+        if (event->wait(poll) != CL_COMPLETE) {
             ret = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
         }
     }
@@ -347,11 +378,11 @@ cl_int cvk_command_queue::wait_for_events(cl_uint num_events,
 void cvk_command_group::execute_cmds_in_executor() {
     CVK_ASSERT(commands.size() > 0);
     cvk_command_queue_holder queue = commands.front()->queue();
-    execute_cmds();
+    execute_cmds(config.poll_executor);
     queue->group_completed();
 }
 
-cl_int cvk_command_group::execute_cmds() {
+cl_int cvk_command_group::execute_cmds(bool poll) {
     TRACE_FUNCTION();
     cl_int global_status = CL_SUCCESS;
     while (!commands.empty()) {
@@ -359,7 +390,7 @@ cl_int cvk_command_group::execute_cmds() {
         cvk_debug_fn("executing command %p (%s), event %p", cmd,
                      cl_command_type_to_string(cmd->type()), cmd->event());
 
-        cl_int status = cmd->execute();
+        cl_int status = cmd->execute(poll);
         if (status != CL_COMPLETE && global_status == CL_SUCCESS)
             global_status = status;
         cvk_debug_fn("command returned %d", status);
@@ -384,8 +415,8 @@ cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
     }
 
     lock.unlock();
-    auto cmds = exec->extract_cmds_required_by(false, num_events, event_list);
-    auto ret = cmds.execute_cmds();
+    auto cmds = exec->extract_cmds_required_by(true, num_events, event_list);
+    auto ret = cmds.execute_cmds(m_device->poll_main_thread());
     lock.lock();
 
     return ret;
@@ -544,10 +575,48 @@ cl_int cvk_command_queue::finish() {
     if (m_finish_event != nullptr) {
         _cl_event* evt_list = (_cl_event*)&*m_finish_event;
         execute_cmds_required_by_no_lock(1, &evt_list, lock);
-        m_finish_event->wait();
+        m_finish_event->wait(m_device->poll_main_thread());
     }
 
     return CL_SUCCESS;
+}
+
+cl_int cvk_command_queue::get_next_semaphore_and_value(cvk_semaphore** sem,
+                                                       uint64_t* value,
+                                                       cl_command_type type) {
+    std::lock_guard<std::mutex> lock(m_semaphore_lock);
+    CVK_ASSERT(m_device->has_timeline_semaphore_support());
+
+    auto get_from = [this, &sem, &value](cvk_semaphore*& semaphore) {
+        if (semaphore == nullptr) {
+            cl_semaphore_type_khr sem_type = 0;
+            std::vector<cl_semaphore_properties_khr> properties;
+            std::vector<cl_device_id> devices;
+            semaphore = new cvk_semaphore(
+                m_context, sem_type, std::move(devices), std::move(properties));
+            auto status = semaphore->init();
+            if (status != CL_SUCCESS) {
+                return status;
+            }
+        }
+
+        *sem = semaphore;
+        *value = semaphore->get_next_value();
+
+        if (*value >= m_device->maxTimelineSemaphoreValueDifference()) {
+            semaphore->release();
+            semaphore = nullptr;
+        }
+        return CL_SUCCESS;
+    };
+
+    if (type == CLVK_COMMAND_IMAGE_INIT) {
+        return get_from(m_semaphore_image_init_timeline);
+    } else if (type == CLVK_COMMAND_BATCH) {
+        return get_from(m_semaphore_batch_timeline);
+    } else {
+        return get_from(m_semaphore_main_timeline);
+    }
 }
 
 VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {
@@ -584,6 +653,22 @@ bool cvk_command_buffer::begin() {
     };
 
     VkResult res = vkBeginCommandBuffer(m_command_buffer, &beginInfo);
+    if (res != VK_SUCCESS) {
+        return false;
+    }
+
+    return true;
+}
+
+bool cvk_command_buffer::submit(VkSemaphore signal_semaphore,
+                                uint64_t signal_value,
+                                std::vector<VkSemaphore>& wait_semaphores,
+                                std::vector<uint64_t>& wait_values) {
+    auto& queue = m_queue->vulkan_queue();
+
+    VkResult res = queue.submit(m_command_buffer, signal_semaphore,
+                                signal_value, wait_semaphores, wait_values);
+
     if (res != VK_SUCCESS) {
         return false;
     }
@@ -1257,12 +1342,38 @@ cl_int cvk_command_batchable::do_action() {
     return do_post_action();
 }
 
-cl_int cvk_command_batch::do_action() {
-
-    cvk_info("executing batch of %lu commands", m_commands.size());
-
-    if (!m_command_buffer->submit_and_wait()) {
+cl_int cvk_command_batch::submit() {
+    VkSemaphore signal_semaphore = event()->get_semaphore()->get_vk_semaphore();
+    uint64_t signal_value = event()->get_value();
+    std::vector<VkSemaphore> wait_semaphores;
+    std::vector<uint64_t> wait_values;
+    for (auto& dep : dependencies()) {
+        wait_semaphores.push_back(dep->get_semaphore()->get_vk_semaphore());
+        wait_values.push_back(dep->get_value());
+    }
+    if (!m_command_buffer->submit(signal_semaphore, signal_value,
+                                  wait_semaphores, wait_values)) {
         return CL_OUT_OF_RESOURCES;
+    }
+    m_submitted = true;
+    // We have consider the default case when the batch is executed
+    // synchronously. As we now know that is will be asynchronous, mark this
+    // command as completed as far as synchronous commands are concerned.
+    m_queue->sync_submit_cmd_completed();
+
+    // add ourselves in dependency so that we wait on the batch completion
+    // before calling 'cvk_command_batch::do_action' in 'cvk_command::execute'.
+    add_dependency(event());
+
+    return CL_COMPLETE;
+}
+
+cl_int cvk_command_batch::do_action() {
+    if (!m_submitted) {
+        cvk_info("executing batch of %lu commands", m_commands.size());
+        if (!m_command_buffer->submit_and_wait()) {
+            return CL_OUT_OF_RESOURCES;
+        }
     }
 
     m_queue->batch_completed();

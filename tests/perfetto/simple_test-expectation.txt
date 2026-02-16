@@ -33,4 +33,4 @@
 "name"
 "set_event_status"
 "vkQueueSubmit"
-"vkQueueWaitIdle"
+"vkWaitSemaphore"

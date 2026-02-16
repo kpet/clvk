@@ -29,7 +29,8 @@ struct cvk_semaphore : public _cl_semaphore_khr,
                   std::vector<cl_device_id>&& devices,
                   std::vector<cl_semaphore_properties_khr>&& properties)
         : api_object(context), m_type(type), m_devices(std::move(devices)),
-          m_properties(std::move(properties)), m_semaphore(VK_NULL_HANDLE) {}
+          m_properties(std::move(properties)), m_semaphore(VK_NULL_HANDLE),
+          m_next_value(0), m_current_value(0) {}
 
     CHECK_RETURN cl_int init();
 
@@ -64,11 +65,24 @@ struct cvk_semaphore : public _cl_semaphore_khr,
         return 0; // TODO return 1 when signaled
     }
 
+    CHECK_RETURN bool poll_once(uint64_t value);
+    CHECK_RETURN bool poll(uint64_t value);
+    CHECK_RETURN bool wait(uint64_t value);
+    void notify(uint64_t value);
+
+    VkSemaphore get_vk_semaphore() { return m_semaphore; }
+    uint64_t get_next_value() { return ++m_next_value; }
+
 private:
     cl_semaphore_type_khr m_type;
     std::vector<cl_device_id> m_devices;
     std::vector<cl_semaphore_properties_khr> m_properties;
     VkSemaphore m_semaphore;
+
+    uint64_t m_next_value;
+    uint64_t m_current_value;
+
+    std::mutex m_lock;
 };
 
 static inline cvk_semaphore* icd_downcast(cl_semaphore_khr sem) {
