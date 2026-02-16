@@ -40,7 +40,8 @@ struct cvk_context : public _cl_context,
 
     cvk_context(cvk_device* device, const cl_context_properties* props,
                 void* user_data)
-        : m_device(device), m_user_data(user_data) {
+        : m_device(device), m_printf_buffersize(0), m_printf_callback(nullptr),
+          m_user_data(user_data) {
 
         if (props) {
             while (*props) {
@@ -52,24 +53,6 @@ struct cvk_context : public _cl_context,
             }
             m_properties.push_back(*props);
         }
-        // Get printf buffer size from extension.
-        auto buff_size_prop_index =
-            get_property_value_index(CL_PRINTF_BUFFERSIZE_ARM);
-        if (buff_size_prop_index != -1 && !config.printf_buffer_size.set) {
-            m_printf_buffersize = m_properties[buff_size_prop_index];
-        } else {
-            m_printf_buffersize = 0;
-        }
-
-        // Get printf callback from extension
-        auto printf_callback_prop_index =
-            get_property_value_index(CL_PRINTF_CALLBACK_ARM);
-        if (printf_callback_prop_index != -1) {
-            m_printf_callback =
-                (cvk_printf_callback_t)m_properties[printf_callback_prop_index];
-        } else {
-            m_printf_callback = nullptr;
-        }
     }
 
     virtual ~cvk_context() {
@@ -79,6 +62,39 @@ struct cvk_context : public _cl_context,
             cb.pointer(this, cb.data);
         }
         free_image_init_command_queue();
+    }
+
+    cl_int init() {
+        std::unordered_set<cl_context_properties> seen;
+        for (unsigned i = 0; i < m_properties.size(); i += 2) {
+            auto property = m_properties[i];
+            if (seen.count(property) > 0) {
+                return CL_INVALID_PROPERTY;
+            }
+            seen.insert(property);
+            switch (property) {
+            case CL_CONTEXT_PLATFORM: {
+                cl_platform_id platform = (cl_platform_id)m_properties[i + 1];
+                if (platform == nullptr ||
+                    !icd_downcast(platform)->is_valid()) {
+                    return CL_INVALID_PLATFORM;
+                }
+            } break;
+            case CL_PRINTF_BUFFERSIZE_ARM:
+                if (!config.printf_buffer_size.set) {
+                    m_printf_buffersize = m_properties[i + 1];
+                }
+                break;
+            case CL_PRINTF_CALLBACK_ARM:
+                m_printf_callback = (cvk_printf_callback_t)m_properties[i + 1];
+                break;
+            case 0:
+                break;
+            default:
+                return CL_INVALID_PROPERTY;
+            }
+        }
+        return CL_SUCCESS;
     }
 
     const std::vector<cl_context_properties>& properties() const {

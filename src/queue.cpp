@@ -54,12 +54,8 @@ cvk_command_queue::cvk_command_queue(
             std::make_unique<cvk_queue_controller_batch_parameters>(this));
     }
 
-    TRACE_CNT_VAR_INIT(batch_in_flight_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-batches");
-    TRACE_CNT_VAR_INIT(group_in_flight_counter,
-                       "clvk-queue_" + std::to_string((uintptr_t)this) +
-                           "-groups");
+    TRACE_CNT_VAR_INIT(batch_in_flight_counter, "batches", this->track());
+    TRACE_CNT_VAR_INIT(group_in_flight_counter, "groups", this->track());
 
     TRACE_CNT(batch_in_flight_counter, 0);
     TRACE_CNT(group_in_flight_counter, 0);
