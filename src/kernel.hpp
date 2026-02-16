@@ -57,7 +57,8 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     void set_image_metadata(cl_uint index, const void* image);
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
-    CHECK_RETURN cl_int set_arg_device_address(cl_uint index, cl_mem_device_address_ext dev_addr);
+    CHECK_RETURN cl_int
+    set_arg_device_address(cl_uint index, cl_mem_device_address_ext dev_addr);
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
@@ -323,17 +324,34 @@ struct cvk_kernel_argument_values {
             } else if (arg.kind == kernel_argument_kind::buffer) {
                 auto device_ptr =
                     *reinterpret_cast<const cl_mem_device_address_ext*>(value);
-                auto& device_to_buffer_map = m_entry_point->program()
-                                                ->context()
-                                                ->device_to_buffer_map;
+                auto& device_to_buffer_map =
+                    m_entry_point->program()->context()->device_to_buffer_map();
                 auto it = device_to_buffer_map.find(device_ptr);
-                if (it == device_to_buffer_map.end()) {
-                    return CL_INVALID_MEM_OBJECT;
+                if (it != device_to_buffer_map.end()) {
+                    m_kernel_resources[arg.binding] = it->second;
+                } else {
+                    // Fall back to cl_mem path (from clSetKernelArg)
+                    auto apimem = *reinterpret_cast<const cl_mem*>(value);
+                    if (apimem == nullptr) {
+                        return CL_INVALID_MEM_OBJECT;
+                    }
+                    auto mem = icd_downcast(apimem);
+                    if ((arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_READ_ONLY &&
+                         mem->has_flags(CL_MEM_WRITE_ONLY)) ||
+                        (arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_WRITE_ONLY &&
+                         mem->has_flags(CL_MEM_READ_ONLY)) ||
+                        (arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_READ_WRITE &&
+                         !mem->has_flags(CL_MEM_READ_WRITE))) {
+                        return CL_INVALID_ARG_VALUE;
+                    }
+                    if (!mem->is_valid()) {
+                        return CL_INVALID_MEM_OBJECT;
+                    }
+                    m_kernel_resources[arg.binding] = mem;
                 }
-
-                // device pointer found in map, get the buffer pointer
-                auto buffer_ptr = it->second;
-                m_kernel_resources[arg.binding] = buffer_ptr;
             } else {
                 auto apimem = *reinterpret_cast<const cl_mem*>(value);
                 if (apimem == nullptr) {
