@@ -407,14 +407,12 @@ struct cvk_buffer : public cvk_mem {
         if (m_parent == nullptr) {
             return m_buffer;
         } else {
-            const cvk_mem *parent = m_parent;
+            const cvk_mem* parent = m_parent;
             return static_cast<const cvk_buffer*>(parent)->vulkan_buffer();
         }
     }
 
-    size_t vulkan_buffer_offset() const {
-        return m_parent_offset;
-    }
+    size_t vulkan_buffer_offset() const { return m_parent_offset; }
 
     void* map_ptr(size_t offset) const {
         void* ptr;
@@ -493,7 +491,8 @@ struct cvk_buffer : public cvk_mem {
         auto device_address =
             device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info) +
             vulkan_buffer_offset();
-        context()->device_to_buffer_map[device_address] = const_cast<cvk_buffer*>(this);
+        context()->device_to_buffer_map()[device_address] =
+            const_cast<cvk_buffer*>(this);
         return device_address;
     }
 
