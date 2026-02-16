@@ -294,9 +294,6 @@ cl_int CLVK_API_CALL clGetPlatformInfo(cl_platform_id platform,
     return ret;
 }
 
-// Forward declaration for extension entrypoint
-cl_int CLVK_API_CALL clSetKernelArgDevicePointerEXT(cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_ext dev_addr);
-
 static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
 #define FUNC_PTR(X) reinterpret_cast<void*>(X)
 #define EXTENSION_ENTRYPOINT(X)                                                \
@@ -1784,14 +1781,14 @@ static cl_mem CLVK_API_CALL cvk_create_buffer_with_properties(
         const cl_mem_properties* prop = properties;
         while (*prop) {
             cl_mem_properties property_name = *prop++;
-            
+
             switch (property_name) {
             case CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT:
                 // This is a flag property - presence indicates the request
                 // The extension spec says this is a cl_bool value
                 if (*prop) {
                     request_device_address = (*prop != 0);
-                    prop++;  // consume the value
+                    prop++; // consume the value
                 } else {
                     // If no value, treat presence as true
                     request_device_address = true;
@@ -6331,10 +6328,11 @@ cl_int clGetSemaphoreInfoKHR(const cl_semaphore_khr sema_object,
     return ret;
 }
 
-cl_int CLVK_API_CALL clSetKernelArgDevicePointerEXT(cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_ext dev_addr) {
+cl_int CLVK_API_CALL clSetKernelArgDevicePointerEXT(
+    cl_kernel kernel, cl_uint arg_index, cl_mem_device_address_ext dev_addr) {
     TRACE_FUNCTION("kernel", (uintptr_t)kernel, "arg_index", arg_index);
-    LOG_API_CALL("kernel = %p, arg_index = %u, dev_addr = %p",
-                 kernel, arg_index, (void*)dev_addr);
+    LOG_API_CALL("kernel = %p, arg_index = %u, dev_addr = %p", kernel,
+                 arg_index, (void*)dev_addr);
 
     auto kern = icd_downcast(kernel);
 
@@ -6343,20 +6341,15 @@ cl_int CLVK_API_CALL clSetKernelArgDevicePointerEXT(cl_kernel kernel, cl_uint ar
         return CL_INVALID_KERNEL;
     }
 
-    // Validate argument index 
+    // Validate argument index
     if (arg_index >= kern->num_args()) {
         cvk_error_fn("the program has only %u arguments", kern->num_args());
         return CL_INVALID_ARG_INDEX;
     }
 
-    // Get argument info
-    auto const& arg = kern->arguments()[arg_index];
-
-    // Validate argument is a pointer type
-    // device pointer kernel argument of type __global is buffer type here so failure
-    // if (!arg.is_pod_pointer()) {
-    //     return CL_INVALID_ARG_VALUE;
-    // }
+    if (!kern->context()->device()->supports_buffer_device_address()) {
+        return CL_INVALID_OPERATION;
+    }
 
     // Set the argument using the device address
     return kern->set_arg_device_address(arg_index, dev_addr);
