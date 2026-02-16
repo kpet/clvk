@@ -62,8 +62,14 @@ struct cvk_context : public _cl_context,
     }
 
     cl_int init() {
+        std::unordered_set<cl_context_properties> seen;
         for (unsigned i = 0; i < m_properties.size(); i += 2) {
-            switch (m_properties[i]) {
+            auto property = m_properties[i];
+            if (seen.count(property) > 0) {
+                return CL_INVALID_PROPERTY;
+            }
+            seen.insert(property);
+            switch (property) {
             case CL_CONTEXT_PLATFORM: {
                 cl_platform_id platform = (cl_platform_id)m_properties[i + 1];
                 if (platform == nullptr ||
