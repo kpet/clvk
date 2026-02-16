@@ -28,6 +28,7 @@ add_gtest_executable(api_tests
     split_region.cpp
     subgroup_size.cpp
     workgroup.cpp
+    buffer_device_address.cpp
 )
 
 target_include_directories(api_tests SYSTEM BEFORE PRIVATE

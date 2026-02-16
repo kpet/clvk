@@ -674,6 +674,11 @@ void cvk_device::build_extension_ils_list() {
         }
     }
 
+    if (supports_buffer_device_address()) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 2, "cl_ext_buffer_device_address"));
+    }
+
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
     if ((is_vulkan_extension_enabled(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) &&
          m_features_16bit_storage.storageBuffer16BitAccess) &&

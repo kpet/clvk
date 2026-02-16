@@ -14,9 +14,11 @@
 
 #pragma once
 
+#include "cl_headers.hpp"
 #include "device.hpp"
 #include "objects.hpp"
 #include "unit.hpp"
+#include <unordered_map>
 
 using cvk_printf_callback_t = void(CL_CALLBACK*)(const char* buffer, size_t len,
                                                  size_t complete,
@@ -30,6 +32,7 @@ struct cvk_context_callback {
 };
 
 struct cvk_command_queue;
+struct cvk_buffer;
 
 struct cvk_context : public _cl_context,
                      refcounted,
@@ -138,8 +141,15 @@ struct cvk_context : public _cl_context,
     cvk_command_queue* get_or_create_image_init_command_queue();
     void free_image_init_command_queue();
 
+    std::unordered_map<cl_mem_device_address_ext, cvk_buffer*>&
+    device_to_buffer_map() {
+        return m_device_to_buffer_map;
+    }
+
 private:
     cvk_device* m_device;
+    std::unordered_map<cl_mem_device_address_ext, cvk_buffer*>
+        m_device_to_buffer_map;
     std::mutex m_callbacks_lock;
     std::vector<cvk_context_callback> m_destuctor_callbacks;
     std::vector<cl_context_properties> m_properties;
