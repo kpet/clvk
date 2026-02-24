@@ -127,8 +127,10 @@ jobs:
             -DLLVM_TARGETS_TO_BUILD=Native \
             -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
           cmake --build ${BUILD_LIBCLC_DIR} --target libclc
-          mkdir -p ${LIBCLC_DIR}
-          cp $(dirname $(find ${BUILD_LIBCLC_DIR} -name clspv--.bc))/*.bc ${LIBCLC_DIR}
+          mkdir -p ${LIBCLC_DIR}/spir--
+          mkdir -p ${LIBCLC_DIR}/spir64--
+          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spir--") ${LIBCLC_DIR}/spir--/
+          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spir64--") ${LIBCLC_DIR}/spir64--/
           rm -rf ${BUILD_LIBCLC_DIR}
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
