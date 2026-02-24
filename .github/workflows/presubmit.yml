@@ -141,6 +141,7 @@ jobs:
           PERFETTO_DIR: ${{ github.workspace }}/external/perfetto
         run: |
           echo "perfettodir=${PERFETTO_DIR}" >> $GITHUB_ENV
+          echo "perfetto-cmake-args=-DCLVK_PERFETTO_SDK_DIR=${PERFETTO_DIR}/sdk" >> $GITHUB_ENV
           git clone --depth 1 --branch v53.0 https://github.com/google/perfetto ${PERFETTO_DIR}
           ${PERFETTO_DIR}/tools/install-build-deps
           ${PERFETTO_DIR}/tools/setup_all_configs.py
@@ -162,7 +163,7 @@ jobs:
               -DCLVK_COMPILER_AVAILABLE=${{ matrix.compiler-available }} \
               -DCLVK_UNIT_TESTING=${{ matrix.unit }} \
               -DCLVK_PERFETTO_ENABLE=${{ matrix.perfetto }} \
-              -DCLVK_PERFETTO_SDK_DIR=${{ env.perfettodir }}/sdk \
+              ${{ env.perfetto-cmake-args }} \
               ${{ env.android-cmake-args }} \
               -DCLVK_CLSPV_ONLINE_COMPILER=${{ matrix.online-compiler }}
       - name: Build
