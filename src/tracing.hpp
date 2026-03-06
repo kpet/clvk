@@ -30,6 +30,7 @@ PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category(CLVK_PERFETTO_CATEGORY).SetDescription("CLVK Events"));
 
 #define TRACE_STRING(str) perfetto::StaticString(str)
+#define TRACE_DSTRING(str) perfetto::DynamicString(str)
 
 #define TRACE_FUNCTION(...)                                                    \
     perfetto::StaticString __perfetto_fct_name = __func__;                     \
@@ -77,11 +78,15 @@ PERFETTO_DEFINE_CATEGORIES(
         return track;                                                          \
     }
 
+#define TRACE_INSTANT(name, ...)                                               \
+    TRACE_EVENT_INSTANT(CLVK_PERFETTO_CATEGORY, name, ##__VA_ARGS__)
+
 #elif CVK_ENABLE_TIMING
 
 #include "timing.hpp"
 
 #define TRACE_STRING(str) str
+#define TRACE_DSTRING(str) str
 #define TRACE_FUNCTION(...) CVK_TIMED_FUNCTION
 #define TRACE_BEGIN_CMD(cmd_type, ...)                                         \
     CVK_UNSCOPED_TIMER(unscoped_timer,                                         \
@@ -103,9 +108,12 @@ PERFETTO_DEFINE_CATEGORIES(
 #define TRACE_TRACK_VAR(name)
 #define TRACE_TRACK_FCT(name, value)
 
+#define TRACE_INSTANT(name, ...)
+
 #else // CLVK_PERFETTO_ENABLE
 
-#define TRACE_STRING()
+#define TRACE_STRING(str)
+#define TRACE_DSTRING(str)
 #define TRACE_FUNCTION(...)
 #define TRACE_BEGIN_CMD(cmd_type, ...)
 #define TRACE_BEGIN_EVENT(cmd_type, ...)
@@ -118,6 +126,8 @@ PERFETTO_DEFINE_CATEGORIES(
 
 #define TRACE_TRACK_VAR(name)
 #define TRACE_TRACK_FCT(name, value)
+
+#define TRACE_INSTANT(name, ...)
 
 #endif // CLVK_PERFETTO_ENABLE
 
