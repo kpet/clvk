@@ -1227,7 +1227,8 @@ struct cvk_command_fill_image_on_device final : public cvk_command_batchable {
                                                      (uint32_t)work_size[1],
                                                      (uint32_t)work_size[2]};
         std::array<uint32_t, 3> local_size;
-        queue->device()->select_work_group_size(global_size, local_size);
+        queue->device()->select_work_group_size(nullptr, global_size,
+                                                local_size);
         m_local_size[0] = local_size[0];
         m_local_size[1] = local_size[1];
         m_local_size[2] = local_size[2];

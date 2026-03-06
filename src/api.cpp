@@ -7098,7 +7098,8 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
     cl_uint num_sync_points_in_wait_list,
     const cl_sync_point_khr* sync_point_wait_list,
     cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
-    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer, "kernel",
+                   (uintptr_t)kernel);
     LOG_API_CALL("command_buffer = %p", command_buffer);
 
     if (command_queue != nullptr) {
@@ -7141,6 +7142,26 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
 
     cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
                         local_work_size);
+    // Try to pick a sensible work-group size if the user didn't specify one.
+    if (local_work_size == nullptr) {
+        icd_downcast(command_buffer)
+            ->queues()
+            .front()
+            ->device()
+            ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
+                                     ndrange.lws);
+        cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
+                    ndrange.lws[1], ndrange.lws[2]);
+    }
+    // Check work-group size matches the required size if specified
+    auto reqd_work_group_size =
+        icd_downcast(kernel)->required_work_group_size();
+    if (reqd_work_group_size[0] != 0) {
+        if (reqd_work_group_size != ndrange.lws) {
+            cvk_error_fn("work-group size does not match the required size");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
 
     auto cmdbuf = icd_downcast(command_buffer);
 
