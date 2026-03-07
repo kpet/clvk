@@ -526,6 +526,33 @@ spv_result_t parse_reflection(void* user_data,
                     pushconstant::printf_buffer_pointer, {binfo.pc_offset, 8u});
                 break;
             }
+            case NonSemanticClspvReflectionProgramScopeVariablesStorageBuffer: {
+                auto char2int = [](char c) {
+                    if (c >= '0' && c <= '9')
+                        return c - '0';
+                    if (c >= 'A' && c <= 'F')
+                        return c - 'A' + 10;
+                    if (c >= 'a' && c <= 'f')
+                        return c - 'a' + 10;
+                    return 0;
+                };
+                auto hex2bin = [&char2int](const char* str, char* bin) {
+                    while (str[0] && str[1]) {
+                        *(bin++) = char2int(str[0]) * 16 + char2int(str[1]);
+                        str += 2;
+                    }
+                };
+                auto data = parse_data->strings[inst->words[7]];
+                program_scope_var_buffer_info binfo{};
+                binfo.type = module_buffer_type::storage_buffer;
+                binfo.set = parse_data->constants[inst->words[5]];
+                binfo.binding = parse_data->constants[inst->words[6]];
+                auto data_size = data.size() / 2;
+                binfo.data.resize(data_size);
+                hex2bin(data.c_str(), binfo.data.data());
+                parse_data->binary->add_program_scope_var_buffer(binfo);
+                break;
+            }
             default:
                 return SPV_ERROR_INVALID_DATA;
             }
@@ -1583,6 +1610,10 @@ void cvk_program::do_build() {
         return;
     }
 
+    if (!create_program_scope_var_buffers()) {
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
+    }
     prepare_push_constant_range();
 
     bool cache_hit =
@@ -1956,6 +1987,29 @@ bool cvk_entry_point::
     return true;
 }
 
+bool cvk_entry_point::
+    build_descriptor_sets_layout_bindings_for_program_scope_vars(
+        binding_stat_map& smap) {
+    auto& infos = m_program->module_program_scope_var_buffer_infos();
+    for (auto& info : infos) {
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+        VkDescriptorSetLayoutBinding binding = {
+            info.binding,                      // binding
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+            1,                                 // descriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT,       // stageFlags
+            nullptr                            // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+
+        if (!build_descriptor_set_layout(layoutBindings)) {
+            return false;
+        }
+    }
+
+    return true;
+}
 bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_printf_buffer(
     binding_stat_map& smap) {
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
@@ -2017,6 +2071,10 @@ cl_int cvk_entry_point::init() {
     }
     if (!build_descriptor_sets_layout_bindings_for_arguments(
             bindingTypes, m_num_resource_slots)) {
+        return CL_INVALID_VALUE;
+    }
+    if (!build_descriptor_sets_layout_bindings_for_program_scope_vars(
+            bindingTypes)) {
         return CL_INVALID_VALUE;
     }
     if (!build_descriptor_sets_layout_bindings_for_program_scope_buffers(

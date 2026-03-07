@@ -228,7 +228,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     size_t max_descriptor_writes =
         m_args.size() // upper bound that includes POD buffers
         + program->literal_sampler_descs().size() +
-        1; // module constant data buffer
+        1 // module constant data buffer
+        + program->module_program_scope_var_buffers().size();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
@@ -268,6 +269,38 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
         descriptor_writes.push_back(writeDescriptorSet);
     }
 
+    // Setup program-scope variable buffers (chip_var SSBOs)
+    {
+        auto& var_buffers = program->module_program_scope_var_buffers();
+        auto& var_infos = program->module_program_scope_var_buffer_infos();
+        for (size_t i = 0; i < var_buffers.size(); i++) {
+            auto* buffer = var_buffers[i].get();
+            auto& info = var_infos[i];
+            cvk_debug_fn(
+                "program scope var buffer %p, size = %zu @ set = %u, "
+                "binding = %u",
+                buffer->vulkan_buffer(), buffer->size(), info.set,
+                info.binding);
+            VkDescriptorBufferInfo bufferInfo = {buffer->vulkan_buffer(),
+                                                 0, // offset
+                                                 VK_WHOLE_SIZE};
+            buffer_info.push_back(bufferInfo);
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                ds[info.set],
+                info.binding,                      // dstBinding
+                0,                                 // dstArrayElement
+                1,                                 // descriptorCount
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+                nullptr,                           // pImageInfo
+                &buffer_info.back(),
+                nullptr, // pTexelBufferView
+            };
+            descriptor_writes.push_back(writeDescriptorSet);
+        }
+    }
     // Setup descriptors for POD arguments
     if (m_entry_point->has_pod_buffer_arguments()) {
         // Create POD buffer

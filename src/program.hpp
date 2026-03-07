@@ -196,6 +196,13 @@ struct constant_data_buffer_info {
     std::vector<char> data;
 };
 
+struct program_scope_var_buffer_info {
+    module_buffer_type type;
+    uint32_t set;
+    uint32_t binding;
+    std::vector<char> data;
+};
+
 struct printf_buffer_desc_info {
     module_buffer_type type;
     uint32_t set;
@@ -353,6 +360,15 @@ public:
         m_constant_data_buffer.reset(new constant_data_buffer_info(info));
     }
 
+    const std::vector<program_scope_var_buffer_info>&
+    program_scope_var_buffers() const {
+        return m_program_scope_var_buffers;
+    }
+
+    void add_program_scope_var_buffer(
+        const program_scope_var_buffer_info& info) {
+        m_program_scope_var_buffers.push_back(info);
+    }
     void add_sampler_metadata(const std::string& name, uint32_t ordinal,
                               uint32_t offset) {
         m_sampler_metadata[name][ordinal] = offset;
@@ -405,6 +421,7 @@ private:
     std::unordered_map<uint32_t, printf_descriptor> m_printf_descriptors;
     printf_buffer_desc_info m_printf_buffer_info;
     std::unique_ptr<constant_data_buffer_info> m_constant_data_buffer;
+    std::vector<program_scope_var_buffer_info> m_program_scope_var_buffers;
     kernels_arguments_map m_dmaps;
     kernels_reqd_work_group_size_map m_reqd_work_group_sizes;
     std::unordered_map<std::string, std::string> m_kernels_attributes;
@@ -534,6 +551,8 @@ private:
     bool build_descriptor_sets_layout_bindings_for_literal_samplers(
         binding_stat_map& smap);
     bool build_descriptor_sets_layout_bindings_for_program_scope_buffers(
+        binding_stat_map& smap);
+    bool build_descriptor_sets_layout_bindings_for_program_scope_vars(
         binding_stat_map& smap);
     bool build_descriptor_sets_layout_bindings_for_printf_buffer(
         binding_stat_map& smap);
@@ -836,6 +855,32 @@ public:
         return m_binary.constant_data_buffer();
     }
 
+    bool create_program_scope_var_buffers() {
+        cl_int err;
+        for (auto& info : m_binary.program_scope_var_buffers()) {
+            auto& init_data = info.data;
+            void* init_data_ptr =
+                reinterpret_cast<void*>(const_cast<char*>(init_data.data()));
+            auto buf =
+                cvk_buffer::create(m_context, CL_MEM_COPY_HOST_PTR,
+                                   init_data.size(), init_data_ptr, &err);
+            if (buf == nullptr) {
+                return false;
+            }
+            m_program_scope_var_buffers.push_back(std::move(buf));
+        }
+        return true;
+    }
+
+    const std::vector<std::unique_ptr<cvk_buffer>>&
+    module_program_scope_var_buffers() const {
+        return m_program_scope_var_buffers;
+    }
+
+    const std::vector<program_scope_var_buffer_info>&
+    module_program_scope_var_buffer_infos() const {
+        return m_binary.program_scope_var_buffers();
+    }
     const printf_buffer_desc_info& printf_buffer_info() const {
         return m_binary.printf_buffer_info();
     }
@@ -920,6 +965,7 @@ private:
     std::vector<uint32_t> m_stripped_binary;
     VkPipelineCache m_pipeline_cache;
     std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
+    std::vector<std::unique_ptr<cvk_buffer>> m_program_scope_var_buffers;
     std::unordered_map<uint32_t, user_spec_constant_data> m_user_spec_constants;
 };
 
