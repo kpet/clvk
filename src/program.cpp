@@ -286,6 +286,7 @@ spv_result_t parse_reflection(void* user_data,
                 auto descriptor_set = parse_data->constants[inst->words[7]];
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[8]];
                 auto offset = parse_data->constants[inst->words[9]];
                 auto size = parse_data->constants[inst->words[10]];
@@ -396,6 +397,7 @@ spv_result_t parse_reflection(void* user_data,
                 auto descriptor_set = parse_data->constants[inst->words[5]];
                 if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[6]];
                 auto mask = parse_data->constants[inst->words[7]];
                 uint32_t coords = mask & clspv::kSamplerNormalizedCoordsMask;
@@ -451,8 +453,9 @@ spv_result_t parse_reflection(void* user_data,
                     if (c >= '0' && c <= '9') {
                         return c - '0';
                     }
+                    if (c >= 'A' && c <= 'F') {
                         return c - 'A' + 10;
-                    if (c >= 'a' && c <= 'f')
+                    }
                     if (c >= 'a' && c <= 'f') {
                         return c - 'a' + 10;
                     }
@@ -482,6 +485,7 @@ spv_result_t parse_reflection(void* user_data,
                     binfo.set = parse_data->constants[inst->words[5]];
                     if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                         return SPV_ERROR_INVALID_DATA;
+                    }
                     binfo.binding = parse_data->constants[inst->words[6]];
 
                 } else {
@@ -1287,9 +1291,25 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
     if (status != 0) {
-        cvk_error_fn("failed to compile the program");
-        cvk_debug_fn("%s", m_build_log.c_str());
-        return CL_BUILD_ERROR;
+        // If the build failed with -physical-storage-buffers, retry without
+        // it. clspv's PhysicalPointerArgsPass can crash on certain kernel
+        // patterns (e.g. multi-module link with atomics). Programs that
+        // don't use device pointers work fine without the flag.
+        const std::string psb_flag = "-physical-storage-buffers";
+        auto psb = cmd.find(psb_flag);
+        if (psb != std::string::npos) {
+            cvk_warn_fn("clspv failed with -physical-storage-buffers, "
+                         "retrying without it");
+            std::string retry_cmd = cmd;
+            retry_cmd.erase(psb, psb_flag.size());
+            m_build_log.clear();
+            status = cvk_exec(retry_cmd, &m_build_log);
+        }
+        if (status != 0) {
+            cvk_error_fn("failed to compile the program");
+            cvk_debug_fn("%s", m_build_log.c_str());
+            return CL_BUILD_ERROR;
+        }
     }
 
     // Load output from clspv
@@ -1614,6 +1634,7 @@ void cvk_program::do_build() {
         complete_operation(device, CL_BUILD_ERROR);
         return;
     }
+
     prepare_push_constant_range();
 
     bool cache_hit =
@@ -2010,6 +2031,7 @@ bool cvk_entry_point::
 
     return true;
 }
+
 bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_printf_buffer(
     binding_stat_map& smap) {
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;

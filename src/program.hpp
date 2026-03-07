@@ -369,6 +369,7 @@ public:
         const program_scope_var_buffer_info& info) {
         m_program_scope_var_buffers.push_back(info);
     }
+
     void add_sampler_metadata(const std::string& name, uint32_t ordinal,
                               uint32_t offset) {
         m_sampler_metadata[name][ordinal] = offset;
@@ -881,6 +882,7 @@ public:
     module_program_scope_var_buffer_infos() const {
         return m_binary.program_scope_var_buffers();
     }
+
     const printf_buffer_desc_info& printf_buffer_info() const {
         return m_binary.printf_buffer_info();
     }

@@ -301,6 +301,7 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
             descriptor_writes.push_back(writeDescriptorSet);
         }
     }
+
     // Setup descriptors for POD arguments
     if (m_entry_point->has_pod_buffer_arguments()) {
         // Create POD buffer

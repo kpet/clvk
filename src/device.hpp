@@ -717,6 +717,7 @@ struct cvk_device : public _cl_device_id,
     bool supports_buffer_device_address() const {
         return m_features_buffer_device_address.bufferDeviceAddress;
     }
+
     TRACE_TRACK_FCT(device_track,
                     "clvk-device_" + std::to_string((uintptr_t)this))
 
