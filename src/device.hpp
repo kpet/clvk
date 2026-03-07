@@ -782,6 +782,8 @@ private:
         m_features_shader_integer_dot_product{};
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
+    VkPhysicalDeviceShaderAtomicInt64FeaturesKHR
+        m_features_shader_atomic_int64{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
