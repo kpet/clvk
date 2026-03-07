@@ -261,8 +261,9 @@ spv_result_t parse_reflection(void* user_data,
                 auto kernel = parse_data->strings[inst->words[5]];
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto descriptor_set = parse_data->constants[inst->words[7]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[8]];
                 kernel_argument_info arg_info;
                 if (inst->num_operands == 9) {
@@ -283,7 +284,7 @@ spv_result_t parse_reflection(void* user_data,
                 auto kernel = parse_data->strings[inst->words[5]];
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto descriptor_set = parse_data->constants[inst->words[7]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
                 auto binding = parse_data->constants[inst->words[8]];
                 auto offset = parse_data->constants[inst->words[9]];
@@ -393,7 +394,7 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionLiteralSampler: {
                 // Track descriptor set and binding. Decode the sampler mask.
                 auto descriptor_set = parse_data->constants[inst->words[5]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
                 auto binding = parse_data->constants[inst->words[6]];
                 auto mask = parse_data->constants[inst->words[7]];
@@ -447,12 +448,14 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionConstantDataPointerPushConstant: {
 
                 auto char2int = [](char c) {
-                    if (c >= '0' && c <= '9')
+                    if (c >= '0' && c <= '9') {
                         return c - '0';
-                    if (c >= 'A' && c <= 'F')
+                    }
                         return c - 'A' + 10;
                     if (c >= 'a' && c <= 'f')
+                    if (c >= 'a' && c <= 'f') {
                         return c - 'a' + 10;
+                    }
                     return 0;
                 };
 
@@ -477,7 +480,7 @@ spv_result_t parse_reflection(void* user_data,
                     NonSemanticClspvReflectionConstantDataStorageBuffer) {
                     binfo.type = module_buffer_type::storage_buffer;
                     binfo.set = parse_data->constants[inst->words[5]];
-                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                         return SPV_ERROR_INVALID_DATA;
                     binfo.binding = parse_data->constants[inst->words[6]];
 
@@ -750,8 +753,9 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 struct temp_folder_deletion {
     temp_folder_deletion(const std::string& path) : m_path(path) {}
     ~temp_folder_deletion() {
-        if (!config.keep_temporaries && !m_path.empty())
+        if (!config.keep_temporaries && !m_path.empty()) {
             std::filesystem::remove_all(m_path.c_str());
+        }
     }
 
 private:
@@ -1060,7 +1064,9 @@ cl_int cvk_program::parse_user_spec_constants() {
         m_user_spec_constants.emplace(
             id, user_spec_constant_data{type_string, size});
     }
-    std::filesystem::remove_all(tmp_folder.c_str());
+    if (!config.keep_temporaries) {
+        std::filesystem::remove_all(tmp_folder.c_str());
+    }
     return CL_SUCCESS;
 #else
     auto m_il_start = reinterpret_cast<const unsigned char*>(m_il.data());
@@ -1185,10 +1191,16 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
             return CL_BUILD_ERROR;
         }
 
+        // Generic address space lowering (AS4→AS1) and chipStar cleanup
+        // are now handled by clspv's --lower-generic-address-space flag
+        // and chipStar's HipCleanupPass + HipGlobalVariablesPass
+        // respectively.
+
         cmd += clspv_input_file;
         cmd += " ";
 #endif // ENABLE_SPIRV_IL
     } else if (m_operation == build_operation::link) {
+        std::vector<std::string> link_input_files;
         for (auto input_program : m_input_programs) {
             if (input_program->m_binary_type !=
                     CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT &&
@@ -1203,6 +1215,14 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
+            link_input_files.push_back(input_file);
+        }
+
+        // Generic address space lowering and chipStar cleanup are now
+        // handled by clspv's --lower-generic-address-space flag and
+        // chipStar's HipCleanupPass + HipGlobalVariablesPass.
+
+        for (auto& input_file : link_input_files) {
             cmd += input_file;
             cmd += " ";
         }
@@ -1434,11 +1454,21 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
     // Add options to specify input/output types
     if (m_source.empty() || m_operation == build_operation::link) {
         build_options += " -x ir ";
+        build_options += " -lower-generic-address-space ";
     }
     bool build_to_ir =
         m_operation == build_operation::compile || create_library;
     if (build_to_ir) {
         build_options += " --output-format=bc ";
+        // Strip -physical-storage-buffers for individual compile steps.
+        // PhysicalPointerArgsPass must only run during the final link step,
+        // not on individual modules, to avoid crashes when linking the
+        // transformed BC files.
+        auto pos =
+            build_options.find(" -physical-storage-buffers");
+        if (pos != std::string::npos) {
+            build_options.erase(pos, strlen(" -physical-storage-buffers"));
+        }
     }
 
     // Save headers
