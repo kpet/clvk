@@ -45,11 +45,19 @@ if (CLVK_CLSPV_ONLINE_COMPILER)
   target_compile_definitions(clvk-config-definitions INTERFACE CLSPV_ONLINE_COMPILER=1)
 endif()
 
-if (CLVK_COMPILER_AVAILABLE)
+if (CLVK_COMPILER_AVAILABLE OR CLVK_ENABLE_SPIRV_IL)
     target_compile_definitions(clvk-config-definitions INTERFACE COMPILER_AVAILABLE=1)
-    if (CLVK_ENABLE_SPIRV_IL)
-        target_compile_definitions(clvk-config-definitions INTERFACE ENABLE_SPIRV_IL=1)
-    endif()
+endif()
+
+if (CLVK_ENABLE_SPIRV_IL)
+    target_compile_definitions(clvk-config-definitions INTERFACE ENABLE_SPIRV_IL=1)
+endif()
+
+# When SPIRV IL is enabled without the full compiler build, allow specifying
+# external tool paths and link SPIRV-Tools for the optimizer.
+if (NOT CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
+    set(CLVK_CLSPV_BIN "clspv" CACHE STRING "Path to external clspv binary")
+    set(CLVK_LLVMSPIRV_BIN "llvm-spirv" CACHE STRING "Path to external llvm-spirv binary")
 endif()
 
 # Core objects
@@ -147,10 +155,10 @@ if (CLVK_PERFETTO_ENABLE)
   message(STATUS "CLVK_PERFETTO_BACKEND = '${CLVK_PERFETTO_BACKEND}'")
 endif()
 
-if (CLVK_COMPILER_AVAILABLE OR ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
+if (CLVK_COMPILER_AVAILABLE OR CLVK_ENABLE_SPIRV_IL OR ${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-opt)
 endif()
-if (CLVK_COMPILER_AVAILABLE)
+if (CLVK_COMPILER_AVAILABLE OR CLVK_ENABLE_SPIRV_IL)
   set(OpenCL-dependencies ${OpenCL-dependencies} SPIRV-Tools-link)
 endif()
 
@@ -174,6 +182,9 @@ else()
     add_dependencies(OpenCL-objects clspv)
     target_compile_definitions(clvk-config-definitions INTERFACE
       DEFAULT_CLSPV_BINARY_PATH="$<TARGET_FILE:clspv>")
+  elseif (CLVK_ENABLE_SPIRV_IL)
+    target_compile_definitions(clvk-config-definitions INTERFACE
+      DEFAULT_CLSPV_BINARY_PATH="${CLVK_CLSPV_BIN}")
   endif()
 endif()
 
@@ -185,6 +196,9 @@ if (CLVK_COMPILER_AVAILABLE AND CLVK_ENABLE_SPIRV_IL)
     ${CMAKE_BINARY_DIR})
   target_compile_definitions(clvk-config-definitions INTERFACE
     DEFAULT_LLVMSPIRV_BINARY_PATH="$<TARGET_FILE:llvm-spirv>")
+elseif (CLVK_ENABLE_SPIRV_IL)
+  target_compile_definitions(clvk-config-definitions INTERFACE
+    DEFAULT_LLVMSPIRV_BINARY_PATH="${CLVK_LLVMSPIRV_BIN}")
 endif()
 
 option(CLVK_ENABLE_TIMING "Enable timing of clvk internals" OFF)
