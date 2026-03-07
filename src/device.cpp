@@ -430,6 +430,23 @@ void cvk_device::init_features(VkInstance instance) {
     cvk_info(
         "subgroup extended types: %d",
         m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
+    cvk_info("buffer device address: apiVersion=0x%08x, bufferDeviceAddress=%d",
+             m_properties.apiVersion,
+             m_features_buffer_device_address.bufferDeviceAddress);
+
+    if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) &&
+        !m_features_buffer_device_address.bufferDeviceAddress) {
+        VkPhysicalDeviceVulkan12Features feats12 = {};
+        feats12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        VkPhysicalDeviceFeatures2 feats2 = {};
+        feats2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        feats2.pNext = &feats12;
+        vkGetPhysicalDeviceFeatures2(m_pdev, &feats2);
+        if (feats12.bufferDeviceAddress) {
+            m_features_buffer_device_address.bufferDeviceAddress = VK_TRUE;
+            cvk_info("buffer device address: fallback from Vulkan12Features");
+        }
+    }
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
@@ -674,6 +691,10 @@ void cvk_device::build_extension_ils_list() {
         }
     }
 
+    if (supports_buffer_device_address()) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 2, "cl_ext_buffer_device_address"));
+    }
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
     if ((is_vulkan_extension_enabled(VK_KHR_16BIT_STORAGE_EXTENSION_NAME) &&
          m_features_16bit_storage.storageBuffer16BitAccess) &&
