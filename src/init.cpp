@@ -120,6 +120,7 @@ void clvk_global_state::init_vulkan() {
         VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
     };
 
+    bool has_portability_enumeration = false;
     for (size_t i = 0; i < numExtensionProperties; i++) {
         cvk_info("  %s, spec version %u", extensionProperties[i].extensionName,
                  extensionProperties[i].specVersion);
@@ -131,6 +132,18 @@ void clvk_global_state::init_vulkan() {
                 break;
             }
         }
+        if (!strcmp(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+                    extensionProperties[i].extensionName)) {
+            has_portability_enumeration = true;
+        }
+    }
+
+    // Enable portability enumeration for MoltenVK on macOS
+    if (has_portability_enumeration) {
+        enabledExtensions.push_back(
+            VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        cvk_info("  Enabling %s for portability drivers",
+                 VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     }
 
     m_debug_report_enabled =
@@ -149,10 +162,16 @@ void clvk_global_state::init_vulkan() {
         VK_MAKE_VERSION(1, 3, 0)
     };
 
+    VkInstanceCreateFlags instance_flags = 0;
+    if (has_portability_enumeration) {
+        instance_flags |=
+            VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    }
+
     VkInstanceCreateInfo info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,      // sType
         nullptr,                                     // pNext
-        0,                                           // flags
+        instance_flags,                              // flags
         &appInfo,                                    // pApplicationInfo
         static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
         enabledLayers.data(),                        // ppEnabledLayerNames
