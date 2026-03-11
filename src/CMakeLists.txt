@@ -85,6 +85,12 @@ add_library(OpenCL-objects OBJECT
   exports.map
 )
 target_link_libraries(OpenCL-objects clvk-config-definitions)
+# CMake 4.x may not propagate INTERFACE definitions to OBJECT libraries.
+# Duplicate them directly as a workaround.
+get_target_property(_cfg_defs clvk-config-definitions INTERFACE_COMPILE_DEFINITIONS)
+if (_cfg_defs)
+    target_compile_definitions(OpenCL-objects PRIVATE ${_cfg_defs})
+endif()
 
 if (CLVK_UNIT_TESTING)
    target_compile_definitions(OpenCL-objects PUBLIC CLVK_UNIT_TESTING_ENABLED)
