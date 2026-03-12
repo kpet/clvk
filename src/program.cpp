@@ -88,6 +88,32 @@ struct membuf : public std::streambuf {
     }
 };
 
+/// Returns true if the SPIR-V binary uses Vulkan's Shader capability
+/// (GLCompute execution model), false if it uses OpenCL's Kernel capability.
+/// Scans the first 256 words after the 5-word header for OpCapability.
+static bool is_vulkan_spirv(const uint8_t* data, size_t size) {
+    if (size < 20)
+        return false;
+    const uint32_t* words = reinterpret_cast<const uint32_t*>(data);
+    if (words[0] != 0x07230203u) // SPIR-V magic
+        return false;
+    size_t n = size / 4, pos = 5;
+    while (pos < n && pos < 256) {
+        uint16_t opcode = words[pos] & 0xFFFF;
+        uint16_t wc = words[pos] >> 16;
+        if (wc == 0)
+            break;
+        if (opcode == 17 && pos + 1 < n) { // OpCapability
+            if (words[pos + 1] == 1)
+                return true; // Shader
+            if (words[pos + 1] == 6)
+                return false; // Kernel
+        }
+        pos += wc;
+    }
+    return false;
+}
+
 struct reflection_parse_data {
     uint32_t uint_id = 0;
     std::unordered_map<uint32_t, uint32_t> constants;
@@ -1042,6 +1068,12 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 
 cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
+    // Vulkan SPIR-V from chipStar already has spec constants embedded.
+    // Skip the llvm-spirv --spec-const-info step entirely.
+    if (is_vulkan_spirv(m_il.data(), m_il.size())) {
+        cvk_info_fn("Input is Vulkan SPIR-V, skipping spec constant extraction");
+        return CL_SUCCESS;
+    }
 #ifndef CLSPV_ONLINE_COMPILER
     // We'll need to go through the whole temp folder rigamarole to query the
     // spec constant info with the command line tool.
@@ -1155,6 +1187,18 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                      "CLVK_ENABLE_SPIRV_IL=OFF");
         return CL_BUILD_ERROR;
 #else  // ENABLE_SPIRV_IL
+        // Fast path: input is already Vulkan SPIR-V (GLCompute).
+        // Load it directly into m_binary, skipping llvm-spirv and clspv.
+        if (is_vulkan_spirv(m_il.data(), m_il.size())) {
+            cvk_info_fn("Input SPIR-V is already Vulkan format (GLCompute), "
+                        "skipping clspv");
+            if (!m_binary.read(m_il.data(), m_il.size())) {
+                cvk_error_fn("Failed to load Vulkan SPIR-V from IL buffer");
+                return CL_BUILD_ERROR;
+            }
+            return CL_BUILD_SUCCESS;
+        }
+
         std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
         clspv_input_file += ".bc";
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
