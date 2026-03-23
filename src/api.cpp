@@ -1070,6 +1070,7 @@ cl_context CLVK_API_CALL clCreateContext(
     cl_int err;
     auto context = cvk_create_context(properties, num_devices, devices,
                                       pfn_notify, user_data, &err);
+    TRACE_INSTANT("clCreateContext-context", "context", (uintptr_t)context);
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
@@ -1096,6 +1097,8 @@ cl_context CLVK_API_CALL clCreateContextFromType(
     if (err == CL_SUCCESS) {
         context = cvk_create_context(properties, 1, &device, pfn_notify,
                                      user_data, &err);
+        TRACE_INSTANT("clCreateContextFromType-context", "context",
+                      (uintptr_t)(cl_context)context);
     }
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1286,6 +1289,7 @@ cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
     }
 
     auto event = new cvk_event_command(icd_downcast(context), nullptr, nullptr);
+    TRACE_INSTANT("clCreateUserEvent-event", "event", (uintptr_t)event);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = CL_SUCCESS;
@@ -1575,6 +1579,7 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueue(
     std::vector<cl_queue_properties> properties_array;
     auto ret = cvk_create_command_queue(context, device, properties,
                                         std::move(properties_array), &err);
+    TRACE_INSTANT("clCreateCommandQueue-queue", "queue", (uintptr_t)ret);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1631,8 +1636,11 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueueWithProperties(
     LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
                  context, device, properties, errcode_ret);
 
-    return cvk_create_command_queue_with_properties(context, device, properties,
-                                                    errcode_ret);
+    auto queue = cvk_create_command_queue_with_properties(
+        context, device, properties, errcode_ret);
+    TRACE_INSTANT("clCreateCommandQueueWithProperties-queue", "queue",
+                  (uintptr_t)queue);
+    return queue;
 }
 
 cl_command_queue CLVK_API_CALL clCreateCommandQueueWithPropertiesKHR(
@@ -1642,8 +1650,11 @@ cl_command_queue CLVK_API_CALL clCreateCommandQueueWithPropertiesKHR(
     LOG_API_CALL("context = %p, device = %p, properties = %p, errcode_ret = %p",
                  context, device, properties, errcode_ret);
 
-    return cvk_create_command_queue_with_properties(context, device, properties,
-                                                    errcode_ret);
+    auto queue = cvk_create_command_queue_with_properties(
+        context, device, properties, errcode_ret);
+    TRACE_INSTANT("clCreateCommandQueueWithPropertiesKHR-queue", "queue",
+                  (uintptr_t)queue);
+    return queue;
 }
 
 cl_int CLVK_API_CALL clReleaseCommandQueue(cl_command_queue command_queue) {
@@ -1876,7 +1887,7 @@ cl_mem CLVK_API_CALL clCreateBuffer(cl_context context, cl_mem_flags flags,
     cl_int err;
     auto buffer = cvk_create_buffer_with_properties(context, nullptr, flags,
                                                     size, host_ptr, &err);
-
+    TRACE_INSTANT("clCreateBuffer-buffer", "buffer", (uintptr_t)buffer);
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
@@ -1896,6 +1907,8 @@ cl_mem CLVK_API_CALL clCreateBufferWithProperties(
     cl_int err;
     auto buffer = cvk_create_buffer_with_properties(context, properties, flags,
                                                     size, host_ptr, &err);
+    TRACE_INSTANT("clCreateBufferWithProperties-buffer", "buffer",
+                  (uintptr_t)buffer);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -1959,6 +1972,7 @@ cl_mem CLVK_API_CALL clCreateSubBuffer(cl_mem buf, cl_mem_flags flags,
 
     cl_int err = CL_SUCCESS;
     auto sub = buffer->create_subbuffer(flags, region->origin, region->size);
+    TRACE_INSTANT("clCreateSubBuffer-buffer", "buffer", (uintptr_t)sub);
 
     if (sub == nullptr) {
         err = CL_OUT_OF_RESOURCES;
@@ -2207,6 +2221,8 @@ cl_program CLVK_API_CALL clCreateProgramWithSource(cl_context context,
     }
 
     cvk_program* prog = new cvk_program(icd_downcast(context));
+    TRACE_INSTANT("clCreateProgramWithSource-program", "program",
+                  (uintptr_t)(cl_program)prog);
 
     for (cl_uint i = 0; i < count; i++) {
         if (strings[i] == nullptr) {
@@ -2217,6 +2233,8 @@ cl_program CLVK_API_CALL clCreateProgramWithSource(cl_context context,
         }
         size_t len = (lengths != nullptr) ? lengths[i] : 0;
         prog->append_source(strings[i], len);
+        TRACE_INSTANT("clCreateProgramWithSource-string", "i", i, "string",
+                      TRACE_DSTRING(strings[i]));
     }
 
     if (errcode_ret != nullptr) {
@@ -2278,6 +2296,8 @@ cl_program CLVK_API_CALL clCreateProgramWithBinary(
     }
 
     cvk_program* prog = new cvk_program(icd_downcast(context));
+    TRACE_INSTANT("clCreateProgramWithBinary-program", "program",
+                  (uintptr_t)(cl_program)prog);
 
     cl_int load_status = CL_SUCCESS;
     if (!prog->read(binaries[0], lengths[0])) {
@@ -2841,6 +2861,7 @@ cl_kernel CLVK_API_CALL clCreateKernel(cl_program prog, const char* kernel_name,
 
     cl_int err;
     cl_kernel ret = cvk_create_kernel(prog, kernel_name, &err);
+    TRACE_INSTANT("clCreateKernel-kernel", "kernel", (uintptr_t)ret);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -2879,6 +2900,9 @@ cl_int CLVK_API_CALL clCreateKernelsInProgram(cl_program prog,
         cl_int err;
         for (auto& kname : program->kernel_names()) {
             kernels[i] = cvk_create_kernel(program, kname, &err);
+            TRACE_INSTANT("clCreateKernelsInProgram-kernel", "i", i, "name",
+                          TRACE_DSTRING(kname), "kernel",
+                          (uintptr_t)kernels[i]);
             if (err != CL_SUCCESS) {
                 return err;
             }
@@ -2907,6 +2931,8 @@ cl_kernel CLVK_API_CALL clCloneKernel(cl_kernel source_kernel,
 
     cl_int err;
     auto kernel = icd_downcast(source_kernel)->clone(&err);
+    TRACE_INSTANT("clCloneKernel-kernel", "kernel",
+                  (uintptr_t)(cl_kernel)kernel.get());
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4302,6 +4328,7 @@ cl_sampler CLVK_API_CALL clCreateSampler(cl_context context,
     auto sampler =
         cvk_create_sampler(context, normalized_coords, addressing_mode,
                            filter_mode, std::move(properties), &err);
+    TRACE_INSTANT("clCreateSampler-sampler", "sampler", (uintptr_t)sampler);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4358,6 +4385,8 @@ cl_sampler CLVK_API_CALL clCreateSamplerWithProperties(
     auto sampler =
         cvk_create_sampler(context, normalized_coords, addressing_mode,
                            filter_mode, std::move(properties), &err);
+    TRACE_INSTANT("clCreateSamplerWithProperties-sampler", "sampler",
+                  (uintptr_t)sampler);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4544,6 +4573,7 @@ cl_mem CLVK_API_CALL clCreateImage(cl_context context, cl_mem_flags flags,
     cl_int err;
     auto image = cvk_create_image(context, flags, image_format, image_desc,
                                   host_ptr, &err);
+    TRACE_INSTANT("clCreateImage-image", "image", (uintptr_t)image);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4576,6 +4606,8 @@ cl_mem CLVK_API_CALL clCreateImageWithProperties(
 
     auto image = cvk_create_image(context, flags, image_format, image_desc,
                                   host_ptr, std::move(props), &err);
+    TRACE_INSTANT("clCreateImageWithProperties-image", "image",
+                  (uintptr_t)image);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4613,6 +4645,7 @@ cl_mem CLVK_API_CALL clCreateImage2D(cl_context context, cl_mem_flags flags,
     cl_int err;
     auto image =
         cvk_create_image(context, flags, image_format, &desc, host_ptr, &err);
+    TRACE_INSTANT("clCreateImage2D-image", "image", (uintptr_t)image);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -4651,6 +4684,7 @@ cl_mem CLVK_API_CALL clCreateImage3D(cl_context context, cl_mem_flags flags,
     cl_int err;
     auto image =
         cvk_create_image(context, flags, image_format, &desc, host_ptr, &err);
+    TRACE_INSTANT("clCreateImage3D-image", "image", (uintptr_t)image);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
@@ -5743,6 +5777,8 @@ cl_program CLVK_API_CALL clCreateProgramWithILKHR(cl_context context,
 
     cl_int errcode;
     auto program = cvk_create_program_with_il(context, il, length, &errcode);
+    TRACE_INSTANT("clCreateProgramWithILKHR-program", "program",
+                  (uintptr_t)program);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = errcode;
@@ -5760,6 +5796,8 @@ cl_program CLVK_API_CALL clCreateProgramWithIL(cl_context context,
 
     cl_int errcode;
     auto program = cvk_create_program_with_il(context, il, length, &errcode);
+    TRACE_INSTANT("clCreateProgramWithIL-program", "program",
+                  (uintptr_t)program);
 
     if (errcode_ret != nullptr) {
         *errcode_ret = errcode;
@@ -6120,7 +6158,8 @@ cl_semaphore_khr clCreateSemaphoreWithPropertiesKHR(
     cl_int err;
     auto sem =
         cvk_create_semaphore_with_properties_khr(context, sema_props, &err);
-
+    TRACE_INSTANT("clCreateSemaphoreWithPropertiesKHR-semaphore", "semaphore",
+                  (uintptr_t)sem);
     if (errcode_ret != nullptr) {
         *errcode_ret = err;
     }
