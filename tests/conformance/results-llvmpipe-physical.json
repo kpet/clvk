@@ -1,13 +1,13 @@
 {
   "system-info": {
-    "apiVersion": 4211016,
+    "apiVersion": 4211023,
     "deviceID": 0,
     "deviceName": "llvmpipe (LLVM 21.1.8, 256 bits)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_CPU",
     "driverID": "VK_DRIVER_ID_MESA_LLVMPIPE",
-    "driverInfo": "Mesa 25.3.3 (LLVM 21.1.8)",
+    "driverInfo": "Mesa 26.0.3 (LLVM 21.1.8)",
     "driverName": "llvmpipe",
-    "driverVersion": 104869891
+    "driverVersion": 109051907
   },
   "test-results": {
     "API": {
@@ -92,6 +92,8 @@
         "imagerandomcopy": "pass",
         "imagereadwrite": "pass",
         "imagereadwrite3d": "pass",
+        "immutable_arrayreadwrite": "skip",
+        "immutable_bufferreadwriterect": "skip",
         "int2fp": "pass",
         "intmath_int": "pass",
         "intmath_int2": "pass",
@@ -114,6 +116,8 @@
         "loop": "pass",
         "mri_multiple": "pass",
         "mri_one": "pass",
+        "negative_imagearraycopy": "skip",
+        "negative_imagearraycopy3d": "skip",
         "parameter_types": "pass",
         "pointer_cast": "pass",
         "prefetch": "pass",
@@ -240,6 +244,15 @@
         "buffer_write_ulong": "pass",
         "buffer_write_ushort": "pass",
         "image_migrate": "pass",
+        "immutable_buffer_map_char": "skip",
+        "immutable_buffer_map_float": "skip",
+        "immutable_buffer_map_int": "skip",
+        "immutable_buffer_map_long": "skip",
+        "immutable_buffer_map_short": "skip",
+        "immutable_buffer_map_uchar": "skip",
+        "immutable_buffer_map_uint": "skip",
+        "immutable_buffer_map_ulong": "skip",
+        "immutable_buffer_map_ushort": "skip",
         "mem_alloc_ref_flags": "pass",
         "mem_copy_host_flags": "pass",
         "mem_read_only_flags": "pass",
@@ -247,7 +260,8 @@
         "mem_write_only_flags": "pass",
         "sub_buffers_overlapping": "pass",
         "sub_buffers_read_write": "pass",
-        "sub_buffers_read_write_dual_devices": "fail"
+        "sub_buffers_read_write_dual_devices": "fail",
+        "write_from_immutable_buffer_to_buffer": "skip"
       },
       "retcode": 1
     },
@@ -258,7 +272,6 @@
         "atomic_compare_exchange_strong": "pass",
         "atomic_compare_exchange_weak": "pass",
         "atomic_exchange": "pass",
-        "atomic_fence": "pass",
         "atomic_fetch_add": "pass",
         "atomic_fetch_and": "pass",
         "atomic_fetch_max": "pass",
@@ -275,7 +288,6 @@
         "svm_atomic_compare_exchange_strong": "pass",
         "svm_atomic_compare_exchange_weak": "pass",
         "svm_atomic_exchange": "pass",
-        "svm_atomic_fence": "pass",
         "svm_atomic_fetch_add": "pass",
         "svm_atomic_fetch_and": "pass",
         "svm_atomic_fetch_max": "pass",
