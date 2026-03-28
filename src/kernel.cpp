@@ -177,6 +177,34 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     return ret;
 }
 
+cl_int cvk_kernel::set_arg_device_address(cl_uint index, cl_mem_device_address_ext dev_addr) {
+    std::lock_guard<std::mutex> lock(m_lock);
+
+    // Clone argument values if they have been used in an enqueue
+    if (m_argument_values->is_enqueued()) {
+        m_argument_values =
+            cvk_kernel_argument_values::create(*m_argument_values);
+        if (m_argument_values == nullptr) {
+            return CL_OUT_OF_RESOURCES;
+        }
+    }
+
+    auto const& arg = m_args[index];
+
+    // For physical addressing (pointer_pushconstant), write the raw device
+    // address directly as push constant data. The normal set_arg path would
+    // try to interpret the value as a cl_mem pointer, which crashes.
+    if (arg.is_pod_pointer()) {
+        m_argument_values->set_raw_device_address(arg, dev_addr);
+        return CL_SUCCESS;
+    }
+
+    // Set the argument using the device address
+    cl_int ret = m_argument_values->set_arg(arg, sizeof(dev_addr), &dev_addr);
+
+    return ret;
+}
+
 bool cvk_kernel::args_valid() const { return m_argument_values->args_valid(); }
 
 bool cvk_kernel_argument_values::setup_descriptor_sets() {
@@ -200,7 +228,8 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
     size_t max_descriptor_writes =
         m_args.size() // upper bound that includes POD buffers
         + program->literal_sampler_descs().size() +
-        1; // module constant data buffer
+        1 // module constant data buffer
+        + program->module_program_scope_var_buffers().size();
     std::vector<VkWriteDescriptorSet> descriptor_writes;
     std::vector<VkDescriptorBufferInfo> buffer_info;
     std::vector<VkDescriptorImageInfo> image_info;
@@ -238,6 +267,39 @@ bool cvk_kernel_argument_values::setup_descriptor_sets() {
             nullptr, // pTexelBufferView
         };
         descriptor_writes.push_back(writeDescriptorSet);
+    }
+
+    // Setup program-scope variable buffers (chip_var SSBOs)
+    {
+        auto& var_buffers = program->module_program_scope_var_buffers();
+        auto& var_infos = program->module_program_scope_var_buffer_infos();
+        for (size_t i = 0; i < var_buffers.size(); i++) {
+            auto* buffer = var_buffers[i].get();
+            auto& info = var_infos[i];
+            cvk_debug_fn(
+                "program scope var buffer %p, size = %zu @ set = %u, "
+                "binding = %u",
+                buffer->vulkan_buffer(), buffer->size(), info.set,
+                info.binding);
+            VkDescriptorBufferInfo bufferInfo = {buffer->vulkan_buffer(),
+                                                 0, // offset
+                                                 VK_WHOLE_SIZE};
+            buffer_info.push_back(bufferInfo);
+
+            VkWriteDescriptorSet writeDescriptorSet = {
+                VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                nullptr,
+                ds[info.set],
+                info.binding,                      // dstBinding
+                0,                                 // dstArrayElement
+                1,                                 // descriptorCount
+                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+                nullptr,                           // pImageInfo
+                &buffer_info.back(),
+                nullptr, // pTexelBufferView
+            };
+            descriptor_writes.push_back(writeDescriptorSet);
+        }
     }
 
     // Setup descriptors for POD arguments

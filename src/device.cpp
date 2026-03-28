@@ -284,6 +284,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
+        VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -347,6 +348,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES;
     m_features_queue_global_priority.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
+    m_features_shader_atomic_int64.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -383,6 +386,9 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_shader_integer_dot_product),
             VER_EXT_FEAT(0, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
                          m_features_queue_global_priority),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 2, 0),
+                         VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
+                         m_features_shader_atomic_int64),
 
 #undef VER_EXT_FEAT
         };
@@ -430,6 +436,23 @@ void cvk_device::init_features(VkInstance instance) {
     cvk_info(
         "subgroup extended types: %d",
         m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
+    cvk_info("buffer device address: apiVersion=0x%08x, bufferDeviceAddress=%d",
+             m_properties.apiVersion,
+             m_features_buffer_device_address.bufferDeviceAddress);
+
+    if (m_properties.apiVersion >= VK_MAKE_VERSION(1, 2, 0) &&
+        !m_features_buffer_device_address.bufferDeviceAddress) {
+        VkPhysicalDeviceVulkan12Features feats12 = {};
+        feats12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        VkPhysicalDeviceFeatures2 feats2 = {};
+        feats2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        feats2.pNext = &feats12;
+        vkGetPhysicalDeviceFeatures2(m_pdev, &feats2);
+        if (feats12.bufferDeviceAddress) {
+            m_features_buffer_device_address.bufferDeviceAddress = VK_TRUE;
+            cvk_info("buffer device address: fallback from Vulkan12Features");
+        }
+    }
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
@@ -672,6 +695,11 @@ void cvk_device::build_extension_ils_list() {
             m_extensions.push_back(
                 MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_non_uniform_vote"));
         }
+    }
+
+    if (supports_buffer_device_address()) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 2, "cl_ext_buffer_device_address"));
     }
 
     // Enable cl_khr_fp16 if we have 16-bit storage and shaderFloat16
@@ -1240,6 +1268,8 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_features.features.shaderInt16;
     case spv::CapabilityInt64:
         return m_features.features.shaderInt64;
+    case spv::CapabilityInt64Atomics:
+        return m_features_shader_atomic_int64.shaderBufferInt64Atomics;
     case spv::CapabilityStorageImageReadWithoutFormat:
         return m_features.features.shaderStorageImageReadWithoutFormat;
     case spv::CapabilityStorageImageWriteWithoutFormat:

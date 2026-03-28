@@ -714,6 +714,10 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->keep_memory_allocations_mapped();
     }
 
+    bool supports_buffer_device_address() const {
+        return m_features_buffer_device_address.bufferDeviceAddress;
+    }
+
     TRACE_TRACK_FCT(device_track,
                     "clvk-device_" + std::to_string((uintptr_t)this))
 
@@ -779,6 +783,8 @@ private:
         m_features_shader_integer_dot_product{};
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
+    VkPhysicalDeviceShaderAtomicInt64FeaturesKHR
+        m_features_shader_atomic_int64{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;

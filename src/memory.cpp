@@ -129,7 +129,8 @@ bool cvk_buffer::init() {
     m_memory = std::make_shared<cvk_memory_allocation>(
         vkdev, params.size, params.memory_type_index, params.memory_coherent,
         device->keep_memory_allocations_mapped());
-    res = m_memory->allocate(device->uses_physical_addressing());
+    res = m_memory->allocate(device->uses_physical_addressing() ||
+                             device->supports_buffer_device_address());
 
     if (res != VK_SUCCESS) {
         return false;
@@ -445,7 +446,8 @@ bool cvk_image::init_vulkan_image() {
         vkdev, params.size, params.memory_type_index, params.memory_coherent,
         device->keep_memory_allocations_mapped());
 
-    res = m_memory->allocate(device->uses_physical_addressing());
+    res = m_memory->allocate(device->uses_physical_addressing() ||
+                             device->supports_buffer_device_address());
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not allocate memory!");

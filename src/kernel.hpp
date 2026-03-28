@@ -56,6 +56,8 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     void set_image_metadata(cl_uint index, const void* image);
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
+    CHECK_RETURN cl_int
+    set_arg_device_address(cl_uint index, cl_mem_device_address_ext dev_addr);
     CHECK_RETURN VkPipeline
     create_pipeline(const cvk_spec_constant_map& spec_constants);
 
@@ -268,6 +270,14 @@ struct cvk_kernel_argument_values {
         memcpy(&pod_data()[offset], value, size);
     }
 
+    // Set a pod_pointer arg directly from a raw device address (not a cl_mem).
+    // Used by clSetKernelArgDevicePointerEXT when physical addressing is active.
+    void set_raw_device_address(const kernel_argument& arg,
+                                cl_mem_device_address_ext dev_addr) {
+        set_pod_data(arg.offset, arg.size, &dev_addr);
+        m_args_set[arg.pos] = true;
+    }
+
     cl_int set_arg(const kernel_argument& arg, size_t size, const void* value) {
 
         if (arg.is_pod_pointer()) {
@@ -318,6 +328,37 @@ struct cvk_kernel_argument_values {
                 }
 
                 m_kernel_resources[arg.binding] = sampler;
+            } else if (arg.kind == kernel_argument_kind::buffer) {
+                auto device_ptr =
+                    *reinterpret_cast<const cl_mem_device_address_ext*>(value);
+                auto& device_to_buffer_map =
+                    m_entry_point->program()->context()->device_to_buffer_map();
+                auto it = device_to_buffer_map.find(device_ptr);
+                if (it != device_to_buffer_map.end()) {
+                    m_kernel_resources[arg.binding] = it->second;
+                } else {
+                    // Fall back to cl_mem path (from clSetKernelArg)
+                    auto apimem = *reinterpret_cast<const cl_mem*>(value);
+                    if (apimem == nullptr) {
+                        return CL_INVALID_MEM_OBJECT;
+                    }
+                    auto mem = icd_downcast(apimem);
+                    if ((arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_READ_ONLY &&
+                         mem->has_flags(CL_MEM_WRITE_ONLY)) ||
+                        (arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_WRITE_ONLY &&
+                         mem->has_flags(CL_MEM_READ_ONLY)) ||
+                        (arg.info.access_qualifier ==
+                             CL_KERNEL_ARG_ACCESS_READ_WRITE &&
+                         !mem->has_flags(CL_MEM_READ_WRITE))) {
+                        return CL_INVALID_ARG_VALUE;
+                    }
+                    if (!mem->is_valid()) {
+                        return CL_INVALID_MEM_OBJECT;
+                    }
+                    m_kernel_resources[arg.binding] = mem;
+                }
             } else {
                 auto apimem = *reinterpret_cast<const cl_mem*>(value);
                 if (apimem == nullptr) {
@@ -369,8 +410,9 @@ struct cvk_kernel_argument_values {
     // Take ownership of resources and retain them.
     void retain_resources() {
         for (auto& resource : m_kernel_resources) {
-            if (resource)
+            if (resource) {
                 resource->retain();
+            }
         }
         std::lock_guard<std::mutex> lock(m_lock);
         m_descriptor_sets_refcount++;
@@ -379,8 +421,9 @@ struct cvk_kernel_argument_values {
     // Release all resources owned resources.
     void release_resources() {
         for (auto& resource : m_kernel_resources) {
-            if (resource)
+            if (resource) {
                 resource->release();
+            }
         }
         std::lock_guard<std::mutex> lock(m_lock);
         if (--m_descriptor_sets_refcount == 0) {

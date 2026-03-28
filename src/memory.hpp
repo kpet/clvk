@@ -397,7 +397,8 @@ struct cvk_buffer : public cvk_mem {
             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
             VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
             VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
-        if (m_context->device()->uses_physical_addressing()) {
+        if (m_context->device()->uses_physical_addressing() ||
+            m_context->device()->supports_buffer_device_address()) {
             usage_flags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         }
         return usage_flags;
@@ -407,14 +408,12 @@ struct cvk_buffer : public cvk_mem {
         if (m_parent == nullptr) {
             return m_buffer;
         } else {
-            const cvk_mem *parent = m_parent;
+            const cvk_mem* parent = m_parent;
             return static_cast<const cvk_buffer*>(parent)->vulkan_buffer();
         }
     }
 
-    size_t vulkan_buffer_offset() const {
-        return m_parent_offset;
-    }
+    size_t vulkan_buffer_offset() const { return m_parent_offset; }
 
     void* map_ptr(size_t offset) const {
         void* ptr;
@@ -491,8 +490,11 @@ struct cvk_buffer : public cvk_mem {
         auto device = context()->device();
         auto vkdev = device->vulkan_device();
         auto device_address =
-            device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info);
-        return device_address + vulkan_buffer_offset();
+            device->vkfns().vkGetBufferDeviceAddressKHR(vkdev, &info) +
+            vulkan_buffer_offset();
+        context()->device_to_buffer_map()[device_address] =
+            const_cast<cvk_buffer*>(this);
+        return device_address;
     }
 
 private:

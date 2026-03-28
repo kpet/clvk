@@ -88,6 +88,32 @@ struct membuf : public std::streambuf {
     }
 };
 
+/// Returns true if the SPIR-V binary uses Vulkan's Shader capability
+/// (GLCompute execution model), false if it uses OpenCL's Kernel capability.
+/// Scans the first 256 words after the 5-word header for OpCapability.
+static bool is_vulkan_spirv(const uint8_t* data, size_t size) {
+    if (size < 20)
+        return false;
+    const uint32_t* words = reinterpret_cast<const uint32_t*>(data);
+    if (words[0] != 0x07230203u) // SPIR-V magic
+        return false;
+    size_t n = size / 4, pos = 5;
+    while (pos < n && pos < 256) {
+        uint16_t opcode = words[pos] & 0xFFFF;
+        uint16_t wc = words[pos] >> 16;
+        if (wc == 0)
+            break;
+        if (opcode == 17 && pos + 1 < n) { // OpCapability
+            if (words[pos + 1] == 1)
+                return true; // Shader
+            if (words[pos + 1] == 6)
+                return false; // Kernel
+        }
+        pos += wc;
+    }
+    return false;
+}
+
 struct reflection_parse_data {
     uint32_t uint_id = 0;
     std::unordered_map<uint32_t, uint32_t> constants;
@@ -261,8 +287,9 @@ spv_result_t parse_reflection(void* user_data,
                 auto kernel = parse_data->strings[inst->words[5]];
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto descriptor_set = parse_data->constants[inst->words[7]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[8]];
                 kernel_argument_info arg_info;
                 if (inst->num_operands == 9) {
@@ -283,8 +310,9 @@ spv_result_t parse_reflection(void* user_data,
                 auto kernel = parse_data->strings[inst->words[5]];
                 auto ordinal = parse_data->constants[inst->words[6]];
                 auto descriptor_set = parse_data->constants[inst->words[7]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[8]];
                 auto offset = parse_data->constants[inst->words[9]];
                 auto size = parse_data->constants[inst->words[10]];
@@ -393,8 +421,9 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionLiteralSampler: {
                 // Track descriptor set and binding. Decode the sampler mask.
                 auto descriptor_set = parse_data->constants[inst->words[5]];
-                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                if (descriptor_set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                     return SPV_ERROR_INVALID_DATA;
+                }
                 auto binding = parse_data->constants[inst->words[6]];
                 auto mask = parse_data->constants[inst->words[7]];
                 uint32_t coords = mask & clspv::kSamplerNormalizedCoordsMask;
@@ -447,12 +476,15 @@ spv_result_t parse_reflection(void* user_data,
             case NonSemanticClspvReflectionConstantDataPointerPushConstant: {
 
                 auto char2int = [](char c) {
-                    if (c >= '0' && c <= '9')
+                    if (c >= '0' && c <= '9') {
                         return c - '0';
-                    if (c >= 'A' && c <= 'F')
+                    }
+                    if (c >= 'A' && c <= 'F') {
                         return c - 'A' + 10;
-                    if (c >= 'a' && c <= 'f')
+                    }
+                    if (c >= 'a' && c <= 'f') {
                         return c - 'a' + 10;
+                    }
                     return 0;
                 };
 
@@ -477,8 +509,9 @@ spv_result_t parse_reflection(void* user_data,
                     NonSemanticClspvReflectionConstantDataStorageBuffer) {
                     binfo.type = module_buffer_type::storage_buffer;
                     binfo.set = parse_data->constants[inst->words[5]];
-                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS)
+                    if (binfo.set >= spir_binary::MAX_DESCRIPTOR_SETS) {
                         return SPV_ERROR_INVALID_DATA;
+                    }
                     binfo.binding = parse_data->constants[inst->words[6]];
 
                 } else {
@@ -521,6 +554,33 @@ spv_result_t parse_reflection(void* user_data,
                 parse_data->binary->set_printf_buffer_info(binfo);
                 parse_data->binary->add_push_constant(
                     pushconstant::printf_buffer_pointer, {binfo.pc_offset, 8u});
+                break;
+            }
+            case NonSemanticClspvReflectionProgramScopeVariablesStorageBuffer: {
+                auto char2int = [](char c) {
+                    if (c >= '0' && c <= '9')
+                        return c - '0';
+                    if (c >= 'A' && c <= 'F')
+                        return c - 'A' + 10;
+                    if (c >= 'a' && c <= 'f')
+                        return c - 'a' + 10;
+                    return 0;
+                };
+                auto hex2bin = [&char2int](const char* str, char* bin) {
+                    while (str[0] && str[1]) {
+                        *(bin++) = char2int(str[0]) * 16 + char2int(str[1]);
+                        str += 2;
+                    }
+                };
+                auto data = parse_data->strings[inst->words[7]];
+                program_scope_var_buffer_info binfo{};
+                binfo.type = module_buffer_type::storage_buffer;
+                binfo.set = parse_data->constants[inst->words[5]];
+                binfo.binding = parse_data->constants[inst->words[6]];
+                auto data_size = data.size() / 2;
+                binfo.data.resize(data_size);
+                hex2bin(data.c_str(), binfo.data.data());
+                parse_data->binary->add_program_scope_var_buffer(binfo);
                 break;
             }
             default:
@@ -750,8 +810,9 @@ bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
 struct temp_folder_deletion {
     temp_folder_deletion(const std::string& path) : m_path(path) {}
     ~temp_folder_deletion() {
-        if (!config.keep_temporaries && !m_path.empty())
+        if (!config.keep_temporaries && !m_path.empty()) {
             std::filesystem::remove_all(m_path.c_str());
+        }
     }
 
 private:
@@ -1007,6 +1068,12 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 
 cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
+    // Vulkan SPIR-V from chipStar already has spec constants embedded.
+    // Skip the llvm-spirv --spec-const-info step entirely.
+    if (is_vulkan_spirv(m_il.data(), m_il.size())) {
+        cvk_info_fn("Input is Vulkan SPIR-V, skipping spec constant extraction");
+        return CL_SUCCESS;
+    }
 #ifndef CLSPV_ONLINE_COMPILER
     // We'll need to go through the whole temp folder rigamarole to query the
     // spec constant info with the command line tool.
@@ -1060,7 +1127,9 @@ cl_int cvk_program::parse_user_spec_constants() {
         m_user_spec_constants.emplace(
             id, user_spec_constant_data{type_string, size});
     }
-    std::filesystem::remove_all(tmp_folder.c_str());
+    if (!config.keep_temporaries) {
+        std::filesystem::remove_all(tmp_folder.c_str());
+    }
     return CL_SUCCESS;
 #else
     auto m_il_start = reinterpret_cast<const unsigned char*>(m_il.data());
@@ -1118,6 +1187,18 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                      "CLVK_ENABLE_SPIRV_IL=OFF");
         return CL_BUILD_ERROR;
 #else  // ENABLE_SPIRV_IL
+        // Fast path: input is already Vulkan SPIR-V (GLCompute).
+        // Load it directly into m_binary, skipping llvm-spirv and clspv.
+        if (is_vulkan_spirv(m_il.data(), m_il.size())) {
+            cvk_info_fn("Input SPIR-V is already Vulkan format (GLCompute), "
+                        "skipping clspv");
+            if (!m_binary.read(m_il.data(), m_il.size())) {
+                cvk_error_fn("Failed to load Vulkan SPIR-V from IL buffer");
+                return CL_BUILD_ERROR;
+            }
+            return CL_BUILD_SUCCESS;
+        }
+
         std::string llvmspirv_input_file{tmp_folder + "/source.spv"};
         clspv_input_file += ".bc";
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
@@ -1185,10 +1266,16 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
             return CL_BUILD_ERROR;
         }
 
+        // Generic address space lowering (AS4→AS1) and chipStar cleanup
+        // are now handled by clspv's --lower-generic-address-space flag
+        // and chipStar's HipCleanupPass + HipGlobalVariablesPass
+        // respectively.
+
         cmd += clspv_input_file;
         cmd += " ";
 #endif // ENABLE_SPIRV_IL
     } else if (m_operation == build_operation::link) {
+        std::vector<std::string> link_input_files;
         for (auto input_program : m_input_programs) {
             if (input_program->m_binary_type !=
                     CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT &&
@@ -1203,6 +1290,14 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
+            link_input_files.push_back(input_file);
+        }
+
+        // Generic address space lowering and chipStar cleanup are now
+        // handled by clspv's --lower-generic-address-space flag and
+        // chipStar's HipCleanupPass + HipGlobalVariablesPass.
+
+        for (auto& input_file : link_input_files) {
             cmd += input_file;
             cmd += " ";
         }
@@ -1240,9 +1335,25 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
     if (status != 0) {
-        cvk_error_fn("failed to compile the program");
-        cvk_debug_fn("%s", m_build_log.c_str());
-        return CL_BUILD_ERROR;
+        // If the build failed with -physical-storage-buffers, retry without
+        // it. clspv's PhysicalPointerArgsPass can crash on certain kernel
+        // patterns (e.g. multi-module link with atomics). Programs that
+        // don't use device pointers work fine without the flag.
+        const std::string psb_flag = "-physical-storage-buffers";
+        auto psb = cmd.find(psb_flag);
+        if (psb != std::string::npos) {
+            cvk_warn_fn("clspv failed with -physical-storage-buffers, "
+                         "retrying without it");
+            std::string retry_cmd = cmd;
+            retry_cmd.erase(psb, psb_flag.size());
+            m_build_log.clear();
+            status = cvk_exec(retry_cmd, &m_build_log);
+        }
+        if (status != 0) {
+            cvk_error_fn("failed to compile the program");
+            cvk_debug_fn("%s", m_build_log.c_str());
+            return CL_BUILD_ERROR;
+        }
     }
 
     // Load output from clspv
@@ -1434,11 +1545,21 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
     // Add options to specify input/output types
     if (m_source.empty() || m_operation == build_operation::link) {
         build_options += " -x ir ";
+        build_options += " -lower-generic-address-space ";
     }
     bool build_to_ir =
         m_operation == build_operation::compile || create_library;
     if (build_to_ir) {
         build_options += " --output-format=bc ";
+        // Strip -physical-storage-buffers for individual compile steps.
+        // PhysicalPointerArgsPass must only run during the final link step,
+        // not on individual modules, to avoid crashes when linking the
+        // transformed BC files.
+        auto pos =
+            build_options.find(" -physical-storage-buffers");
+        if (pos != std::string::npos) {
+            build_options.erase(pos, strlen(" -physical-storage-buffers"));
+        }
     }
 
     // Save headers
@@ -1549,6 +1670,11 @@ void cvk_program::do_build() {
     }
 
     if (!create_module_constant_data_buffer()) {
+        complete_operation(device, CL_BUILD_ERROR);
+        return;
+    }
+
+    if (!create_program_scope_var_buffers()) {
         complete_operation(device, CL_BUILD_ERROR);
         return;
     }
@@ -1926,6 +2052,30 @@ bool cvk_entry_point::
     return true;
 }
 
+bool cvk_entry_point::
+    build_descriptor_sets_layout_bindings_for_program_scope_vars(
+        binding_stat_map& smap) {
+    auto& infos = m_program->module_program_scope_var_buffer_infos();
+    for (auto& info : infos) {
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+        VkDescriptorSetLayoutBinding binding = {
+            info.binding,                      // binding
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, // descriptorType
+            1,                                 // descriptorCount
+            VK_SHADER_STAGE_COMPUTE_BIT,       // stageFlags
+            nullptr                            // pImmutableSamplers
+        };
+        layoutBindings.push_back(binding);
+        smap[binding.descriptorType]++;
+
+        if (!build_descriptor_set_layout(layoutBindings)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_printf_buffer(
     binding_stat_map& smap) {
     std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
@@ -1987,6 +2137,10 @@ cl_int cvk_entry_point::init() {
     }
     if (!build_descriptor_sets_layout_bindings_for_arguments(
             bindingTypes, m_num_resource_slots)) {
+        return CL_INVALID_VALUE;
+    }
+    if (!build_descriptor_sets_layout_bindings_for_program_scope_vars(
+            bindingTypes)) {
         return CL_INVALID_VALUE;
     }
     if (!build_descriptor_sets_layout_bindings_for_program_scope_buffers(

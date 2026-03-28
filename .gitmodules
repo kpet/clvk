@@ -1,6 +1,7 @@
 [submodule "clspv"]
     path = external/clspv
-	url = https://github.com/google/clspv.git
+	url = https://github.com/CHIP-SPV/clspv.git
+	branch = chipStar
 [submodule "opencl-headers"]
     path = external/OpenCL-Headers
 	url = https://github.com/KhronosGroup/OpenCL-Headers.git
