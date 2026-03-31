@@ -476,7 +476,7 @@ using the name of the corresponding environment variable.
 
 * `CLVK_COMPLIER_TEMP_DIR` specifies a directory used to create a temporary
   folder to store compiled program data used in a single run. This folder shall
-  have write permission (default: current directory).
+  have write permission (default: `std::filesystem::temp_directory_path()`).
 
 * `CLVK_MAX_CMD_GROUP_SIZE` specifies the maximum number of commands in a group.
   When a group reaches this number, it is automatically flushed.
