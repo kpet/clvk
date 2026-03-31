@@ -17,6 +17,7 @@
 #include "log.hpp"
 
 #include <cassert>
+#include <filesystem>
 #include <thread>
 
 #include <vulkan/vulkan.h>
@@ -81,4 +82,10 @@ static inline std::string to_hex_string(const uint8_t* bytes, uint32_t len) {
         str += *(chars + (bytes[i] & 0xF));
     }
     return str;
+}
+
+static inline std::string append_paths(const std::string& prefix,
+                                       const std::string& suffix) {
+    return (std::filesystem::path{prefix} / std::filesystem::path{suffix})
+        .string();
 }
