@@ -75,6 +75,10 @@ struct cvk_device_properties {
         return config.keep_memory_allocations_mapped();
     }
 
+    virtual bool reuse_descriptor_set() const {
+        return config.reuse_descriptor_set();
+    }
+
     virtual ~cvk_device_properties() {}
 };
 
