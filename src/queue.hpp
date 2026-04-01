@@ -34,7 +34,7 @@ using cvk_command_queue_holder = refcounted_holder<cvk_command_queue>;
 
 struct cvk_command_group {
     std::deque<cvk_command*> commands;
-    cl_int execute_cmds();
+    cl_int execute_cmds(bool poll);
     void execute_cmds_in_executor();
 };
 
@@ -147,6 +147,13 @@ struct cvk_command_queue : public _cl_command_queue,
         return (m_properties & prop) == prop;
     }
 
+    bool use_timeline_semaphore() const {
+        return m_context != nullptr &&
+               m_device->has_timeline_semaphore_support() &&
+               (!has_property(CL_QUEUE_PROFILING_ENABLE) ||
+                profiling_on_device());
+    }
+
     CHECK_RETURN cl_int enqueue_command_with_deps(cvk_command* cmd,
                                                   cl_uint num_dep_events,
                                                   _cl_event* const* dep_events,
@@ -234,6 +241,13 @@ struct cvk_command_queue : public _cl_command_queue,
         TRACE_CNT(group_in_flight_counter, group - 1);
     }
 
+    void sync_submit_cmd_enqueued() {
+        m_nb_synchronous_submit_command_in_flight++;
+    }
+    void sync_submit_cmd_completed() {
+        m_nb_synchronous_submit_command_in_flight--;
+    }
+
     cl_int execute_cmds_required_by(cl_uint num_events,
                                     _cl_event* const* event_list);
     cl_int execute_cmds_required_by_no_lock(cl_uint num_events,
@@ -241,6 +255,10 @@ struct cvk_command_queue : public _cl_command_queue,
                                             std::unique_lock<std::mutex>& lock);
 
     void detach_from_context();
+    cl_int get_next_semaphore_and_value(cvk_semaphore** sem, uint64_t* value,
+                                        cl_command_type type);
+
+    bool have_batch_in_flight() const { return m_nb_batch_in_flight > 0; }
 
     TRACE_TRACK_FCT(queue_track,
                     "clvk-queue_" + std::to_string((uintptr_t)this))
@@ -269,6 +287,11 @@ private:
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
 
+    std::mutex m_semaphore_lock;
+    cvk_semaphore* m_semaphore_main_timeline;
+    cvk_semaphore* m_semaphore_image_init_timeline;
+    cvk_semaphore* m_semaphore_batch_timeline;
+
     cl_uint m_max_cmd_batch_size;
     cl_uint m_max_first_cmd_batch_size;
     cl_uint m_max_cmd_group_size;
@@ -276,6 +299,8 @@ private:
 
     std::atomic<uint64_t> m_nb_batch_in_flight;
     std::atomic<uint64_t> m_nb_group_in_flight;
+
+    std::atomic<uint64_t> m_nb_synchronous_submit_command_in_flight;
 
     TRACE_CNT_VAR(batch_in_flight_counter);
     TRACE_CNT_VAR(group_in_flight_counter);
@@ -381,6 +406,10 @@ struct cvk_command_buffer {
         return res == VK_SUCCESS;
     }
 
+    CHECK_RETURN bool submit(VkSemaphore signal_semaphore,
+                             uint64_t signal_value,
+                             std::vector<VkSemaphore>& wait_semaphores,
+                             std::vector<uint64_t>& wait_values);
     CHECK_RETURN bool submit_and_wait();
 
     operator VkCommandBuffer() { return m_command_buffer; }
@@ -399,7 +428,12 @@ struct cvk_command {
         : m_type(type), m_queue(queue),
           m_event(new cvk_event_command(m_queue->context(), this, queue)) {}
 
-    virtual ~cvk_command() { m_event->release(); }
+    virtual ~cvk_command() {
+        for (auto& event : m_event_deps) {
+            event->release();
+        }
+        m_event->release();
+    }
 
     void set_dependencies(cl_uint num_event_deps,
                           _cl_event* const* event_deps) {
@@ -428,20 +462,28 @@ struct cvk_command {
     // never have data movement requirements of their own.
     virtual bool is_data_movement() const { return false; }
 
+    virtual bool is_synchronous_submit() const {
+        for (auto& ev : m_event_deps) {
+            if (ev->is_user_event()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void add_dependency(cvk_event* dep) {
         dep->retain();
         m_event_deps.push_back(dep);
     }
 
-    CHECK_RETURN cl_int execute() {
+    CHECK_RETURN cl_int execute(bool poll) {
 
         // First wait for dependencies
         cl_int status = CL_COMPLETE;
         for (auto& ev : m_event_deps) {
-            if (ev->wait() != CL_COMPLETE) {
+            if (ev->wait(poll) != CL_COMPLETE) {
                 status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
             }
-            ev->release();
         }
 
         // Then execute the action if no dependencies failed
@@ -455,6 +497,9 @@ struct cvk_command {
             status = do_action();
             TRACE_END();
         }
+        if (is_synchronous_submit()) {
+            m_queue->sync_submit_cmd_completed();
+        }
 
         // When executing batch with many commands, "set_event_status" can take
         // a while. Trace it to be able to understand it easily.
@@ -464,7 +509,7 @@ struct cvk_command {
         return status;
     }
 
-    cvk_event_command* event() const { return m_event; }
+    virtual cvk_event_command* event() const { return m_event; }
 
     cl_command_type type() const { return m_type; }
 
@@ -700,6 +745,7 @@ struct cvk_command_batchable : public cvk_command {
 
     bool can_be_batched() const override;
     bool is_built_before_enqueue() const override final { return false; }
+    bool is_synchronous_submit() const override final { return true; }
 
     CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,
                                                     cl_ulong* end);
@@ -850,7 +896,7 @@ private:
 
 struct cvk_command_batch : public cvk_command {
     cvk_command_batch(cvk_command_queue* queue)
-        : cvk_command(CLVK_COMMAND_BATCH, queue) {}
+        : cvk_command(CLVK_COMMAND_BATCH, queue), m_submitted(false) {}
 
     cl_int add_command(cvk_command_batchable* cmd) {
         if (!m_command_buffer) {
@@ -880,6 +926,8 @@ struct cvk_command_batch : public cvk_command {
     }
 
     cl_uint batch_size() { return m_commands.size(); }
+
+    bool is_synchronous_submit() const override final { return !m_submitted; }
 
     CHECK_RETURN cl_int
     set_profiling_info(cl_profiling_info pinfo) override final {
@@ -911,14 +959,25 @@ struct cvk_command_batch : public cvk_command {
 
     void set_event_status(cl_int status) override final {
         m_event->set_status(status);
+        if (status == CL_RUNNING && m_queue->profiling_on_device()) {
+            return;
+        }
         for (auto& cmd : m_commands) {
             cmd->set_event_status(status);
         }
     }
 
+    CHECK_RETURN cl_int submit();
+
+    cvk_event_command* event() const override final {
+        CVK_ASSERT(m_commands.size() > 0);
+        return m_commands.back()->event();
+    }
+
 private:
     CHECK_RETURN cl_int do_action() override final;
 
+    bool m_submitted;
     std::vector<std::unique_ptr<cvk_command_batchable>> m_commands;
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
 };
