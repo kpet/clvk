@@ -710,6 +710,7 @@ bool spir_binary::get_capabilities(
 namespace {
 
 #if COMPILER_AVAILABLE
+#ifndef CLSPV_ONLINE_COMPILER
 bool save_cstring_to_file(
     const std::string& fname, const char* data, size_t size,
     std::ios_base::openmode open_mode = std::ios_base::out) {
@@ -739,13 +740,10 @@ bool save_string_to_file(const std::string& fname, const std::string& text) {
     return save_cstring_to_file(fname, text.c_str(), text.size());
 }
 
-#ifndef CLSPV_ONLINE_COMPILER
 bool save_il_to_file(const std::string& fname, const std::vector<uint8_t>& il) {
     return save_cstring_to_file(fname, reinterpret_cast<const char*>(il.data()),
                                 il.size(), std::ios::binary);
 }
-#endif // CLSPV_ONLINE_COMPILER
-#endif // COMPILER_AVAILABLE
 
 struct temp_folder_deletion {
     temp_folder_deletion(const std::string& path) : m_path(path) {}
@@ -757,6 +755,8 @@ struct temp_folder_deletion {
 private:
     std::string m_path;
 };
+#endif // CLSPV_ONLINE_COMPILER
+#endif // COMPILER_AVAILABLE
 
 enum class spirv_validation_level
 {
@@ -1278,9 +1278,9 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
 #else // #ifndef CLSPV_ONLINE_COMPILER
 
-cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
-                                                   bool build_from_il,
-                                                   std::string& build_options) {
+cl_build_status cvk_program::do_build_inner_online(
+    bool build_to_ir, bool build_from_il, std::string& build_options,
+    const std::vector<std::pair<std::string, std::string>>& headers) {
     TRACE_FUNCTION("build_to_ir", build_to_ir, "build_from_il", build_from_il,
                    "build_options", TRACE_STRING(build_options.c_str()));
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
@@ -1377,15 +1377,16 @@ cl_build_status cvk_program::do_build_inner_online(bool build_to_ir,
         m_build_log.clear();
         if (build_to_ir) {
             std::vector<uint32_t> ir;
-            status = clspv::CompileFromSourcesString(programs, build_options,
-                                                     &ir, &m_build_log);
+            status = clspv::CompileFromSourcesStringWithHeaders(
+                programs, headers, build_options, &ir, &m_build_log);
             m_ir.clear();
             auto size = ir.size() * sizeof(uint32_t);
             m_ir.resize(size);
             memcpy(m_ir.data(), ir.data(), size);
         } else {
-            status = clspv::CompileFromSourcesString(
-                programs, build_options, m_binary.raw_binary(), &m_build_log);
+            status = clspv::CompileFromSourcesStringWithHeaders(
+                programs, headers, build_options, m_binary.raw_binary(),
+                &m_build_log);
         }
     }
     if (status != 0) {
@@ -1409,28 +1410,22 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 
     bool build_from_il =
         m_il.size() > 0 && m_operation != build_operation::link;
-    bool use_tmp_folder = true;
-#ifdef CLSPV_ONLINE_COMPILER
-    use_tmp_folder =
-        m_operation == build_operation::compile && m_num_input_programs > 0;
-#endif
-
+#ifndef CLSPV_ONLINE_COMPILER
     std::string tmp_folder;
-    if (use_tmp_folder) {
-        // Create temporary folder
-        std::filesystem::path tmp_prefix(config.compiler_temp_dir());
-        std::filesystem::path tmp_suffix("clvk-XXXXXX");
-        std::string tmp_template = (tmp_prefix / tmp_suffix).string();
-        const char* tmp = cvk_mkdtemp(tmp_template);
-        if (tmp == nullptr) {
-            cvk_error_fn("Could not create temporary folder \"%s\"",
-                         tmp_template.c_str());
-            return CL_BUILD_ERROR;
-        }
-        tmp_folder = tmp;
-        cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
+    // Create temporary folder
+    std::filesystem::path tmp_prefix(config.compiler_temp_dir());
+    std::filesystem::path tmp_suffix("clvk-XXXXXX");
+    std::string tmp_template = (tmp_prefix / tmp_suffix).string();
+    const char* tmp = cvk_mkdtemp(tmp_template);
+    if (tmp == nullptr) {
+        cvk_error_fn("Could not create temporary folder \"%s\"",
+                     tmp_template.c_str());
+        return CL_BUILD_ERROR;
     }
+    tmp_folder = tmp;
+    cvk_info("Created temporary folder \"%s\"", tmp_folder.c_str());
     temp_folder_deletion temp(tmp_folder);
+#endif
 
     // Prepare build options
     bool create_library =
@@ -1447,8 +1442,20 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
         build_options += " --output-format=bc ";
     }
 
+    cl_build_status build_status;
+#ifdef CLSPV_ONLINE_COMPILER
+    std::vector<std::pair<std::string, std::string>> headers;
+    if (m_header_include_names.size() == m_num_input_programs) {
+        for (cl_uint i = 0; i < m_num_input_programs; i++) {
+            headers.emplace_back(std::string(m_header_include_names[i]),
+                                 m_input_programs[i]->source());
+        }
+    }
+    build_status = do_build_inner_online(build_to_ir, build_from_il,
+                                         build_options, headers);
+#else
     // Save headers
-    if (use_tmp_folder && m_operation == build_operation::compile) {
+    if (m_operation == build_operation::compile) {
         build_options += "-I" + tmp_folder;
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             auto fname = append_paths(tmp_folder, m_header_include_names[i]);
@@ -1458,12 +1465,6 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
             }
         }
     }
-
-    cl_build_status build_status;
-#ifdef CLSPV_ONLINE_COMPILER
-    build_status =
-        do_build_inner_online(build_to_ir, build_from_il, build_options);
-#else
     build_status = do_build_inner_offline(build_to_ir, build_from_il,
                                           build_options, tmp_folder);
 #endif // CLSPV_ONLINE_COMPILER
