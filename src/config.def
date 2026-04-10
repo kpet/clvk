@@ -16,9 +16,7 @@
 // Compiler
 //
 OPTION(std::string, cache_dir, "")
-OPTION(std::string, compiler_temp_dir, (std::filesystem::temp_directory_path().string().c_str()))
 OPTION(bool, skip_spirv_capability_check, false)
-OPTION(bool, keep_temporaries, false)
 OPTION(std::string, spirv_arch, "spir")
 OPTION(bool, physical_addressing, false)
 
@@ -37,6 +35,8 @@ OPTION(bool, init_image_at_creation, false)
 OPTION(std::string, clspv_options, "")
 #if !CLSPV_ONLINE_COMPILER
 OPTION(std::string, clspv_path, DEFAULT_CLSPV_BINARY_PATH)
+OPTION(std::string, compiler_temp_dir, (std::filesystem::temp_directory_path().string().c_str()))
+OPTION(bool, keep_temporaries, false)
 #if ENABLE_SPIRV_IL
 OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif
