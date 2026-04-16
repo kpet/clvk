@@ -12,107 +12,264 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//
-// Compiler
-//
+
+////////////////////////////////////////////////////////////
+// COMPILER ////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+
+
+// Specify a directory used for caching compiled program data between
+// applications runs. The user is responsible for ensuring that this directory
+// is not used concurrently by more than one application.
 OPTION(std::string, cache_dir, "")
+
+// Avoid checking whether the Vulkan device supports all of the SPIR-V
+// capabilities declared by each SPIR-V module.
 OPTION(bool, skip_spirv_capability_check, false)
+
+// Specify the SPIR-V architecture to target.
 OPTION(std::string, spirv_arch, "spir")
+
+// Specify whether physical addressing mode is enabled for SPIR-V modules.
 OPTION(bool, physical_addressing, false)
 
+// Comma separated list of builtins that will use the native implementation by
+// default.
 PROPERTY(std::set<std::string>, clspv_native_builtins, std::set<std::string>())
+
+// Comma separated list of builtins that will be forced to use the libclc
+// implementation.
 OPTION(std::set<std::string>, clspv_library_builtins, std::set<std::string>())
 
+// Specify the size of the buffer used for printf calls in kernels.
 OPTION(uint32_t, printf_buffer_size, 1024*1024u)
 
-OPTION(uint32_t, opencl_version, (uint32_t)CL_MAKE_VERSION(3, 0, 0))
-
-OPTION(bool, build_in_separate_thread, false)
-
-OPTION(bool, init_image_at_creation, false)
+// Indicate whether the non-uniform decoration is broken or unsupported.
+PROPERTY(bool, non_uniform_decoration_broken, false)
 
 #if COMPILER_AVAILABLE
+
+// Provide additional options to pass to clspv.
 PROPERTY(std::string, clspv_options, "")
+
 #if !CLSPV_ONLINE_COMPILER
+
+// Provide a path to the clspv binary to use.
 OPTION(std::string, clspv_path, DEFAULT_CLSPV_BINARY_PATH)
+
+// Specify a directory used to create a temporary folder to store compiled
+// program data used in a single run. This folder shall have write permission.
 OPTION(std::string, compiler_temp_dir, (std::filesystem::temp_directory_path().string().c_str()))
+
+// Keep temporary files created during program build, compilation and link
+// operations.
 OPTION(bool, keep_temporaries, false)
+
 #if ENABLE_SPIRV_IL
+// Provide a path to the llvm-spirv binary to use.
 OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 #endif
+
 #endif // !CLSPV_ONLINE_COMPILER
 #endif // COMPILER_AVAILABLE
 
-//
-// Device properties
-//
-PROPERTY(std::string, vendor, "Unknown vendor")
-OPTION(uint32_t, force_subgroup_size, 0u) // 0 meaning not forced
-PROPERTY(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
 
+////////////////////////////////////////////////////////////
+// OPENCL PROPERTIES REPORTING /////////////////////////////
+////////////////////////////////////////////////////////////
+
+
+// Specify the vendor string to report for the device.
+PROPERTY(std::string, vendor, "Unknown vendor")
+
+// Specify the default number of compute units to expose through
+// `CL_DEVICE_MAX_COMPUTE_UNITS` if nothing is set in the device properties.
 PROPERTY(uint32_t, max_compute_units, 1u)
+
+// Specify the size of the global memory cache in bytes.
 PROPERTY(uint32_t, global_mem_cache_size, 0u)
-PROPERTY(bool, non_uniform_decoration_broken, false)
+
+// Indicate whether the BGRA format is not supported for a 1D image buffer.
 PROPERTY(bool, bgra_format_not_supported_for_image1d_buffer, false)
+
+// Specify a set of image formats that should be explicitly disabled.
 PROPERTY(image_format_set, disabled_image_formats, image_format_set())
+
+// Specify a set of image formats that should be explicitly enabled.
 PROPERTY(image_format_set, enabled_image_formats, image_format_set())
 
-//
-// Command execution
-//
-OPTION(uint32_t, queue_global_priority, 1u)
-PROPERTY(uint32_t, max_cmd_batch_size, 10000u)
-PROPERTY(uint32_t, max_first_cmd_batch_size, 10000u)
-PROPERTY(uint32_t, max_cmd_group_size, UINT32_MAX)
-PROPERTY(uint32_t, max_first_cmd_group_size, UINT32_MAX)
-OPTION(bool, ignore_out_of_order_execution, false) // false meaning dont ignore
+// Specify the opencl version reported by clvk. The version needs to follow the
+// layout used by `CL_MAKE_VERSION` from the OpenCL Headers:
+//  * `0x00c00000`: meaning `CL3.0` (default)
+//  * `0x00402000`: meaning `CL1.2`
+OPTION(uint32_t, opencl_version, (uint32_t)CL_MAKE_VERSION(3, 0, 0))
 
-// experimental
-OPTION(bool, dynamic_batches, false)
-
-OPTION(uint32_t, max_entry_points_instances, 2*1024u) // FIXME find a better definition
-OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meaning no retry
-
-OPTION(bool, supports_filter_linear, true)
-
-PROPERTY(bool, keep_memory_allocations_mapped, false)
-
+// Specify extensions to be added to the list of exposed extensions. Expects a
+// comma separated list of extensions.
 OPTION(std::set<std::string>, device_extensions, std::set<std::string>())
+
+// Specify extensions to be removed from the list of exposed extensions. Expects
+// a comma separated list of extensions.
 OPTION(std::set<std::string>, device_extensions_masked, std::set<std::string>())
 
-//
-// Logging
-//
-EARLY_OPTION(uint32_t, log, 0u)
-EARLY_OPTION(bool, log_colour, false)
-EARLY_OPTION(std::string, log_dest, "")
-EARLY_OPTION(std::string, log_groups, "")
-EARLY_OPTION(bool, log_groups_only, false)
+// Specify whether using samplers with `CL_FILTER_LINEAR` is supported.
+OPTION(bool, supports_filter_linear, true)
 
-//
-// Debug
-//
-OPTION(bool, validation_layers, false)
+// Specify the percentage of the available memory to be reported.
 OPTION(uint32_t, percentage_of_available_memory_reported, 100u)
-OPTION(uint32_t, max_mem_alloc_size_mb, 1024u)
-OPTION(uint32_t, spirv_validation, 2u)
-OPTION(bool, destroy_global_state, true)
 
-//
-// Instrumentation
-//
+// Specify the maximum allowed memory allocation size in megabytes.
+OPTION(uint32_t, max_mem_alloc_size_mb, 1024u)
+
+
+////////////////////////////////////////////////////////////
+// RUNTIME PARAMETERS //////////////////////////////////////
+////////////////////////////////////////////////////////////
+
+
+// Specify the queue global priority to use if it is supported by the driver:
+//  * `0`: `VK_QUEUE_GLOBAL_PRIORITY_LOW_KHR`
+//  * `1`: `VK_QUEUE_GLOBAL_PRIORITY_MEDIUM_KHR` (default)
+//  * `2`: `VK_QUEUE_GLOBAL_PRIORITY_HIGH_KHR`
+//  * `3`: `VK_QUEUE_GLOBAL_PRIORITY_REALTIME_KHR`
+OPTION(uint32_t, queue_global_priority, 1u)
+
+// Specify the maximum number of commands per batch. When this number is
+// reached, the batch will be added to the current group of commands, and a new
+// batch will be created.
+PROPERTY(uint32_t, max_cmd_batch_size, 10000u)
+
+// Specify the maximum number of commands per batch when there is no batch to be
+// processed or being processed in the queue.
+PROPERTY(uint32_t, max_first_cmd_batch_size, 10000u)
+
+// Specify the maximum number of commands in a group. When a group reaches this
+// number, it is automatically flushed.
+PROPERTY(uint32_t, max_cmd_group_size, UINT32_MAX)
+
+// Specify the maximum number of commands in a group when there is no group to
+// be processed or being processed in the queue.
+PROPERTY(uint32_t, max_first_cmd_group_size, UINT32_MAX)
+
+// Control whether out-of-order queues can be created. Out-of-order queues, when
+// allowed, always behave as in-order queues.
+//  * 0: creating an out-of-order queue results in a failure (default)
+//  * 1: creating an out-of-order queue is supported but it will function as an
+//    in-order queue
+OPTION(bool, ignore_out_of_order_execution, false) // false meaning dont ignore
+
+// Specify the subgroup size to use, overriding everything.
+OPTION(uint32_t, force_subgroup_size, 0u) // 0 meaning not forced
+
+// Specify the subgroup size to use if nothing is specified in the kernel.
+// When not set, use the default value reported by the Vulkan driver.
+PROPERTY(uint32_t, preferred_subgroup_size, 0u) // 0 meaning no preference
+
+// Enable dynamic batch sizing for command execution.
+OPTION(bool, dynamic_batches, false)
+
+// Specify the number of instances of a kernel that can be in flight at the
+// same time. Increasing this value has an impact on the memory usage as it
+// will allocate more descriptor sets per kernel.
+OPTION(uint32_t, max_entry_points_instances, 2*1024u)
+
+// Specify the time to wait between two attempts to enqueue a command. Disabled
+// by default, meaning a failed enqueue returns an error. When specified, it
+// will retry as long as there are groups in flight.
+OPTION(uint32_t, enqueue_command_retry_sleep_us, UINT32_MAX) // UINT32_MAX meaning no retry
+
+// Specify whether device memory allocations should remain persistently mapped.
+PROPERTY(bool, keep_memory_allocations_mapped, false)
+
+// Force to build kernels in a separate thread. It brings a slight overhead when
+// creating the thread, but can be a work-around when having issues with clang
+// compiling in the application thread.
+OPTION(bool, build_in_separate_thread, false)
+
+// Force to initialize OpenCL images created with `CL_MEM_COPY_HOST_PTR` or
+// `CL_MEM_USE_HOST_PTR` at creation time instead of initializing them during
+// first use of the image. It reduces the memory footprint as clvk needs to keep
+// a buffer with the data to initialize at first use.
+OPTION(bool, init_image_at_creation, false)
+
+// Use timestamp queries to measure `CL_PROFILING_COMMAND_{START,END}` on
+// devices that do not support `VK_EXT_calibrated_timestamps`.
+//  * 0: disabled (default)
+//  * 1: enabled
 OPTION(bool, queue_profiling_use_timestamp_queries, false)
 
+// Specify whether global state should be destructed in a global destructor.
+// Disabling this allows poorly behaving applications to work without crashing
+// on exit. Use with caution.
+OPTION(bool, destroy_global_state, true)
+
 #if CLVK_PERFETTO_BACKEND_INPROCESS
+// Specify the maximum size (in kB) of traces generated by Perfetto. Only
+// applies to the `InProcess` backend.
 OPTION(uint32_t, perfetto_trace_max_size, 1024u)
+
+// Specify the filename destination for traces generated by Perfetto.
 OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS
 
-//
-// Test
-//
+
+////////////////////////////////////////////////////////////
+// LOGGING & VALIDATION ////////////////////////////////////
+////////////////////////////////////////////////////////////
+
+
+// Control the level of logging:
+//  * 0: only print fatal messages (default)
+//  * 1: print errors as well
+//  * 2: print warnings as well
+//  * 3: print information messages as well
+//  * 4: print all debug messages
+EARLY_OPTION(uint32_t, log, 0u)
+
+// Control colour logging:
+//  * 0: disabled
+//  * 1: enabled (default when the output is a terminal)
+EARLY_OPTION(bool, log_colour, false)
+
+// Control where the logging output goes:
+//  * `stderr`: logging goes to the standard error (default)
+//  * `stdout`: logging goes to the standard output
+//  * `file:<fname>`: logging goes to `<fname>`.
+EARLY_OPTION(std::string, log_dest, "")
+
+// Control what logging groups are enabled. A comma-separated list of group
+// enable/disable requests is accepted. A group is enabled by giving its name
+// and disabled by giving its name with a `-` prefix.
+EARLY_OPTION(std::string, log_groups, "")
+
+// Control whether warnings/errors/fatals log messages from disabled groups
+// should still be printed out or not.
+EARLY_OPTION(bool, log_groups_only, false)
+
+// Allow enabling Vulkan validation layers:
+//  * 0: disabled (default)
+//  * 1: enabled
+OPTION(bool, validation_layers, false)
+
+// Control SPIR-V validation behaviour:
+//  * 0: skip validation
+//  * 1: warn when validation fails
+//  * 2: fail compilation and report an error when validation fails (default)
+OPTION(uint32_t, spirv_validation, 2u)
+
+
+////////////////////////////////////////////////////////////
+// INTERNAL TEST ///////////////////////////////////////////
+////////////////////////////////////////////////////////////
+
+
 #if CLVK_UNIT_TESTING_ENABLED
+// Force descriptor set allocation to fail to test error paths.
 OPTION(bool, force_descriptor_set_allocation_failure, false)
+
+// Force capability checks to report errors for testing purposes.
 OPTION(bool, force_check_capabilities_error, false)
+
+// Control whether early flushing is enabled for unit tests.
 OPTION(bool, early_flush_enabled, true)
 #endif
