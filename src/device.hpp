@@ -303,7 +303,7 @@ struct cvk_device : public _cl_device_id,
     }
 
     bool poll_main_thread() const {
-        return m_clvk_properties->get_poll_main_thread();
+        return m_clvk_properties->poll_main_thread();
     }
 
     cl_uint max_samplers() const {
