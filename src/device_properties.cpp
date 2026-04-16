@@ -14,6 +14,7 @@
 
 #include <cstring>
 
+#include "config.hpp"
 #include "device_properties.hpp"
 #include "log.hpp"
 
@@ -21,15 +22,15 @@
 #include <sys/system_properties.h>
 #endif
 
-struct cvk_device_properties_mali : public cvk_device_properties {
+struct cvk_device_properties_mali : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "ARM"; }
-    cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
-    cl_uint get_max_cmd_group_size() const override final { return 1; }
+    uint32_t max_first_cmd_batch_size() const override final { return 10; }
+    uint32_t max_cmd_group_size() const override final { return 1; }
 
     cvk_device_properties_mali(const uint32_t deviceID)
         : m_deviceID(deviceID) {}
 
-    bool is_non_uniform_decoration_broken() const override final {
+    bool non_uniform_decoration_broken() const override final {
 #define GPU_ID2_ARCH_MAJOR_SHIFT 28
 #define GPU_ID2_ARCH_MAJOR (0xF << GPU_ID2_ARCH_MAJOR_SHIFT)
         // bifrost support of non uniform decoration is broken
@@ -43,16 +44,16 @@ private:
 
 struct cvk_device_properties_mali_exynos9820
     : public cvk_device_properties_mali {
-    cl_ulong get_global_mem_cache_size() const override final { return 262144; }
-    cl_ulong get_num_compute_units() const override final { return 12; }
+    uint32_t global_mem_cache_size() const override final { return 262144; }
+    uint32_t max_compute_units() const override final { return 12; }
     cvk_device_properties_mali_exynos9820(const uint32_t deviceID)
         : cvk_device_properties_mali(deviceID) {}
 };
 
 struct cvk_device_properties_mali_exynos990
     : public cvk_device_properties_mali {
-    cl_ulong get_global_mem_cache_size() const override final { return 262144; }
-    cl_ulong get_num_compute_units() const override final { return 11; }
+    uint32_t global_mem_cache_size() const override final { return 262144; }
+    uint32_t max_compute_units() const override final { return 11; }
     cvk_device_properties_mali_exynos990(const uint32_t deviceID)
         : cvk_device_properties_mali(deviceID) {}
 };
@@ -62,35 +63,35 @@ static bool isMaliDevice(const char* name, const uint32_t vendorID) {
     return vendorID == ARMVendorID || strncmp(name, "Mali-", 5) == 0;
 }
 
-struct cvk_device_properties_adreno : public cvk_device_properties {
+struct cvk_device_properties_adreno : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Qualcomm"; }
 };
 
 struct cvk_device_properties_adreno_615 : public cvk_device_properties_adreno {
-    cl_ulong get_global_mem_cache_size() const override final { return 65536; }
-    cl_ulong get_num_compute_units() const override final { return 1; }
+    uint32_t global_mem_cache_size() const override final { return 65536; }
+    uint32_t max_compute_units() const override final { return 1; }
 };
 
 struct cvk_device_properties_adreno_620 : public cvk_device_properties_adreno {
-    cl_ulong get_global_mem_cache_size() const override final { return 65536; }
-    cl_ulong get_num_compute_units() const override final { return 1; }
+    uint32_t global_mem_cache_size() const override final { return 65536; }
+    uint32_t max_compute_units() const override final { return 1; }
 };
 
 struct cvk_device_properties_adreno_630 : public cvk_device_properties_adreno {
-    cl_ulong get_global_mem_cache_size() const override final { return 131072; }
-    cl_ulong get_num_compute_units() const override final { return 2; }
+    uint32_t global_mem_cache_size() const override final { return 131072; }
+    uint32_t max_compute_units() const override final { return 2; }
 };
 
 struct cvk_device_properties_adreno_640 : public cvk_device_properties_adreno {
-    cl_ulong get_global_mem_cache_size() const override final { return 131072; }
-    cl_ulong get_num_compute_units() const override final { return 2; }
+    uint32_t global_mem_cache_size() const override final { return 131072; }
+    uint32_t max_compute_units() const override final { return 2; }
 };
 
-struct cvk_device_properties_intel : public cvk_device_properties {
+struct cvk_device_properties_intel : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Intel Corporation"; }
-    cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
-    cl_uint get_max_cmd_group_size() const override final { return 1; }
-    const std::set<std::string> get_native_builtins() const override final {
+    uint32_t max_first_cmd_batch_size() const override final { return 10; }
+    uint32_t max_cmd_group_size() const override final { return 1; }
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "ceil",        "copysign",  "exp2",        "floor",
             "fma",         "fmax",      "fmin",        "half_exp",
@@ -103,20 +104,19 @@ struct cvk_device_properties_intel : public cvk_device_properties {
             "rsqrt",       "signbit",   "sqrt",        "trunc",
         });
     }
-    std::string get_compile_options() const override final {
+#if COMPILER_AVAILABLE
+    std::string clspv_options() const override final {
         return "-hack-mul-extended -hack-convert-to-float "
                "-hack-image1d-buffer-bgra";
     }
-    uint32_t get_preferred_subgroup_size() const override final { return 16; }
-    bool
-    is_bgra_format_not_supported_for_image1d_buffer() const override final {
+#endif
+    uint32_t preferred_subgroup_size() const override final { return 16; }
+    bool bgra_format_not_supported_for_image1d_buffer() const override final {
         return true;
     }
 
-    const image_format_set& get_disabled_image_formats() const override final {
-        static image_format_set disabled_formats(
-            {{CL_RGB, CL_UNORM_SHORT_565}});
-        return disabled_formats;
+    image_format_set disabled_image_formats() const override final {
+        return image_format_set{{CL_RGB, CL_UNORM_SHORT_565}};
     }
 };
 
@@ -125,13 +125,13 @@ static bool isIntelDevice(const char* name, const uint32_t vendorID) {
     return vendorID == IntelVendorID || strncmp(name, "Intel", 5) == 0;
 }
 
-struct cvk_device_properties_amd : public cvk_device_properties {
+struct cvk_device_properties_amd : public cvk_device_properties_virtual {
     std::string vendor() const override final {
         return "Advanced Micro Devices, Inc. [AMD/ATI]";
     }
-    cl_uint get_max_first_cmd_batch_size() const override final { return 10; }
-    cl_uint get_max_cmd_group_size() const override final { return 1; }
-    const std::set<std::string> get_native_builtins() const override final {
+    uint32_t max_first_cmd_batch_size() const override final { return 10; }
+    uint32_t max_cmd_group_size() const override final { return 1; }
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "ceil",           "copysign",    "exp2",      "fdim",
             "floor",          "fmax",        "fmin",      "frexp",
@@ -146,9 +146,11 @@ struct cvk_device_properties_amd : public cvk_device_properties {
             "trunc",
         });
     }
-    std::string get_compile_options() const override final {
+#if COMPILER_AVAILABLE
+    std::string clspv_options() const override final {
         return "-hack-convert-to-float";
     }
+#endif
 };
 
 static bool isAMDDevice(const char* name, const uint32_t vendorID) {
@@ -157,9 +159,9 @@ static bool isAMDDevice(const char* name, const uint32_t vendorID) {
 }
 
 struct cvk_device_properties_samsung_xclipse_920
-    : public cvk_device_properties {
+    : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Samsung"; }
-    const std::set<std::string> get_native_builtins() const override final {
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "ceil",      "floor",       "fma",           "fmax",
             "fmin",      "half_exp2",   "half_log2",     "half_rsqrt",
@@ -171,9 +173,10 @@ struct cvk_device_properties_samsung_xclipse_920
     }
 };
 
-struct cvk_device_properties_swiftshader : public cvk_device_properties {
+struct cvk_device_properties_swiftshader
+    : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Google, Inc."; }
-    const std::set<std::string> get_native_builtins() const override final {
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "asin",          "asinpi",     "atan",
             "atanpi",        "ceil",       "copysign",
@@ -200,9 +203,9 @@ static bool isSwiftShaderDevice(const char* name, const uint32_t vendorID,
            strncmp(name, "SwiftShader Device", 18) == 0;
 }
 
-struct cvk_device_properties_llvmpipe : public cvk_device_properties {
+struct cvk_device_properties_llvmpipe : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Mesa"; }
-    const std::set<std::string> get_native_builtins() const override final {
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "ceil",     "copysign",    "fabs",           "fdim",
             "floor",    "fmax",        "fmin",           "isequal",
@@ -215,18 +218,20 @@ struct cvk_device_properties_llvmpipe : public cvk_device_properties {
             "half_sin", "half_sqrt",   "half_tan",
         });
     }
-    std::string get_compile_options() const override final {
+#if COMPILER_AVAILABLE
+    std::string clspv_options() const override final {
         return "-hack-convert-to-float";
     }
+#endif
 };
 
 static bool isllvmpipeDevice(const uint32_t vendorID) {
     return vendorID == 0x10005;
 }
 
-struct cvk_device_properties_nvidia : public cvk_device_properties {
+struct cvk_device_properties_nvidia : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "NVIDIA Corporation"; }
-    const std::set<std::string> get_native_builtins() const override final {
+    std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "acos",        "acosh",    "acospi",      "asin",
             "asinh",       "asinpi",   "atan",        "atan2",
@@ -250,7 +255,8 @@ static bool isNVIDIADevice(const uint32_t vendorID) {
 
 #define RETURN(x, ...)                                                         \
     cvk_info_fn(#x);                                                           \
-    return std::make_unique<x>(__VA_ARGS__);
+    return std::make_unique<cvk_device_properties>(                            \
+        std::make_unique<x>(__VA_ARGS__));
 
 std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
     const char* name, const uint32_t vendorID, const uint32_t deviceID,
@@ -304,5 +310,5 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
                  name, vendorID, deviceID);
     }
 
-    RETURN(cvk_device_properties);
+    RETURN(cvk_device_properties_virtual);
 }
