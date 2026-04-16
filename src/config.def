@@ -80,6 +80,8 @@ PROPERTY(bool, keep_memory_allocations_mapped, false)
 OPTION(std::set<std::string>, device_extensions, std::set<std::string>())
 OPTION(std::set<std::string>, device_extensions_masked, std::set<std::string>())
 
+OPTION(bool, fill_image_on_device, false)
+
 //
 // Logging
 //
