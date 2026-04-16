@@ -82,7 +82,7 @@ void parse_string_set(void* value_ptr, const char* txt) {
         val = X;                                                               \
         return true;                                                           \
     }
-bool channel_order_from_string(std::string s, cl_channel_order& val) {
+bool channel_order_from_string(std::string& s, cl_channel_order& val) {
     CASE(CL_R)
     CASE(CL_A)
     CASE(CL_DEPTH)
@@ -104,7 +104,7 @@ bool channel_order_from_string(std::string s, cl_channel_order& val) {
     CASE(CL_sRGBx)
     return false;
 }
-bool channel_type_from_string(std::string s, cl_channel_type& val) {
+bool channel_type_from_string(std::string& s, cl_channel_type& val) {
     CASE(CL_SNORM_INT8)
     CASE(CL_SNORM_INT16)
     CASE(CL_UNORM_INT8)
