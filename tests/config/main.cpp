@@ -22,7 +22,7 @@
 TEST(ConfigTest, FileFromEnvVar) {
     clGetPlatformIDs(1, nullptr, nullptr);
     EXPECT_EQ(clvk_get_config()->cache_dir.value, "testing");
-    EXPECT_EQ(clvk_get_config()->compiler_temp_dir.value, "not/overwritten/");
+    EXPECT_EQ(clvk_get_config()->spirv_arch.value, "not_overwritten");
     EXPECT_EQ(clvk_get_config()->log_colour.value, true);
     EXPECT_EQ(clvk_get_config()->percentage_of_available_memory_reported.value,
               100);

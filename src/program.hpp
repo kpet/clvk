@@ -886,7 +886,8 @@ private:
                            std::string& build_options, std::string& tmp_folder);
 #else
     CHECK_RETURN cl_build_status do_build_inner_online(
-        bool build_to_ir, bool build_from_il, std::string& build_options);
+        bool build_to_ir, bool build_from_il, std::string& build_options,
+        const std::vector<std::pair<std::string, std::string>>& headers);
 #endif
 #endif
 
