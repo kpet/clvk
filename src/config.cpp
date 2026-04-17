@@ -194,6 +194,9 @@ char* print_string_set(void* value_ptr) {
     auto cfgval = static_cast<config_value<std::set<std::string>>*>(value_ptr);
     size_t pos = 1;
     gTxt[0] = '\'';
+    if (cfgval->value.empty()) {
+        pos = 3;
+    }
     for (auto& s : cfgval->value) {
         pos += snprintf(&gTxt[pos], txt_size - pos, "%s, ", s.c_str());
     }
@@ -206,6 +209,9 @@ char* print_image_format_set(void* value_ptr) {
     auto cfgval = static_cast<config_value<image_format_set>*>(value_ptr);
     size_t pos = 1;
     gTxt[0] = '\'';
+    if (cfgval->value.empty()) {
+        pos = 3;
+    }
     for (auto& format : cfgval->value) {
         pos += snprintf(
             &gTxt[pos], txt_size - pos, "{%s, %s}, ",
