@@ -253,6 +253,7 @@ bool cvk_device::init_extensions() {
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
+        VK_KHR_SHADER_FMA_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -316,6 +317,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES;
     m_features_queue_global_priority.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
+    m_features_shader_fma.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -352,6 +355,9 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_shader_integer_dot_product),
             VER_EXT_FEAT(0, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
                          m_features_queue_global_priority),
+            VER_EXT_FEAT(VK_MAKE_VERSION(1, 1, 0),
+                         VK_KHR_SHADER_FMA_EXTENSION_NAME,
+                         m_features_shader_fma),
 
 #undef VER_EXT_FEAT
         };
@@ -483,6 +489,27 @@ void cvk_device::init_compiler_options() {
                 m_device_compiler_options += ",";
             }
             m_device_compiler_options += roundingModeRTE[i];
+        }
+        m_device_compiler_options += " ";
+    }
+
+    std::vector<std::string> spvKhrFMA;
+    if (m_features_shader_fma.shaderFmaFloat16 && supports_fp16()) {
+        spvKhrFMA.push_back("16");
+    }
+    if (m_features_shader_fma.shaderFmaFloat32) {
+        spvKhrFMA.push_back("32");
+    }
+    if (m_features_shader_fma.shaderFmaFloat64 && supports_fp64()) {
+        spvKhrFMA.push_back("64");
+    }
+    if (spvKhrFMA.size() > 0) {
+        m_device_compiler_options += " -spv-khr-fma=";
+        for (unsigned i = 0; i < spvKhrFMA.size(); i++) {
+            if (i != 0) {
+                m_device_compiler_options += ",";
+            }
+            m_device_compiler_options += spvKhrFMA[i];
         }
         m_device_compiler_options += " ";
     }
