@@ -280,6 +280,8 @@ struct cvk_kernel_argument_values {
                 auto mem_downcast = icd_downcast(mem);
                 if (!mem_downcast->is_valid()) {
                     return CL_INVALID_MEM_OBJECT;
+                } else if (size != sizeof(cl_mem)) {
+                    return CL_INVALID_ARG_SIZE;
                 }
                 auto buff = reinterpret_cast<const cvk_buffer*>(mem_downcast);
                 auto dev_addr = buff->device_address();
