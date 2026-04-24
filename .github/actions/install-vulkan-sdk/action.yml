@@ -17,27 +17,6 @@ runs:
         vulkan_version: ${{ inputs.version }}
         # Note: caching is enabled by default in jakoch/install-vulkan-sdk-action
 
-    - name: Install Vulkan RT
-      shell: bash
-      run: |
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-${{ inputs.version }}-Components.zip
-          mkdir vulkanrt-temp
-          7z x vulkanrt.zip -ovulkanrt-temp
-          ls -lR vulkanrt-temp
-          mkdir -p '${{ inputs.rt-dir }}'
-          cp -v vulkanrt-temp/VulkanRT-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
-          rm -rf vulkanrt-temp
-        fi
-    # TODO remove the below once the SPIRV-LLVM-Translator can be configured to not use SPIRV-Tools (or at least successfully builds when it does)
-    - name: Remove SPIR-V Tools CMake modules on macOS
-      shell: bash
-      run: |
-        find $VULKAN_SDK
-        echo "RUNNER_OS: $RUNNER_OS"
-        if [ "$RUNNER_OS" == "macOS" ]; then
-          sudo rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
-        fi
     - name: Setup environment variables
       shell: bash
       run: |
