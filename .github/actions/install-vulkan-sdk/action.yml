@@ -36,7 +36,7 @@ runs:
         find $VULKAN_SDK
         echo "RUNNER_OS: $RUNNER_OS"
         if [ "$RUNNER_OS" == "macOS" ]; then
-          rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
+          sudo rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
         fi
     - name: Setup environment variables
       shell: bash
