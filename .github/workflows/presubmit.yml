@@ -123,7 +123,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_ENABLE_ZLIB=OFF \
             -DLLVM_ENABLE_PROJECTS=clang \
-            -DLLVM_ENABLE_RUNTIMES=libclc \
+            -DRUNTIMES_clspv--_LLVM_ENABLE_RUNTIMES=libclc \
+            -DRUNTIMES_clspv64--_LLVM_ENABLE_RUNTIMES=libclc \
             -DLLVM_TARGETS_TO_BUILD=Native \
             -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
           cmake --build ${BUILD_LIBCLC_DIR} --target libclc
