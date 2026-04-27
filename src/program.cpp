@@ -1489,19 +1489,54 @@ void cvk_program::prepare_push_constant_range() {
     auto& pcs = m_binary.push_constants();
 
     uint32_t min_offset = UINT32_MAX;
-    uint32_t max_offset = 0, max_offset_size = 0;
+    uint32_t max_end = 0;
+
+    auto add_pc_range = [&](uint32_t offset, uint32_t size) {
+        min_offset = std::min(min_offset, offset);
+        max_end = std::max(max_end, offset + size);
+    };
 
     for (auto& pc_pcd : pcs) {
-        auto pcd = pc_pcd.second;
-        min_offset = std::min(min_offset, pcd.offset);
-        if (pcd.offset >= max_offset) {
-            max_offset = pcd.offset;
-            max_offset_size = pcd.size;
+        add_pc_range(pc_pcd.second.offset, pc_pcd.second.size);
+    }
+
+    for (const auto& kname_args : m_binary.kernels_arguments()) {
+        for (const auto& arg : kname_args.second) {
+            if (arg.is_pushconstant()) {
+                add_pc_range(arg.offset, arg.size);
+            }
         }
     }
 
+    for (const auto& kname_mds : m_binary.image_metadata()) {
+        for (const auto& md : kname_mds.second) {
+            if (md.second.has_valid_order()) {
+                add_pc_range(md.second.order_offset, sizeof(uint32_t));
+            }
+            if (md.second.has_valid_data_type()) {
+                add_pc_range(md.second.data_type_offset, sizeof(uint32_t));
+            }
+        }
+    }
+
+    for (const auto& kname_mds : m_binary.sampler_metadata()) {
+        for (const auto& md : kname_mds.second) {
+            add_pc_range(md.second, sizeof(uint32_t));
+        }
+    }
+    if (min_offset == UINT32_MAX) {
+        m_push_constant_range = {VK_SHADER_STAGE_COMPUTE_BIT, min_offset, 0};
+        return;
+    }
+
+    // The size of the range must be a multiple of 4, round up to guarantee this
+    max_end = round_up(max_end, 4);
+
+    // offset must be a multiple of 4, round down to guarantee this
+    min_offset &= ~0x3U;
+
     m_push_constant_range = {VK_SHADER_STAGE_COMPUTE_BIT, min_offset,
-                             max_offset + max_offset_size};
+                             max_end - min_offset};
 }
 
 bool cvk_program::check_capabilities(const cvk_device* device) {
@@ -2009,112 +2044,25 @@ cl_int cvk_entry_point::init() {
     for (auto& arg : m_args) {
         if (arg.is_pod()) {
             m_has_pod_arguments = true;
+            m_pod_buffer_size =
+                std::max(m_pod_buffer_size, arg.offset + arg.size);
             if (arg.is_pod_buffer()) {
                 m_has_pod_buffer_arguments = true;
             }
         }
     }
 
-    // Calculate POD buffer size and update the push constant range.
-    VkPushConstantRange push_constant_range = m_program->push_constant_range();
-    if (m_has_pod_arguments) {
-        // Check we know the POD buffer's descriptor type
-        if (m_has_pod_buffer_arguments &&
-            m_pod_descriptor_type == VK_DESCRIPTOR_TYPE_MAX_ENUM) {
-            return CL_INVALID_PROGRAM;
-        }
-
-        // Find how big the POD buffer should be
-        uint32_t max_offset = 0;
-        uint32_t max_offset_arg_size = 0;
-
-        for (auto& arg : m_args) {
-            if (arg.is_pod()) {
-                if (arg.offset >= max_offset) {
-                    max_offset = arg.offset;
-                    max_offset_arg_size = arg.size;
-                }
-                if (!arg.is_pod_buffer()) {
-                    if (arg.offset < push_constant_range.offset) {
-                        push_constant_range.offset = arg.offset;
-                    }
-
-                    if (arg.offset + arg.size >
-                        push_constant_range.offset + push_constant_range.size) {
-                        push_constant_range.size =
-                            arg.offset + arg.size - push_constant_range.offset;
-                    }
-                }
-            }
-        }
-
-        m_pod_buffer_size = max_offset + max_offset_arg_size;
-        m_pod_buffer_size = round_up(m_pod_buffer_size, 4);
-    }
-
-    // Take the size of image & sampler metadata into account for the pod buffer
-    // size
-    {
-        uint32_t max_offset = 0;
-        if (m_image_metadata) {
-            // Find how big the POD buffer should be
-            for (const auto& md : *m_image_metadata) {
-                auto order_offset = md.second.order_offset;
-                auto data_type_offset = md.second.data_type_offset;
-                if (md.second.has_valid_order()) {
-                    max_offset = std::max(order_offset, max_offset);
-                    push_constant_range.offset =
-                        std::min(order_offset, push_constant_range.offset);
-                    if (order_offset + sizeof(uint32_t) >
-                        push_constant_range.offset + push_constant_range.size) {
-                        push_constant_range.size = order_offset +
-                                                   sizeof(uint32_t) -
-                                                   push_constant_range.offset;
-                    }
-                }
-                if (md.second.has_valid_data_type()) {
-                    max_offset = std::max(data_type_offset, max_offset);
-                    push_constant_range.offset =
-                        std::min(data_type_offset, push_constant_range.offset);
-                    if (data_type_offset + sizeof(uint32_t) >
-                        push_constant_range.offset + push_constant_range.size) {
-                        push_constant_range.size = data_type_offset +
-                                                   sizeof(uint32_t) -
-                                                   push_constant_range.offset;
-                    }
-                }
-            }
-        }
-        if (m_sampler_metadata) {
-            for (const auto& md : *m_sampler_metadata) {
-                auto offset = md.second;
-                max_offset = std::max(offset, max_offset);
-                push_constant_range.offset =
-                    std::min(offset, push_constant_range.offset);
-                if (offset + sizeof(uint32_t) >
-                    push_constant_range.offset + push_constant_range.size) {
-                    push_constant_range.size =
-                        offset + sizeof(uint32_t) - push_constant_range.offset;
-                }
-            }
-        }
-        if (max_offset + sizeof(uint32_t) > m_pod_buffer_size) {
-            m_pod_buffer_size = round_up(max_offset + sizeof(uint32_t), 4);
-        }
-    }
-
     // Don't pass the range at pipeline layout creation time if no push
     // constants are used
+    VkPushConstantRange push_constant_range = m_program->push_constant_range();
     uint32_t num_push_constant_ranges = 1;
     if (push_constant_range.offset == UINT32_MAX) {
         num_push_constant_ranges = 0;
+    } else {
+        m_pod_buffer_size =
+            std::max(m_pod_buffer_size,
+                     push_constant_range.offset + push_constant_range.size);
     }
-
-    // The size of the range must be a multiple of 4, round up to guarantee this
-    push_constant_range.size = round_up(push_constant_range.size, 4);
-
-    // Its offset must be a multiple of 4, round down to guarantee this
-    push_constant_range.offset &= ~0x3U;
 
     if (push_constant_range.size >
         m_context->device()->vulkan_max_push_constants_size()) {
