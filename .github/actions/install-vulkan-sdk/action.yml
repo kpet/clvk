@@ -12,11 +12,10 @@ runs:
   using: "composite"
   steps:
     - name: Install Vulkan SDK
-      uses: jakoch/install-vulkan-sdk-action@v1
+      uses: humbletim/install-vulkan-sdk@main
       with:
-        vulkan_version: ${{ inputs.version }}
-        # Note: caching is enabled by default in jakoch/install-vulkan-sdk-action
-
+        version: ${{ inputs.version }}
+        cache: true
     - name: Install Vulkan RT
       shell: bash
       run: |
