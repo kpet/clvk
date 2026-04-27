@@ -416,7 +416,7 @@ struct cvk_kernel_argument_values {
 
 private:
     bool create_pod_buffer() {
-        CVK_ASSERT(m_pod_data->size() >= m_entry_point->pod_buffer_size());
+        CVK_ASSERT(m_pod_data->size() == m_entry_point->pod_buffer_size());
 
         // Create POD buffer and copy data to it
         m_pod_buffer = m_entry_point->allocate_pod_buffer();
