@@ -20,7 +20,7 @@ runs:
       shell: bash
       run: |
         if [ "$RUNNER_OS" == "Windows" ]; then
-          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-${{ inputs.version }}-Components.zip
+          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-X64-${{ inputs.version }}-Components.zip
           mkdir vulkanrt-temp
           7z x vulkanrt.zip -ovulkanrt-temp
           ls -lR vulkanrt-temp
