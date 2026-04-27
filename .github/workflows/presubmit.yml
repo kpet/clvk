@@ -120,12 +120,11 @@ jobs:
           cmake -S '${{ github.workspace }}/external/clspv/third_party/llvm/llvm' -B ${BUILD_LIBCLC_DIR} -G Ninja \
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_ENABLE_ZLIB=OFF \
             -DLLVM_ENABLE_PROJECTS=clang \
             -DRUNTIMES_clspv--_LLVM_ENABLE_RUNTIMES=libclc \
             -DRUNTIMES_clspv64--_LLVM_ENABLE_RUNTIMES=libclc \
             -DLLVM_TARGETS_TO_BUILD=Native \
-            -DLIBCLC_TARGETS_TO_BUILD="clspv--;clspv64--"
+            -DLLVM_RUNTIME_TARGETS="clspv--;clspv64--"
           cmake --build ${BUILD_LIBCLC_DIR} --target libclc
           mkdir -p ${LIBCLC_DIR}/spir--
           mkdir -p ${LIBCLC_DIR}/spir64--
