@@ -108,7 +108,7 @@ jobs:
         if: ${{ matrix.android-abi == '' }}
         uses: ./.github/actions/install-vulkan-sdk
         with:
-          version: 1.4.341.1
+          version: 1.4.341.0
           rt-dir: ${{ github.workspace }}/vulkanrt
       - name: Build libclc
         if: ${{ matrix.android-abi != '' }}
