@@ -212,6 +212,10 @@ OPTION(uint32_t, perfetto_trace_max_size, 1024u)
 OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 #endif // CLVK_PERFETTO_BACKEND_INPROCESS
 
+// Use a kernel to implement clEnqueueFillImage, so that the operation is
+// performed on device (Not through a host-to-device transfer).
+OPTION(bool, fill_image_on_device, false)
+
 
 ////////////////////////////////////////////////////////////
 // LOGGING & VALIDATION ////////////////////////////////////
