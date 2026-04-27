@@ -25,7 +25,7 @@ runs:
           7z x vulkanrt.zip -ovulkanrt-temp
           ls -lR vulkanrt-temp
           mkdir -p '${{ inputs.rt-dir }}'
-          cp -v vulkanrt-temp/VulkanRT-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
+          cp -v vulkanrt-temp/VulkanRT-X64-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
           rm -rf vulkanrt-temp
         fi
     # TODO remove the below once the SPIRV-LLVM-Translator can be configured to not use SPIRV-Tools (or at least successfully builds when it does)
