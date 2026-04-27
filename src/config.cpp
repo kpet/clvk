@@ -104,7 +104,7 @@ bool channel_order_from_string(std::string& s, cl_channel_order& val) {
     CASE(CL_sRGBx)
     return false;
 }
-bool channel_type_from_string(std::string& s, cl_channel_type& val) {
+bool channel_type_from_string(const std::string& s, cl_channel_type& val) {
     CASE(CL_SNORM_INT8)
     CASE(CL_SNORM_INT16)
     CASE(CL_UNORM_INT8)
