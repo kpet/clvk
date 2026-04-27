@@ -109,7 +109,6 @@ jobs:
         uses: ./.github/actions/install-vulkan-sdk
         with:
           version: 1.4.341.1
-          rt-dir: ${{ github.workspace }}/vulkanrt
       - name: Build libclc
         if: ${{ matrix.android-abi != '' }}
         env:
@@ -241,7 +240,6 @@ jobs:
             find '${{ env.builddir }}' -name clang.exe
             find '${{ env.builddir }}' -name OpenCL.dll
             cat '${{ github.workspace }}'/mesa/lvp_icd.json
-            cp '${{ github.workspace }}'/vulkanrt/vulkan-1.dll '${{ env.builddir }}'
             cp '${{ github.workspace }}'/mesa/vulkan_lvp.dll '${{ github.workspace }}'/..
             cp '${{ env.builddir }}'/src/OpenCL.dll '${{ env.builddir }}'
           fi
