@@ -99,6 +99,11 @@ struct kernel_argument {
                (kind == kernel_argument_kind::pointer_ubo);
     }
 
+    bool is_pushconstant() const {
+        return kind == kernel_argument_kind::pod_pushconstant ||
+               kind == kernel_argument_kind::pointer_pushconstant;
+    }
+
     bool is_vec3() const { return info.is_vec3(); }
 
     bool is_mem_object_backed() const {
