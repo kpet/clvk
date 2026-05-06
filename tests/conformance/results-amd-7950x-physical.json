@@ -5,9 +5,9 @@
     "deviceName": "AMD Ryzen 9 7950X 16-Core Processor (RADV RAPHAEL_MENDOCINO)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU",
     "driverID": "VK_DRIVER_ID_MESA_RADV",
-    "driverInfo": "Mesa 26.0.3",
+    "driverInfo": "Mesa 26.0.5",
     "driverName": "radv",
-    "driverVersion": 109051907
+    "driverVersion": 109051909
   },
   "test-results": {
     "API": {
@@ -122,7 +122,8 @@
         "negative_get_platform_ids": "pass",
         "negative_get_platform_info": "pass",
         "negative_invalid_arg_index": "pass",
-        "negative_invalid_arg_mem_obj": "fail",
+        "negative_invalid_arg_mem_obj": "pass",
+        "negative_invalid_arg_queue": "skip",
         "negative_invalid_arg_sampler": "pass",
         "negative_invalid_arg_sampler_size": "pass",
         "negative_invalid_arg_size": "pass",
@@ -520,7 +521,7 @@
         "options_build_optimizations": "pass",
         "options_denorm_cache": "pass",
         "options_include_directory": "pass",
-        "options_uniform_work_group_size": "fail",
+        "options_uniform_work_group_size": "pass",
         "pragma_unroll": "pass",
         "preprocessor_define_udef": "pass",
         "preprocessor_include": "pass",
@@ -1086,6 +1087,7 @@
         "tan": "pass",
         "tanh": "pass",
         "tanpi": "pass",
+        "tgamma": "fail",
         "trunc": "pass"
       },
       "retcode": 0
@@ -1128,16 +1130,16 @@
         "non_uniform_1d_barriers": "pass",
         "non_uniform_1d_basic": "pass",
         "non_uniform_2d_atomics": "pass",
-        "non_uniform_2d_barriers": "fail",
+        "non_uniform_2d_barriers": "pass",
         "non_uniform_2d_basic": "pass",
         "non_uniform_3d_atomics": "pass",
-        "non_uniform_3d_barriers": "fail",
+        "non_uniform_3d_barriers": "pass",
         "non_uniform_3d_basic": "pass",
         "non_uniform_other_atomics": "pass",
         "non_uniform_other_barriers": "pass",
         "non_uniform_other_basic": "pass"
       },
-      "retcode": 1
+      "retcode": 0
     },
     "Pipes": {
       "duration": "00:00:00.029505",
@@ -1605,7 +1607,7 @@
         "subgroup_functions_ext": "skip",
         "subgroup_functions_extended_types": "skip",
         "subgroup_functions_non_uniform_arithmetic": "skip",
-        "subgroup_functions_non_uniform_vote": "skip",
+        "subgroup_functions_non_uniform_vote": "pass",
         "subgroup_functions_rotate": "skip",
         "subgroup_functions_shuffle": "pass",
         "subgroup_functions_shuffle_relative": "skip",

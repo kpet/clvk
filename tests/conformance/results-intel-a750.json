@@ -5,9 +5,9 @@
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 26.0.3",
+    "driverInfo": "Mesa 26.0.5",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 109051907
+    "driverVersion": 109051909
   },
   "test-results": {
     "API": {
@@ -123,6 +123,7 @@
         "negative_get_platform_info": "pass",
         "negative_invalid_arg_index": "pass",
         "negative_invalid_arg_mem_obj": "pass",
+        "negative_invalid_arg_queue": "skip",
         "negative_invalid_arg_sampler": "pass",
         "negative_invalid_arg_sampler_size": "pass",
         "negative_invalid_arg_size": "pass",
@@ -530,7 +531,7 @@
         "options_build_optimizations": "pass",
         "options_denorm_cache": "pass",
         "options_include_directory": "pass",
-        "options_uniform_work_group_size": "fail",
+        "options_uniform_work_group_size": "pass",
         "pragma_unroll": "pass",
         "preprocessor_define_udef": "pass",
         "preprocessor_include": "pass",
@@ -1614,7 +1615,7 @@
         "subgroup_functions_ext": "skip",
         "subgroup_functions_extended_types": "skip",
         "subgroup_functions_non_uniform_arithmetic": "skip",
-        "subgroup_functions_non_uniform_vote": "skip",
+        "subgroup_functions_non_uniform_vote": "pass",
         "subgroup_functions_rotate": "skip",
         "subgroup_functions_shuffle": "pass",
         "subgroup_functions_shuffle_relative": "skip",
