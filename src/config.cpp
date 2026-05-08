@@ -377,7 +377,8 @@ void print_config() {
                            });
     for (const auto& opt : options) {
         void* optval = const_cast<void*>(opt.value);
-        char* txt = print_option(opt.type, optval);
+        std::string print = print_option(opt.type, optval);
+        const char* txt = print.c_str();
         if (opt.set) {
             cvk_info_group(loggroup::cfg, "  *%s: %s", opt.name.c_str(), txt);
         } else {
@@ -402,7 +403,7 @@ bool operator==(const image_format_set& a, const image_format_set& b) {
     return true;
 }
 
-char* print_option(config_option_type type, void* val) {
+std::string print_option(config_option_type type, void* val) {
     switch (type) {
     case config_option_type::string:
         return print_string(val);

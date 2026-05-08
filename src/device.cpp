@@ -506,12 +506,9 @@ void cvk_device::init_compiler_options() {
         m_device_compiler_options += " -decorate-nonuniform ";
     }
 
-#if COMPILER_AVAILABLE
     // Device specific options
-    m_device_compiler_options += " " + m_clvk_properties->clspv_options() + " ";
-#endif
-
-    m_device_compiler_options += " -arch=" + config.spirv_arch() + " ";
+    m_device_compiler_options += " " + m_clvk_properties->clspv_options() +
+                                 " -arch=" + config.spirv_arch() + " ";
 
     if (config.physical_addressing()) {
         m_device_compiler_options += " -physical-storage-buffers ";

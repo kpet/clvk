@@ -869,9 +869,7 @@ public:
 
     bool can_split_region() {
         int status = options_allow_split_region(m_build_options);
-#if COMPILER_AVAILABLE
         status &= options_allow_split_region(config.clspv_options);
-#endif
         return status;
     }
 

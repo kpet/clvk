@@ -112,12 +112,10 @@ struct cvk_device_properties_intel : public cvk_device_properties_virtual {
             "rsqrt",       "signbit",   "sqrt",        "trunc",
         });
     }
-#if COMPILER_AVAILABLE
     std::string clspv_options() const override final {
         return "-hack-mul-extended -hack-convert-to-float "
                "-hack-image1d-buffer-bgra";
     }
-#endif
     uint32_t preferred_subgroup_size() const override final { return 16; }
     bool bgra_format_not_supported_for_image1d_buffer() const override final {
         return true;
@@ -154,11 +152,9 @@ struct cvk_device_properties_amd : public cvk_device_properties_virtual {
             "trunc",
         });
     }
-#if COMPILER_AVAILABLE
     std::string clspv_options() const override final {
         return "-hack-convert-to-float";
     }
-#endif
 };
 
 static bool isAMDDevice(const char* name, const uint32_t vendorID) {
@@ -226,11 +222,9 @@ struct cvk_device_properties_llvmpipe : public cvk_device_properties_virtual {
             "half_sin", "half_sqrt",   "half_tan",
         });
     }
-#if COMPILER_AVAILABLE
     std::string clspv_options() const override final {
         return "-hack-convert-to-float";
     }
-#endif
 };
 
 static bool isllvmpipeDevice(const uint32_t vendorID) {
