@@ -314,18 +314,16 @@ cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
 cvk_image* cvk_image::create(cvk_context* ctx, cl_mem_flags flags,
                              const cl_image_desc* desc,
                              const cl_image_format* format, void* host_ptr,
-                             std::vector<cl_mem_properties>&& properties) {
+                             std::vector<cl_mem_properties>&& properties,
+                             cl_int* errcode_ret) {
     auto image = std::make_unique<cvk_image>(ctx, flags, desc, format, host_ptr,
                                              std::move(properties));
 
-    if (!image->init()) {
-        return nullptr;
-    }
-
-    return image.release();
+    *errcode_ret = image->init();
+    return *errcode_ret == CL_SUCCESS ? image.release() : nullptr;
 }
 
-bool cvk_image::init_vulkan_image() {
+cl_int cvk_image::init_vulkan_image() {
     // Translate image type and size
     VkImageType image_type;
     VkImageViewType view_type;
@@ -401,10 +399,12 @@ bool cvk_image::init_vulkan_image() {
         m_format, m_desc.image_type, device, &fmt, &components_sampled,
         &components_storage);
     if (!success) {
-        return false; // TODO error code
+        return CL_IMAGE_FORMAT_NOT_SUPPORTED;
     }
 
     // Create Image
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
+    VkImageUsageFlags usage = prepare_usage_flags();
     VkImageCreateInfo imageCreateInfo = {
         VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         nullptr,                   // pNext
@@ -415,8 +415,8 @@ bool cvk_image::init_vulkan_image() {
         1,                         // mipLevels
         array_layers,              // arrayLayers
         VK_SAMPLE_COUNT_1_BIT,     // samples
-        VK_IMAGE_TILING_OPTIMAL,   // tiling
-        prepare_usage_flags(),     // usage
+        tiling,                    // tiling
+        usage,                     // usage
         VK_SHARING_MODE_EXCLUSIVE, // sharingMode
         0,                         // queueFamilyIndexCount
         nullptr,                   // pQueueFamilyIndices
@@ -424,11 +424,34 @@ bool cvk_image::init_vulkan_image() {
     };
 
     auto vkdev = device->vulkan_device();
+    auto vkphdev = device->vulkan_physical_device();
 
-    auto res = vkCreateImage(vkdev, &imageCreateInfo, nullptr, &m_image);
+    VkImageFormatProperties imageProperties;
+    auto res = vkGetPhysicalDeviceImageFormatProperties(
+        vkphdev, fmt.vkfmt, image_type, tiling, usage, 0, &imageProperties);
+    if (res == VK_ERROR_FORMAT_NOT_SUPPORTED) {
+        cvk_error_fn("Image format not supported");
+        return CL_IMAGE_FORMAT_NOT_SUPPORTED;
+    } else if (res == VK_SUCCESS) {
+        if ((extent.width > imageProperties.maxExtent.width) ||
+            (extent.height > imageProperties.maxExtent.height) ||
+            (extent.depth > imageProperties.maxExtent.depth)) {
+            cvk_error_fn("At least one image dimension is bigger than its "
+                         "limit: x(%u > %u) || y(%u > %u) || z(%u > %u)",
+                         extent.width, imageProperties.maxExtent.width,
+                         extent.height, imageProperties.maxExtent.height,
+                         extent.depth, imageProperties.maxExtent.depth);
+            return CL_INVALID_IMAGE_SIZE;
+        }
+    } else {
+        cvk_warn_fn(
+            "Could not get vulkan image properties before creating image");
+    }
+
+    res = vkCreateImage(vkdev, &imageCreateInfo, nullptr, &m_image);
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create image!");
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     CVK_ASSERT(m_desc.image_type != CL_MEM_OBJECT_IMAGE1D_BUFFER);
@@ -437,7 +460,7 @@ bool cvk_image::init_vulkan_image() {
         device->select_memory_for(m_image);
     if (params.memory_type_index == VK_MAX_MEMORY_TYPES) {
         cvk_error_fn("Could not get memory type!");
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     // Allocate memory
@@ -449,14 +472,14 @@ bool cvk_image::init_vulkan_image() {
 
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not allocate memory!");
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     // Bind the image to memory
     res = vkBindImageMemory(vkdev, m_image, m_memory->vulkan_memory(), 0);
 
     if (res != VK_SUCCESS) {
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     // Create image view
@@ -483,7 +506,7 @@ bool cvk_image::init_vulkan_image() {
                             &m_sampled_view);
 
     if (res != VK_SUCCESS) {
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     imageViewCreateInfo.components = components_storage;
@@ -492,7 +515,7 @@ bool cvk_image::init_vulkan_image() {
                             &m_storage_view);
 
     if (res != VK_SUCCESS) {
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     if (has_any_flag(CL_MEM_COPY_HOST_PTR | CL_MEM_USE_HOST_PTR)) {
@@ -502,40 +525,40 @@ bool cvk_image::init_vulkan_image() {
                                          host_ptr_size, nullptr, &ret);
         if (ret != CL_SUCCESS) {
             cvk_error("Could not create staging buffer for image host_ptr");
-            return false;
+            return CL_MEM_OBJECT_ALLOCATION_FAILURE;
         }
 
         if (!m_init_data->copy_from(m_host_ptr, 0, host_ptr_size)) {
             cvk_error(
                 "Could not copy image host_ptr data to the staging buffer");
-            return false;
+            return CL_MEM_OBJECT_ALLOCATION_FAILURE;
         }
 
         if (config.init_image_at_creation()) {
             auto queue = m_context->get_or_create_image_init_command_queue();
             if (queue == nullptr) {
-                return false;
+                return CL_MEM_OBJECT_ALLOCATION_FAILURE;
             }
 
             auto initimage = new cvk_command_image_init(queue, this);
             ret = queue->enqueue_command_with_deps(initimage, 0, nullptr,
                                                    nullptr);
             if (ret != CL_SUCCESS) {
-                return false;
+                return CL_MEM_OBJECT_ALLOCATION_FAILURE;
             }
             ret = queue->finish();
             if (ret != CL_SUCCESS) {
-                return false;
+                return CL_MEM_OBJECT_ALLOCATION_FAILURE;
             }
             std::lock_guard<std::mutex> lock(m_init_tracker.mutex());
             m_init_tracker.set_state(cvk_mem_init_state::completed);
         }
     }
 
-    return true;
+    return CL_SUCCESS;
 }
 
-bool cvk_image::init_vulkan_texel_buffer() {
+cl_int cvk_image::init_vulkan_texel_buffer() {
     VkResult res;
 
     auto device = m_context->device();
@@ -548,7 +571,7 @@ bool cvk_image::init_vulkan_texel_buffer() {
         m_format, m_desc.image_type, device, &fmt, &components_sampled,
         &components_storage);
     if (!success) {
-        return false;
+        return CL_IMAGE_FORMAT_NOT_SUPPORTED;
     }
 
     CVK_ASSERT(buffer());
@@ -574,15 +597,15 @@ bool cvk_image::init_vulkan_texel_buffer() {
     res = vkCreateBufferView(vkdev, &createInfo, nullptr, &m_buffer_view);
     if (res != VK_SUCCESS) {
         cvk_error_fn("Could not create buffer view");
-        return false;
+        return CL_MEM_OBJECT_ALLOCATION_FAILURE;
     }
 
     buffer()->retain();
 
-    return true;
+    return CL_SUCCESS;
 }
 
-bool cvk_image::init() {
+cl_int cvk_image::init() {
     if (is_backed_by_buffer_view()) {
         return init_vulkan_texel_buffer();
     } else {
