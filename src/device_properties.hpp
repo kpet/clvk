@@ -67,19 +67,33 @@ struct cvk_device_properties {
         std::unique_ptr<cvk_device_properties_virtual> properties) {
         cvk_info_group_fn(loggroup::cfg, "");
 #define PROPERTY(type, name, valdef)                                           \
-    if (config.name.set) {                                                     \
-        m_##name = cvk_device_properties_virtual::init(config.name(),          \
-                                                       properties->name());    \
-    } else {                                                                   \
-        m_##name = properties->name();                                         \
-    };                                                                         \
     {                                                                          \
+        const config_value<type> prop(properties->name());                     \
+        const config_value<type>& cfg = config.name;                           \
+        const config_option_type ty = option_type<type>();                     \
+        bool prop_overwritten = false;                                         \
+        m_##name = prop.value;                                                 \
+        if (cfg.set) {                                                         \
+            bool type_overwrites = ty == config_option_type::string ||         \
+                                   ty == config_option_type::uint32 ||         \
+                                   ty == config_option_type::boolean;          \
+            prop_overwritten = cfg.value != prop.value && type_overwrites;     \
+            m_##name =                                                         \
+                cvk_device_properties_virtual::init(cfg.value, prop.value);    \
+        }                                                                      \
         config_value<type> val(m_##name);                                      \
-        char* txt = print_option(option_type<type>(), &val);                   \
-        if (m_##name != config.name()) {                                       \
-            cvk_info_group(loggroup::cfg, "  *" #name ": %s", txt);            \
+        std::string opt = print_option(ty, &val);                              \
+        if (val.value != cfg.value) {                                          \
+            cvk_info_group(loggroup::cfg, "  *" #name ": %s", opt.c_str());    \
+        } else if (prop_overwritten) {                                         \
+            std::string prop_str = print_option(ty, (void*)&prop);             \
+            cvk_warn_group(                                                    \
+                loggroup::cfg,                                                 \
+                "  " #name                                                     \
+                ": device property (%s) overwritten by config (%s)",           \
+                prop_str.c_str(), opt.c_str());                                \
         } else {                                                               \
-            cvk_debug_group(loggroup::cfg, "  " #name ": %s", txt);            \
+            cvk_debug_group(loggroup::cfg, "  " #name ": %s", opt.c_str());    \
         }                                                                      \
     }
 #include "config.def"

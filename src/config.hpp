@@ -91,4 +91,4 @@ DEFINE_OPTION_TYPE_GETTER(std::set<std::string>, config_option_type::string_set)
 DEFINE_OPTION_TYPE_GETTER(image_format_set,
                           config_option_type::image_format_set)
 
-char* print_option(config_option_type type, void* val);
+std::string print_option(config_option_type type, void* val);

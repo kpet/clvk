@@ -977,10 +977,6 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     options += " -enable-printf ";
     options += " -printf-buffer-size=" + std::to_string(buff_size) + " ";
 
-#if COMPILER_AVAILABLE
-    options += " " + config.clspv_options() + " ";
-#endif
-
     if (options_allow_split_region(options)) {
         options += "-cl-arm-non-uniform-work-group-size";
     }

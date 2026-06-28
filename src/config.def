@@ -47,11 +47,10 @@ OPTION(uint32_t, printf_buffer_size, 1024*1024u)
 // Indicate whether the non-uniform decoration is broken or unsupported.
 PROPERTY(bool, non_uniform_decoration_broken, false)
 
-#if COMPILER_AVAILABLE
-
 // Provide additional options to pass to clspv.
 PROPERTY(std::string, clspv_options, "")
 
+#if COMPILER_AVAILABLE
 #if !CLSPV_ONLINE_COMPILER
 
 // Provide a path to the clspv binary to use.
