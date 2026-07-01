@@ -47,6 +47,7 @@
 #include "log.hpp"
 #include "program.hpp"
 #include "tracing.hpp"
+#include "utils.hpp"
 
 struct membuf : public std::streambuf {
     membuf(const unsigned char* begin, const unsigned char* end) {
@@ -927,6 +928,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += " ";
         options += m_build_options;
     }
+    const bool denorms_are_zero =
+        options.find("-cl-denorms-are-zero") != std::string::npos ||
+        options.find("-cl-unsafe-math-optimizations") != std::string::npos ||
+        options.find("-cl-fast-relaxed-math") != std::string::npos;
     std::vector<std::pair<std::string, std::string>> option_substitutions = {
         // FIXME The 1.2 conformance tests shouldn't pass this option.
         //       It doesn't exist after OpenCL 1.0.
@@ -958,6 +963,41 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
 
     // The device sets up some compiler options based on its capabilities.
     options += " " + device->get_device_specific_compile_options() + " ";
+
+    // Denorm options
+    std::vector<std::string> denormPreserve;
+    std::vector<std::string> denormFlushToZero;
+    if (device->supports_fp16() && !denorms_are_zero &&
+        device->supports_denorm_preserve_16()) {
+        denormPreserve.push_back("16");
+    } else if (device->supports_fp16() && denorms_are_zero &&
+               device->supports_denorm_ftz_16()) {
+        denormFlushToZero.push_back("16");
+    }
+    if (!denorms_are_zero && device->supports_denorm_preserve_32()) {
+        denormPreserve.push_back("32");
+    } else if (denorms_are_zero && device->supports_denorm_ftz_32()) {
+        denormFlushToZero.push_back("32");
+    }
+    if (device->supports_fp64() && !denorms_are_zero &&
+        device->supports_denorm_preserve_64()) {
+        denormPreserve.push_back("64");
+    } else if (device->supports_fp64() && denorms_are_zero &&
+               device->supports_denorm_ftz_64()) {
+        denormFlushToZero.push_back("64");
+    }
+    // If those options are already specified, let the user choose its
+    // configuration
+    if ((options.find("-denorm-preserve=") == std::string::npos) &&
+        (options.find("-denorm-flush-to-zero=") == std::string::npos)) {
+        if (!denormPreserve.empty()) {
+            options += " -denorm-preserve=" + join(',', denormPreserve) + " ";
+        }
+        if (!denormFlushToZero.empty()) {
+            options +=
+                " -denorm-flush-to-zero=" + join(',', denormFlushToZero) + " ";
+        }
+    }
 
     // Features
     if (options.find("-cl-std=CL3.0") != std::string::npos) {

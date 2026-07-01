@@ -24,6 +24,7 @@
 #include "kernel.hpp"
 #include "log.hpp"
 #include "memory.hpp"
+#include "utils.hpp"
 
 constexpr VkMemoryPropertyFlags cvk_device::buffer_supported_memory_types[];
 constexpr VkMemoryPropertyFlags cvk_device::image_supported_memory_types[];
@@ -477,14 +478,8 @@ void cvk_device::init_compiler_options() {
         roundingModeRTE.push_back("64");
     }
     if (roundingModeRTE.size() > 0) {
-        m_device_compiler_options += " -rounding-mode-rte=";
-        for (unsigned i = 0; i < roundingModeRTE.size(); i++) {
-            if (i != 0) {
-                m_device_compiler_options += ",";
-            }
-            m_device_compiler_options += roundingModeRTE[i];
-        }
-        m_device_compiler_options += " ";
+        m_device_compiler_options +=
+            " -rounding-mode-rte=" + join(',', roundingModeRTE) + " ";
     }
 
     // Types support
@@ -1210,6 +1205,14 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_float_controls_properties.shaderRoundingModeRTEFloat32 ||
                m_float_controls_properties.shaderRoundingModeRTEFloat16 ||
                m_float_controls_properties.shaderRoundingModeRTEFloat64;
+    case spv::CapabilityDenormPreserve:
+        return m_float_controls_properties.shaderDenormPreserveFloat32 ||
+               m_float_controls_properties.shaderDenormPreserveFloat16 ||
+               m_float_controls_properties.shaderDenormPreserveFloat64;
+    case spv::CapabilityDenormFlushToZero:
+        return m_float_controls_properties.shaderDenormFlushToZeroFloat32 ||
+               m_float_controls_properties.shaderDenormFlushToZeroFloat16 ||
+               m_float_controls_properties.shaderDenormFlushToZeroFloat64;
     case spv::CapabilityDotProduct:
     case spv::CapabilityDotProductInput4x8BitPacked:
         return supports_dot_product();
