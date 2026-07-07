@@ -246,11 +246,10 @@ void process_printf(char*& data, const printf_descriptor_map_t& descs,
             }
             auto* data_start = data;
             for (int i = 0; i < vec_len - 1; i++) {
-                printf_out << print_part(part_fmt, data, size / vec_len) << ",";
+                printf_out << print_part(part_fmt, data, el_size) << ",";
                 data += el_size;
             }
-            printf_out << print_part(part_fmt, data, size / vec_len)
-                       << remaining_str;
+            printf_out << print_part(part_fmt, data, el_size) << remaining_str;
             data = data_start + size;
         }
 
