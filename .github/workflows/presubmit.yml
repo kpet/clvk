@@ -122,15 +122,15 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
             -DCMAKE_BUILD_TYPE=Release \
             -DLLVM_ENABLE_PROJECTS=clang \
-            -DRUNTIMES_clspv--_LLVM_ENABLE_RUNTIMES=libclc \
-            -DRUNTIMES_clspv64--_LLVM_ENABLE_RUNTIMES=libclc \
+            -DRUNTIMES_spirv32-unknown-vulkan_LLVM_ENABLE_RUNTIMES=libclc \
+            -DRUNTIMES_spirv64-unknown-vulkan_LLVM_ENABLE_RUNTIMES=libclc \
             -DLLVM_TARGETS_TO_BUILD=Native \
-            -DLLVM_RUNTIME_TARGETS="clspv--;clspv64--"
+            -DLLVM_RUNTIME_TARGETS="spirv32-unknown-vulkan;spirv64-unknown-vulkan"
           cmake --build ${BUILD_LIBCLC_DIR} --target libclc
-          mkdir -p ${LIBCLC_DIR}/spir--
-          mkdir -p ${LIBCLC_DIR}/spir64--
-          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spir--") ${LIBCLC_DIR}/spir--/
-          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spir64--") ${LIBCLC_DIR}/spir64--/
+          mkdir -p ${LIBCLC_DIR}/spirv32-unknown-vulkan
+          mkdir -p ${LIBCLC_DIR}/spirv64-unknown-vulkan
+          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spirv32-unknown-vulkan") ${LIBCLC_DIR}/spirv32-unknown-vulkan/
+          cp $(find ${BUILD_LIBCLC_DIR} -name libclc.bc | grep "spirv64-unknown-vulkan") ${LIBCLC_DIR}/spirv64-unknown-vulkan/
           rm -rf ${BUILD_LIBCLC_DIR}
       - name: Prepare Android CMake arguments
         if: ${{ matrix.android-abi != '' }}
