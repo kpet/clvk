@@ -72,8 +72,12 @@ protected:
 
 struct cvk_event_command : public cvk_event {
 
-    cvk_event_command(cvk_context* ctx, cvk_command* cmd,
-                      cvk_command_queue* queue);
+    cvk_event_command(cvk_context* ctx, cvk_command_queue* queue,
+                      cl_command_type type);
+
+    ~cvk_event_command();
+
+    VkQueryPool* get_query_pool() { return &m_query_pool; }
 
     void set_status(cl_int status) override final;
 
@@ -99,14 +103,15 @@ struct cvk_event_command : public cvk_event {
                         "cvk_event::wait: event = %p, status = %d", this,
                         m_status);
         if ((m_status != CL_COMPLETE) && (m_status >= 0)) {
-            TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue,
-                              "command", (uintptr_t)m_cmd);
+            TRACE_BEGIN_EVENT(command_type(), "queue", (uintptr_t)m_queue);
             m_cv.wait(lock);
             TRACE_END();
         }
 
         return m_status;
     }
+
+    cl_int set_profiling_info_end_from_query_pool();
 
     void set_profiling_info(cl_profiling_info pinfo, uint64_t val) {
         m_profiling_data[pinfo - CL_PROFILING_COMMAND_QUEUED] = val;
@@ -132,17 +137,22 @@ struct cvk_event_command : public cvk_event {
         set_profiling_info(pinfo, sample_clock());
     }
 
+    static const int NUM_POOL_QUERIES_PER_COMMAND = 2;
+    static const int POOL_QUERY_CMD_START = 0;
+    static const int POOL_QUERY_CMD_END = 1;
+
 private:
     void execute_callback(cvk_event_callback cb) {
         cb.pointer(this, m_status, cb.data);
     }
+    cl_int get_timestamp_query_results(cl_ulong* start, cl_ulong* end);
 
     std::mutex m_lock;
     std::condition_variable m_cv;
     cl_int m_status;
     cl_ulong m_profiling_data[4]{};
-    cvk_command* m_cmd;
     std::unordered_map<cl_int, std::vector<cvk_event_callback>> m_callbacks;
+    VkQueryPool m_query_pool;
 };
 
 using cvk_event_holder = refcounted_holder<cvk_event>;
