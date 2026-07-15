@@ -274,7 +274,8 @@ struct cvk_kernel_argument_values {
                 set_pod_data(arg.offset, arg.size, &null);
             } else {
                 auto mem_downcast = icd_downcast(mem);
-                if (!mem_downcast->is_valid()) {
+                if (!mem_downcast->is_valid() ||
+                    !mem_downcast->is_buffer_type()) {
                     return CL_INVALID_MEM_OBJECT;
                 } else if (size != sizeof(cl_mem)) {
                     return CL_INVALID_ARG_SIZE;
@@ -322,6 +323,17 @@ struct cvk_kernel_argument_values {
                     return CL_INVALID_MEM_OBJECT;
                 }
                 auto mem = icd_downcast(apimem);
+                if (!mem->is_valid() ||
+                    ((arg.kind == kernel_argument_kind::sampled_image ||
+                      arg.kind == kernel_argument_kind::storage_image ||
+                      arg.kind == kernel_argument_kind::storage_texel_buffer ||
+                      arg.kind == kernel_argument_kind::uniform_texel_buffer) &&
+                     !mem->is_image_type()) ||
+                    ((arg.kind == kernel_argument_kind::buffer ||
+                      arg.kind == kernel_argument_kind::buffer_ubo) &&
+                     !mem->is_buffer_type())) {
+                    return CL_INVALID_MEM_OBJECT;
+                }
                 if ((arg.info.access_qualifier ==
                          CL_KERNEL_ARG_ACCESS_READ_ONLY &&
                      mem->has_flags(CL_MEM_WRITE_ONLY)) ||
@@ -332,9 +344,6 @@ struct cvk_kernel_argument_values {
                          CL_KERNEL_ARG_ACCESS_READ_WRITE &&
                      !mem->has_flags(CL_MEM_READ_WRITE))) {
                     return CL_INVALID_ARG_VALUE;
-                }
-                if (!mem->is_valid()) {
-                    return CL_INVALID_MEM_OBJECT;
                 }
                 m_kernel_resources[arg.binding] = mem;
             }
