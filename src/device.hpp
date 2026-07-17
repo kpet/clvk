@@ -48,6 +48,7 @@ struct cvk_platform;
 struct cvk_kernel;
 
 struct cvk_device : public _cl_device_id,
+                    public refcounted,
                     object_magic_header<object_magic::device> {
 
     cvk_device(cvk_platform* platform, VkPhysicalDevice pd)
@@ -867,7 +868,7 @@ struct cvk_platform : public _cl_platform_id,
     }
     ~cvk_platform() {
         for (auto dev : m_devices) {
-            delete dev;
+            dev->release();
         }
     }
 

@@ -617,6 +617,9 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         for (auto& s : m_literal_samplers) {
             s->release();
         }
+        for (auto iprog : m_input_programs) {
+            iprog->release();
+        }
     }
 
     void append_source(const char* src, size_t len) {
@@ -916,7 +919,7 @@ private:
 
     uint32_t m_num_devices;
     cl_uint m_num_input_programs;
-    std::vector<const cvk_program*> m_input_programs;
+    std::vector<cvk_program*> m_input_programs;
     std::vector<const char*> m_header_include_names;
     build_operation m_operation;
     cl_program_binary_type m_binary_type;

@@ -399,7 +399,12 @@ struct cvk_command {
         : m_type(type), m_queue(queue),
           m_event(new cvk_event_command(m_queue->context(), this, queue)) {}
 
-    virtual ~cvk_command() { m_event->release(); }
+    virtual ~cvk_command() {
+        m_event->release();
+        for (auto& ev : m_event_deps) {
+            ev->release();
+        }
+    }
 
     void set_dependencies(cl_uint num_event_deps,
                           _cl_event* const* event_deps) {
@@ -443,6 +448,7 @@ struct cvk_command {
             }
             ev->release();
         }
+        m_event_deps.clear();
 
         // Then execute the action if no dependencies failed
         if (status != CL_COMPLETE) {

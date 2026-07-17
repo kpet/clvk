@@ -1049,6 +1049,7 @@ cvk_context* cvk_create_context(
 
     *errcode_ret = context->init();
     if (*errcode_ret != CL_SUCCESS) {
+        context->release();
         return nullptr;
     }
 

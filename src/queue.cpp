@@ -143,6 +143,7 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
         return err;
     }
     if (m_nb_group_in_flight == 0) {
+        std::lock_guard<std::mutex> lock(m_lock);
         err = end_current_command_batch();
         if (err != CL_SUCCESS) {
             delete cmd;
@@ -193,6 +194,10 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         err = m_command_batch->add_command(
             static_cast<cvk_command_batchable*>(cmd));
         if (err != CL_SUCCESS) {
+            if (m_command_batch->batch_size() == 0) {
+                delete m_command_batch;
+                m_command_batch = nullptr;
+            }
             return err;
         }
 
