@@ -19,6 +19,7 @@
 #include <cassert>
 #include <filesystem>
 #include <thread>
+#include <vector>
 
 #include <vulkan/vulkan.h>
 
@@ -88,4 +89,14 @@ static inline std::string append_paths(const std::string& prefix,
                                        const std::string& suffix) {
     return (std::filesystem::path{prefix} / std::filesystem::path{suffix})
         .string();
+}
+
+static inline std::string join(const char deliminator,
+                               const std::vector<std::string>& strings) {
+    std::string delim, joined_strings;
+    for (const auto& string : strings) {
+        joined_strings += delim + string;
+        delim = deliminator;
+    }
+    return joined_strings;
 }

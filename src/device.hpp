@@ -563,17 +563,27 @@ struct cvk_device : public _cl_device_id,
     }
 
     cl_device_fp_config fp_config(cl_device_info fptype) const {
+        cl_device_fp_config config =
+            CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
         if ((fptype == CL_DEVICE_HALF_FP_CONFIG) && supports_fp16()) {
-            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
+            if (supports_denorm_preserve_16()) {
+                config |= CL_FP_DENORM;
+            }
+            return config;
         }
         if (fptype == CL_DEVICE_SINGLE_FP_CONFIG) {
-            return CL_FP_ROUND_TO_NEAREST | CL_FP_INF_NAN | CL_FP_FMA;
+            if (supports_denorm_preserve_32()) {
+                config |= CL_FP_DENORM;
+            }
+            return config;
         }
 
         if ((fptype == CL_DEVICE_DOUBLE_FP_CONFIG) && supports_fp64()) {
-            return CL_FP_ROUND_TO_NEAREST | CL_FP_ROUND_TO_ZERO |
-                   CL_FP_ROUND_TO_INF | CL_FP_INF_NAN | CL_FP_FMA |
-                   CL_FP_DENORM;
+            config |= CL_FP_ROUND_TO_ZERO | CL_FP_ROUND_TO_INF;
+            if (supports_denorm_preserve_64()) {
+                config |= CL_FP_DENORM;
+            }
+            return config;
         }
 
         return 0;
@@ -703,6 +713,25 @@ struct cvk_device : public _cl_device_id,
     }
     bool uses_physical_addressing() const {
         return config.physical_addressing();
+    }
+
+    bool supports_denorm_preserve_16() const {
+        return m_float_controls_properties.shaderDenormPreserveFloat16;
+    }
+    bool supports_denorm_preserve_32() const {
+        return m_float_controls_properties.shaderDenormPreserveFloat32;
+    }
+    bool supports_denorm_preserve_64() const {
+        return m_float_controls_properties.shaderDenormPreserveFloat64;
+    }
+    bool supports_denorm_ftz_16() const {
+        return m_float_controls_properties.shaderDenormFlushToZeroFloat16;
+    }
+    bool supports_denorm_ftz_32() const {
+        return m_float_controls_properties.shaderDenormFlushToZeroFloat32;
+    }
+    bool supports_denorm_ftz_64() const {
+        return m_float_controls_properties.shaderDenormFlushToZeroFloat64;
     }
 
     const std::string& get_device_specific_compile_options() const {
