@@ -543,4 +543,21 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommandsWithRetry) {
     EnqueueUnmapMemObject(buffer, data);
     Finish();
 }
+
+TEST_F(WithCommandQueue, VkBeginCommandBufferError) {
+    static const char* program_source = R"(
+    kernel void test_simple() {}
+    )";
+
+    auto cfg_force_descriptor_set_allocation_failure =
+        CLVK_CONFIG_SCOPED_OVERRIDE(force_cvk_command_buffer_begin_error, bool,
+                                    true, true);
+    auto kernel = CreateKernel(program_source, "test_simple");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    cl_int err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws, &lws,
+                                        0, nullptr, nullptr);
+    ASSERT_EQ(err, CL_OUT_OF_RESOURCES);
+}
 #endif

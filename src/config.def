@@ -277,6 +277,9 @@ OPTION(bool, force_descriptor_set_allocation_failure, false)
 // Force capability checks to report errors for testing purposes.
 OPTION(bool, force_check_capabilities_error, false)
 
+// Force cvk_command_buffer::begin to report an error for testing purposes.
+OPTION(bool, force_cvk_command_buffer_begin_error, false)
+
 // Control whether early flushing is enabled for unit tests.
 OPTION(bool, early_flush_enabled, true)
 #endif
