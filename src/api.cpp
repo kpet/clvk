@@ -1044,15 +1044,15 @@ cvk_context* cvk_create_context(
         return nullptr;
     }
 
-    auto context =
-        new cvk_context(icd_downcast(devices[0]), properties, user_data);
+    auto context = std::make_unique<cvk_context>(icd_downcast(devices[0]),
+                                                 properties, user_data);
 
     *errcode_ret = context->init();
     if (*errcode_ret != CL_SUCCESS) {
         return nullptr;
     }
 
-    return context;
+    return context.release();
 }
 
 // Context APIs
