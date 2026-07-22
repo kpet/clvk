@@ -4505,14 +4505,6 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
         return nullptr;
     }
     // TODO CL_INVALID_VALUE if values specified in flags are not valid.
-    // TODO CL_INVALID_IMAGE_FORMAT_DESCRIPTOR if values specified in
-    // image_format are not valid or if image_format is NULL.
-    // TODO CL_INVALID_IMAGE_DESCRIPTOR if values specified in image_desc are
-    // not valid or if image_desc is NULL.
-    // TODO CL_INVALID_IMAGE_SIZE if image dimensions specified in image_desc
-    // exceed the minimum maximum image dimensions described in the table of
-    // allowed values for param_name for clGetDeviceInfo for all devices in
-    // context.
     // TODO CL_INVALID_HOST_PTR if host_ptr in image_desc is NULL and
     // CL_MEM_USE_HOST_PTR or CL_MEM_COPY_HOST_PTR are set in flags or if
     // host_ptr is not NULL but CL_MEM_COPY_HOST_PTR or CL_MEM_USE_HOST_PTR are
@@ -4529,9 +4521,14 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
     // CL_MEM_HOST_READ_ONLY and flags specifies CL_MEM_HOST_WRITE_ONLY, or if
     // the buffer object was created with CL_MEM_HOST_NO_ACCESS and flags
     // specifies CL_MEM_HOST_READ_ONLY or CL_MEM_HOST_WRITE_ONLY.
-    // TODO CL_IMAGE_FORMAT_NOT_SUPPORTED if the image_format is not supported.
-    // TODO CL_MEM_OBJECT_ALLOCATION_FAILURE if there is a failure to allocate
-    // memory for image object.
+
+    if (image_format == nullptr) {
+        *errcode_ret = CL_INVALID_IMAGE_FORMAT_DESCRIPTOR;
+        return nullptr;
+    } else if (image_desc == nullptr) {
+        *errcode_ret = CL_INVALID_IMAGE_DESCRIPTOR;
+        return nullptr;
+    }
 
     // TODO support creating 2D images from buffers
     if ((image_desc->image_type == CL_MEM_OBJECT_IMAGE2D) &&
@@ -4540,15 +4537,9 @@ cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
         return nullptr;
     }
 
-    auto image =
-        cvk_image::create(icd_downcast(context), flags, image_desc,
-                          image_format, host_ptr, std::move(properties));
-
-    *errcode_ret = (image != nullptr)
-                       ? CL_SUCCESS
-                       : CL_OUT_OF_RESOURCES; // FIXME do this properly
-
-    return image;
+    return cvk_image::create(icd_downcast(context), flags, image_desc,
+                             image_format, host_ptr, std::move(properties),
+                             errcode_ret);
 }
 
 cl_mem cvk_create_image(cl_context context, cl_mem_flags flags,
