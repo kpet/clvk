@@ -216,6 +216,10 @@ OPTION(std::string, perfetto_trace_dest, "clvk.perfetto-trace")
 // the application point of view.
 PROPERTY(bool, reuse_descriptor_set, false)
 
+// Use a kernel to implement clEnqueueFillImage, so that the operation is
+// performed on device (Not through a host-to-device transfer).
+OPTION(bool, fill_image_on_device, false)
+
 
 ////////////////////////////////////////////////////////////
 // LOGGING & VALIDATION ////////////////////////////////////
