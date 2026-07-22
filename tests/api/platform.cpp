@@ -43,3 +43,11 @@ TEST(Platform, DeviceQueryWithMultipleTypes) {
         ASSERT_EQ(err, CL_SUCCESS);
     }
 }
+
+TEST(Platform, InvalidContext) {
+    cl_int err;
+    const cl_context_properties properties[] = {CL_CONTEXT_INTEROP_USER_SYNC, 0,
+                                                0};
+    clCreateContext(properties, 1, &gDevice, nullptr, nullptr, &err);
+    ASSERT_EQ(err, CL_INVALID_PROPERTY);
+}
