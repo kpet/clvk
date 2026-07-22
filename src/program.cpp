@@ -1238,9 +1238,9 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                     CL_PROGRAM_BINARY_TYPE_LIBRARY) {
                 return CL_BUILD_ERROR;
             }
-            std::string input_file = clspv_input_file + "_" +
-                                     std::to_string((uintptr_t)input_program) +
-                                     ".bc";
+            std::string input_file =
+                clspv_input_file + "_" +
+                std::to_string((uintptr_t)(cvk_program*)input_program) + ".bc";
             if (!save_il_to_file(input_file, input_program->m_ir)) {
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
@@ -1707,7 +1707,6 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
     for (cl_uint i = 0; i < num_input_programs; i++) {
         cvk_program* iprog =
             const_cast<cvk_program*>(icd_downcast(input_programs[i]));
-        iprog->retain();
         m_input_programs.push_back(iprog);
         if (header_include_names != nullptr) {
             m_header_include_names.push_back(header_include_names[i]);

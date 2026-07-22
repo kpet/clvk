@@ -593,6 +593,9 @@ private:
     std::vector<cvk_descriptor_set_array> m_descriptor_sets_array;
 };
 
+struct cvk_program;
+using cvk_program_holder = refcounted_holder<cvk_program>;
+
 struct cvk_program : public _cl_program, api_object<object_magic::program> {
 
     cvk_program(cvk_context* ctx)
@@ -916,7 +919,7 @@ private:
 
     uint32_t m_num_devices;
     cl_uint m_num_input_programs;
-    std::vector<const cvk_program*> m_input_programs;
+    std::vector<cvk_program_holder> m_input_programs;
     std::vector<const char*> m_header_include_names;
     build_operation m_operation;
     cl_program_binary_type m_binary_type;
@@ -946,5 +949,3 @@ private:
 static inline cvk_program* icd_downcast(cl_program program) {
     return static_cast<cvk_program*>(program);
 }
-
-using cvk_program_holder = refcounted_holder<cvk_program>;
