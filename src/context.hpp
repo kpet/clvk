@@ -139,7 +139,7 @@ struct cvk_context : public _cl_context,
     void free_image_init_command_queue();
 
 private:
-    cvk_device* m_device;
+    refcounted_holder<cvk_device> m_device;
     std::mutex m_callbacks_lock;
     std::vector<cvk_context_callback> m_destuctor_callbacks;
     std::vector<cl_context_properties> m_properties;
