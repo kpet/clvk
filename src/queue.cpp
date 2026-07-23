@@ -193,6 +193,10 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
         err = m_command_batch->add_command(
             static_cast<cvk_command_batchable*>(cmd));
         if (err != CL_SUCCESS) {
+            if (m_command_batch->batch_size() == 0) {
+                delete m_command_batch;
+                m_command_batch = nullptr;
+            }
             return err;
         }
 
@@ -570,6 +574,11 @@ void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
 }
 
 bool cvk_command_buffer::begin() {
+#ifdef CLVK_UNIT_TESTING_ENABLED
+    if (config.force_cvk_command_buffer_begin_error()) {
+        return false;
+    }
+#endif
 
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return false;
