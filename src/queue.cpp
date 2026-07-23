@@ -143,6 +143,7 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
         return err;
     }
     if (m_nb_group_in_flight == 0) {
+        std::lock_guard<std::mutex> lock(m_lock);
         err = end_current_command_batch();
         if (err != CL_SUCCESS) {
             delete cmd;
