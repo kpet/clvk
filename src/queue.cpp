@@ -187,17 +187,13 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
     if (cmd->can_be_batched()) {
         if (!m_command_batch) {
             // Create a new command batch
-            m_command_batch = new cvk_command_batch(this);
+            m_command_batch = std::make_unique<cvk_command_batch>(this);
         }
 
         // Add command to current batch
         err = m_command_batch->add_command(
             static_cast<cvk_command_batchable*>(cmd));
         if (err != CL_SUCCESS) {
-            if (m_command_batch->batch_size() == 0) {
-                delete m_command_batch;
-                m_command_batch = nullptr;
-            }
             return err;
         }
 
@@ -295,13 +291,11 @@ cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
         if (!m_command_batch->end()) {
             return CL_OUT_OF_RESOURCES;
         }
-        enqueue_command(m_command_batch);
+        enqueue_command(m_command_batch.release());
 
         for (auto& controller : m_controllers) {
             controller->update_after_end_current_command_batch(from_flush);
         }
-
-        m_command_batch = nullptr;
 
         batch_enqueued();
     }
