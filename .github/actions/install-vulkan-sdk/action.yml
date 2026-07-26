@@ -50,6 +50,8 @@ runs:
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK\Bin" >> $GITHUB_ENV
         fi
         echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib:$VULKAN_SDK/lib/VulkanLoader/lib" >> $GITHUB_ENV
+        # Remove the below, see https://vulkan.lunarg.com/issue/view/6a0da9481d3ad01335e7d008
+        echo "PKG_CONFIG_PATH="$VULKAN_SDK/lib/VulkanLoader/lib/pkgconfig:$VULKAN_SDK/share/pkgconfig:$VULKAN_SDK/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"" >> $GITHUB_ENV
     - name: Install layers
       if: runner.os == 'Windows'
       shell: pwsh
