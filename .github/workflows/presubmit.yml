@@ -29,15 +29,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-26.04, macos-latest, windows-2022]
+        os: [ubuntu-24.04, macos-latest, windows-2022]
         online-compiler: [true, false]
         compiler-available: [true]
         android: ['']
         include:
-          - os: ubuntu-26.04
+          - os: ubuntu-24.04
             online-compiler: false
             compiler-available: false
-          - os: ubuntu-26.04
+          - os: ubuntu-24.04
             online-compiler: true
             compiler-available: true
             android-abi: arm64-v8a
@@ -45,7 +45,7 @@ jobs:
           - os: windows-2022
             online-compiler: true
             unit: true
-          - os: ubuntu-26.04
+          - os: ubuntu-24.04
             online-compiler: false
             unit: true
             perfetto: true
