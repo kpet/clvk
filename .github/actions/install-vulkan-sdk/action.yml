@@ -49,7 +49,7 @@ runs:
         if [ $RUNNER_OS == "Windows" ]; then
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK\Bin" >> $GITHUB_ENV
         fi
-        echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib" >> $GITHUB_ENV
+        echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib:$VULKAN_SDK/lib/VulkanLoader/lib" >> $GITHUB_ENV
     - name: Install layers
       if: runner.os == 'Windows'
       shell: pwsh
