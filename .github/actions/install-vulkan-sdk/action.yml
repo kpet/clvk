@@ -25,6 +25,9 @@ runs:
           ls -l $VULKAN_SDK/lib
           ls -l $VULKAN_SDK/lib/VulkanLoader/lib
         fi
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ls -lR $VULKAN_SDK
+        fi
     - name: Install Vulkan RT
       shell: bash
       run: |
@@ -53,7 +56,7 @@ runs:
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d" >> $GITHUB_ENV
         fi
         if [ $RUNNER_OS == "Linux" ]; then
-          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/etc/vulkan/explicit_layer.d" >> $GITHUB_ENV
+          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d" >> $GITHUB_ENV
         fi
         if [ $RUNNER_OS == "Windows" ]; then
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK\Bin" >> $GITHUB_ENV
