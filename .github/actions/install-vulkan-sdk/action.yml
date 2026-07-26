@@ -19,7 +19,10 @@ runs:
     - name: Set up library symlinks
       shell: bash
       run: |
-        ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
+        fi
+        ls -l $VULKAN_SDK/lib
     - name: Install Vulkan RT
       shell: bash
       run: |
