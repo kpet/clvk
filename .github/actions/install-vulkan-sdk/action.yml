@@ -21,8 +21,9 @@ runs:
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
           ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
+          ls -l $VULKAN_SDK/lib
+          ls -l $VULKAN_SDK/lib/VulkanLoader/lib
         fi
-        ls -l $VULKAN_SDK/lib
     - name: Install Vulkan RT
       shell: bash
       run: |
