@@ -687,6 +687,8 @@ struct cvk_image : public cvk_mem {
             case CL_MEM_OBJECT_IMAGE1D_BUFFER:
             case CL_MEM_OBJECT_IMAGE2D:
                 return 0;
+            case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+                return row_pitch();
             default:
                 return row_pitch() * height();
             }
