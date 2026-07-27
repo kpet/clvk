@@ -143,6 +143,7 @@ cl_int cvk_command_queue::enqueue_command_with_retry(cvk_command* cmd,
         return err;
     }
     if (m_nb_group_in_flight == 0) {
+        std::lock_guard<std::mutex> lock(m_lock);
         err = end_current_command_batch();
         if (err != CL_SUCCESS) {
             delete cmd;
@@ -1141,30 +1142,6 @@ cl_int cvk_command_kernel::do_post_action() {
     }
 
     return CL_SUCCESS;
-}
-
-bool cvk_command_batchable::can_be_batched() const {
-    bool unresolved_user_event_dependencies = false;
-    bool unresolved_other_queue_dependencies = false;
-
-    for (auto ev : dependencies()) {
-        if (ev->is_user_event()) {
-            if (!ev->completed()) {
-                unresolved_user_event_dependencies = true;
-                break;
-            } else {
-                continue;
-            }
-        }
-
-        if ((ev->queue() != queue()) && !ev->completed()) {
-            unresolved_other_queue_dependencies = true;
-            break;
-        }
-    }
-
-    return !unresolved_user_event_dependencies &&
-           !unresolved_other_queue_dependencies;
 }
 
 cl_int cvk_command_batchable::build() {
