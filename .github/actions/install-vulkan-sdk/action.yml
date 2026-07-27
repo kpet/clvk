@@ -12,9 +12,10 @@ runs:
   using: "composite"
   steps:
     - name: Install Vulkan SDK
-      uses: humbletim/install-vulkan-sdk@main
+      uses: jakoch/install-vulkan-sdk-action@v1
       with:
-        version: ${{ inputs.version }}
+        vulkan_version: ${{ inputs.version }}
+        install_runtime: false
         cache: true
     - name: Set up library symlinks
       shell: bash
