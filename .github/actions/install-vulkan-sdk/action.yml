@@ -21,8 +21,8 @@ runs:
       shell: bash
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so $VULKAN_SDK/lib/libvulkan.so
-          ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
+          [ -e $VULKAN_SDK/lib/libvulkan.so ] || ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so $VULKAN_SDK/lib/libvulkan.so
+          [ -e $VULKAN_SDK/lib/libvulkan.so.1 ] || ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
           ls -l $VULKAN_SDK/lib
           ls -l $VULKAN_SDK/lib/VulkanLoader/lib
         fi
@@ -48,7 +48,7 @@ runs:
         find $VULKAN_SDK
         echo "RUNNER_OS: $RUNNER_OS"
         if [ "$RUNNER_OS" == "macOS" ]; then
-          rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
+          sudo rm -rvf $VULKAN_SDK/lib/cmake/SPIRV-Tools*
         fi
     - name: Setup environment variables
       shell: bash
