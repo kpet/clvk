@@ -1143,30 +1143,6 @@ cl_int cvk_command_kernel::do_post_action() {
     return CL_SUCCESS;
 }
 
-bool cvk_command_batchable::can_be_batched() const {
-    bool unresolved_user_event_dependencies = false;
-    bool unresolved_other_queue_dependencies = false;
-
-    for (auto ev : dependencies()) {
-        if (ev->is_user_event()) {
-            if (!ev->completed()) {
-                unresolved_user_event_dependencies = true;
-                break;
-            } else {
-                continue;
-            }
-        }
-
-        if ((ev->queue() != queue()) && !ev->completed()) {
-            unresolved_other_queue_dependencies = true;
-            break;
-        }
-    }
-
-    return !unresolved_user_event_dependencies &&
-           !unresolved_other_queue_dependencies;
-}
-
 cl_int cvk_command_batchable::build() {
     m_command_buffer = std::make_unique<cvk_command_buffer>(m_queue);
     if (!m_command_buffer->begin()) {

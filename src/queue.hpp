@@ -404,12 +404,7 @@ struct cvk_command {
         : m_type(type), m_queue(queue),
           m_event(new cvk_event_command(m_queue->context(), this, queue)) {}
 
-    virtual ~cvk_command() {
-        m_event->release();
-        for (auto& ev : m_event_deps) {
-            ev->release();
-        }
-    }
+    virtual ~cvk_command() { m_event->release(); }
 
     void set_dependencies(cl_uint num_event_deps,
                           _cl_event* const* event_deps) {
@@ -417,7 +412,6 @@ struct cvk_command {
 
         for (cl_uint i = 0; i < num_event_deps; i++) {
             auto evt = icd_downcast(event_deps[i]);
-            evt->retain();
             cvk_debug_fn("adding dep on event %p", evt);
             m_event_deps.push_back(evt);
         }
@@ -425,7 +419,9 @@ struct cvk_command {
 
     void set_dependencies(const std::vector<cvk_event*>& deps) {
         CVK_ASSERT(m_event_deps.size() == 0);
-        m_event_deps = deps;
+        for (auto* dep : deps) {
+            m_event_deps.push_back(dep);
+        }
     }
 
     virtual bool can_be_batched() const { return false; }
@@ -438,10 +434,7 @@ struct cvk_command {
     // never have data movement requirements of their own.
     virtual bool is_data_movement() const { return false; }
 
-    void add_dependency(cvk_event* dep) {
-        dep->retain();
-        m_event_deps.push_back(dep);
-    }
+    void add_dependency(cvk_event* dep) { m_event_deps.push_back(dep); }
 
     CHECK_RETURN cl_int execute() {
 
@@ -451,9 +444,7 @@ struct cvk_command {
             if (ev->wait() != CL_COMPLETE) {
                 status = CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST;
             }
-            ev->release();
         }
-        m_event_deps.clear();
 
         // Then execute the action if no dependencies failed
         if (status != CL_COMPLETE) {
@@ -481,7 +472,18 @@ struct cvk_command {
 
     cvk_command_queue* queue() const { return m_queue; }
 
-    const std::vector<cvk_event*>& dependencies() const { return m_event_deps; }
+    bool has_unresolved_dependencies() const {
+        for (auto& ev : m_event_deps) {
+            if (ev->is_user_event()) {
+                if (!ev->completed()) {
+                    return true;
+                }
+            } else if ((ev->queue() != queue()) && !ev->completed()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     virtual const std::vector<cvk_mem*> memory_objects() const {
         CVK_ASSERT(false && "Should never be called");
@@ -505,7 +507,7 @@ protected:
 private:
     CHECK_RETURN virtual cl_int do_action() = 0;
 
-    std::vector<cvk_event*> m_event_deps;
+    std::vector<cvk_event_holder> m_event_deps;
 };
 
 struct cvk_command_buffer_base : public cvk_command {
@@ -709,7 +711,9 @@ struct cvk_command_batchable : public cvk_command {
         }
     }
 
-    bool can_be_batched() const override;
+    bool can_be_batched() const override {
+        return !has_unresolved_dependencies();
+    }
     bool is_built_before_enqueue() const override final { return false; }
 
     CHECK_RETURN cl_int get_timestamp_query_results(cl_ulong* start,
