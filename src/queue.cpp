@@ -284,21 +284,24 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 }
 
 cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
-    if (m_command_batch && m_command_batch->batch_size() > 0) {
-        TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
-                       m_command_batch->batch_size());
-
-        if (!m_command_batch->end()) {
-            return CL_OUT_OF_RESOURCES;
-        }
-        enqueue_command(m_command_batch.release());
-
-        for (auto& controller : m_controllers) {
-            controller->update_after_end_current_command_batch(from_flush);
-        }
-
-        batch_enqueued();
+    std::unique_ptr<cvk_command_batch> cmd_batch(m_command_batch.release());
+    if (cmd_batch == nullptr || cmd_batch->batch_size() == 0) {
+        return CL_SUCCESS;
     }
+
+    TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
+                   cmd_batch->batch_size());
+
+    if (!cmd_batch->end()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+    enqueue_command(cmd_batch.release());
+
+    for (auto& controller : m_controllers) {
+        controller->update_after_end_current_command_batch(from_flush);
+    }
+
+    batch_enqueued();
     return CL_SUCCESS;
 }
 
