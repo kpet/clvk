@@ -1366,10 +1366,10 @@ cvk_device::get_vulkan_image_format_properties(
         break;
     case CL_MEM_OBJECT_IMAGE2D:
     case CL_MEM_OBJECT_IMAGE2D_ARRAY:
-        image_type = VK_IMAGE_TYPE_1D;
+        image_type = VK_IMAGE_TYPE_2D;
         break;
     case CL_MEM_OBJECT_IMAGE3D:
-        image_type = VK_IMAGE_TYPE_1D;
+        image_type = VK_IMAGE_TYPE_3D;
         break;
     default:
         CVK_ASSERT(false && "Unsupported image type");
