@@ -786,8 +786,6 @@ private:
                                        const cl_image_format* format) const;
     VkImageFormatProperties
     get_vulkan_image_format_properties(const cl_image_desc* desc) const;
-    cl_uint image_max_size(cl_mem_flags flags, const cl_image_desc* desc,
-                           const cl_image_format* format) const;
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
         ret += vulkan_version_string(m_properties.apiVersion);
