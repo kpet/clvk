@@ -659,6 +659,20 @@ bool spir_binary::strip_reflection(std::vector<uint32_t>* stripped) {
 }
 
 bool spir_binary::load_descriptor_map() {
+    m_literal_samplers.clear();
+    m_push_constants.clear();
+    m_spec_constants.clear();
+    m_sampler_metadata.clear();
+    m_image_metadata.clear();
+    m_printf_descriptors.clear();
+    m_printf_buffer_info = {};
+    m_constant_data_buffer.reset();
+    m_dmaps.clear();
+    m_reqd_work_group_sizes.clear();
+    m_kernels_attributes.clear();
+    m_flags.clear();
+    m_workgroup_variables_size = 0;
+
     reflection_parse_data parse_data;
     parse_data.binary = this;
 
@@ -891,7 +905,7 @@ bool cvk_program::read(const unsigned char* src, size_t size) {
             return true;
         }
         cvk_info_fn("llvm bitcode not found, looking for Vulkan SPIR-V binary");
-        if (m_binary.read(src, size)) {
+        if (m_binary->read(src, size)) {
             m_binary_type = CL_PROGRAM_BINARY_TYPE_EXECUTABLE;
             cvk_info_fn("Vulkan SPIR-V binary executable found");
             return true;
@@ -922,7 +936,7 @@ bool cvk_program::read(const unsigned char* src, size_t size) {
         success = read_llvm_bitcode(src, size);
         break;
     case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
-        success = m_binary.read(src, size);
+        success = m_binary->read(src, size);
         break;
     }
     if (success) {
@@ -945,7 +959,7 @@ bool cvk_program::write(unsigned char* dst) const {
         memcpy(dst, m_ir.data(), m_ir.size());
         return true;
     case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
-        return m_binary.write(dst);
+        return m_binary->write(dst);
     }
     return false;
 }
@@ -958,7 +972,7 @@ size_t cvk_program::binary_size() const {
     case CL_PROGRAM_BINARY_TYPE_COMPILED_OBJECT:
         return header_and_options_size + m_ir.size();
     case CL_PROGRAM_BINARY_TYPE_EXECUTABLE:
-        return header_and_options_size + m_binary.size();
+        return header_and_options_size + m_binary->size();
     }
     return 0;
 }
@@ -1340,7 +1354,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         }
     } else {
         const char* filename = clspv_output_file.c_str();
-        if (!m_binary.load(filename)) {
+        if (!m_binary->load(filename)) {
             cvk_error("Could not load SPIR-V binary from \"%s\"", filename);
             return CL_BUILD_ERROR;
         }
@@ -1348,7 +1362,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
     cvk_info("Loaded %s binary from \"%s\", size = %zu %s",
              build_to_ir ? "IR" : "SPIR-V", clspv_output_file.c_str(),
-             build_to_ir ? m_ir.size() : m_binary.code().size(),
+             build_to_ir ? m_ir.size() : m_binary->code().size(),
              build_to_ir ? "bytes" : "words");
 
     return CL_BUILD_SUCCESS;
@@ -1463,7 +1477,7 @@ cl_build_status cvk_program::do_build_inner_online(
             memcpy(m_ir.data(), ir.data(), size);
         } else {
             status = clspv::CompileFromSourcesStringWithHeaders(
-                programs, headers, build_options, m_binary.raw_binary(),
+                programs, headers, build_options, m_binary->raw_binary(),
                 &m_build_log);
         }
     }
@@ -1564,7 +1578,7 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 }
 
 void cvk_program::prepare_push_constant_range() {
-    auto& pcs = m_binary.push_constants();
+    auto& pcs = m_binary->push_constants();
 
     uint32_t min_offset = UINT32_MAX;
     uint32_t max_end = 0;
@@ -1578,7 +1592,7 @@ void cvk_program::prepare_push_constant_range() {
         add_pc_range(pc_pcd.second.offset, pc_pcd.second.size);
     }
 
-    for (const auto& kname_args : m_binary.kernels_arguments()) {
+    for (const auto& kname_args : m_binary->kernels_arguments()) {
         for (const auto& arg : kname_args.second) {
             if (arg.is_pushconstant()) {
                 add_pc_range(arg.offset, arg.size);
@@ -1586,7 +1600,7 @@ void cvk_program::prepare_push_constant_range() {
         }
     }
 
-    for (const auto& kname_mds : m_binary.image_metadata()) {
+    for (const auto& kname_mds : m_binary->image_metadata()) {
         for (const auto& md : kname_mds.second) {
             if (md.second.has_valid_order()) {
                 add_pc_range(md.second.order_offset, sizeof(uint32_t));
@@ -1597,7 +1611,7 @@ void cvk_program::prepare_push_constant_range() {
         }
     }
 
-    for (const auto& kname_mds : m_binary.sampler_metadata()) {
+    for (const auto& kname_mds : m_binary->sampler_metadata()) {
         for (const auto& md : kname_mds.second) {
             add_pc_range(md.second, sizeof(uint32_t));
         }
@@ -1620,7 +1634,7 @@ void cvk_program::prepare_push_constant_range() {
 bool cvk_program::check_capabilities(const cvk_device* device) {
     // Get list of required SPIR-V capabilities.
     std::vector<spv::Capability> capabilities;
-    if (!m_binary.get_capabilities(capabilities)) {
+    if (!m_binary->get_capabilities(capabilities)) {
         cvk_error("Failed to get required SPIR-V capabilities.");
         return false;
     }
@@ -1646,10 +1660,27 @@ bool cvk_program::check_capabilities(const cvk_device* device) {
 }
 
 void cvk_program::do_build() {
-    // Destroy entry points from previous build
-    m_entry_points.clear();
-
     auto device = m_context->device();
+
+    // Clear old state immediately
+    if (m_operation != build_operation::build_binary) {
+        m_binary = std::make_unique<spir_binary>(device->vulkan_spirv_env());
+        m_binary_type = CL_PROGRAM_BINARY_TYPE_NONE;
+    }
+    if (!m_source.empty() || !m_il.empty()) {
+        m_ir.clear();
+    }
+    m_stripped_binary.clear();
+    vkDestroyShaderModule(device->vulkan_device(), m_shader_module, nullptr);
+    m_shader_module = VK_NULL_HANDLE;
+    for (auto& s : m_literal_samplers) {
+        s->release();
+    }
+    m_literal_samplers.clear();
+    m_module_constant_data_buffer.reset();
+    m_pipeline_cache = VK_NULL_HANDLE;
+    m_entry_points.clear();
+    m_build_log.clear();
 
     if (m_operation != build_operation::build_binary) {
         cl_build_status status = do_build_inner(device);
@@ -1662,7 +1693,7 @@ void cvk_program::do_build() {
     }
 
     // Load descriptor map
-    if (!m_binary.load_descriptor_map()) {
+    if (!m_binary->load_descriptor_map()) {
         cvk_error("Could not load descriptor map for SPIR-V binary.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
@@ -1676,7 +1707,7 @@ void cvk_program::do_build() {
     prepare_push_constant_range();
 
     bool cache_hit =
-        device->get_pipeline_cache(m_binary.code(), m_pipeline_cache);
+        device->get_pipeline_cache(m_binary->code(), m_pipeline_cache);
     if (m_pipeline_cache == VK_NULL_HANDLE) {
         complete_operation(device, CL_BUILD_ERROR);
         return;
@@ -1689,7 +1720,7 @@ void cvk_program::do_build() {
             spirv_validation_options validation_options{};
             validation_options.uniform_buffer_std_layout =
                 m_context->device()->supports_ubo_stdlayout();
-            if (!validate_binary(m_binary, validation_options)) {
+            if (!validate_binary(*m_binary, validation_options)) {
                 complete_operation(device, CL_BUILD_ERROR);
                 return;
             }
@@ -1720,8 +1751,8 @@ void cvk_program::do_build() {
     // by the Vulkan implementation. This stripped binary is stored separately
     // from |m_binary| because clvk needs to be able to provide the binary with
     // reflection information for clGetProgramInfo.
-    const uint32_t* spir_data = m_binary.spir_data();
-    size_t spir_size = m_binary.spir_size();
+    const uint32_t* spir_data = m_binary->spir_data();
+    size_t spir_size = m_binary->spir_size();
     const bool should_strip_reflection =
         !device->is_vulkan_extension_enabled(
             VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME)
@@ -1730,7 +1761,7 @@ void cvk_program::do_build() {
 #endif
         ;
     if (should_strip_reflection) {
-        if (!m_binary.strip_reflection(&m_stripped_binary)) {
+        if (!m_binary->strip_reflection(&m_stripped_binary)) {
             cvk_error_fn("couldn't strip reflection from SPIR-V module");
             complete_operation(device, CL_BUILD_ERROR);
             return;
@@ -1770,6 +1801,11 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
                           cvk_program_callback cb, void* data) {
     std::lock_guard<std::mutex> lock(m_lock);
 
+    // Check if there are kernel objects attached to program
+    if (!m_kernels.empty()) {
+        return CL_INVALID_OPERATION;
+    }
+
     // Check if there is already a build in progress
     // TODO: Allow concurrent builds targeting different devices
     if (std::count_if(m_dev_status.begin(), m_dev_status.end(),
@@ -1781,6 +1817,8 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
 
     retain();
 
+    m_input_programs.clear();
+    m_header_include_names.clear();
     if (num_input_programs > 0) {
         std::vector<cvk_preserved_options> input_preserved;
         for (cl_uint i = 0; i < num_input_programs; i++) {
@@ -1796,8 +1834,8 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
         auto merged_preserved = cvk_preserved_options::merge(input_preserved);
         m_build_options = cvk_build_options(options != nullptr ? options : "",
                                             merged_preserved);
-    } else if (options != nullptr) {
-        m_build_options = cvk_build_options(options);
+    } else {
+        m_build_options = cvk_build_options(options != nullptr ? options : "");
     }
 
     // Mark build in-progress and save devices
@@ -1810,7 +1848,6 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
             m_dev_status[icd_downcast(device_list[i])] = CL_BUILD_IN_PROGRESS;
         }
     }
-
     m_num_input_programs = num_input_programs;
     m_operation = operation;
     m_operation_callback = cb;

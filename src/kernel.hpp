@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <limits>
 #include <unordered_map>
 #include <vector>
@@ -32,12 +33,28 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     cvk_kernel(cvk_program* program, const char* name)
         : api_object(program->context()), m_program(program),
           m_entry_point(nullptr), m_name(name), m_sampler_metadata(nullptr),
-          m_image_metadata(nullptr) {}
+          m_image_metadata(nullptr), m_host_refcount(1) {
+        m_program->register_kernel(this);
+    }
 
     CHECK_RETURN cl_int init();
     std::unique_ptr<cvk_kernel> clone(cl_int* errcode_ret) const;
 
-    virtual ~cvk_kernel() { m_argument_values.reset(); }
+    void retain_host() {
+        retain();
+        m_host_refcount++;
+    }
+    void release_host() {
+        if (--m_host_refcount == 0) {
+            m_program->unregister_kernel(this);
+        }
+        release();
+    }
+
+    virtual ~cvk_kernel() {
+        m_program->unregister_kernel(this);
+        m_argument_values.reset();
+    }
 
     std::shared_ptr<cvk_kernel_argument_values> argument_values() const {
         return m_argument_values;
@@ -166,6 +183,7 @@ private:
     std::shared_ptr<cvk_kernel_argument_values> m_argument_values;
     const kernel_sampler_metadata_map* m_sampler_metadata;
     const kernel_image_metadata_map* m_image_metadata;
+    std::atomic<int> m_host_refcount;
 };
 
 static inline cvk_kernel* icd_downcast(cl_kernel kernel) {
