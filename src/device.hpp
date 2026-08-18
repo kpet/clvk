@@ -716,14 +716,23 @@ struct cvk_device : public _cl_device_id,
         return config.physical_addressing();
     }
 
+    bool has_denorm_support(const std::string& width,
+                            bool device_supports) const {
+        return config.denorm_support_masked().count(width) == 0 &&
+               (config.denorm_support().count(width) > 0 || device_supports);
+    }
+
     bool supports_denorm_preserve_16() const {
-        return m_float_controls_properties.shaderDenormPreserveFloat16;
+        return has_denorm_support(
+            "16", m_float_controls_properties.shaderDenormPreserveFloat16);
     }
     bool supports_denorm_preserve_32() const {
-        return m_float_controls_properties.shaderDenormPreserveFloat32;
+        return has_denorm_support(
+            "32", m_float_controls_properties.shaderDenormPreserveFloat32);
     }
     bool supports_denorm_preserve_64() const {
-        return m_float_controls_properties.shaderDenormPreserveFloat64;
+        return has_denorm_support(
+            "64", m_float_controls_properties.shaderDenormPreserveFloat64);
     }
     bool supports_denorm_ftz_16() const {
         return m_float_controls_properties.shaderDenormFlushToZeroFloat16;
