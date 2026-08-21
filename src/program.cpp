@@ -1041,6 +1041,26 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         }
     }
 
+    // Signed zero preserve options
+    std::vector<std::string> signedZeroPreserve;
+    if (device->supports_fp16() &&
+        device->supports_signed_zero_inf_nan_preserve_16()) {
+        signedZeroPreserve.push_back("16");
+    }
+    if (device->supports_signed_zero_inf_nan_preserve_32()) {
+        signedZeroPreserve.push_back("32");
+    }
+    if (device->supports_fp64() &&
+        device->supports_signed_zero_inf_nan_preserve_64()) {
+        signedZeroPreserve.push_back("64");
+    }
+    if ((options.find("-signed-zero-inf-nan-preserve=") == std::string::npos) &&
+        !signedZeroPreserve.empty()) {
+        options +=
+            " -signed-zero-inf-nan-preserve=" + join(',', signedZeroPreserve) +
+            " ";
+    }
+
     // Features
     if (options.find("-cl-std=CL3.0") != std::string::npos) {
         auto features = device->opencl_c_features();
