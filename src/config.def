@@ -111,6 +111,15 @@ OPTION(std::set<std::string>, device_extensions, std::set<std::string>())
 // a comma separated list of extensions.
 OPTION(std::set<std::string>, device_extensions_masked, std::set<std::string>())
 
+// Specify floating point types for which CL_FP_DENORM support should be
+// forcibly reported. Expects a comma separated list among "16", "32", "64".
+OPTION(std::set<std::string>, denorm_support, std::set<std::string>())
+
+// Specify floating point types for which CL_FP_DENORM support should be
+// masked (prevented from being reported). Expects a comma separated list among
+// "16", "32", "64".
+OPTION(std::set<std::string>, denorm_support_masked, std::set<std::string>())
+
 // Specify whether using samplers with `CL_FILTER_LINEAR` is supported.
 OPTION(bool, supports_filter_linear, true)
 
