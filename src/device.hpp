@@ -249,7 +249,13 @@ struct cvk_device : public _cl_device_id,
         cvk_info("Using %u%% of total memory size",
                  config.percentage_of_available_memory_reported());
 
-        return size * percentage_of_available_memory_reported;
+        // Min memory as per OpenCL specification (128MB for FULL_PROFILE)
+        uint64_t specMinGlobalMemSz = 128 * 1024 * 1024ULL;
+
+        return std::max(
+            (uint64_t)(size * percentage_of_available_memory_reported) &
+                ~(uint64_t)0x3,
+            specMinGlobalMemSz);
     }
 
     uint64_t max_mem_alloc_size() const {
