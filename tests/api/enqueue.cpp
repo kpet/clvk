@@ -549,9 +549,8 @@ TEST_F(WithCommandQueue, VkBeginCommandBufferError) {
     kernel void test_simple() {}
     )";
 
-    auto cfg_force_descriptor_set_allocation_failure =
-        CLVK_CONFIG_SCOPED_OVERRIDE(force_cvk_command_buffer_begin_error, bool,
-                                    true, true);
+    auto cfg = CLVK_CONFIG_SCOPED_OVERRIDE(force_cvk_command_buffer_begin_error,
+                                           bool, true, true);
     auto kernel = CreateKernel(program_source, "test_simple");
 
     size_t gws = 1;
@@ -566,9 +565,8 @@ TEST_F(WithCommandQueue, VkEndCommandBufferError) {
     kernel void test_simple() {}
     )";
 
-    auto cfg_force_descriptor_set_allocation_failure =
-        CLVK_CONFIG_SCOPED_OVERRIDE(force_cvk_command_buffer_end_error, bool,
-                                    true, true);
+    auto cfg = CLVK_CONFIG_SCOPED_OVERRIDE(force_cvk_command_buffer_end_error,
+                                           bool, true, true);
     auto kernel = CreateKernel(program_source, "test_simple");
 
     auto user_event = CreateUserEvent();

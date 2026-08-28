@@ -35,7 +35,7 @@ cvk_command_queue::cvk_command_queue(
     std::vector<cl_queue_properties>&& properties_array)
     : api_object(ctx), m_device(device), m_properties(properties),
       m_properties_array(std::move(properties_array)), m_executor(nullptr),
-      m_command_batch(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
+      m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device, m_vulkan_queue.queue_family()),
       m_max_cmd_batch_size(device->get_max_cmd_batch_size()),
       m_max_first_cmd_batch_size(device->get_max_first_cmd_batch_size()),
@@ -284,7 +284,7 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 }
 
 cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
-    std::unique_ptr<cvk_command_batch> cmd_batch(m_command_batch.release());
+    std::unique_ptr<cvk_command_batch> cmd_batch = std::move(m_command_batch);
     if (cmd_batch == nullptr || cmd_batch->batch_size() == 0) {
         return CL_SUCCESS;
     }
