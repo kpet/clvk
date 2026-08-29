@@ -5,9 +5,9 @@
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 26.1.4",
+    "driverInfo": "Mesa 26.2.1",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 109056004
+    "driverVersion": 109060097
   },
   "test-results": {
     "API": {
@@ -147,7 +147,7 @@
         "negative_set_context_destructor_callback": "pass",
         "negative_set_default_device_command_queue": "pass",
         "negative_set_immutable_memory_to_writeable_kernel_arg": "skip",
-        "negative_set_kernel_arg_invalid_image": "fail",
+        "negative_set_kernel_arg_invalid_image": "pass",
         "negative_set_kernel_arg_invalid_image_msaa": "skip",
         "negative_set_read_write_image_arg": "pass",
         "null_buffer_arg": "fail",
@@ -476,6 +476,7 @@
       "has_results": true,
       "results": {
         "clamp": "pass",
+        "clamp_scalar_bounds": "pass",
         "degrees": "pass",
         "fmax": "pass",
         "fmaxf": "pass",
@@ -1111,6 +1112,7 @@
         "tan": "pass",
         "tanh": "pass",
         "tanpi": "pass",
+        "tgamma": "pass",
         "trunc": "pass"
       },
       "retcode": 0
@@ -1247,6 +1249,7 @@
         "mixed_format_random": "pass",
         "octal": "pass",
         "ptrdiff_t": "skip",
+        "return_value": "pass",
         "size_t": "skip",
         "string": "pass",
         "unsigned": "pass",
@@ -1328,6 +1331,10 @@
       "duration": "00:00:05.884818",
       "has_results": true,
       "results": {
+        "access_chain_array": "fail",
+        "access_chain_inbounds_array": "fail",
+        "access_chain_inbounds_vector": "fail",
+        "access_chain_vector": "fail",
         "basic_versions": "pass",
         "decorate_aliased": "pass",
         "decorate_alignment": "pass",
@@ -1472,7 +1479,7 @@
         "op_neg_double": "pass",
         "op_neg_float": "pass",
         "op_neg_float4": "pass",
-        "op_neg_half": "fail",
+        "op_neg_half": "pass",
         "op_neg_int": "pass",
         "op_neg_int4": "pass",
         "op_neg_long": "pass",
@@ -1493,7 +1500,7 @@
         "op_spec_constant_double_simple": "skip",
         "op_spec_constant_false_simple": "pass",
         "op_spec_constant_float_simple": "pass",
-        "op_spec_constant_half_simple": "fail",
+        "op_spec_constant_half_simple": "pass",
         "op_spec_constant_true_simple": "pass",
         "op_spec_constant_uchar_simple": "pass",
         "op_spec_constant_uint_simple": "pass",
@@ -1534,6 +1541,10 @@
         "op_vector_times_scalar_double": "pass",
         "op_vector_times_scalar_float": "pass",
         "op_vector_times_scalar_half": "pass",
+        "ptr_access_chain_array": "fail",
+        "ptr_access_chain_inbounds_array": "fail",
+        "ptr_access_chain_inbounds_vector": "fail",
+        "ptr_access_chain_vector": "fail",
         "spirv14_copylogical": "skip",
         "spirv14_copymemory_memory_operands": "skip",
         "spirv14_image_operand_signextend": "skip",
@@ -1627,7 +1638,7 @@
         "ifp_ext": "skip",
         "sub_group_info_core": "pass",
         "sub_group_info_ext": "skip",
-        "subgroup_functions_ballot": "skip",
+        "subgroup_functions_ballot": "pass",
         "subgroup_functions_clustered_reduce": "skip",
         "subgroup_functions_core": "pass",
         "subgroup_functions_ext": "skip",
@@ -1828,10 +1839,12 @@
         "printf": "skip",
         "profiling": "skip",
         "profiling_substitute_queue": "skip",
-        "queue_substitute_in_order": "skip",
-        "queue_substitute_out_of_order": "skip",
         "queue_substitution": "skip",
+        "queue_substitution_in_order": "skip",
+        "queue_substitution_out_of_order": "skip",
         "queue_substitution_properties": "skip",
+        "queue_substitution_record_unsupported_prop": "skip",
+        "queue_substitution_record_without_reqd_props": "skip",
         "regular_wait_for_command_buffer": "skip",
         "return_event_callback": "skip",
         "set_kernel_arg_after_enqueue": "skip",
@@ -1840,7 +1853,7 @@
         "user_event_callback": "skip",
         "user_event_wait": "skip",
         "user_events_wait": "skip",
-        "wait_for_sec_queue_event": "pass"
+        "wait_for_sec_queue_event": "skip"
       },
       "retcode": 0
     },
