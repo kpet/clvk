@@ -35,7 +35,7 @@ cvk_command_queue::cvk_command_queue(
     std::vector<cl_queue_properties>&& properties_array)
     : api_object(ctx), m_device(device), m_properties(properties),
       m_properties_array(std::move(properties_array)), m_executor(nullptr),
-      m_command_batch(nullptr), m_vulkan_queue(device->vulkan_queue_allocate()),
+      m_vulkan_queue(device->vulkan_queue_allocate()),
       m_command_pool(device, m_vulkan_queue.queue_family()),
       m_max_cmd_batch_size(device->get_max_cmd_batch_size()),
       m_max_first_cmd_batch_size(device->get_max_first_cmd_batch_size()),
@@ -187,7 +187,7 @@ cl_int cvk_command_queue::enqueue_command(cvk_command* cmd, _cl_event** event) {
     if (cmd->can_be_batched()) {
         if (!m_command_batch) {
             // Create a new command batch
-            m_command_batch = new cvk_command_batch(this);
+            m_command_batch = std::make_unique<cvk_command_batch>(this);
         }
 
         // Add command to current batch
@@ -284,23 +284,24 @@ cl_int cvk_command_queue::enqueue_command_with_deps(
 }
 
 cl_int cvk_command_queue::end_current_command_batch(bool from_flush) {
-    if (m_command_batch && m_command_batch->batch_size() > 0) {
-        TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
-                       m_command_batch->batch_size());
-
-        if (!m_command_batch->end()) {
-            return CL_OUT_OF_RESOURCES;
-        }
-        enqueue_command(m_command_batch);
-
-        for (auto& controller : m_controllers) {
-            controller->update_after_end_current_command_batch(from_flush);
-        }
-
-        m_command_batch = nullptr;
-
-        batch_enqueued();
+    std::unique_ptr<cvk_command_batch> cmd_batch = std::move(m_command_batch);
+    if (cmd_batch == nullptr || cmd_batch->batch_size() == 0) {
+        return CL_SUCCESS;
     }
+
+    TRACE_FUNCTION("queue", (uintptr_t)this, "batch_size",
+                   cmd_batch->batch_size());
+
+    if (!cmd_batch->end()) {
+        return CL_OUT_OF_RESOURCES;
+    }
+    enqueue_command(cmd_batch.release());
+
+    for (auto& controller : m_controllers) {
+        controller->update_after_end_current_command_batch(from_flush);
+    }
+
+    batch_enqueued();
     return CL_SUCCESS;
 }
 
@@ -571,6 +572,11 @@ void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
 }
 
 bool cvk_command_buffer::begin() {
+#ifdef CLVK_UNIT_TESTING_ENABLED
+    if (config.force_cvk_command_buffer_begin_error()) {
+        return false;
+    }
+#endif
 
     if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
         return false;

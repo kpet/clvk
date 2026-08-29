@@ -264,7 +264,7 @@ private:
     std::mutex m_lock;
     std::deque<std::unique_ptr<cvk_command_group>> m_groups;
 
-    cvk_command_batch* m_command_batch;
+    std::unique_ptr<cvk_command_batch> m_command_batch;
 
     cvk_vulkan_queue_wrapper& m_vulkan_queue;
     cvk_command_pool m_command_pool;
