@@ -21,6 +21,7 @@
 #include <fstream>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include <vulkan/vulkan.h>
@@ -427,6 +428,182 @@ enum class build_operation
     link
 };
 
+/**
+ * Preserved OpenCL build options that need to be tracked across compilation
+ * units and saved in the program binary header.
+ *
+ * - "all" options (e.g. -cl-fast-relaxed-math) are retained only if present in
+ *   ALL merged options.
+ * - "one" options (e.g. -g, -cl-kernel-arg-info) are retained if present in AT
+ *   LEAST ONE of the merged options.
+ * - The OpenCL C version (-cl-std) is resolved to the maximum version among all
+ *   merged options.
+ */
+struct cvk_preserved_options {
+    std::set<std::string> options_all;
+    std::set<std::string> options_one;
+    unsigned source_language{0};
+
+    static constexpr std::array<const char*, 8> source_languages = {
+        "Unknown", "CL1.0", "CL1.1", "CL1.2",
+        "CL2.0",   "CL3.0", "CLC++", "CLC++2021",
+    };
+
+    static cvk_preserved_options from_string(const std::string& options) {
+        cvk_preserved_options result;
+        auto options_set = split_by_whitespace(options);
+        result.options_all = parse_preserved_options_all(options_set);
+        result.options_one = parse_preserved_options_one(options_set);
+        result.source_language = parse_source_language(options);
+        return result;
+    }
+
+    static cvk_preserved_options
+    merge(const std::vector<cvk_preserved_options>& input_options) {
+        cvk_preserved_options result;
+        if (input_options.empty()) {
+            return result;
+        }
+
+        result.options_all = input_options[0].options_all;
+        result.options_one = input_options[0].options_one;
+        result.source_language = input_options[0].source_language;
+
+        for (size_t i = 1; i < input_options.size(); ++i) {
+            const auto& input = input_options[i];
+            std::unordered_set<std::string> to_remove;
+            for (const auto& option : result.options_all) {
+                if (input.options_all.count(option) == 0) {
+                    to_remove.insert(option);
+                }
+            }
+            for (const auto& option : to_remove) {
+                result.options_all.erase(option);
+            }
+            for (const auto& option : input.options_one) {
+                result.options_one.insert(option);
+            }
+            result.source_language =
+                std::max(result.source_language, input.source_language);
+        }
+
+        return result;
+    }
+
+    std::string str() const {
+        std::string build_options;
+        for (const auto& option : options_all) {
+            build_options += " ";
+            build_options += option;
+        }
+        for (const auto& option : options_one) {
+            build_options += " ";
+            build_options += option;
+        }
+        if (source_language > 0) {
+            build_options += " -cl-std=";
+            build_options += source_languages[source_language];
+        }
+        return build_options;
+    }
+
+    size_t size() const { return str().size(); }
+
+private:
+    static unsigned parse_source_language(const std::string& options) {
+        std::string cl_std = "-cl-std=";
+        auto pos = options.find(cl_std);
+        if (pos == std::string::npos) {
+            return 0;
+        }
+        std::string substr = options.substr(pos);
+        for (unsigned source_language = 1;
+             source_language < source_languages.size(); source_language++) {
+            std::string match = cl_std + source_languages[source_language];
+            if (strncmp(substr.data(), match.data(), match.size()) == 0) {
+                return source_language;
+            }
+        }
+        return 0;
+    }
+
+    static std::set<std::string> split_by_whitespace(std::string_view str) {
+        std::set<std::string> result;
+        std::size_t start = 0;
+        while (start < str.size()) {
+            while (start < str.size() &&
+                   std::isspace(static_cast<unsigned char>(str[start]))) {
+                ++start;
+            }
+            if (start >= str.size()) {
+                break;
+            }
+            std::size_t end = start;
+            while (end < str.size() &&
+                   !std::isspace(static_cast<unsigned char>(str[end]))) {
+                ++end;
+            }
+            result.emplace(str.substr(start, end - start));
+            start = end;
+        }
+        return result;
+    }
+
+#define PARSE(option)                                                          \
+    do {                                                                       \
+        if (options.count(option) > 0) {                                       \
+            set.insert(option);                                                \
+        }                                                                      \
+    } while (0)
+    static std::set<std::string>
+    parse_preserved_options_all(const std::set<std::string>& options) {
+        std::set<std::string> set;
+        PARSE("-cl-single-precision-constant");
+        PARSE("-cl-denorms-are-zero");
+        PARSE("-cl-mad-enable");
+        PARSE("-cl-no-signed-zeros");
+        PARSE("-cl-unsafe-math-optimizations");
+        PARSE("-cl-finite-math-only");
+        PARSE("-cl-fast-relaxed-math");
+        return set;
+    }
+    static std::set<std::string>
+    parse_preserved_options_one(const std::set<std::string>& options) {
+        std::set<std::string> set;
+        PARSE("-cl-fp32-correctly-rounded-divide-sqrt");
+        PARSE("-cl-opt-disable");
+        PARSE("-cl-kernel-arg-info");
+        PARSE("-g");
+        return set;
+    }
+#undef PARSE
+};
+
+/**
+ * Manages OpenCL build options for a program.
+ */
+class cvk_build_options {
+public:
+    cvk_build_options(const std::string& options = "")
+        : m_build_options(options),
+          m_preserved_options(cvk_preserved_options::from_string(options)) {}
+
+    cvk_build_options(const std::string& link_options,
+                      const cvk_preserved_options& preserved_options)
+        : m_build_options(link_options + preserved_options.str()),
+          m_preserved_options(preserved_options) {}
+
+    const std::string& str() const { return m_build_options; }
+    std::string::size_type find(const char* s) const { return str().find(s); }
+    std::string::size_type size() const { return str().size(); }
+
+    std::string preserved_options() const { return m_preserved_options.str(); }
+
+private:
+    std::string m_build_options;
+    cvk_preserved_options m_preserved_options;
+};
+
 using cvk_program_callback = void(CL_CALLBACK*)(cl_program, void*);
 
 using cvk_spec_constant_map = std::map<uint32_t, uint32_t>;
@@ -606,7 +783,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),
           m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
-          m_shader_module(VK_NULL_HANDLE),
+          m_shader_module(VK_NULL_HANDLE), m_build_options(""),
           m_binary(m_context->device()->vulkan_spirv_env()) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
@@ -672,7 +849,7 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         return CL_SUCCESS;
     }
 
-    const std::string& build_options() const { return m_build_options; }
+    std::string build_options() const { return m_build_options.str(); }
 
     cl_build_status build_status(const cvk_device* device) const {
         return m_dev_status.at(device);
@@ -752,9 +929,8 @@ private:
     bool read_llvm_bitcode(const unsigned char* src, size_t size);
 
     void write_binary_header(unsigned char* dst) const;
-    CHECK_RETURN cl_program_binary_type
-
-    read_binary_header(const unsigned char* src, size_t size);
+    CHECK_RETURN cl_program_binary_type read_binary_header(
+        const unsigned char* src, size_t size, uint32_t& options_size);
 
 public:
     CHECK_RETURN bool read(const unsigned char* src, size_t size);
@@ -876,7 +1052,7 @@ public:
     }
 
     bool can_split_region() {
-        int status = options_allow_split_region(m_build_options);
+        int status = options_allow_split_region(m_build_options.str());
         status &= options_allow_split_region(config.clspv_options);
         return status;
     }
@@ -938,7 +1114,7 @@ private:
     VkShaderModule m_shader_module;
     std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>
         m_dev_status;
-    std::string m_build_options;
+    cvk_build_options m_build_options;
     spir_binary m_binary;
     std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;

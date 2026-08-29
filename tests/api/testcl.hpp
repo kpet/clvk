@@ -366,6 +366,24 @@ protected:
         return build_log;
     }
 
+    std::string GetProgramBuildOptions(cl_program program) {
+        size_t options_size;
+        cl_int err =
+            clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_OPTIONS, 0,
+                                  nullptr, &options_size);
+        EXPECT_CL_SUCCESS(err);
+        std::string build_options;
+        build_options.resize(options_size);
+        auto data_ptr = const_cast<char*>(build_options.c_str());
+        err = clGetProgramBuildInfo(program, gDevice, CL_PROGRAM_BUILD_OPTIONS,
+                                    options_size, data_ptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        if (!build_options.empty() && build_options.back() == '\0') {
+            build_options.pop_back();
+        }
+        return build_options;
+    }
+
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {
         auto program = CreateAndBuildProgram(source);
 

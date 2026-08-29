@@ -377,6 +377,94 @@ TEST_F(WithCommandQueue, ProgramBinaryExecutable) {
     ASSERT_EQ(result[3], 3);
 }
 
+TEST_F(WithCommandQueue, ProgramBinaryPreservedBuildOptions) {
+    static const char* sourceA = R"(
+      extern void bar(global uint *dst, global uint *src);
+
+      kernel void foo(global uint *dst, global uint *src) {
+        bar(dst, src);
+      }
+    )";
+    static const char* sourceB = R"(
+      void bar(global uint *dst, global uint *src) {
+        int gid = get_global_id(0);
+        dst[gid] = src[gid];
+      }
+    )";
+
+    auto programA = CreateProgram(sourceA);
+    CompileProgram(programA,
+                   "-cl-fast-relaxed-math -cl-opt-disable -cl-std=CL1.2");
+    auto binaryA = GetProgramBinary(programA);
+    auto reloaded_programA = CreateProgramWithBinary(binaryA);
+    auto optsA = GetProgramBuildOptions(reloaded_programA);
+    EXPECT_TRUE(optsA.find("-cl-fast-relaxed-math") != std::string::npos);
+    EXPECT_TRUE(optsA.find("-cl-opt-disable") != std::string::npos);
+    EXPECT_TRUE(optsA.find("-cl-std=CL1.2") != std::string::npos);
+
+    auto programB = CreateProgram(sourceB);
+    CompileProgram(programB,
+                   "-cl-fast-relaxed-math -cl-kernel-arg-info -cl-std=CL2.0");
+    auto binaryB = GetProgramBinary(programB);
+    auto reloaded_programB = CreateProgramWithBinary(binaryB);
+    auto optsB = GetProgramBuildOptions(reloaded_programB);
+    EXPECT_TRUE(optsB.find("-cl-fast-relaxed-math") != std::string::npos);
+    EXPECT_TRUE(optsB.find("-cl-kernel-arg-info") != std::string::npos);
+    EXPECT_TRUE(optsB.find("-cl-std=CL2.0") != std::string::npos);
+
+    cl_program program_list[2] = {reloaded_programA, reloaded_programB};
+    auto linked_program = LinkProgram(2, program_list);
+
+    auto linked_opts = GetProgramBuildOptions(linked_program);
+    EXPECT_TRUE(linked_opts.find("-cl-fast-relaxed-math") != std::string::npos);
+    EXPECT_TRUE(linked_opts.find("-cl-opt-disable") != std::string::npos);
+    EXPECT_TRUE(linked_opts.find("-cl-kernel-arg-info") != std::string::npos);
+    EXPECT_TRUE(linked_opts.find("-cl-std=CL2.0") != std::string::npos);
+
+    auto linked_binary = GetProgramBinary(linked_program);
+    auto reloaded_linked_program = CreateProgramWithBinary(linked_binary);
+    BuildProgram(reloaded_linked_program);
+
+    const size_t gws = 4;
+    const size_t buffer_size = gws * sizeof(cl_uint);
+    cl_uint source[gws] = {10, 20, 30, 40};
+    cl_uint result[gws] = {0};
+    auto buffer_src = CreateBuffer(CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                   buffer_size, source);
+    auto buffer_dst = CreateBuffer(CL_MEM_WRITE_ONLY, buffer_size);
+    auto kernel = CreateKernel(reloaded_linked_program, "foo");
+    SetKernelArg(kernel, 0, buffer_dst);
+    SetKernelArg(kernel, 1, buffer_src);
+
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer_dst, CL_BLOCKING, 0, buffer_size, result);
+
+    EXPECT_EQ(result[0], source[0]);
+    EXPECT_EQ(result[1], source[1]);
+    EXPECT_EQ(result[2], source[2]);
+    EXPECT_EQ(result[3], source[3]);
+}
+
+TEST_F(WithContext, ProgramBinaryMergeBuildOptionsDropped) {
+    static const char* sourceA = "void kernel foo() {}";
+    static const char* sourceB = "void kernel bar() {}";
+
+    auto programA = CreateProgram(sourceA);
+    CompileProgram(programA,
+                   "-cl-fast-relaxed-math -cl-opt-disable -cl-std=CL1.1");
+
+    auto programB = CreateProgram(sourceB);
+    CompileProgram(programB, "-cl-opt-disable -cl-std=CL1.2");
+
+    cl_program program_list[2] = {programA, programB};
+    auto linked_program = LinkProgram(2, program_list, "-create-library");
+
+    auto linked_opts = GetProgramBuildOptions(linked_program);
+    EXPECT_TRUE(linked_opts.find("-cl-fast-relaxed-math") == std::string::npos);
+    EXPECT_TRUE(linked_opts.find("-cl-opt-disable") != std::string::npos);
+    EXPECT_TRUE(linked_opts.find("-cl-std=CL1.2") != std::string::npos);
+}
+
 TEST_F(WithCommandQueue, LinkPrograms) {
     static const char* sourceA = R"(
       extern void bar(global uint *dst, global uint *src);
