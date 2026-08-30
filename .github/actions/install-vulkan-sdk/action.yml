@@ -16,16 +16,28 @@ runs:
       with:
         version: ${{ inputs.version }}
         cache: true
+    - name: Set up library symlinks
+      shell: bash
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so $VULKAN_SDK/lib/libvulkan.so
+          ln -s $VULKAN_SDK/lib/VulkanLoader/lib/libvulkan.so.1 $VULKAN_SDK/lib/libvulkan.so.1
+          ls -l $VULKAN_SDK/lib
+          ls -l $VULKAN_SDK/lib/VulkanLoader/lib
+        fi
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          ls -lR $VULKAN_SDK
+        fi
     - name: Install Vulkan RT
       shell: bash
       run: |
         if [ "$RUNNER_OS" == "Windows" ]; then
-          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-${{ inputs.version }}-Components.zip
+          curl -L -o vulkanrt.zip https://sdk.lunarg.com/sdk/download/${{ inputs.version }}/windows/VulkanRT-X64-${{ inputs.version }}-Components.zip
           mkdir vulkanrt-temp
           7z x vulkanrt.zip -ovulkanrt-temp
           ls -lR vulkanrt-temp
           mkdir -p '${{ inputs.rt-dir }}'
-          cp -v vulkanrt-temp/VulkanRT-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
+          cp -v vulkanrt-temp/VulkanRT-X64-${{ inputs.version }}-Components/x64/* '${{ inputs.rt-dir }}'
           rm -rf vulkanrt-temp
         fi
     # TODO remove the below once the SPIRV-LLVM-Translator can be configured to not use SPIRV-Tools (or at least successfully builds when it does)
@@ -44,12 +56,12 @@ runs:
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d" >> $GITHUB_ENV
         fi
         if [ $RUNNER_OS == "Linux" ]; then
-          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/etc/vulkan/explicit_layer.d" >> $GITHUB_ENV
+          echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK/share/vulkan/explicit_layer.d" >> $GITHUB_ENV
         fi
         if [ $RUNNER_OS == "Windows" ]; then
           echo "VULKAN_SDK_LAYERS_MANIFEST_PATH=$VULKAN_SDK\Bin" >> $GITHUB_ENV
         fi
-        echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib" >> $GITHUB_ENV
+        echo "VULKAN_SDK_LIB_PATH=$VULKAN_SDK/lib:$VULKAN_SDK/lib/VulkanLoader/lib" >> $GITHUB_ENV
     - name: Install layers
       if: runner.os == 'Windows'
       shell: pwsh

@@ -8,12 +8,12 @@ on:
 jobs:
   format:
     name: Code formatting check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Install packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format clang-format-15
+          sudo apt-get install -y clang-format clang-format-22
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -21,7 +21,7 @@ jobs:
         run: |
           ./tests/check-format.sh
         env:
-          CLANG_FORMAT_BINARY: clang-format-15
+          CLANG_FORMAT_BINARY: clang-format-22
   build:
     name: Build ${{ matrix.os }} ${{ matrix.android }} ${{ matrix.android-abi }} compiler ${{ matrix.compiler-available }} online ${{ matrix.online-compiler }}
     needs: format
@@ -108,7 +108,7 @@ jobs:
         if: ${{ matrix.android-abi == '' }}
         uses: ./.github/actions/install-vulkan-sdk
         with:
-          version: 1.4.309.0
+          version: 1.4.350.0
           rt-dir: ${{ github.workspace }}/vulkanrt
       - name: Build libclc
         if: ${{ matrix.android-abi != '' }}
