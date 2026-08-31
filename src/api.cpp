@@ -5458,12 +5458,11 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
 
     auto img = static_cast<cvk_image*>(image);
 
-    // Fill
-    cvk_image::fill_pattern_array pattern;
-    size_t pattern_size;
-    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
-
     if (img->is_backed_by_buffer_view()) {
+        cvk_image::fill_pattern_array pattern;
+        size_t pattern_size;
+        img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
+
         auto cmd = new cvk_command_fill_buffer(
             command_queue, static_cast<cvk_buffer*>(img->buffer()),
             origin[0] * img->element_size(), region[0] * img->element_size(),
@@ -5475,6 +5474,23 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
 
     // Create image map command
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    if (config.fill_image_on_device()) {
+        std::array<size_t, 3> org = {origin[0], origin[1], origin[2]};
+        cvk_image::fill_pattern_array pattern;
+        memcpy(pattern.data(), fill_color, sizeof(pattern));
+
+        auto cmd_fill_on_device = new cvk_command_fill_image_on_device(
+            command_queue, img, pattern, org, reg);
+        return command_queue->enqueue_command_with_deps(cmd_fill_on_device,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
+    }
+
+    // Fill
+    cvk_image::fill_pattern_array pattern;
+    size_t pattern_size;
+    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
 
     void* map_ptr;
     _cl_event* evt_map;
