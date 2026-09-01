@@ -750,6 +750,19 @@ struct cvk_device : public _cl_device_id,
         return m_float_controls_properties.shaderDenormFlushToZeroFloat64;
     }
 
+    bool supports_signed_zero_inf_nan_preserve_16() const {
+        return m_float_controls_properties
+            .shaderSignedZeroInfNanPreserveFloat16;
+    }
+    bool supports_signed_zero_inf_nan_preserve_32() const {
+        return m_float_controls_properties
+            .shaderSignedZeroInfNanPreserveFloat32;
+    }
+    bool supports_signed_zero_inf_nan_preserve_64() const {
+        return m_float_controls_properties
+            .shaderSignedZeroInfNanPreserveFloat64;
+    }
+
     const std::string& get_device_specific_compile_options() const {
         return m_device_compiler_options;
     }

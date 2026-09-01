@@ -1213,6 +1213,13 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
         return m_float_controls_properties.shaderDenormFlushToZeroFloat32 ||
                m_float_controls_properties.shaderDenormFlushToZeroFloat16 ||
                m_float_controls_properties.shaderDenormFlushToZeroFloat64;
+    case spv::CapabilitySignedZeroInfNanPreserve:
+        return m_float_controls_properties
+                   .shaderSignedZeroInfNanPreserveFloat32 ||
+               m_float_controls_properties
+                   .shaderSignedZeroInfNanPreserveFloat16 ||
+               m_float_controls_properties
+                   .shaderSignedZeroInfNanPreserveFloat64;
     case spv::CapabilityDotProduct:
     case spv::CapabilityDotProductInput4x8BitPacked:
         return supports_dot_product();
