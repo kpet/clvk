@@ -775,6 +775,7 @@ private:
     std::vector<cvk_descriptor_set_array> m_descriptor_sets_array;
 };
 
+struct cvk_kernel;
 struct cvk_program;
 using cvk_program_holder = refcounted_holder<cvk_program>;
 
@@ -782,9 +783,9 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
 
     cvk_program(cvk_context* ctx)
         : api_object(ctx), m_num_devices(1U),
-          m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE),
-          m_shader_module(VK_NULL_HANDLE), m_build_options(""),
-          m_binary(m_context->device()->vulkan_spirv_env()) {
+          m_binary_type(CL_PROGRAM_BINARY_TYPE_NONE), m_build_options(""),
+          m_binary(std::make_unique<spir_binary>(
+              m_context->device()->vulkan_spirv_env())) {
         m_dev_status[m_context->device()] = CL_BUILD_NONE;
     }
 
@@ -802,6 +803,16 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         for (auto& s : m_literal_samplers) {
             s->release();
         }
+    }
+
+    void register_kernel(cvk_kernel* kernel) {
+        std::lock_guard<std::mutex> lock(m_lock);
+        m_kernels.insert(kernel);
+    }
+
+    void unregister_kernel(cvk_kernel* kernel) {
+        std::lock_guard<std::mutex> lock(m_lock);
+        m_kernels.erase(kernel);
     }
 
     void append_source(const char* src, size_t len) {
@@ -890,17 +901,17 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
         release();
     }
 
-    unsigned num_kernels() const { return m_binary.num_kernels(); }
-    bool loaded_from_binary() const { return m_binary.loaded_from_binary(); }
-    bool uses_printf() { return !m_binary.printf_descriptors().empty(); }
+    unsigned num_kernels() const { return m_binary->num_kernels(); }
+    bool loaded_from_binary() const { return m_binary->loaded_from_binary(); }
+    bool uses_printf() { return !m_binary->printf_descriptors().empty(); }
     const std::unordered_map<uint32_t, printf_descriptor>&
     printf_descriptors() {
-        return m_binary.get_printf_descriptors();
+        return m_binary->get_printf_descriptors();
     }
 
     const std::vector<kernel_argument>* args_for_kernel(std::string& name) {
-        auto const& args = m_binary.kernels_arguments().find(name);
-        if (args != m_binary.kernels_arguments().end()) {
+        auto const& args = m_binary->kernels_arguments().find(name);
+        if (args != m_binary->kernels_arguments().end()) {
             return &args->second;
         } else {
             return nullptr;
@@ -908,8 +919,8 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     }
 
     const kernel_sampler_metadata_map* sampler_metadata(std::string& name) {
-        auto const& md = m_binary.sampler_metadata().find(name);
-        if (md != m_binary.sampler_metadata().end()) {
+        auto const& md = m_binary->sampler_metadata().find(name);
+        if (md != m_binary->sampler_metadata().end()) {
             return &md->second;
         } else {
             return nullptr;
@@ -917,8 +928,8 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     }
 
     const kernel_image_metadata_map* image_metadata(std::string& name) {
-        auto const& md = m_binary.image_metadata().find(name);
-        if (md != m_binary.image_metadata().end()) {
+        auto const& md = m_binary->image_metadata().find(name);
+        if (md != m_binary->image_metadata().end()) {
             return &md->second;
         } else {
             return nullptr;
@@ -941,14 +952,14 @@ public:
 
     std::vector<const char*> kernel_names() const {
         std::vector<const char*> ret;
-        for (auto& kname_args : m_binary.kernels_arguments()) {
+        for (auto& kname_args : m_binary->kernels_arguments()) {
             ret.push_back(kname_args.first.c_str());
         }
         return ret;
     }
 
     const std::vector<sampler_desc>& literal_sampler_descs() {
-        return m_binary.literal_samplers();
+        return m_binary->literal_samplers();
     }
 
     const std::vector<cvk_sampler_holder>& literal_samplers() {
@@ -960,17 +971,17 @@ public:
     }
 
     CHECK_RETURN const pushconstant_desc* push_constant(pushconstant pc) const {
-        return m_binary.push_constant(pc);
+        return m_binary->push_constant(pc);
     }
 
     CHECK_RETURN const std::unordered_map<spec_constant, uint32_t>&
     spec_constants() const {
-        return m_binary.spec_constants();
+        return m_binary->spec_constants();
     }
 
     const std::array<uint32_t, 3>&
     required_work_group_size(const std::string& kernel) const {
-        return m_binary.required_work_group_size(kernel);
+        return m_binary->required_work_group_size(kernel);
     }
 
     uint32_t required_sub_group_size(std::string& kernel) const {
@@ -1017,8 +1028,8 @@ public:
 
     bool create_module_constant_data_buffer() {
         cl_int err;
-        if (m_binary.constant_data_buffer() != nullptr) {
-            auto& init_data = m_binary.constant_data_buffer()->data;
+        if (m_binary->constant_data_buffer() != nullptr) {
+            auto& init_data = m_binary->constant_data_buffer()->data;
             void* init_data_ptr =
                 reinterpret_cast<void*>(const_cast<char*>(init_data.data()));
             m_module_constant_data_buffer =
@@ -1036,11 +1047,11 @@ public:
     }
 
     const constant_data_buffer_info* module_constant_data_buffer_info() const {
-        return m_binary.constant_data_buffer();
+        return m_binary->constant_data_buffer();
     }
 
     const printf_buffer_desc_info& printf_buffer_info() const {
-        return m_binary.printf_buffer_info();
+        return m_binary->printf_buffer_info();
     }
 
     bool options_allow_split_region(const std::string& options) const {
@@ -1060,15 +1071,15 @@ public:
     CHECK_RETURN cl_int parse_user_spec_constants();
 
     const std::string& kernel_attributes(const std::string& kernel_name) const {
-        return m_binary.kernels_attributes().at(kernel_name);
+        return m_binary->kernels_attributes().at(kernel_name);
     }
 
     uint32_t kernel_flags(const std::string& kernel) const {
-        return m_binary.kernels_flags().at(kernel);
+        return m_binary->kernels_flags().at(kernel);
     }
 
     uint32_t workgroup_variables_size() const {
-        return m_binary.get_workgroup_variables_size();
+        return m_binary->get_workgroup_variables_size();
     }
 
 private:
@@ -1111,20 +1122,21 @@ private:
     std::string m_source;
     std::vector<uint8_t> m_ir;
     std::vector<uint8_t> m_il;
-    VkShaderModule m_shader_module;
+    VkShaderModule m_shader_module{VK_NULL_HANDLE};
     std::unordered_map<const cvk_device*, std::atomic<cl_build_status>>
         m_dev_status;
     cvk_build_options m_build_options;
-    spir_binary m_binary;
+    std::unique_ptr<spir_binary> m_binary;
     std::string m_build_log;
     std::vector<cvk_sampler_holder> m_literal_samplers;
     VkPushConstantRange m_push_constant_range;
     std::unordered_map<std::string, std::shared_ptr<cvk_entry_point>>
         m_entry_points;
     std::vector<uint32_t> m_stripped_binary;
-    VkPipelineCache m_pipeline_cache;
+    VkPipelineCache m_pipeline_cache{VK_NULL_HANDLE};
     std::unique_ptr<cvk_buffer> m_module_constant_data_buffer;
     std::unordered_map<uint32_t, user_spec_constant_data> m_user_spec_constants;
+    std::unordered_set<cvk_kernel*> m_kernels;
 };
 
 static inline cvk_program* icd_downcast(cl_program program) {

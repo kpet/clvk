@@ -586,3 +586,173 @@ TEST_F(WithContext, UnsupportedCapabilities) {
                 std::string::npos);
 }
 #endif
+
+TEST_F(WithCommandQueue, RebuildProgramWithDifferentDefines) {
+    static const char* source = R"(
+        kernel void test(global uint *output) {
+            output[0] = MACRO;
+        }
+    )";
+
+    auto program = CreateProgram(source);
+
+    // Build first time with MACRO=1
+    BuildProgram(program, "-DMACRO=1");
+    auto kernel = CreateKernel(program, "test");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 1);
+
+    // Rebuild second time with MACRO=2
+    // We must release the kernel before rebuild, otherwise it fails with
+    // CL_INVALID_OPERATION
+    clReleaseKernel(kernel.release());
+    BuildProgram(program, "-DMACRO=2");
+
+    // Re-create kernel and set args again
+    auto kernel2 = CreateKernel(program, "test");
+    SetKernelArg(kernel2, 0, buffer);
+
+    EnqueueNDRangeKernel(kernel2, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 2);
+}
+
+TEST_F(WithCommandQueue, RebuildProgramWithAttachedKernelsFails) {
+    static const char* source = R"(
+        kernel void test(global uint *output) {
+            output[0] = 1;
+        }
+    )";
+
+    auto program = CreateProgram(source);
+    BuildProgram(program);
+    auto kernel = CreateKernel(program, "test");
+
+    // Rebuild while kernel is still alive
+    cl_int err =
+        clBuildProgram(program, 1, &gDevice, nullptr, nullptr, nullptr);
+    EXPECT_EQ(err, CL_INVALID_OPERATION);
+}
+
+TEST_F(WithCommandQueue, RebuildProgramAfterFailedKernelCreation) {
+    static const char* source = R"(
+        kernel void test(global uint *output) {
+            output[0] = 42;
+        }
+    )";
+
+    auto program = CreateProgram(source);
+    BuildProgram(program);
+
+    cl_int err;
+    auto invalid_kernel = clCreateKernel(program, "non_existent", &err);
+    EXPECT_EQ(err, CL_INVALID_KERNEL_NAME);
+    EXPECT_EQ(invalid_kernel, nullptr);
+
+    // Rebuild should succeed because no valid kernel objects are attached
+    BuildProgram(program);
+
+    auto kernel = CreateKernel(program, "test");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 42);
+}
+
+TEST_F(WithCommandQueue, RebuildProgramResetOptions) {
+    static const char* source = R"(
+        kernel void test(global uint *output) {
+#ifdef MACRO
+            output[0] = MACRO;
+#else
+            output[0] = 0;
+#endif
+        }
+    )";
+
+    auto program = CreateProgram(source);
+
+    // Build first time with MACRO=5
+    BuildProgram(program, "-DMACRO=5");
+    auto kernel = CreateKernel(program, "test");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 5);
+
+    // Release kernel and rebuild with options = nullptr
+    clReleaseKernel(kernel.release());
+    BuildProgram(program, nullptr);
+
+    auto kernel2 = CreateKernel(program, "test");
+    SetKernelArg(kernel2, 0, buffer);
+
+    EnqueueNDRangeKernel(kernel2, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(WithCommandQueue, RebuildBinaryProgram) {
+    static const char* source = R"(
+        kernel void test(global uint *output) {
+            output[0] = 7;
+        }
+    )";
+
+    auto program = CreateAndBuildProgram(source);
+    auto binary = GetProgramBinary(program);
+
+    auto binary_program = CreateProgramWithBinary(binary);
+
+    // Build first time
+    BuildProgram(binary_program);
+    auto kernel = CreateKernel(binary_program, "test");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 7);
+
+    // Release kernel and rebuild second time
+    clReleaseKernel(kernel.release());
+    BuildProgram(binary_program);
+
+    auto kernel2 = CreateKernel(binary_program, "test");
+    SetKernelArg(kernel2, 0, buffer);
+
+    EnqueueNDRangeKernel(kernel2, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 7);
+}
+
+TEST_F(WithContext, CompileProgramWithAttachedKernelsFails) {
+    static const char* source = R"(
+        kernel void test() {}
+    )";
+
+    auto program = CreateProgram(source);
+    BuildProgram(program);
+    auto kernel = CreateKernel(program, "test");
+
+    // Compile while kernel is still alive
+    cl_int err = clCompileProgram(program, 1, &gDevice, nullptr, 0, nullptr,
+                                  nullptr, nullptr, nullptr);
+    EXPECT_EQ(err, CL_INVALID_OPERATION);
+}

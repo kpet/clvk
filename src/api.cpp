@@ -3336,7 +3336,7 @@ cl_int CLVK_API_CALL clRetainKernel(cl_kernel kernel) {
         return CL_INVALID_KERNEL;
     }
 
-    icd_downcast(kernel)->retain();
+    icd_downcast(kernel)->retain_host();
 
     return CL_SUCCESS;
 }
@@ -3349,7 +3349,7 @@ cl_int CLVK_API_CALL clReleaseKernel(cl_kernel kernel) {
         return CL_INVALID_KERNEL;
     }
 
-    icd_downcast(kernel)->release();
+    icd_downcast(kernel)->release_host();
 
     return CL_SUCCESS;
 }
