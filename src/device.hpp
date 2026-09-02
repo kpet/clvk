@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -432,6 +433,23 @@ struct cvk_device : public _cl_device_id,
         return res;
     }
 
+    cl_uint
+    image_max_width(cl_mem_flags flags = 0,
+                    const cl_image_desc* image_desc = nullptr,
+                    const cl_image_format* image_format = nullptr) const;
+    cl_uint
+    image_max_height(cl_mem_flags flags = 0,
+                     const cl_image_desc* image_desc = nullptr,
+                     const cl_image_format* image_format = nullptr) const;
+    cl_uint
+    image_max_depth(cl_mem_flags flags = 0,
+                    const cl_image_desc* image_desc = nullptr,
+                    const cl_image_format* image_format = nullptr) const;
+    cl_uint
+    image_max_array_size(cl_mem_flags flags = 0,
+                         const cl_image_desc* image_desc = nullptr,
+                         const cl_image_format* image_format = nullptr) const;
+
     bool supports_images() const {
         return devices_support_images() ? CL_TRUE : CL_FALSE;
     }
@@ -791,6 +809,12 @@ struct cvk_device : public _cl_device_id,
                     "clvk-device_" + std::to_string((uintptr_t)this))
 
 private:
+    std::optional<VkImageFormatProperties>
+    get_vulkan_image_format_properties(cl_mem_flags flags,
+                                       const cl_image_desc* desc,
+                                       const cl_image_format* format) const;
+    VkImageFormatProperties
+    get_vulkan_image_format_properties(const cl_image_desc* desc) const;
     std::string version_desc() const {
         std::string ret = "CLVK on Vulkan v";
         ret += vulkan_version_string(m_properties.apiVersion);

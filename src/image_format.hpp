@@ -59,9 +59,8 @@ using format_mapping_map =
 
 const format_mapping_map& get_format_maps();
 
-bool cl_image_format_to_vulkan_format(cl_image_format clformat,
-                                      cl_mem_object_type image_type,
-                                      cvk_device* device,
-                                      image_format_support* fmt_support,
-                                      VkComponentMapping* components_sampled,
-                                      VkComponentMapping* components_storage);
+bool cl_image_format_to_vulkan_format(
+    cl_image_format clformat, cl_mem_object_type image_type,
+    const cvk_device* device, image_format_support* fmt_support,
+    VkComponentMapping* components_sampled = nullptr,
+    VkComponentMapping* components_storage = nullptr);
