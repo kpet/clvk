@@ -113,7 +113,9 @@ struct kernel_argument {
                (kind == kernel_argument_kind::sampled_image) ||
                (kind == kernel_argument_kind::storage_image) ||
                (kind == kernel_argument_kind::storage_texel_buffer) ||
-               (kind == kernel_argument_kind::uniform_texel_buffer);
+               (kind == kernel_argument_kind::uniform_texel_buffer) ||
+               (kind == kernel_argument_kind::pointer_pushconstant) ||
+               (kind == kernel_argument_kind::pointer_ubo);
     }
 
     bool is_unused() const { return kind == kernel_argument_kind::unused; }
