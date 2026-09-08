@@ -723,22 +723,18 @@ cl_int cvk_command_kernel::update_global_push_constants(
                            VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
                            &m_argument_values->pod_data()[offset]);
     }
-    if (m_kernel->has_pod_arguments() &&
-        !m_kernel->has_pod_buffer_arguments()) {
-        for (auto& arg : m_kernel->arguments()) {
-            if (arg.kind == kernel_argument_kind::pod_pushconstant ||
-                arg.kind == kernel_argument_kind::pointer_pushconstant) {
-                CVK_ASSERT(arg.offset + arg.size <=
-                           m_argument_values->pod_data().size());
+    for (auto& arg : m_kernel->arguments()) {
+        if (arg.is_pushconstant()) {
+            CVK_ASSERT(arg.offset + arg.size <=
+                       m_argument_values->pod_data().size());
 
-                // Vulkan valid usage states push constants can only be updated
-                // in chunks whose offset and size are a multiple of 4.
-                uint32_t size = round_up(arg.size, 4);
-                uint32_t offset = arg.offset & ~0x3U;
-                vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
-                                   VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
-                                   &m_argument_values->pod_data()[offset]);
-            }
+            // Vulkan valid usage states push constants can only be updated
+            // in chunks whose offset and size are a multiple of 4.
+            uint32_t size = round_up(arg.size, 4);
+            uint32_t offset = arg.offset & ~0x3U;
+            vkCmdPushConstants(command_buffer, m_kernel->pipeline_layout(),
+                               VK_SHADER_STAGE_COMPUTE_BIT, offset, size,
+                               &m_argument_values->pod_data()[offset]);
         }
     }
     return CL_SUCCESS;
@@ -830,6 +826,18 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
 
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
                       m_pipeline);
+
+    if (m_kernel->num_set_layouts() > 0) {
+        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                                m_kernel->pipeline_layout(), 0,
+                                m_kernel->num_set_layouts(),
+                                m_argument_values->descriptor_sets(), 0, 0);
+    }
+
+    auto err = update_global_push_constants(command_buffer);
+    if (err != CL_SUCCESS) {
+        return err;
+    }
 
     if (auto pc = program->push_constant(pushconstant::region_offset)) {
         CVK_ASSERT(pc->size == 12);
@@ -1088,21 +1096,8 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
         }
     }
 
-    // Bind descriptors and update push constants
-    if (m_kernel->num_set_layouts() > 0) {
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                m_kernel->pipeline_layout(), 0,
-                                m_kernel->num_set_layouts(),
-                                m_argument_values->descriptor_sets(), 0, 0);
-    }
-
-    auto err = update_global_push_constants(command_buffer);
-    if (err != CL_SUCCESS) {
-        return err;
-    }
-
     // Dispatch work
-    err = build_and_dispatch_regions(command_buffer);
+    auto err = build_and_dispatch_regions(command_buffer);
     if (err != CL_SUCCESS) {
         return err;
     }
