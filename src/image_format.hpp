@@ -59,6 +59,20 @@ using format_mapping_map =
 
 const format_mapping_map& get_format_maps();
 
+static inline bool is_integer_type(cl_channel_type data_type) {
+    switch (data_type) {
+    case CL_SIGNED_INT8:
+    case CL_SIGNED_INT16:
+    case CL_SIGNED_INT32:
+    case CL_UNSIGNED_INT8:
+    case CL_UNSIGNED_INT16:
+    case CL_UNSIGNED_INT32:
+        return true;
+    default:
+        return false;
+    }
+}
+
 bool cl_image_format_to_vulkan_format(cl_image_format clformat,
                                       cl_mem_object_type image_type,
                                       cvk_device* device,

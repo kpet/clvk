@@ -266,16 +266,18 @@ bool cvk_sampler::init(bool force_normalized_coordinates) {
     return (res == VK_SUCCESS);
 }
 
-VkFormatFeatureFlags
-cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
-                                             cl_mem_flags flags) {
+VkFormatFeatureFlags cvk_image::required_format_feature_flags_for(
+    cl_mem_object_type type, cl_mem_flags flags, cl_channel_type data_type) {
     // 1Dbuffer requires
     //  RW / RaW: STORAGE_TEXEL_BUFFER
     //  RO: UNIFORM_TEXEL_BUFFER
     // All other images require TRANSFER_SRC, TRANSFER_DST
-    //  read-only: SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
+    //  read-only: SAMPLED_IMAGE,
+    //             SAMPLED_IMAGE_FILTER_LINEAR (for non-integer formats)
     //  write-only: STORAGE_IMAGE
-    //  read-write: STORAGE_IMAGE, SAMPLED_IMAGE, SAMPLED_IMAGE_FILTER_LINEAR
+    //  read-write: STORAGE_IMAGE,
+    //              SAMPLED_IMAGE,
+    //              SAMPLED_IMAGE_FILTER_LINEAR (for non-integer formats)
     //  read-and-write: STORAGE_IMAGE
     VkFormatFeatureFlags format_feature_flags = 0;
     if (type != CL_MEM_OBJECT_IMAGE1D_BUFFER) {
@@ -287,7 +289,7 @@ cvk_image::required_format_feature_flags_for(cl_mem_object_type type,
         format_feature_flags_RO = VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT;
     } else {
         format_feature_flags_RO = VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT;
-        if (config.supports_filter_linear()) {
+        if (config.supports_filter_linear() && !is_integer_type(data_type)) {
             format_feature_flags_RO |=
                 VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
         }
