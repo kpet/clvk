@@ -196,7 +196,7 @@ struct cvk_kernel_argument_values {
     cvk_kernel_argument_values(std::shared_ptr<cvk_entry_point> entry_point)
         : m_entry_point(entry_point), m_is_enqueued(false),
           m_args(m_entry_point->args()), m_pod_arg(nullptr),
-          m_kernel_resources(m_entry_point->num_resource_slots()),
+          m_kernel_resources(m_entry_point->args().size(), nullptr),
           m_local_args_size(m_entry_point->args().size(), 0),
           m_args_set(m_args.size(), false), m_descriptor_sets{VK_NULL_HANDLE},
           m_descriptor_sets_refcount(0) {}
@@ -289,6 +289,7 @@ struct cvk_kernel_argument_values {
                 // OpenCL permits cl_mem to be NULL
                 uint64_t null = 0;
                 set_pod_data(arg.offset, arg.size, &null);
+                m_kernel_resources[arg.pos] = nullptr;
             } else {
                 auto mem_downcast = icd_downcast(mem);
                 if (!mem_downcast->is_valid() ||
@@ -297,9 +298,10 @@ struct cvk_kernel_argument_values {
                 } else if (size != sizeof(cl_mem)) {
                     return CL_INVALID_ARG_SIZE;
                 }
-                auto buff = reinterpret_cast<const cvk_buffer*>(mem_downcast);
+                auto buff = reinterpret_cast<cvk_buffer*>(mem_downcast);
                 auto dev_addr = buff->device_address();
                 set_pod_data(arg.offset, arg.size, &dev_addr);
+                m_kernel_resources[arg.pos] = buff;
             }
         } else if (arg.is_pod()) {
             // If the argument is a vec3, OpenCL requires to call clSetKernelArg
@@ -333,7 +335,7 @@ struct cvk_kernel_argument_values {
                     return CL_INVALID_SAMPLER;
                 }
 
-                m_kernel_resources[arg.binding] = sampler;
+                m_kernel_resources[arg.pos] = sampler;
             } else {
                 auto apimem = *reinterpret_cast<const cl_mem*>(value);
                 if (apimem == nullptr) {
@@ -362,7 +364,7 @@ struct cvk_kernel_argument_values {
                      !mem->has_flags(CL_MEM_READ_WRITE))) {
                     return CL_INVALID_ARG_VALUE;
                 }
-                m_kernel_resources[arg.binding] = mem;
+                m_kernel_resources[arg.pos] = mem;
             }
         }
 
@@ -371,7 +373,7 @@ struct cvk_kernel_argument_values {
     }
 
     refcounted* get_arg_value(const kernel_argument& arg) {
-        return m_kernel_resources[arg.binding];
+        return m_kernel_resources[arg.pos];
     }
 
     bool is_enqueued() const { return m_is_enqueued; }
@@ -418,9 +420,10 @@ struct cvk_kernel_argument_values {
         mems.reserve(m_args.size());
         for (auto& arg : m_args) {
             if (arg.is_mem_object_backed()) {
-                auto mem =
-                    static_cast<cvk_mem*>(m_kernel_resources[arg.binding]);
-                mems.push_back(mem);
+                auto mem = static_cast<cvk_mem*>(m_kernel_resources[arg.pos]);
+                if (mem) {
+                    mems.push_back(mem);
+                }
             }
         }
         return mems;
