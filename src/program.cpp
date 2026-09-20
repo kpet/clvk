@@ -2165,7 +2165,7 @@ cl_int cvk_entry_point::init() {
 
     // Do we have POD arguments?
     for (auto& arg : m_args) {
-        if (arg.is_pod()) {
+        if (arg.is_pod() || arg.is_pushconstant()) {
             m_has_pod_arguments = true;
             m_pod_buffer_size =
                 std::max(m_pod_buffer_size, arg.offset + arg.size);
