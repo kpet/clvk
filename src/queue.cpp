@@ -799,10 +799,21 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
         specConstants[dim_id] = m_dimensions;
     }
 
+    std::optional<uint32_t> subgroup_size = std::nullopt;
+    if (m_kernel->program()->uses_subgroups() ||
+        m_kernel->program()->required_sub_group_size(m_kernel->name()) != 0 ||
+        constants.count(spec_constant::subgroup_max_size) > 0) {
+        subgroup_size = m_kernel->subgroup_size_for_ndrange(m_queue->device(),
+                                                            m_ndrange.lws);
+        if (subgroup_size.value() == 0) {
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
     where = constants.find(spec_constant::subgroup_max_size);
     if (where != constants.end()) {
         uint32_t size_id = where->second;
-        specConstants[size_id] = m_queue->device()->sub_group_size();
+        CVK_ASSERT(subgroup_size.has_value());
+        specConstants[size_id] = subgroup_size.value();
     }
 
     // Clspv can allocate spec constants for global offset.
@@ -822,7 +833,7 @@ cl_int cvk_command_kernel::dispatch_uniform_region_within_vklimits(
         specConstants[offset_id] = m_ndrange.offset[2];
     }
 
-    m_pipeline = m_kernel->create_pipeline(specConstants);
+    m_pipeline = m_kernel->create_pipeline(specConstants, subgroup_size);
 
     if (m_pipeline == VK_NULL_HANDLE) {
         return CL_OUT_OF_RESOURCES;

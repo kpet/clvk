@@ -1637,7 +1637,10 @@ void cvk_program::prepare_push_constant_range() {
                              max_end - min_offset};
 }
 
-bool cvk_program::check_capabilities(const cvk_device* device) {
+bool cvk_program::parse_spirv_capabilities(const cvk_device* device,
+                                           bool check_support) {
+    m_uses_subgroups = false;
+
     // Get list of required SPIR-V capabilities.
     std::vector<spv::Capability> capabilities;
     if (!m_binary.get_capabilities(capabilities)) {
@@ -1649,7 +1652,22 @@ bool cvk_program::check_capabilities(const cvk_device* device) {
     for (auto c : capabilities) {
         cvk_info_fn("Program requires SPIR-V capability %d (%s).", c,
                     spirv_capability_to_string(c));
-        if (!device->supports_capability(c)
+        switch (c) {
+        case spv::CapabilityGroupNonUniform:
+        case spv::CapabilityGroupNonUniformVote:
+        case spv::CapabilityGroupNonUniformBallot:
+        case spv::CapabilityGroupNonUniformShuffle:
+        case spv::CapabilityGroupNonUniformShuffleRelative:
+        case spv::CapabilityGroupNonUniformArithmetic:
+        case spv::CapabilityGroupNonUniformClustered:
+        case spv::CapabilityGroupNonUniformQuad:
+        case spv::CapabilityGroupNonUniformRotateKHR:
+            m_uses_subgroups = true;
+            break;
+        default:
+            break;
+        }
+        if ((check_support && !device->supports_capability(c))
 #ifdef CLVK_UNIT_TESTING_ENABLED
             || config.force_check_capabilities_error()
 #endif
@@ -1718,7 +1736,8 @@ void cvk_program::do_build() {
 
     // Check capabilities against the device.
     if ((m_binary_type == CL_PROGRAM_BINARY_TYPE_EXECUTABLE) &&
-        !config.skip_spirv_capability_check && !check_capabilities(device)) {
+        !parse_spirv_capabilities(device,
+                                  !config.skip_spirv_capability_check())) {
         cvk_error("Missing support for required SPIR-V capabilities.");
         complete_operation(device, CL_BUILD_ERROR);
         return;
@@ -2231,7 +2250,8 @@ cl_int cvk_entry_point::init() {
 }
 
 VkPipeline
-cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
+cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants,
+                                 const std::optional<uint32_t>& subgroup_size) {
     std::lock_guard<std::mutex> lock(m_pipeline_cache_lock);
 
     // Check for a cached pipeline using the same specialization constants
@@ -2262,24 +2282,12 @@ cvk_entry_point::create_pipeline(const cvk_spec_constant_map& spec_constants) {
     void* pipelineShaderStageCreateInfoPNext = nullptr;
     VkPipelineShaderStageRequiredSubgroupSizeCreateInfo
         reqdSubgroupSizeCreateInfo;
-    if (m_device->supports_subgroup_size_selection()) {
-        auto reqdSubgroupSize = m_program->required_sub_group_size(m_name);
-        if (reqdSubgroupSize > m_device->max_sub_group_size() ||
-            reqdSubgroupSize < m_device->min_sub_group_size()) {
-            if (reqdSubgroupSize != 0) {
-                cvk_error_fn("required subgroup size '%u' for '%s' is out of "
-                             "the supported range [%u, %u]",
-                             reqdSubgroupSize, m_name.c_str(),
-                             m_device->min_sub_group_size(),
-                             m_device->max_sub_group_size());
-                return VK_NULL_HANDLE;
-            }
-            reqdSubgroupSize = m_device->sub_group_size();
-        }
+    if (m_device->supports_subgroup_size_selection() &&
+        subgroup_size.has_value()) {
         reqdSubgroupSizeCreateInfo.sType =
             VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO;
         reqdSubgroupSizeCreateInfo.pNext = nullptr;
-        reqdSubgroupSizeCreateInfo.requiredSubgroupSize = reqdSubgroupSize;
+        reqdSubgroupSizeCreateInfo.requiredSubgroupSize = subgroup_size.value();
         pipelineShaderStageCreateInfoPNext = &reqdSubgroupSizeCreateInfo;
     }
 

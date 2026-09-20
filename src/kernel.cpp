@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <optional>
 
 #include "clspv/Sampler.h"
 
+#include "device.hpp"
 #include "kernel.hpp"
 #include "memory.hpp"
 
@@ -60,8 +62,79 @@ cl_int cvk_kernel::init() {
 }
 
 VkPipeline
-cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants) {
-    return m_entry_point->create_pipeline(spec_constants);
+cvk_kernel::create_pipeline(const cvk_spec_constant_map& spec_constants,
+                            const std::optional<uint32_t>& subgroup_size) {
+    return m_entry_point->create_pipeline(spec_constants, subgroup_size);
+}
+
+size_t cvk_kernel::subgroup_size_for_ndrange(
+    const cvk_device* device, const std::array<uint32_t, 3>& lws) const {
+    uint32_t wgs = lws[0] * lws[1] * lws[2];
+    if (wgs == 0 || wgs > max_work_group_size(device)) {
+        return 0;
+    }
+    uint32_t reqd = m_program->required_sub_group_size(m_name);
+    uint32_t default_size = device->sub_group_size();
+    if (default_size == 0) {
+        return 0;
+    }
+    uint32_t max_num_sub_groups = device->max_num_sub_groups();
+    cvk_debug_fn("wgs %u reqd %u default_size %u max_num_sub_groups %u", wgs,
+                 reqd, default_size, max_num_sub_groups);
+    auto too_many_subgroups = [wgs, max_num_sub_groups](uint32_t size) {
+        return max_num_sub_groups != 0 &&
+               ceil_div(wgs, size) > max_num_sub_groups;
+    };
+
+    if (reqd != 0) {
+        if (too_many_subgroups(reqd)) {
+            cvk_error_fn("Required subgroup size (%u) generates more subgroups "
+                         "than what the device supports (%u)",
+                         reqd, max_num_sub_groups);
+            return 0;
+        }
+        if (device->supports_subgroup_size_selection()) {
+            uint32_t min_size = device->min_sub_group_size();
+            uint32_t max_size = device->max_sub_group_size();
+            if ((reqd > max_size || reqd < min_size)) {
+                cvk_error_fn(
+                    "Required subgroup size (%u) is out of the range of "
+                    "supported subgroup sizes [ %u, %u ]",
+                    reqd, min_size, max_size);
+                return 0;
+            }
+        } else if (reqd != default_size) {
+            cvk_error_fn("Required subgroup size (%u) does not match the "
+                         "default subgroup size (%u), and the device does not "
+                         "support subgroup size selection",
+                         reqd, default_size);
+            return 0;
+        }
+        return reqd;
+    } else {
+        if (device->supports_subgroup_size_selection()) {
+            uint32_t max_size = device->max_sub_group_size();
+            while (((default_size * 2) <= max_size) &&
+                   too_many_subgroups(default_size)) {
+                default_size *= 2;
+            }
+        }
+        if (too_many_subgroups(default_size)) {
+            cvk_error_fn("Invalid subgroup size");
+            return 0;
+        }
+        return default_size;
+    }
+}
+
+size_t cvk_kernel::sub_group_count_for_ndrange(
+    const cvk_device* device, const std::array<uint32_t, 3>& lws) const {
+    uint32_t work_items_per_work_group = lws[0] * lws[1] * lws[2];
+    size_t size = subgroup_size_for_ndrange(device, lws);
+    if (size == 0) {
+        return 0;
+    }
+    return ceil_div<size_t>(work_items_per_work_group, size);
 }
 
 std::unique_ptr<cvk_kernel> cvk_kernel::clone(cl_int* errcode_ret) const {

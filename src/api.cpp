@@ -3270,23 +3270,45 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
         return CL_INVALID_DEVICE;
     }
 
-    switch (param_name) {
-    case CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE:
-        val_sizet = kernel->max_sub_group_size_for_ndrange(device);
-        copy_ptr = &val_sizet;
-        ret_size = sizeof(val_sizet);
-        break;
-    case CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE: {
-        std::array<uint32_t, 3> lws = {1, 1, 1};
+    auto parse_lws = [&](std::array<uint32_t, 3>& lws) -> bool {
         unsigned num_dims = input_value_size / sizeof(size_t);
-        if (input_value_size % sizeof(size_t) != 0) {
-            ret = CL_INVALID_VALUE;
-            break;
+        if ((input_value_size % sizeof(size_t) != 0) || num_dims > 3 ||
+            num_dims == 0 || input_value == nullptr) {
+            return false;
         }
         for (unsigned dim = 0; dim < num_dims; dim++) {
             lws[dim] = static_cast<const size_t*>(input_value)[dim];
         }
+        return true;
+    };
+
+    switch (param_name) {
+    case CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE: {
+        std::array<uint32_t, 3> lws = {1, 1, 1};
+        if (!parse_lws(lws)) {
+            ret = CL_INVALID_VALUE;
+            break;
+        }
+        val_sizet = kernel->subgroup_size_for_ndrange(device, lws);
+        if (val_sizet == 0) {
+            ret = CL_INVALID_WORK_GROUP_SIZE;
+            break;
+        }
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
+    }
+    case CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE: {
+        std::array<uint32_t, 3> lws = {1, 1, 1};
+        if (!parse_lws(lws)) {
+            ret = CL_INVALID_VALUE;
+            break;
+        }
         val_sizet = kernel->sub_group_count_for_ndrange(device, lws);
+        if (val_sizet == 0) {
+            ret = CL_INVALID_WORK_GROUP_SIZE;
+            break;
+        }
         copy_ptr = &val_sizet;
         ret_size = sizeof(val_sizet);
         break;
@@ -4125,14 +4147,6 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // + the corresponding values in global_work_offset for any dimensions is
     // greater than the maximum value representable by size t on the device on
     // which the kernel-instance will be enqueued.
-    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and is
-    // not consistent with the required number of sub-groups for kernel in the
-    // program source.
-    // TODO CL_INVALID_WORK_GROUP_SIZE if local_work_size is specified and the
-    // total number of work-items in the work-group computed as
-    // local_work_size[0] × … local_work_size[work_dim - 1] is greater than the
-    // value specified by CL_KERNEL_WORK_GROUP_SIZE in the Kernel Object Device
-    // Queries table.
     // TODO CL_INVALID_WORK_GROUP_SIZE if the program was compiled with
     // cl-uniform-work-group-size and the number of work-items specified by
     // global_work_size is not evenly divisible by size of work-group given by

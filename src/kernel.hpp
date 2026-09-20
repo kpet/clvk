@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -57,7 +58,8 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     CHECK_RETURN cl_int set_arg(cl_uint index, size_t size, const void* value);
     CHECK_RETURN VkPipeline
-    create_pipeline(const cvk_spec_constant_map& spec_constants);
+    create_pipeline(const cvk_spec_constant_map& spec_constants,
+                    const std::optional<uint32_t>& subgroup_size);
 
     bool has_pod_arguments() const {
         return m_entry_point->has_pod_arguments();
@@ -89,19 +91,34 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     cl_ulong local_mem_size() const;
 
     size_t max_work_group_size(const cvk_device* device) const {
-        return device->max_work_group_size();
+        size_t val = device->max_work_group_size();
+        if (device->supports_subgroups() &&
+            (m_program->uses_subgroups() ||
+             m_program->required_sub_group_size(m_name) != 0)) {
+            size_t max_subgroup_size =
+                device->supports_subgroup_size_selection()
+                    ? device->max_sub_group_size()
+                    : device->sub_group_size();
+            uint32_t reqd = m_program->required_sub_group_size(m_name);
+            if (reqd != 0) {
+                max_subgroup_size = reqd;
+            }
+            size_t subgroup_limit =
+                device->max_num_sub_groups() * max_subgroup_size;
+            if (subgroup_limit != 0) {
+                val = std::min(val, subgroup_limit);
+            }
+        }
+        return val;
     }
 
-    size_t max_sub_group_size_for_ndrange(const cvk_device* device) const {
-        return device->sub_group_size();
-    }
+    // Returns 0 when the workgroup size (lws) is invalid
+    size_t subgroup_size_for_ndrange(const cvk_device* device,
+                                     const std::array<uint32_t, 3>& lws) const;
 
     size_t
     sub_group_count_for_ndrange(const cvk_device* device,
-                                const std::array<uint32_t, 3>& lws) const {
-        uint32_t work_items_per_work_group = lws[0] * lws[1] * lws[2];
-        return ceil_div(work_items_per_work_group, device->sub_group_size());
-    }
+                                const std::array<uint32_t, 3>& lws) const;
     std::array<size_t, 3>
     local_size_for_sub_group_count(const cvk_device* device,
                                    size_t num_sub_groups) const {
