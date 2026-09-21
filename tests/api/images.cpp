@@ -852,4 +852,85 @@ TEST_F(WithCommandQueue, ImageInitAtCreation) {
     EXPECT_TRUE(success);
 }
 
+TEST_F(WithCommandQueue, FillImageOnDevice) {
+    auto cfg =
+        CLVK_CONFIG_SCOPED_OVERRIDE(fill_image_on_device, bool, true, true);
+
+    const size_t IMAGE_WIDTH = 8;
+    const size_t IMAGE_HEIGHT = 8;
+    const cl_uchar fill_value = 0x5A;
+    std::vector<cl_uchar> read_data(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+
+    cl_image_format format = {CL_R, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+
+    // Test with CL_MEM_READ_WRITE image
+    auto image_rw = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+
+    cl_uint pattern[4] = {fill_value, fill_value, fill_value, fill_value};
+    size_t origin[3] = {0, 0, 0};
+    size_t region[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, 1};
+
+    EnqueueFillImage(image_rw, &pattern, origin, region);
+    EnqueueReadImage(image_rw, CL_TRUE, origin, region, 0, 0, read_data.data());
+
+    for (size_t i = 0; i < IMAGE_WIDTH * IMAGE_HEIGHT; ++i) {
+        EXPECT_EQ(read_data[i], fill_value);
+    }
+
+    // Test with CL_MEM_READ_ONLY image
+    auto image_ro = CreateImage(CL_MEM_READ_ONLY, &format, &desc, nullptr);
+    std::vector<cl_uchar> read_ro(IMAGE_WIDTH * IMAGE_HEIGHT, 0);
+    const cl_uchar fill_value_ro = 0xA5;
+    cl_uint pattern_ro[4] = {fill_value_ro, fill_value_ro, fill_value_ro,
+                             fill_value_ro};
+    EnqueueFillImage(image_ro, &pattern_ro, origin, region);
+    EnqueueReadImage(image_ro, CL_TRUE, origin, region, 0, 0, read_ro.data());
+
+    for (size_t i = 0; i < IMAGE_WIDTH * IMAGE_HEIGHT; ++i) {
+        EXPECT_EQ(read_ro[i], fill_value_ro);
+    }
+
+    // Test with 3D image and float format
+    const size_t DEPTH = 4;
+    cl_image_format format_float = {CL_R, CL_FLOAT};
+    cl_image_desc desc_3d = {
+        CL_MEM_OBJECT_IMAGE3D, // image_type
+        IMAGE_WIDTH,           // image_width
+        IMAGE_HEIGHT,          // image_height
+        DEPTH,                 // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+
+    auto image_3d =
+        CreateImage(CL_MEM_READ_WRITE, &format_float, &desc_3d, nullptr);
+    cl_float fill_float[4] = {3.14f, 0.0f, 0.0f, 0.0f};
+    size_t region_3d[3] = {IMAGE_WIDTH, IMAGE_HEIGHT, DEPTH};
+    std::vector<cl_float> read_float(IMAGE_WIDTH * IMAGE_HEIGHT * DEPTH, 0.0f);
+
+    EnqueueFillImage(image_3d, fill_float, origin, region_3d);
+    EnqueueReadImage(image_3d, CL_TRUE, origin, region_3d, 0, 0,
+                     read_float.data());
+
+    for (size_t i = 0; i < IMAGE_WIDTH * IMAGE_HEIGHT * DEPTH; ++i) {
+        EXPECT_FLOAT_EQ(read_float[i], 3.14f);
+    }
+}
+
 #endif
