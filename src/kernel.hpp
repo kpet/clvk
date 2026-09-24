@@ -233,9 +233,7 @@ struct cvk_kernel_argument_values {
             return nullptr;
         }
 
-        if (!val->init_copy(other)) {
-            return nullptr;
-        }
+        val->init_copy(other);
 
         return val;
     }
@@ -268,12 +266,9 @@ struct cvk_kernel_argument_values {
         return true;
     }
 
-    bool init_copy(const cvk_kernel_argument_values& other) {
-        if (m_entry_point->has_pod_arguments()) {
+    void init_copy(const cvk_kernel_argument_values& other) {
+        if (m_pod_data != nullptr) {
             memcpy(&pod_data()[0], &other.pod_data()[0], pod_data().size());
-            return true;
-        } else {
-            return true;
         }
     }
 
