@@ -25,6 +25,12 @@ kernel void test_simple(global uint4* out, constant uint4* c_data)
 )";
 
 TEST_F(WithCommandQueue, SimpleUBO) {
+#ifdef CLVK_UNIT_TESTING_ENABLED
+    if (CLVK_CONFIG_GET(physical_addressing)) {
+        GTEST_SKIP()
+            << "Physical addressing and -constant-args-ubo are incompatible";
+    }
+#endif
     // Create kernel
     auto kernel = CreateKernel(program_source,
                                " -constant-args-ubo -inline-entry-points ",
