@@ -464,7 +464,7 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
     auto kernel = CreateKernel(program_source, "test_simple");
 
     // Create buffer
-    size_t buffer_size = NUM_INSTANCES * sizeof(cl_uint);
+    size_t buffer_size = (NUM_INSTANCES + 1) * sizeof(cl_uint);
     auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
                                buffer_size, nullptr);
 
@@ -481,7 +481,11 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
     SetKernelArg(kernel, 1, &i);
     cl_uint err = clEnqueueNDRangeKernel(m_queue, kernel, 1, nullptr, &gws,
                                          &lws, 0, nullptr, nullptr);
-    ASSERT_EQ(err, CL_OUT_OF_RESOURCES);
+    if (CLVK_CONFIG_GET(physical_addressing)) {
+        ASSERT_EQ(err, CL_SUCCESS);
+    } else {
+        ASSERT_EQ(err, CL_OUT_OF_RESOURCES);
+    }
 }
 
 TEST_F(WithCommandQueue, EnqueueTooManyCommandsWithRetry) {
