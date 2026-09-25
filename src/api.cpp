@@ -4878,9 +4878,6 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
         return CL_SUCCESS;
     }
 
-    const VkFormatFeatureFlags required_format_feature_flags =
-        cvk_image::required_format_feature_flags_for(image_type, flags);
-
     // TODO tiling selection
     //  No host access => OPTIMAL
     //  Host ACCESS => LINEAR if supported, OPTIMAL otherwise?
@@ -4899,6 +4896,9 @@ cl_int CLVK_API_CALL clGetSupportedImageFormats(cl_context context,
         if ((fmt_support.flags & flags) != flags) {
             continue;
         }
+        const VkFormatFeatureFlags required_format_feature_flags =
+            cvk_image::required_format_feature_flags_for(
+                image_type, flags, clfmt.image_channel_data_type);
         if (!is_image_format_supported(pdev, fmt_support.vkfmt, image_type,
                                        required_format_feature_flags,
                                        clfmt.image_channel_order)) {

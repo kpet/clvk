@@ -239,7 +239,8 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     if (arg.kind == kernel_argument_kind::sampled_image ||
         arg.kind == kernel_argument_kind::storage_image ||
         arg.kind == kernel_argument_kind::storage_texel_buffer ||
-        arg.kind == kernel_argument_kind::uniform_texel_buffer) {
+        arg.kind == kernel_argument_kind::uniform_texel_buffer ||
+        arg.kind == kernel_argument_kind::unused) {
         set_image_metadata(index, value);
     }
 
