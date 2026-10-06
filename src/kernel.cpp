@@ -154,12 +154,11 @@ std::unique_ptr<cvk_kernel> cvk_kernel::clone(cl_int* errcode_ret) const {
 }
 
 void cvk_kernel::set_image_metadata(cl_uint index, const void* image) {
-    if (!m_image_metadata) {
+    if (!m_image_metadata || image == nullptr) {
         return;
     }
     auto md = m_image_metadata->find(index);
     if (md != m_image_metadata->end()) {
-
         auto mem = icd_downcast(*reinterpret_cast<const cl_mem*>(image));
         assert(mem->is_image_type());
         auto format = static_cast<cvk_image*>(mem)->format();
@@ -180,7 +179,7 @@ void cvk_kernel::set_image_metadata(cl_uint index, const void* image) {
 }
 
 void cvk_kernel::set_sampler_metadata(cl_uint index, const void* sampler) {
-    if (!m_sampler_metadata) {
+    if (!m_sampler_metadata || sampler == nullptr) {
         return;
     }
     auto md = m_sampler_metadata->find(index);
@@ -233,13 +232,17 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
     auto const& arg = m_args[index];
 
     cl_int ret = m_argument_values->set_arg(arg, size, value);
+    if (ret != CL_SUCCESS) {
+        return ret;
+    }
 
     // if the argument is an image, we need to set its metadata
     // (channel_order/channel_data_type).
     if (arg.kind == kernel_argument_kind::sampled_image ||
         arg.kind == kernel_argument_kind::storage_image ||
         arg.kind == kernel_argument_kind::storage_texel_buffer ||
-        arg.kind == kernel_argument_kind::uniform_texel_buffer) {
+        arg.kind == kernel_argument_kind::uniform_texel_buffer ||
+        arg.kind == kernel_argument_kind::unused) {
         set_image_metadata(index, value);
     }
 
@@ -247,7 +250,7 @@ cl_int cvk_kernel::set_arg(cl_uint index, size_t size, const void* value) {
         set_sampler_metadata(index, value);
     }
 
-    return ret;
+    return CL_SUCCESS;
 }
 
 bool cvk_kernel::args_valid() const { return m_argument_values->args_valid(); }
