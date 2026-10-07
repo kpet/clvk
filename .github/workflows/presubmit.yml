@@ -5,6 +5,9 @@ on:
       - main
   pull_request:
 
+env:
+   NDK_VERSION=r30
+
 jobs:
   format:
     name: Code formatting check
