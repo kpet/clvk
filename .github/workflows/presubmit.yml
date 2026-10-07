@@ -6,7 +6,7 @@ on:
   pull_request:
 
 env:
-   NDK_VERSION=r30
+   NDK_VERSION: r30
 
 jobs:
   format:
