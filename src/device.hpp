@@ -56,6 +56,12 @@ struct cvk_device : public _cl_device_id,
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
 
+        if (!config.device_name().empty()) {
+            strncpy(m_properties.deviceName, config.device_name().c_str(),
+                    sizeof(m_properties.deviceName) - 1);
+            m_properties.deviceName[sizeof(m_properties.deviceName) - 1] = '\0';
+        }
+
         switch (m_properties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
         case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
