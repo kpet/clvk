@@ -56,12 +56,6 @@ struct cvk_device : public _cl_device_id,
         vkGetPhysicalDeviceProperties(m_pdev, &m_properties);
         vkGetPhysicalDeviceMemoryProperties(m_pdev, &m_mem_properties);
 
-        if (!config.device_name().empty()) {
-            strncpy(m_properties.deviceName, config.device_name().c_str(),
-                    sizeof(m_properties.deviceName) - 1);
-            m_properties.deviceName[sizeof(m_properties.deviceName) - 1] = '\0';
-        }
-
         switch (m_properties.deviceType) {
         case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
         case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
@@ -105,7 +99,15 @@ struct cvk_device : public _cl_device_id,
         return m_properties.limits;
     }
     cvk_platform* platform() const { return m_platform; }
-    const char* name() const { return m_properties.deviceName; }
+    const char* name() const {
+        // The override only affects the reported name: the Vulkan properties
+        // keep the real device name, which the device-properties dispatch
+        // relies on.
+        if (!config.device_name().empty()) {
+            return config.device_name().c_str();
+        }
+        return m_properties.deviceName;
+    }
     uint32_t vendor_id() const { return m_properties.vendorID; }
     std::string vendor() const;
 

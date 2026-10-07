@@ -1093,7 +1093,7 @@ void cvk_device::log_limits_and_memory_information() {
 }
 
 bool cvk_device::init(VkInstance instance) {
-    cvk_info("Initialising device %s", m_properties.deviceName);
+    cvk_info("Initialising device %s", name());
     cvk_info("  API Version: %s",
              vulkan_version_string(m_properties.apiVersion).c_str());
 
