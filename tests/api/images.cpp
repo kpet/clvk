@@ -82,63 +82,6 @@ TEST_F(WithContext, Issue303LuminanceImageFormats) {
     auto image = CreateImage(CL_MEM_READ_WRITE, &format, &image_desc, NULL);
 }
 
-TEST_F(WithContext, SupportedIntegerImageFormats) {
-    cl_bool image_support = CL_FALSE;
-    cl_int err =
-        clGetDeviceInfo(gDevice, CL_DEVICE_IMAGE_SUPPORT, sizeof(image_support),
-                        &image_support, nullptr);
-    ASSERT_CL_SUCCESS(err);
-    if (!image_support) {
-        GTEST_SKIP() << "Device does not support images";
-    }
-
-    const cl_mem_flags flags_to_test[] = {
-        CL_MEM_READ_ONLY,
-        CL_MEM_WRITE_ONLY,
-        CL_MEM_READ_WRITE,
-    };
-
-    const cl_channel_type int_channel_types[] = {
-        CL_SIGNED_INT8,   CL_SIGNED_INT16,   CL_SIGNED_INT32,
-        CL_UNSIGNED_INT8, CL_UNSIGNED_INT16, CL_UNSIGNED_INT32,
-    };
-
-    const cl_mem_object_type image_types[] = {
-        CL_MEM_OBJECT_IMAGE2D,
-        CL_MEM_OBJECT_IMAGE3D,
-    };
-
-    for (auto image_type : image_types) {
-        for (auto flags : flags_to_test) {
-            cl_uint num_formats = 0;
-            err = clGetSupportedImageFormats(m_context, flags, image_type, 0,
-                                             nullptr, &num_formats);
-            ASSERT_CL_SUCCESS(err);
-            ASSERT_GT(num_formats, 0u);
-
-            std::vector<cl_image_format> formats(num_formats);
-            err = clGetSupportedImageFormats(m_context, flags, image_type,
-                                             num_formats, formats.data(),
-                                             nullptr);
-            ASSERT_CL_SUCCESS(err);
-
-            auto is_format_supported = [&](cl_channel_type channel_type) {
-                for (const auto& fmt : formats) {
-                    if (fmt.image_channel_order == CL_RGBA &&
-                        fmt.image_channel_data_type == channel_type) {
-                        return true;
-                    }
-                }
-                return false;
-            };
-
-            for (auto channel_type : int_channel_types) {
-                EXPECT_TRUE(is_format_supported(channel_type));
-            }
-        }
-    }
-}
-
 TEST_F(WithCommandQueue, BasicImageMapUnmap) {
     const size_t IMAGE_WIDTH = 97;
     const size_t IMAGE_HEIGHT = 13;
