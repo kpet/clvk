@@ -92,9 +92,9 @@ jobs:
         run: |
           mkdir ndk
           cd ndk
-          wget https://dl.google.com/android/repository/android-ndk-r30-linux.zip
-          unzip android-ndk-r30-linux.zip
-          rm android-ndk-r30-linux.zip
+          wget https://dl.google.com/android/repository/android-ndk-${{ env.NDK_VERSION }}-linux.zip
+          unzip android-ndk-${{ env.NDK_VERSION }}-linux.zip
+          rm android-ndk-${{ env.NDK_VERSION }}-linux.zip
           ls -l
       - name: Select build directory
         shell: bash
