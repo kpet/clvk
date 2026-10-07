@@ -26,7 +26,32 @@
 #include "queue.hpp"
 #include "tracing.hpp"
 
-static VkBool32 VKAPI_PTR debugCallback(
+static VkBool32 VKAPI_PTR
+debugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                   VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                   void* pUserData) {
+    UNUSED(messageTypes);
+    UNUSED(pUserData);
+
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        cvk_error_group(loggroup::validation, "%s", pCallbackData->pMessage);
+    } else if (messageSeverity &
+               VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        cvk_warn_group(loggroup::validation, "%s", pCallbackData->pMessage);
+    } else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
+        cvk_info_group(loggroup::validation, "%s", pCallbackData->pMessage);
+    } else if (messageSeverity &
+               VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
+        cvk_debug_group(loggroup::validation, "%s", pCallbackData->pMessage);
+    } else {
+        cvk_error_group(loggroup::validation, "%s", pCallbackData->pMessage);
+    }
+
+    return VK_FALSE;
+}
+
+static VkBool32 VKAPI_PTR debugReportCallback(
     VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType,
     uint64_t object, size_t location, int32_t messageCode,
     const char* pLayerPrefix, const char* pMessage, void* pUserData) {
@@ -116,6 +141,7 @@ void clvk_global_state::init_vulkan() {
 
     const std::vector<const char*> desired_extensions = {
         VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
         VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
         VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
     };
@@ -133,10 +159,46 @@ void clvk_global_state::init_vulkan() {
         }
     }
 
+    m_debug_utils_enabled =
+        std::find(enabledExtensions.begin(), enabledExtensions.end(),
+                  VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledExtensions.end();
     m_debug_report_enabled =
         std::find(enabledExtensions.begin(), enabledExtensions.end(),
                   VK_EXT_DEBUG_REPORT_EXTENSION_NAME) !=
         enabledExtensions.end();
+
+    VkDebugUtilsMessengerCreateInfoEXT messengerInfo = {
+        VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT, // sType
+        nullptr,                                                 // pNext
+        0,                                                       // flags
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | // messageSeverity
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | // messageType
+            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        &debugUtilsCallback, // pfnUserCallback
+        nullptr              // pUserData
+    };
+
+    VkDebugReportCallbackCreateInfoEXT callbackInfo = {
+        VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT, // sType
+        nullptr,                                                 // pNext
+        VK_DEBUG_REPORT_ERROR_BIT_EXT |                          // flags
+            VK_DEBUG_REPORT_DEBUG_BIT_EXT |
+            VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
+            VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
+            VK_DEBUG_REPORT_WARNING_BIT_EXT,
+        &debugReportCallback, // pfnCallback
+        nullptr               // pUserData
+    };
+
+    const void* instance_pnext = nullptr;
+    if (m_debug_utils_enabled) {
+        instance_pnext = &messengerInfo;
+    } else if (m_debug_report_enabled) {
+        instance_pnext = &callbackInfo;
+    }
 
     // Create the instance
     VkApplicationInfo appInfo = {
@@ -151,7 +213,7 @@ void clvk_global_state::init_vulkan() {
 
     VkInstanceCreateInfo info = {
         VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,      // sType
-        nullptr,                                     // pNext
+        instance_pnext,                              // pNext
         0,                                           // flags
         &appInfo,                                    // pApplicationInfo
         static_cast<uint32_t>(enabledLayers.size()), // enabledLayerCount
@@ -165,20 +227,15 @@ void clvk_global_state::init_vulkan() {
     CVK_VK_CHECK_FATAL(res, "Could not create the instance");
     cvk_info("Created the VkInstance");
 
-    // Create debug callback
-    VkDebugReportCallbackCreateInfoEXT callbackInfo = {
-        VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT, // sType
-        NULL,                                                    // pNext
-        VK_DEBUG_REPORT_ERROR_BIT_EXT |                          // flags
-            VK_DEBUG_REPORT_DEBUG_BIT_EXT |
-            VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT |
-            VK_DEBUG_REPORT_INFORMATION_BIT_EXT |
-            VK_DEBUG_REPORT_WARNING_BIT_EXT,
-        &debugCallback, // pfnCallback
-        NULL           // pUserData
-    };
+    // Create debug messenger / callback
+    if (m_debug_utils_enabled) {
+        auto func =
+            CVK_VK_GET_INSTANCE_PROC(this, vkCreateDebugUtilsMessengerEXT);
 
-    if (m_debug_report_enabled) {
+        res = func(m_vulkan_instance, &messengerInfo, nullptr,
+                   &m_vulkan_debug_messenger);
+        CVK_VK_CHECK_FATAL(res, "Can't setup debug messenger");
+    } else if (m_debug_report_enabled) {
         auto func =
             CVK_VK_GET_INSTANCE_PROC(this, vkCreateDebugReportCallbackEXT);
 
@@ -186,12 +243,17 @@ void clvk_global_state::init_vulkan() {
                    &m_vulkan_debug_callback);
         CVK_VK_CHECK_FATAL(res, "Can't setup debug callback");
     } else {
-        cvk_warn("VK_EXT_debug_report not enabled");
+        cvk_warn(
+            "Neither VK_EXT_debug_utils nor VK_EXT_debug_report is enabled");
     }
 }
 
 void clvk_global_state::term_vulkan() {
-    if (m_debug_report_enabled) {
+    if (m_debug_utils_enabled) {
+        auto func =
+            CVK_VK_GET_INSTANCE_PROC(this, vkDestroyDebugUtilsMessengerEXT);
+        func(m_vulkan_instance, m_vulkan_debug_messenger, nullptr);
+    } else if (m_debug_report_enabled) {
         auto func =
             CVK_VK_GET_INSTANCE_PROC(this, vkDestroyDebugReportCallbackEXT);
         func(m_vulkan_instance, m_vulkan_debug_callback, nullptr);
