@@ -447,9 +447,9 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
         CLVK_CONFIG_GET(max_entry_points_instances);
 
     static const char* program_source = R"(
-    kernel void test_simple(global uint* out, uint id)
+    kernel void test_simple(image2d_t write_only img, uint id)
     {
-        out[id] = id;
+        write_imagef(img, (int2)(0, 0), (float4)((float)id, 0.0f, 0.0f, 0.0f));
     }
     )";
 
@@ -463,16 +463,27 @@ TEST_F(WithCommandQueue, EnqueueTooManyCommands) {
     // Create kernel
     auto kernel = CreateKernel(program_source, "test_simple");
 
-    // Create buffer
-    size_t buffer_size = NUM_INSTANCES * sizeof(cl_uint);
-    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-                               buffer_size, nullptr);
+    // Create image
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, // image_type
+        1,                     // image_width
+        1,                     // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+    auto image = CreateImage(CL_MEM_WRITE_ONLY, &format, &desc);
 
     // Dispatch kernel
     size_t gws = 1;
     size_t lws = 1;
 
-    SetKernelArg(kernel, 0, buffer);
+    SetKernelArg(kernel, 0, image);
     cl_uint i;
     for (i = 0; i < NUM_INSTANCES; i++) {
         SetKernelArg(kernel, 1, &i);
