@@ -1111,11 +1111,29 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         if (vector_options[i].empty()) {
             continue;
         }
+#ifdef WIN32
+        // cmd.exe treats single quotes as regular characters, so keep the
+        // historical double quoting there.
         if (vector_options[i].find("-") == 0) {
             quoted_options += vector_options[i];
         } else {
             quoted_options += "\"" + vector_options[i] + "\"";
         }
+#else
+        // The command line is executed through popen(3), so shell-quote every
+        // token: application-provided options can contain parentheses, dollar
+        // signs, quotes or other metacharacters (e.g. "-DXM2S(x)=#x" or
+        // "-DVALUE=$x"), which the shell would otherwise interpret or reject.
+        quoted_options += "'";
+        for (char c : vector_options[i]) {
+            if (c == '\'') {
+                quoted_options += "'\\''";
+            } else {
+                quoted_options += c;
+            }
+        }
+        quoted_options += "'";
+#endif
         quoted_options += " ";
     }
 
