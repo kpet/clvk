@@ -197,7 +197,7 @@ jobs:
       - name: Show stats
         shell: bash
         run: df -h
-      - name: Download Swiftshader artifacts
+      - name: Download Mesa artifacts
         uses: dawidd6/action-download-artifact@v27
         with:
           workflow: build-mesa.yml
