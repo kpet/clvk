@@ -183,5 +183,6 @@ TEST_F(WithCommandQueue, InOrderQueueStopsExecutionAfterFailedCommand) {
                        0, BUFFER_SIZE, 0, nullptr, &mapev, &err);
     cl_int status;
     GetEventInfo(mapev, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
+    clReleaseEvent(mapev);
     ASSERT_NE(status, CL_COMPLETE);
 }

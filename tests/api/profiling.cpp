@@ -44,6 +44,7 @@ TEST_F(WithProfiledCommandQueue,
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_SUBMIT, &ts_submit);
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, &ts_start);
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, &ts_end);
+    clReleaseEvent(event);
 
     // Check that timestamps are ordered.
     ASSERT_GE(ts_submit, ts_queued);
@@ -82,12 +83,14 @@ TEST_F(WithProfiledCommandQueue,
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_1);
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_START, &ts_start_1);
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_END, &ts_end_1);
+    clReleaseEvent(ev1);
 
     cl_ulong ts_queued_2, ts_submit_2, ts_start_2, ts_end_2;
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_QUEUED, &ts_queued_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_START, &ts_start_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_END, &ts_end_2);
+    clReleaseEvent(ev2);
 
     // Check that timestamps are ordered for each kernel
     ASSERT_GE(ts_submit_1, ts_queued_1);
@@ -174,6 +177,7 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_SUBMIT, &ts_submit);
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_START, &ts_start);
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_END, &ts_end);
+    clReleaseEvent(kevent);
 
     // Check timestamp ordering
     ASSERT_LT(timer_before_queued, ts_queued);

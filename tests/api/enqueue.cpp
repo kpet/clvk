@@ -408,8 +408,7 @@ TEST_F(WithCommandQueue, FinishAfterFlush) {
 
     size_t gws = 1;
     cl_event uev = uevent;
-    cl_event kevent;
-    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr, 1, &uev, &kevent);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr, 1, &uev, nullptr);
 
     Flush();
 
