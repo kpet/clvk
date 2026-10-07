@@ -616,9 +616,8 @@ struct cvk_image : public cvk_mem {
         }
     }
 
-    static VkFormatFeatureFlags
-    required_format_feature_flags_for(cl_mem_object_type type,
-                                      cl_mem_flags flags);
+    static VkFormatFeatureFlags required_format_feature_flags_for(
+        cl_mem_object_type type, cl_mem_flags flags, cl_channel_type data_type);
     VkImageUsageFlags prepare_usage_flags() {
         VkImageUsageFlags usage_flags =
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
