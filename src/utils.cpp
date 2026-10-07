@@ -16,6 +16,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <sstream>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -29,6 +30,61 @@
 #if !defined(WIN32) && !defined(__APPLE__)
 #include <pthread.h>
 #endif
+
+std::string shell_quote_token(const std::string& token) {
+#ifdef WIN32
+    // cmd.exe treats single quotes as regular characters, so keep the
+    // historical double quoting behaviour there.
+    if (token.find("-") == 0) {
+        return token;
+    }
+    return "\"" + token + "\"";
+#else
+    // The command line is executed through popen(3), so shell-quote the
+    // token to hand it to the child process verbatim.
+    std::string quoted = "'";
+    for (char c : token) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+#endif
+}
+
+std::string quote_options_for_shell(const std::string& options) {
+    // Split the options on unquoted spaces and drop the double quotes: the
+    // OpenCL options string uses shell-like quoting, while the child process
+    // receives each option through its own argv entry.
+    std::vector<std::string> tokens;
+    std::string token;
+    bool in_quotes = false;
+    for (char c : options) {
+        if (c == '"') {
+            in_quotes = !in_quotes;
+        } else if (c == ' ' && !in_quotes) {
+            if (!token.empty()) {
+                tokens.push_back(token);
+            }
+            token.clear();
+        } else {
+            token += c;
+        }
+    }
+    if (!token.empty()) {
+        tokens.push_back(token);
+    }
+
+    std::string quoted;
+    for (const auto& t : tokens) {
+        quoted += shell_quote_token(t);
+        quoted += " ";
+    }
+    return quoted;
+}
 
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32

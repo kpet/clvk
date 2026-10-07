@@ -1097,47 +1097,11 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += "-cl-arm-non-uniform-work-group-size";
     }
 
-    // split options into a vector
-    std::istringstream iss(options);
-    std::vector<std::string> vector_options;
-    std::string token;
-    while (std::getline(iss, token, ' ')) {
-        vector_options.push_back(token);
-    }
-
-    // loop through the options and quote the ones that need it
-    std::string quoted_options;
-    for (size_t i = 0; i < vector_options.size(); i++) {
-        if (vector_options[i].empty()) {
-            continue;
-        }
-#ifdef WIN32
-        // cmd.exe treats single quotes as regular characters, so keep the
-        // historical double quoting there.
-        if (vector_options[i].find("-") == 0) {
-            quoted_options += vector_options[i];
-        } else {
-            quoted_options += "\"" + vector_options[i] + "\"";
-        }
-#else
-        // The command line is executed through popen(3), so shell-quote every
-        // token: application-provided options can contain parentheses, dollar
-        // signs, quotes or other metacharacters (e.g. "-DXM2S(x)=#x" or
-        // "-DVALUE=$x"), which the shell would otherwise interpret or reject.
-        quoted_options += "'";
-        for (char c : vector_options[i]) {
-            if (c == '\'') {
-                quoted_options += "'\\''";
-            } else {
-                quoted_options += c;
-            }
-        }
-        quoted_options += "'";
-#endif
-        quoted_options += " ";
-    }
-
-    return quoted_options;
+    // The clspv command line is executed through popen(3), so shell-quote
+    // everything: application-provided options can contain parentheses,
+    // dollar signs, quotes or other metacharacters (e.g. "-DXM2S(x)=#x" or
+    // "-DVALUE=$x"), which the shell would otherwise interpret or reject.
+    return quote_options_for_shell(options);
 }
 
 cl_int cvk_program::parse_user_spec_constants() {
@@ -1309,7 +1273,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
         cmd_spv += " -r ";
         cmd_spv += " -o ";
-        cmd_spv += clspv_input_file;
+        cmd_spv += shell_quote_token(clspv_input_file);
         cmd_spv += " ";
         cmd_spv += llvmspirv_input_file;
 
@@ -1339,7 +1303,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
-            cmd += input_file;
+            cmd += shell_quote_token(input_file);
             cmd += " ";
         }
     } else {
@@ -1349,7 +1313,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
-            cmd += clspv_input_file;
+            cmd += shell_quote_token(clspv_input_file);
             cmd += " ";
         } else {
             clspv_input_file += ".cl";
@@ -1357,7 +1321,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
-            cmd += clspv_input_file;
+            cmd += shell_quote_token(clspv_input_file);
             cmd += " ";
         }
     }
@@ -1371,7 +1335,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
     cmd += build_options;
     cmd += " -o ";
-    cmd += clspv_output_file;
+    cmd += shell_quote_token(clspv_output_file);
 
     // Call clspv
     int status = cvk_exec(cmd, &m_build_log);
@@ -1586,7 +1550,7 @@ cl_build_status cvk_program::do_build_inner(const cvk_device* device) {
 #else
     // Save headers
     if (m_operation == build_operation::compile) {
-        build_options += "-I" + tmp_folder;
+        build_options += "-I" + shell_quote_token(tmp_folder);
         for (cl_uint i = 0; i < m_num_input_programs; i++) {
             auto fname = append_paths(tmp_folder, m_header_include_names[i]);
             if (!save_string_to_file(fname, m_input_programs[i]->source())) {

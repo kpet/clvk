@@ -68,6 +68,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-il-binary)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-llvm-ir-binary)
 endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/sha1)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/utils)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/simple-from-binary)
 
 option(CLVK_BUILD_CONFORMANCE_TESTS "Build OpenCL conformance tests")
