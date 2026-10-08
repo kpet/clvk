@@ -83,6 +83,9 @@ PROPERTY(std::string, vendor, "Unknown vendor")
 // Override the reported device name (empty means: report the Vulkan name).
 // Useful for virtual devices, where applications key behavior off the name
 // (hashcat, for example, uses monolithic program builds on "Apple M*" names).
+// Only the name applications see changes: the device-properties dispatch
+// keeps the real Vulkan name so hardware-specific behaviors stay keyed to
+// the actual driver.
 OPTION(std::string, device_name, "")
 
 // Specify the default number of compute units to expose through
