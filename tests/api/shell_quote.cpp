@@ -35,20 +35,16 @@ TEST_F(WithContext, BuildOptionsWithMetacharacters) {
     // popen() command line. The first is the hashcat pattern that
     // motivated the fix: a single token with parentheses and a hash.
     const char* options[] = {
-        "-DXM2S(x)=#x",
-        "-D MACRO(x)=#x",
-        "-D VALUE=$HOME",
-        "-D NAME=\"hello world\"",
-        "-D SEMI=a;b",
-        "-D PIPE=a|b",
-        "-D PAREN=()",
-        "-D GLOB=*",
+        "-DXM2S(x)=#x",      "-D MACRO(x)=#x",
+        "-D VALUE=$HOME",    "-D NAME=\"hello world\"",
+        "-D SEMI=a;b",       "-D PIPE=a|b",
+        "-D PAREN=()",       "-D GLOB=*",
         "-D SINGLE='quote'",
     };
     for (const char* opts : options) {
         cl_int err;
-        auto program = clCreateProgramWithSource(m_context, 1, &source,
-                                                 nullptr, &err);
+        auto program =
+            clCreateProgramWithSource(m_context, 1, &source, nullptr, &err);
         ASSERT_CL_SUCCESS(err);
         err = clBuildProgram(program, 1, &gDevice, opts, nullptr, nullptr);
         EXPECT_CL_SUCCESS(err);
