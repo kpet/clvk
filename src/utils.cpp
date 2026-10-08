@@ -30,7 +30,6 @@
 #include <pthread.h>
 #endif
 
-
 std::string shell_quote_token(const std::string& token) {
 #ifdef WIN32
     // cmd.exe treats single quotes as regular characters, so keep the
@@ -54,7 +53,6 @@ std::string shell_quote_token(const std::string& token) {
     return quoted;
 #endif
 }
-
 
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32
