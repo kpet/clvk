@@ -16,7 +16,6 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
-#include <sstream>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -56,33 +55,6 @@ std::string shell_quote_token(const std::string& token) {
 #endif
 }
 
-std::string quote_options_for_shell(const std::string& options) {
-    std::vector<std::string> tokens;
-    std::string token;
-    bool in_quotes = false;
-    for (char c : options) {
-        if (c == '"') {
-            in_quotes = !in_quotes;
-        } else if (c == ' ' && !in_quotes) {
-            if (!token.empty()) {
-                tokens.push_back(token);
-            }
-            token.clear();
-        } else {
-            token += c;
-        }
-    }
-    if (!token.empty()) {
-        tokens.push_back(token);
-    }
-
-    std::string quoted;
-    for (const auto& t : tokens) {
-        quoted += shell_quote_token(t);
-        quoted += " ";
-    }
-    return quoted;
-}
 
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32

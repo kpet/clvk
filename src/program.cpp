@@ -977,6 +977,33 @@ size_t cvk_program::binary_size() const {
     return 0;
 }
 
+static std::string quote_options_for_shell(const std::string& options) {
+    std::vector<std::string> tokens;
+    std::string token;
+    bool in_quotes = false;
+    for (char c : options) {
+        if (c == '"') {
+            in_quotes = !in_quotes;
+        } else if (c == ' ' && !in_quotes) {
+            if (!token.empty()) {
+                tokens.push_back(token);
+            }
+            token.clear();
+        } else {
+            token += c;
+        }
+    }
+    if (!token.empty()) {
+        tokens.push_back(token);
+    }
+
+    std::string quoted;
+    for (const auto& t : tokens) {
+        quoted += shell_quote_token(t);
+        quoted += " ";
+    }
+    return quoted;
+}
 
 std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     // Strip off a few options we can't handle
@@ -1131,7 +1158,7 @@ cl_int cvk_program::parse_user_spec_constants() {
 
     std::string cmd_spv{config.llvmspirv_bin()};
     cmd_spv += " --spec-const-info ";
-    cmd_spv += llvmspirv_input_file;
+    cmd_spv += shell_quote_token(llvmspirv_input_file);
 
     std::string output = "";
     cvk_exec(cmd_spv, &output);
@@ -1276,7 +1303,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         cmd_spv += " -o ";
         cmd_spv += shell_quote_token(clspv_input_file);
         cmd_spv += " ";
-        cmd_spv += llvmspirv_input_file;
+        cmd_spv += shell_quote_token(llvmspirv_input_file);
 
         // Call the translator
         int status = cvk_exec(cmd_spv);
@@ -1286,7 +1313,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
             return CL_BUILD_ERROR;
         }
 
-        cmd += clspv_input_file;
+        cmd += shell_quote_token(clspv_input_file);
         cmd += " ";
 #endif // ENABLE_SPIRV_IL
     } else if (m_operation == build_operation::link) {
