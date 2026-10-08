@@ -145,7 +145,7 @@ extern cl_platform_id gPlatform;
 #define EXPECT_CL_SUCCESS(X) EXPECT_EQ(X, CL_SUCCESS) << cl_code_to_string(X)
 
 template <typename T> struct holder {
-    holder(T obj) : m_obj(obj) {}
+    holder(T obj = nullptr) : m_obj(obj) {}
     ~holder() {
         if (m_obj != nullptr) {
             deleter();
@@ -153,6 +153,7 @@ template <typename T> struct holder {
     }
     void deleter() { assert(false); }
     operator T() { return m_obj; }
+    T* operator&() { return &m_obj; }
     T release() {
         T ret = m_obj;
         m_obj = nullptr;

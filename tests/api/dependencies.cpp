@@ -178,11 +178,10 @@ TEST_F(WithCommandQueue, InOrderQueueStopsExecutionAfterFailedCommand) {
 
     // Enqueue another command with no dependencies to the same queue. The queue
     // is in-order
-    cl_event mapev;
+    holder<cl_event> mapev;
     clEnqueueMapBuffer(m_queue, buffer, CL_TRUE, CL_MAP_WRITE_INVALIDATE_REGION,
                        0, BUFFER_SIZE, 0, nullptr, &mapev, &err);
     cl_int status;
     GetEventInfo(mapev, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
-    clReleaseEvent(mapev);
     ASSERT_NE(status, CL_COMPLETE);
 }

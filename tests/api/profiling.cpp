@@ -32,7 +32,7 @@ TEST_F(WithProfiledCommandQueue,
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event event;
+    holder<cl_event> event;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &event);
 
     // Complete execution
@@ -44,7 +44,6 @@ TEST_F(WithProfiledCommandQueue,
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_SUBMIT, &ts_submit);
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, &ts_start);
     GetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, &ts_end);
-    clReleaseEvent(event);
 
     // Check that timestamps are ordered.
     ASSERT_GE(ts_submit, ts_queued);
@@ -71,7 +70,7 @@ TEST_F(WithProfiledCommandQueue,
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event ev1, ev2;
+    holder<cl_event> ev1, ev2;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev1);
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev2);
 
@@ -83,14 +82,12 @@ TEST_F(WithProfiledCommandQueue,
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_1);
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_START, &ts_start_1);
     GetEventProfilingInfo(ev1, CL_PROFILING_COMMAND_END, &ts_end_1);
-    clReleaseEvent(ev1);
 
     cl_ulong ts_queued_2, ts_submit_2, ts_start_2, ts_end_2;
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_QUEUED, &ts_queued_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_SUBMIT, &ts_submit_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_START, &ts_start_2);
     GetEventProfilingInfo(ev2, CL_PROFILING_COMMAND_END, &ts_end_2);
-    clReleaseEvent(ev2);
 
     // Check that timestamps are ordered for each kernel
     ASSERT_GE(ts_submit_1, ts_queued_1);
@@ -134,7 +131,7 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event kevent;
+    holder<cl_event> kevent;
     auto uevent = CreateUserEvent();
 
     cl_ulong timer_host_before_queued, timer_before_queued;
@@ -144,9 +141,7 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
                           &timer_host_before_queued);
 
     // Queue kernel
-    cl_event event_list = uevent;
-    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 1, &event_list,
-                         &kevent);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 1, &uevent, &kevent);
 
     // Time
     cl_ulong timer_after_queued, timer_host_after_queued;
@@ -177,7 +172,6 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_SUBMIT, &ts_submit);
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_START, &ts_start);
     GetEventProfilingInfo(kevent, CL_PROFILING_COMMAND_END, &ts_end);
-    clReleaseEvent(kevent);
 
     // Check timestamp ordering
     ASSERT_LT(timer_before_queued, ts_queued);
