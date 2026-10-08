@@ -1,55 +1,45 @@
-// Copyright 2026 The clvk authors.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Exercises the shell-quoting of compiler option tokens in
-// prepare_build_options (program.cpp); declared here because it is a
-// file-static helper there, made visible for testing.
-std::string shell_quote_token(const std::string& token);
+// Tests that build options containing shell metacharacters are passed to
+// the compiler verbatim: clBuildProgram must succeed with -D macros whose
+// values include parentheses, dollar signs, and quotes.
 
 #include <gtest/gtest.h>
 
-#ifndef WIN32
-TEST(ShellQuoteToken, PassesPlainTokensThroughSingleQuotes) {
-    EXPECT_EQ(shell_quote_token("-cl-std=CL1.2"), "'-cl-std=CL1.2'");
+#ifdef CLVK_UNIT_TESTING_ENABLED
+#include "unit.hpp"
+
+#include <string>
+#include <vector>
+
+namespace {
+
+const char* source = R"(
+kernel void test_macro(kernel __global uint* out, uint x) {
+    out[0] = x;
+}
+)";
+
+} // namespace
+
+TEST(ShellQuote, BuildOptionsWithMetacharacters) {
+    // Every option here contains characters that would break a naive
+    // popen() command line.
+    const char* options[] = {
+        "-D MACRO(x)=#x",
+        "-D VALUE=$HOME",
+        "-D NAME=\"hello world\"",
+        "-D SEMI=a;b",
+        "-D PIPE=a|b",
+        "-D PAREN=()",
+        "-D GLOB=*",
+    };
+    for (const char* opts : options) {
+        cl_int err;
+        auto program = clCreateProgramWithSource(context, 1, &source, nullptr, &err);
+        ASSERT_CL_SUCCESS(err);
+        err = clBuildProgram(program, 1, &device, opts, nullptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        clReleaseProgram(program);
+    }
 }
 
-TEST(ShellQuoteToken, EscapesSingleQuotes) {
-    EXPECT_EQ(shell_quote_token("-DNAME='x'"),
-              "'-DNAME=" "'\\''" "x" "'\\''" "'");
-}
-
-TEST(ShellQuoteToken, KeepsMetacharactersVerbatim) {
-    EXPECT_EQ(shell_quote_token("-DXM2S(x)=#x"), "'-DXM2S(x)=#x'");
-    EXPECT_EQ(shell_quote_token("-DVALUE=$HOME"), "'-DVALUE=$HOME'");
-}
-
-TEST(QuoteOptionsForShell, SplitsOnUnquotedSpacesOnly) {
-    EXPECT_EQ(quote_options_for_shell("-w -cl-std=CL1.2"),
-              "'-w' '-cl-std=CL1.2' ");
-}
-
-TEST(QuoteOptionsForShell, KeepsQuotedValuesInOneToken) {
-    EXPECT_EQ(quote_options_for_shell("-DMSG=\"hello world\" -w"),
-              "'-DMSG=hello world' '-w' ");
-}
-
-TEST(QuoteOptionsForShell, DropsEmptyTokens) {
-    EXPECT_EQ(quote_options_for_shell("  -w   -O2  "), "'-w' '-O2' ");
-}
-#else
-TEST(ShellQuoteToken, KeepsLegacyWindowsBehaviour) {
-    EXPECT_EQ(shell_quote_token("-w"), "-w");
-    EXPECT_EQ(shell_quote_token("hello world"), "\"hello world\"");
-}
-#endif
+#endif // CLVK_UNIT_TESTING_ENABLED

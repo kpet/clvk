@@ -32,6 +32,7 @@
 
 char* cvk_mkdtemp(std::string& tmpl);
 int cvk_exec(const std::string& cmd, std::string* output = nullptr);
+std::string shell_quote_token(const std::string& token);
 std::string quote_options_for_shell(const std::string& options);
 void cvk_set_current_thread_name_if_supported(const std::string&);
 

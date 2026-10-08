@@ -32,7 +32,7 @@
 #endif
 
 
-static std::string shell_quote_one(const std::string& token) {
+std::string shell_quote_token(const std::string& token) {
 #ifdef WIN32
     // cmd.exe treats single quotes as regular characters, so keep the
     // historical double quoting behaviour there.
@@ -57,9 +57,6 @@ static std::string shell_quote_one(const std::string& token) {
 }
 
 std::string quote_options_for_shell(const std::string& options) {
-    // Split the options on unquoted spaces and drop the double quotes: the
-    // OpenCL options string uses shell-like quoting, while the child process
-    // receives each option through its own argv entry.
     std::vector<std::string> tokens;
     std::string token;
     bool in_quotes = false;
@@ -81,7 +78,7 @@ std::string quote_options_for_shell(const std::string& options) {
 
     std::string quoted;
     for (const auto& t : tokens) {
-        quoted += shell_quote_one(t);
+        quoted += shell_quote_token(t);
         quoted += " ";
     }
     return quoted;
