@@ -31,7 +31,8 @@
 #include <pthread.h>
 #endif
 
-std::string shell_quote_token(const std::string& token) {
+
+static std::string shell_quote_one(const std::string& token) {
 #ifdef WIN32
     // cmd.exe treats single quotes as regular characters, so keep the
     // historical double quoting behaviour there.
@@ -80,7 +81,7 @@ std::string quote_options_for_shell(const std::string& options) {
 
     std::string quoted;
     for (const auto& t : tokens) {
-        quoted += shell_quote_token(t);
+        quoted += shell_quote_one(t);
         quoted += " ";
     }
     return quoted;

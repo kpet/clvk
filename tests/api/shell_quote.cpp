@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "utils.hpp"
+// Exercises the shell-quoting of compiler option tokens in
+// prepare_build_options (program.cpp); declared here because it is a
+// file-static helper there, made visible for testing.
+std::string shell_quote_token(const std::string& token);
 
 #include <gtest/gtest.h>
 
