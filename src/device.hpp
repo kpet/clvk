@@ -100,9 +100,6 @@ struct cvk_device : public _cl_device_id,
     }
     cvk_platform* platform() const { return m_platform; }
     const char* name() const {
-        // The override only affects the reported name: the Vulkan properties
-        // keep the real device name, which the device-properties dispatch
-        // relies on.
         if (!config.device_name().empty()) {
             return config.device_name().c_str();
         }
