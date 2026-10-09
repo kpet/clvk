@@ -38,12 +38,14 @@ TEST_F(WithCommandQueueAndPrintf, BuildOptionsWithMetacharacters) {
         {"-DXM2S(x)=#x", "XM2S(hello)", "hello"},
         {"-D MACRO(x)=#x", "MACRO(hello)", "hello"},
         {"-D VALUE=$HOME -D S1(x)=S2(x) -D S2(x)=#x", "S1(VALUE)", "$HOME"},
-        {"-D NAME=\"hello world\" -D S1(x)=S2(x) -D S2(x)=#x", "S1(NAME)", "hello world"},
+        {"-D NAME=\"hello world\" -D S1(x)=S2(x) -D S2(x)=#x", "S1(NAME)",
+         "hello world"},
         {"-D SEMI=a;b -D S1(x)=S2(x) -D S2(x)=#x", "S1(SEMI)", "a;b"},
         {"-D PIPE=a|b -D S1(x)=S2(x) -D S2(x)=#x", "S1(PIPE)", "a|b"},
         {"-D PAREN=() -D S1(x)=S2(x) -D S2(x)=#x", "S1(PAREN)", "()"},
         {"-D GLOB=* -D S1(x)=S2(x) -D S2(x)=#x", "S1(GLOB)", "*"},
-        {"-D SINGLE='quote' -D S1(x)=S2(x) -D S2(x)=#x", "S1(SINGLE)", "'quote'"},
+        {"-D SINGLE='quote' -D S1(x)=S2(x) -D S2(x)=#x", "S1(SINGLE)",
+         "'quote'"},
     };
     for (const auto& c : cases) {
         char source[256];
