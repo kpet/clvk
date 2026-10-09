@@ -81,7 +81,7 @@ OPTION(std::string, llvmspirv_bin, DEFAULT_LLVMSPIRV_BINARY_PATH)
 // Specify the vendor string to report for the device.
 PROPERTY(std::string, vendor, "Unknown vendor")
 
-// Override the reported device name (empty means: report the Vulkan name).
+// Override the reported device name.
 OPTION(std::string, device_name, "")
 
 // Specify the default number of compute units to expose through
