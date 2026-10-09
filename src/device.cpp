@@ -1093,11 +1093,9 @@ void cvk_device::log_limits_and_memory_information() {
 }
 
 bool cvk_device::init(VkInstance instance) {
-    if (config.device_name().empty()) {
-        cvk_info("Initialising device %s", name());
-    } else {
-        cvk_info("Initialising device %s (reported as: %s)",
-                 m_properties.deviceName, name());
+    cvk_info("Initialising device %s", m_properties.deviceName);
+    if (config.device_name.set) {
+        cvk_info("Reported as %s", config.device_name());
     }
     cvk_info("  API Version: %s",
              vulkan_version_string(m_properties.apiVersion).c_str());
