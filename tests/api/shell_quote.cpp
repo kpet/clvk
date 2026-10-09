@@ -27,8 +27,8 @@ TEST_F(WithCommandQueueAndPrintf, BuildOptionsWithMetacharacters) {
     // Every option here contains characters that would break a naive
     // popen() command line. The first two rows are the hashcat pattern
     // that motivated the fix: a single token with parentheses and a hash.
-    // The STR(x)=#x helper stringizes object-like macros so their relayed
-    // value can be printed.
+    // The S1/S2 pair forces argument expansion before stringizing, so the
+    // relayed value of object-like macros is printed.
     struct Case {
         const char* options;
         const char* expr;
@@ -37,13 +37,13 @@ TEST_F(WithCommandQueueAndPrintf, BuildOptionsWithMetacharacters) {
     const Case cases[] = {
         {"-DXM2S(x)=#x", "XM2S(hello)", "hello"},
         {"-D MACRO(x)=#x", "MACRO(hello)", "hello"},
-        {"-D VALUE=$HOME -D STR(x)=#x", "STR(VALUE)", "$HOME"},
-        {"-D NAME=\"hello world\" -D STR(x)=#x", "STR(NAME)", "hello world"},
-        {"-D SEMI=a;b -D STR(x)=#x", "STR(SEMI)", "a;b"},
-        {"-D PIPE=a|b -D STR(x)=#x", "STR(PIPE)", "a|b"},
-        {"-D PAREN=() -D STR(x)=#x", "STR(PAREN)", "()"},
-        {"-D GLOB=* -D STR(x)=#x", "STR(GLOB)", "*"},
-        {"-D SINGLE='quote' -D STR(x)=#x", "STR(SINGLE)", "'quote'"},
+        {"-D VALUE=$HOME -D S1(x)=S2(x) -D S2(x)=#x", "S1(VALUE)", "$HOME"},
+        {"-D NAME=\"hello world\" -D S1(x)=S2(x) -D S2(x)=#x", "S1(NAME)", "hello world"},
+        {"-D SEMI=a;b -D S1(x)=S2(x) -D S2(x)=#x", "S1(SEMI)", "a;b"},
+        {"-D PIPE=a|b -D S1(x)=S2(x) -D S2(x)=#x", "S1(PIPE)", "a|b"},
+        {"-D PAREN=() -D S1(x)=S2(x) -D S2(x)=#x", "S1(PAREN)", "()"},
+        {"-D GLOB=* -D S1(x)=S2(x) -D S2(x)=#x", "S1(GLOB)", "*"},
+        {"-D SINGLE='quote' -D S1(x)=S2(x) -D S2(x)=#x", "S1(SINGLE)", "'quote'"},
     };
     for (const auto& c : cases) {
         char source[256];
