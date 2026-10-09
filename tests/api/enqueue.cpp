@@ -82,7 +82,7 @@ TEST_F(WithCommandQueue, KernelNoArguments) {
     // Dispatch kernel
     size_t gws = 1;
     size_t lws = 1;
-    cl_event event;
+    holder<cl_event> event;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &event);
 
     // Complete execution
@@ -91,7 +91,6 @@ TEST_F(WithCommandQueue, KernelNoArguments) {
     // Check the kernel ran successfully
     cl_int status;
     GetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
-    clReleaseEvent(event);
     ASSERT_EQ(status, CL_COMPLETE);
 }
 
@@ -407,9 +406,8 @@ TEST_F(WithCommandQueue, FinishAfterFlush) {
     auto kernel = CreateKernel(source, "test");
 
     size_t gws = 1;
-    cl_event uev = uevent;
-    cl_event kevent;
-    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr, 1, &uev, &kevent);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr, 1, &uevent,
+                         nullptr);
 
     Flush();
 

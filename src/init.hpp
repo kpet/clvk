@@ -48,6 +48,8 @@ private:
     cvk_executor_thread_pool* m_thread_pool;
     cvk_platform* m_platform;
     VkInstance m_vulkan_instance;
+    bool m_debug_utils_enabled{};
+    VkDebugUtilsMessengerEXT m_vulkan_debug_messenger;
     bool m_debug_report_enabled{};
     VkDebugReportCallbackEXT m_vulkan_debug_callback;
 };

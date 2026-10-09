@@ -32,7 +32,7 @@ TEST_F(WithProfiledCommandQueue,
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event event;
+    holder<cl_event> event;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &event);
 
     // Complete execution
@@ -70,7 +70,7 @@ TEST_F(WithProfiledCommandQueue,
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event ev1, ev2;
+    holder<cl_event> ev1, ev2;
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev1);
     EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, &ev2);
 
@@ -131,7 +131,7 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
     cl_int dummy = 42;
     SetKernelArg(kernel, 0, &dummy);
 
-    cl_event kevent;
+    holder<cl_event> kevent;
     auto uevent = CreateUserEvent();
 
     cl_ulong timer_host_before_queued, timer_before_queued;
@@ -141,9 +141,7 @@ TEST_F(WithProfiledCommandQueue, DISABLED_APPLE(QueueProfilingVsDeviceTimer)) {
                           &timer_host_before_queued);
 
     // Queue kernel
-    cl_event event_list = uevent;
-    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 1, &event_list,
-                         &kevent);
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 1, &uevent, &kevent);
 
     // Time
     cl_ulong timer_after_queued, timer_host_after_queued;
