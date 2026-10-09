@@ -1244,6 +1244,13 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
         std::string llvmspirv_input_file =
             append_paths(tmp_folder, "source.spv");
         clspv_input_file += ".bc";
+        // The paths inherit the temp directory, which can contain spaces or
+        // shell special characters; quote each path once for the command
+        // lines below.
+        const std::string clspv_input_file_quoted =
+            shell_quote_token(clspv_input_file);
+        const std::string llvmspirv_input_file_quoted =
+            shell_quote_token(llvmspirv_input_file);
         if (!save_il_to_file(llvmspirv_input_file, m_il)) {
             cvk_error_fn("Couldn't save IL to file!");
             return CL_BUILD_ERROR;
@@ -1297,9 +1304,9 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
 
         cmd_spv += " -r ";
         cmd_spv += " -o ";
-        cmd_spv += shell_quote_token(clspv_input_file);
+        cmd_spv += clspv_input_file_quoted;
         cmd_spv += " ";
-        cmd_spv += shell_quote_token(llvmspirv_input_file);
+        cmd_spv += llvmspirv_input_file_quoted;
 
         // Call the translator
         int status = cvk_exec(cmd_spv);
@@ -1309,7 +1316,7 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
             return CL_BUILD_ERROR;
         }
 
-        cmd += shell_quote_token(clspv_input_file);
+        cmd += clspv_input_file_quoted;
         cmd += " ";
 #endif // ENABLE_SPIRV_IL
     } else if (m_operation == build_operation::link) {
@@ -1337,17 +1344,15 @@ cl_build_status cvk_program::do_build_inner_offline(bool build_to_ir,
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
-            cmd += shell_quote_token(clspv_input_file);
-            cmd += " ";
         } else {
             clspv_input_file += ".cl";
             if (!save_string_to_file(clspv_input_file, m_source)) {
                 cvk_error_fn("Couldn't save source to file!");
                 return CL_BUILD_ERROR;
             }
-            cmd += shell_quote_token(clspv_input_file);
-            cmd += " ";
         }
+        cmd += shell_quote_token(clspv_input_file);
+        cmd += " ";
     }
 
     std::string clspv_output_file = append_paths(tmp_folder, "compiled");
