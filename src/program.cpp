@@ -1125,10 +1125,6 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
         options += "-cl-arm-non-uniform-work-group-size";
     }
 
-    // The clspv command line is executed through popen(3), so shell-quote
-    // everything: application-provided options can contain parentheses,
-    // dollar signs, quotes or other metacharacters (e.g. "-DXM2S(x)=#x" or
-    // "-DVALUE=$x"), which the shell would otherwise interpret or reject.
     return quote_options_for_shell(options);
 }
 
