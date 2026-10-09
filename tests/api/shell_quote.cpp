@@ -14,7 +14,8 @@
 
 // Tests that build options containing shell metacharacters are passed to
 // the compiler verbatim: clBuildProgram must succeed with -D macros whose
-// values include parentheses, dollar signs, quotes, and single quotes.
+// values include parentheses, dollar signs, quotes, and single quotes, and
+// the macro must expand to its exact definition at runtime.
 
 #include "testcl.hpp"
 
@@ -50,4 +51,17 @@ TEST_F(WithContext, BuildOptionsWithMetacharacters) {
         EXPECT_CL_SUCCESS(err);
         clReleaseProgram(program);
     }
+}
+
+TEST_F(WithCommandQueueAndPrintf, StringizeMacroPassedVerbatim) {
+    // Same option as above, checking the macro value this time: the kernel
+    // stringizes its argument, so a mangled command line shows up in the
+    // printf output instead of the expected text.
+    const char* src = "kernel void test() { printf(\"%s\", XM2S(hello)); }";
+    auto kernel = CreateKernel(src, "-D XM2S(x)=#x", "test");
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+    ASSERT_STREQ(m_printf_output.c_str(), "hello");
 }
