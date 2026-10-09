@@ -99,7 +99,12 @@ struct cvk_device : public _cl_device_id,
         return m_properties.limits;
     }
     cvk_platform* platform() const { return m_platform; }
-    const char* name() const { return m_properties.deviceName; }
+    const char* name() const {
+        if (!config.device_name.set) {
+            return m_properties.deviceName;
+        }
+        return config.device_name().c_str();
+    }
     uint32_t vendor_id() const { return m_properties.vendorID; }
     std::string vendor() const;
 
