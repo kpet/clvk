@@ -30,6 +30,30 @@
 #include <pthread.h>
 #endif
 
+std::string shell_quote_token(const std::string& token) {
+#ifdef WIN32
+    // cmd.exe treats single quotes as regular characters, so keep the
+    // historical double quoting behaviour there.
+    if (token.find("-") == 0) {
+        return token;
+    }
+    return "\"" + token + "\"";
+#else
+    // The command line is executed through popen(3), so shell-quote the
+    // token to hand it to the child process verbatim.
+    std::string quoted = "'";
+    for (char c : token) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+#endif
+}
+
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32
     if (_mktemp_s(&tmpl.front(), tmpl.size() + 1) != 0) {

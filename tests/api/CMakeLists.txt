@@ -22,6 +22,7 @@ add_gtest_executable(api_tests
     platform.cpp
     printf.cpp
     profiling.cpp
+    shell_quote.cpp
     simple.cpp
     simple_image.cpp
     simple_ubo.cpp
