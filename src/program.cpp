@@ -978,30 +978,26 @@ size_t cvk_program::binary_size() const {
 }
 
 static std::string quote_options_for_shell(const std::string& options) {
-    std::vector<std::string> tokens;
+    std::string quoted;
     std::string token;
     bool in_quotes = false;
+    auto flush_token = [&]() {
+        if (!token.empty()) {
+            quoted += shell_quote_token(token);
+            quoted += ' ';
+            token.clear();
+        }
+    };
     for (char c : options) {
         if (c == '"') {
             in_quotes = !in_quotes;
         } else if (c == ' ' && !in_quotes) {
-            if (!token.empty()) {
-                tokens.push_back(token);
-            }
-            token.clear();
+            flush_token();
         } else {
             token += c;
         }
     }
-    if (!token.empty()) {
-        tokens.push_back(token);
-    }
-
-    std::string quoted;
-    for (const auto& t : tokens) {
-        quoted += shell_quote_token(t);
-        quoted += " ";
-    }
+    flush_token();
     return quoted;
 }
 
