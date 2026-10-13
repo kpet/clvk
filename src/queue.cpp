@@ -1265,6 +1265,13 @@ cl_int cvk_command_batch::do_action() {
 
     m_queue->batch_completed();
 
+    for (auto& cmd : m_commands) {
+        cl_int err = cmd->do_post_action();
+        if (err != CL_SUCCESS) {
+            return err;
+        }
+    }
+
     return CL_COMPLETE;
 }
 
@@ -1731,6 +1738,17 @@ cl_int cvk_command_buffer_image_copy::build_batchable_inner(
         0,        // imageMemoryBarrierCount
         nullptr); // pImageMemoryBarriers
 
+    return CL_SUCCESS;
+}
+
+cl_int cvk_command_buffer_image_copy::do_post_action() {
+    if ((m_copy_type == CL_COMMAND_COPY_IMAGE_TO_BUFFER ||
+         m_copy_type == CL_COMMAND_MAP_IMAGE) &&
+        m_buffer->map_count() > 0) {
+        auto size =
+            m_image->element_size() * m_region[0] * m_region[1] * m_region[2];
+        m_buffer->invalidate_memory(m_offset, size);
+    }
     return CL_SUCCESS;
 }
 
