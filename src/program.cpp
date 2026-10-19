@@ -1023,24 +1023,29 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     // Denorm options
     std::vector<std::string> denormPreserve;
     std::vector<std::string> denormFlushToZero;
-    if (device->supports_fp16() && !denorms_are_zero &&
-        device->supports_denorm_preserve_16()) {
-        denormPreserve.push_back("16");
-    } else if (device->supports_fp16() && denorms_are_zero &&
-               device->supports_denorm_ftz_16()) {
-        denormFlushToZero.push_back("16");
+    if (device->supports_fp16()) {
+        if ((denorms_are_zero ||
+             config.denorm_support_masked().count("16") > 0) &&
+            device->supports_denorm_ftz_16()) {
+            denormFlushToZero.push_back("16");
+        } else if (device->supports_denorm_preserve_16()) {
+            denormPreserve.push_back("16");
+        }
     }
-    if (!denorms_are_zero && device->supports_denorm_preserve_32()) {
-        denormPreserve.push_back("32");
-    } else if (denorms_are_zero && device->supports_denorm_ftz_32()) {
+    if ((denorms_are_zero || config.denorm_support_masked().count("32") > 0) &&
+        device->supports_denorm_ftz_32()) {
         denormFlushToZero.push_back("32");
+    } else if (device->supports_denorm_preserve_32()) {
+        denormPreserve.push_back("32");
     }
-    if (device->supports_fp64() && !denorms_are_zero &&
-        device->supports_denorm_preserve_64()) {
-        denormPreserve.push_back("64");
-    } else if (device->supports_fp64() && denorms_are_zero &&
-               device->supports_denorm_ftz_64()) {
-        denormFlushToZero.push_back("64");
+    if (device->supports_fp64()) {
+        if ((denorms_are_zero ||
+             config.denorm_support_masked().count("64") > 0) &&
+            device->supports_denorm_ftz_64()) {
+            denormFlushToZero.push_back("64");
+        } else if (device->supports_denorm_preserve_64()) {
+            denormPreserve.push_back("64");
+        }
     }
     // If those options are already specified, let the user choose its
     // configuration
