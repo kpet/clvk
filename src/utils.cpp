@@ -16,6 +16,7 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <string_view>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -29,6 +30,32 @@
 #if !defined(WIN32) && !defined(__APPLE__)
 #include <pthread.h>
 #endif
+
+std::string shell_quote_token(const std::string& token) {
+#ifdef WIN32
+    // cmd.exe treats single quotes as regular characters, so keep the
+    // historical double quoting behaviour there.
+    if (!token.empty() && token.front() == '-') {
+        return std::string(token);
+    }
+    return "\"" + std::string(token) + "\"";
+#else
+    // The command line is executed through popen(3), so shell-quote the
+    // token to hand it to the child process verbatim.
+    std::string quoted;
+    quoted.reserve(token.size() + 2);
+    quoted += '\'';
+    size_t pos = 0;
+    for (size_t next; (next = token.find('\'', pos)) != std::string_view::npos;
+         pos = next + 1) {
+        quoted.append(token, pos, next - pos);
+        quoted += "'\\''";
+    }
+    quoted.append(token, pos, token.size() - pos);
+    quoted += '\'';
+    return quoted;
+#endif
+}
 
 char* cvk_mkdtemp(std::string& tmpl) {
 #ifdef WIN32

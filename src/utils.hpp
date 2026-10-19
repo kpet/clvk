@@ -18,6 +18,7 @@
 
 #include <cassert>
 #include <filesystem>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -31,6 +32,7 @@
 
 char* cvk_mkdtemp(std::string& tmpl);
 int cvk_exec(const std::string& cmd, std::string* output = nullptr);
+std::string shell_quote_token(const std::string& token);
 void cvk_set_current_thread_name_if_supported(const std::string&);
 
 #define CVK_VK_CHECK_INTERNAL(logfn, res, msg)                                 \
