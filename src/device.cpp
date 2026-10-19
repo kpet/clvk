@@ -1284,6 +1284,25 @@ void cvk_device::select_work_group_size(
     } while (changed);
 }
 
+cl_int cvk_device::get_host_timer(cl_ulong* ts) const {
+    auto vkdev = vulkan_device();
+
+    uint64_t max_deviation;
+    uint64_t timestamp;
+    VkCalibratedTimestampInfoEXT timestamp_info = {
+        VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
+        VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT};
+    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(vkdev, 1, &timestamp_info,
+                                                    &timestamp, &max_deviation);
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("vkGetCalibratedTimestampsEXT failed %d %s", res,
+                     vulkan_error_string(res));
+        return CL_OUT_OF_RESOURCES;
+    }
+    *ts = timestamp;
+    return CL_SUCCESS;
+}
+
 cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
                                          cl_ulong* host_timestamp) const {
     auto vkdev = vulkan_device();
@@ -1292,30 +1311,19 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     uint64_t max_deviation;
     VkCalibratedTimestampInfoEXT timestamp_infos[2] = {
         {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
-         VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT},
+         VK_TIME_DOMAIN_DEVICE_EXT},
         {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
-         VK_TIME_DOMAIN_DEVICE_EXT}};
+         VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT}};
 
-    uint32_t num_requested_timestamps;
-    if (device_timestamp == nullptr) {
-        num_requested_timestamps = 1;
-    } else {
-        num_requested_timestamps = 2;
-    }
-
-    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(
-        vkdev, num_requested_timestamps, timestamp_infos, timestamps,
-        &max_deviation);
+    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(vkdev, 2, timestamp_infos,
+                                                    timestamps, &max_deviation);
     if (res != VK_SUCCESS) {
         cvk_error_fn("vkGetCalibratedTimestampsEXT failed %d %s", res,
                      vulkan_error_string(res));
         return CL_OUT_OF_RESOURCES;
     }
-
-    *host_timestamp = timestamps[0];
-    if (device_timestamp != nullptr) {
-        *device_timestamp = timestamp_to_ns(timestamps[1]);
-    }
+    *device_timestamp = timestamp_to_ns(timestamps[0]);
+    *host_timestamp = timestamps[1];
 
     return CL_SUCCESS;
 }
