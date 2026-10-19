@@ -243,10 +243,14 @@ struct cvk_device_properties_nvidia : public cvk_device_properties_virtual {
             "isequal",     "isfinite", "isgreater",   "isgreaterequal",
             "isinf",       "isless",   "islessequal", "islessgreater",
             "isnan",       "isnormal", "isnotequal",  "isordered",
-            "isunordered", "ldexp",    "mad",         "rint",
-            "round",       "rsqrt",    "signbit",     "sqrt",
-            "tanh",        "trunc",
+            "isunordered", "mad",      "rint",        "round",
+            "rsqrt",       "signbit",  "sqrt",        "tanh",
+            "trunc",
         });
+    }
+    std::string clspv_options() const override final {
+        return "-hack-clamp-width -hack-convert-to-float "
+               "-hack-fmul-flush-to-zero=32";
     }
 };
 
