@@ -1320,27 +1320,22 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     return CL_SUCCESS;
 }
 
-cl_int cvk_device::update_device_host_timer_no_lock() {
-    return get_device_host_timer(&m_sync_dev, &m_sync_host);
-}
-
-cl_int cvk_device::update_device_host_timer() {
+cl_int cvk_device::device_timer_to_host(cl_ulong start_dev, cl_ulong end_dev,
+                                        cl_ulong& start_host,
+                                        cl_ulong& end_host) {
     std::lock_guard<std::mutex> lock(m_sync_mutex);
-    return update_device_host_timer_no_lock();
-}
-
-cl_int cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong& host) {
-    std::lock_guard<std::mutex> lock(m_sync_mutex);
-    if (dev > m_sync_dev) {
-        cl_int err = update_device_host_timer_no_lock();
+    if (start_dev > m_sync_dev || end_dev > m_sync_dev) {
+        cl_int err = get_device_host_timer(&m_sync_dev, &m_sync_host);
         if (err != CL_SUCCESS) {
             return err;
         }
     }
     if (m_sync_host > m_sync_dev) {
-        host = (m_sync_host - m_sync_dev) + dev;
+        start_host = (m_sync_host - m_sync_dev) + start_dev;
+        end_host = (m_sync_host - m_sync_dev) + end_dev;
     } else {
-        host = dev - (m_sync_dev - m_sync_host);
+        start_host = start_dev - (m_sync_dev - m_sync_host);
+        end_host = end_dev - (m_sync_dev - m_sync_host);
     }
     return CL_SUCCESS;
 }

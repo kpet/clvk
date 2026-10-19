@@ -735,11 +735,8 @@ struct cvk_command_batchable : public cvk_command {
             return perr;
         }
         cl_ulong start_host, end_host;
-        perr = m_queue->device()->device_timer_to_host(start_dev, start_host);
-        if (perr != CL_SUCCESS) {
-            return perr;
-        }
-        perr = m_queue->device()->device_timer_to_host(end_dev, end_host);
+        perr = m_queue->device()->device_timer_to_host(start_dev, end_dev,
+                                                       start_host, end_host);
         if (perr != CL_SUCCESS) {
             return perr;
         }
@@ -758,7 +755,7 @@ struct cvk_command_batchable : public cvk_command {
             pinfo == CL_PROFILING_COMMAND_SUBMIT) {
             return cvk_command::set_profiling_info(pinfo);
         } else if (pinfo == CL_PROFILING_COMMAND_START) {
-            return m_queue->device()->update_device_host_timer();
+            return CL_SUCCESS;
         } else {
             CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
             return set_profiling_info_end();
