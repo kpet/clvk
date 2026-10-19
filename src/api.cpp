@@ -5735,6 +5735,12 @@ void* CLVK_API_CALL clEnqueueMapImage(
             blocking_map, origin[0] * img->element_size(),
             region[0] * img->element_size(), map_flags, num_events_in_wait_list,
             event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE, img);
+        if (image_row_pitch != nullptr) {
+            *image_row_pitch = img->row_pitch();
+        }
+        if (image_slice_pitch != nullptr) {
+            *image_slice_pitch = img->slice_pitch();
+        }
     } else {
         err = cvk_enqueue_map_image(
             command_queue, image, true, blocking_map, map_flags, origin, region,

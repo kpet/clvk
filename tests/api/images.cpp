@@ -806,6 +806,40 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
     EXPECT_TRUE(destructor_called);
 }
 
+TEST_F(WithCommandQueue, 1DBufferImageMapPitches) {
+    const size_t IMAGE_WIDTH = 128;
+    const size_t ROW_PITCH = IMAGE_WIDTH * sizeof(cl_float4) + 64;
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, ROW_PITCH, nullptr);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        ROW_PITCH,                    // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    size_t row_pitch = 0;
+    size_t slice_pitch = 0xdeadbeef;
+    auto map_ptr = EnqueueMapImage<cl_uchar>(
+        image, CL_TRUE, CL_MAP_READ, origin, region, &row_pitch, &slice_pitch);
+    EXPECT_EQ(row_pitch, ROW_PITCH);
+    EXPECT_EQ(slice_pitch, 0u);
+
+    EnqueueUnmapMemObject(image, map_ptr);
+    Finish();
+}
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 TEST_F(WithCommandQueue, ImageInitAtCreation) {
