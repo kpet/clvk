@@ -2036,7 +2036,14 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
         case kernel_argument_kind::pod_ubo:
         case kernel_argument_kind::pointer_ubo:
             if (!pod_found) {
-                if (arg.kind == kernel_argument_kind::pod) {
+                bool has_ssbo_pod = false;
+                for (auto const& a : m_args) {
+                    if (a.kind == kernel_argument_kind::pod) {
+                        has_ssbo_pod = true;
+                        break;
+                    }
+                }
+                if (has_ssbo_pod) {
                     dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 } else if (arg.kind == kernel_argument_kind::pod_ubo ||
                            arg.kind == kernel_argument_kind::pointer_ubo) {
