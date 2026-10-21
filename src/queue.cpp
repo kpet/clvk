@@ -386,8 +386,7 @@ cl_int cvk_command_queue::execute_cmds_required_by_no_lock(
     }
 
     lock.unlock();
-    auto cmds = exec->extract_cmds_required_by(false, num_events, event_list);
-    auto ret = cmds.execute_cmds();
+    auto ret = exec->execute_cmds_required_by(false, num_events, event_list);
     lock.lock();
 
     return ret;
@@ -398,6 +397,16 @@ cvk_command_queue::execute_cmds_required_by(cl_uint num_events,
                                             _cl_event* const* event_list) {
     std::unique_lock<std::mutex> lock(m_lock);
     return execute_cmds_required_by_no_lock(num_events, event_list, lock);
+}
+
+cl_int
+cvk_executor_thread::execute_cmds_required_by(bool only_non_batch_cmds,
+                                              cl_uint num_events,
+                                              _cl_event* const* event_list) {
+    std::lock_guard<std::mutex> exec_lock(m_exec_lock);
+    auto cmds =
+        extract_cmds_required_by(only_non_batch_cmds, num_events, event_list);
+    return cmds.execute_cmds();
 }
 
 cvk_command_group
@@ -448,32 +457,43 @@ cvk_executor_thread::extract_cmds_required_by(bool only_non_batch_cmds,
     return output;
 }
 
+bool cvk_executor_thread::wait_for_groups() {
+    std::unique_lock<std::mutex> lock(m_lock);
+    while (m_groups.size() == 0 && !m_shutdown) {
+        m_running = false;
+        TRACE_BEGIN("executor_wait");
+        m_cv.wait(lock);
+        TRACE_END();
+    }
+    return !m_shutdown;
+}
+
+std::unique_ptr<cvk_command_group> cvk_executor_thread::extract_next_group() {
+    std::lock_guard<std::mutex> lock(m_lock);
+    if (m_shutdown || m_groups.empty()) {
+        return nullptr;
+    }
+
+    auto group = std::move(m_groups.front());
+    m_groups.pop_front();
+
+    cvk_debug_fn("received group %p", group.get());
+    return group;
+}
+
+void cvk_executor_thread::execute_next_group() {
+    std::lock_guard<std::mutex> exec_lock(m_exec_lock);
+    auto group = extract_next_group();
+    if (group != nullptr) {
+        group->execute_cmds_in_executor();
+    }
+}
+
 void cvk_executor_thread::executor() {
     cvk_set_current_thread_name_if_supported("clvk-executor");
 
-    std::unique_lock<std::mutex> lock(m_lock);
-
-    while (!m_shutdown) {
-
-        while (m_groups.size() == 0 && !m_shutdown) {
-            m_running = false;
-            TRACE_BEGIN("executor_wait");
-            m_cv.wait(lock);
-            TRACE_END();
-        }
-
-        if (m_shutdown) {
-            continue;
-        }
-
-        auto group = std::move(m_groups.front());
-        m_groups.pop_front();
-
-        cvk_debug_fn("received group %p", group.get());
-
-        lock.unlock();
-        group->execute_cmds_in_executor();
-        lock.lock();
+    while (wait_for_groups()) {
+        execute_next_group();
     }
 }
 
