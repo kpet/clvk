@@ -806,6 +806,85 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
     EXPECT_TRUE(destructor_called);
 }
 
+TEST_F(WithCommandQueue, FillNormalizedIntegerImages) {
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {1, 1, 1};
+    const cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE2D, 1, 1, 1, 1, 0, 0, 0, 0, nullptr};
+
+    // CL_UNORM_INT8: max_int = 255.0f
+    // 0.25f * 255.0f = 63.75f -> 64
+    // 0.5f * 255.0f = 127.5f -> 128 (round to nearest even)
+    // 0.75f * 255.0f = 191.25f -> 191
+    // 1.0f * 255.0f = 255.0f -> 255
+    {
+        cl_image_format format = {CL_RGBA, CL_UNORM_INT8};
+        auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+        cl_float pattern[4] = {0.25f, 0.5f, 0.75f, 1.0f};
+        cl_uchar result[4] = {0, 0, 0, 0};
+        EnqueueFillImage(image, pattern, origin, region);
+        EnqueueReadImage(image, CL_TRUE, origin, region, 0, 0, result);
+        EXPECT_EQ(result[0], 64);
+        EXPECT_EQ(result[1], 128);
+        EXPECT_EQ(result[2], 191);
+        EXPECT_EQ(result[3], 255);
+    }
+
+    // CL_SNORM_INT8: max_int = 127.0f
+    // 0.25f * 127.0f = 31.75f -> 32
+    // -0.25f * 127.0f = -31.75f -> -32
+    // 0.5f * 127.0f = 63.5f -> 64 (round to nearest even)
+    // -0.5f * 127.0f = -63.5f -> -64 (round to nearest even)
+    {
+        cl_image_format format = {CL_RGBA, CL_SNORM_INT8};
+        auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+        cl_float pattern[4] = {0.25f, -0.25f, 0.5f, -0.5f};
+        cl_char result[4] = {0, 0, 0, 0};
+        EnqueueFillImage(image, pattern, origin, region);
+        EnqueueReadImage(image, CL_TRUE, origin, region, 0, 0, result);
+        EXPECT_EQ(result[0], 32);
+        EXPECT_EQ(result[1], -32);
+        EXPECT_EQ(result[2], 64);
+        EXPECT_EQ(result[3], -64);
+    }
+
+    // CL_UNORM_INT16: max_int = 65535.0f
+    // 0.25f * 65535.0f = 16383.75f -> 16384
+    // 0.5f * 65535.0f = 32767.5f -> 32768 (round to nearest even)
+    // 0.75f * 65535.0f = 49151.25f -> 49151
+    // 1.0f * 65535.0f = 65535.0f -> 65535
+    {
+        cl_image_format format = {CL_RGBA, CL_UNORM_INT16};
+        auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+        cl_float pattern[4] = {0.25f, 0.5f, 0.75f, 1.0f};
+        cl_ushort result[4] = {0, 0, 0, 0};
+        EnqueueFillImage(image, pattern, origin, region);
+        EnqueueReadImage(image, CL_TRUE, origin, region, 0, 0, result);
+        EXPECT_EQ(result[0], 16384);
+        EXPECT_EQ(result[1], 32768);
+        EXPECT_EQ(result[2], 49151);
+        EXPECT_EQ(result[3], 65535);
+    }
+
+    // CL_SNORM_INT16: max_int = 32767.0f
+    // 0.25f * 32767.0f = 8191.75f -> 8192
+    // -0.25f * 32767.0f = -8191.75f -> -8192
+    // 0.5f * 32767.0f = 16383.5f -> 16384 (round to nearest even)
+    // -0.5f * 32767.0f = -16383.5f -> -16384 (round to nearest even)
+    {
+        cl_image_format format = {CL_RGBA, CL_SNORM_INT16};
+        auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc, nullptr);
+        cl_float pattern[4] = {0.25f, -0.25f, 0.5f, -0.5f};
+        cl_short result[4] = {0, 0, 0, 0};
+        EnqueueFillImage(image, pattern, origin, region);
+        EnqueueReadImage(image, CL_TRUE, origin, region, 0, 0, result);
+        EXPECT_EQ(result[0], 8192);
+        EXPECT_EQ(result[1], -8192);
+        EXPECT_EQ(result[2], 16384);
+        EXPECT_EQ(result[3], -16384);
+    }
+}
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 TEST_F(WithCommandQueue, ImageInitAtCreation) {

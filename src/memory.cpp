@@ -669,25 +669,41 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
         return x;
     };
     cl_uchar pat_unorm_int8[4] = {
-        static_cast<cl_uchar>(saturate(pat_float[0], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[1], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[2], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[3], 0.f, 1.f) * 255.0f)};
+        static_cast<cl_uchar>(
+            std::rint(saturate(pat_float[0], 0.f, 1.f) * 255.0f)),
+        static_cast<cl_uchar>(
+            std::rint(saturate(pat_float[1], 0.f, 1.f) * 255.0f)),
+        static_cast<cl_uchar>(
+            std::rint(saturate(pat_float[2], 0.f, 1.f) * 255.0f)),
+        static_cast<cl_uchar>(
+            std::rint(saturate(pat_float[3], 0.f, 1.f) * 255.0f))};
     cl_char pat_snorm_int8[4] = {
-        static_cast<cl_char>(saturate(pat_float[0], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[1], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[2], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[3], -1.f, 1.f) * 127.0f)};
+        static_cast<cl_char>(
+            std::rint(saturate(pat_float[0], -1.f, 1.f) * 127.0f)),
+        static_cast<cl_char>(
+            std::rint(saturate(pat_float[1], -1.f, 1.f) * 127.0f)),
+        static_cast<cl_char>(
+            std::rint(saturate(pat_float[2], -1.f, 1.f) * 127.0f)),
+        static_cast<cl_char>(
+            std::rint(saturate(pat_float[3], -1.f, 1.f) * 127.0f))};
     cl_ushort pat_unorm_int16[4] = {
-        static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[3], 0.f, 1.f) * 65535.0f)};
+        static_cast<cl_ushort>(
+            std::rint(saturate(pat_float[0], 0.f, 1.f) * 65535.0f)),
+        static_cast<cl_ushort>(
+            std::rint(saturate(pat_float[1], 0.f, 1.f) * 65535.0f)),
+        static_cast<cl_ushort>(
+            std::rint(saturate(pat_float[2], 0.f, 1.f) * 65535.0f)),
+        static_cast<cl_ushort>(
+            std::rint(saturate(pat_float[3], 0.f, 1.f) * 65535.0f))};
     cl_short pat_snorm_int16[4] = {
-        static_cast<cl_short>(saturate(pat_float[0], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[1], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[2], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[3], -1.f, 1.f) * 32767.0f)};
+        static_cast<cl_short>(
+            std::rint(saturate(pat_float[0], -1.f, 1.f) * 32767.0f)),
+        static_cast<cl_short>(
+            std::rint(saturate(pat_float[1], -1.f, 1.f) * 32767.0f)),
+        static_cast<cl_short>(
+            std::rint(saturate(pat_float[2], -1.f, 1.f) * 32767.0f)),
+        static_cast<cl_short>(
+            std::rint(saturate(pat_float[3], -1.f, 1.f) * 32767.0f))};
     cl_short pat_unorm_short_565 =
         (static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 31.0f)
          << 11) |
