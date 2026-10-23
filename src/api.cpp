@@ -4187,6 +4187,14 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
 
+    // Check work-group size is not zero
+    for (uint32_t dim = 0; dim < dims; dim++) {
+        if (ndrange.lws[dim] == 0) {
+            cvk_error_fn("work-group size cannot be zero");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
     // Check work-group size matches the required size if specified
     auto reqd_work_group_size = kernel->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
