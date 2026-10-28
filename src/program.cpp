@@ -1127,6 +1127,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return quoted_options;
 }
 
+#if COMPILER_AVAILABLE && defined(CLSPV_ONLINE_COMPILER)
+static std::mutex g_llvm_compile_mutex;
+#endif
+
 cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
 #ifndef CLSPV_ONLINE_COMPILER
@@ -1191,8 +1195,7 @@ cl_int cvk_program::parse_user_spec_constants() {
     SPIRV::TranslatorOpts translator_opts;
     // We don't need llvm-spirv to validate extensions for us.
     translator_opts.enableAllExtensions();
-    static std::mutex llvmspirv_compile_mutex;
-    std::lock_guard<std::mutex> llvmspirv_compile_lock(llvmspirv_compile_mutex);
+    std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
 
     std::vector<llvm::SpecConstInfoTy> spec_const_info;
 
@@ -1443,9 +1446,7 @@ cl_build_status cvk_program::do_build_inner_online(
         // global variable that are not thread safe. Thus, we need to lock call
         // to llvm-spirv in order to ensure a thread safe execution.
         {
-            static std::mutex llvmspirv_compile_mutex;
-            std::lock_guard<std::mutex> llvmspirv_compile_lock(
-                llvmspirv_compile_mutex);
+            std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
             std::vector<const char*> llvmArgv{
                 "llvm-spirv(online)",
             };
@@ -1470,8 +1471,7 @@ cl_build_status cvk_program::do_build_inner_online(
     // variable that are not thread safe. Thus, we need to lock call to clspv in
     // order to ensure a thread safe execution.
     {
-        static std::mutex clspv_compile_mutex;
-        std::lock_guard<std::mutex> clspv_compile_lock(clspv_compile_mutex);
+        std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
         std::vector<std::string> programs;
         if (m_operation == build_operation::link) {
             for (auto input_program : m_input_programs) {
