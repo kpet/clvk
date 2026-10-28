@@ -2390,7 +2390,7 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
     // TODO CL_INVALID_BUILD_OPTIONS if the build options specified by options
     // are invalid.
     build_operation build_op = build_operation::build;
-    if (program->loaded_from_binary()) {
+    if (program->loaded_from_spirv_binary()) {
         build_op = build_operation::build_binary;
     } else if (!is_compiler_available(num_devices, device_list)) {
         return CL_COMPILER_NOT_AVAILABLE;
