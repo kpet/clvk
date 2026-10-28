@@ -259,6 +259,17 @@ static bool isNVIDIADevice(const uint32_t vendorID) {
     return vendorID == NVIDIAVendorID;
 }
 
+struct cvk_device_properties_powervr : public cvk_device_properties_virtual {
+    std::string vendor() const override final {
+        return "Imagination Technologies";
+    }
+};
+
+static bool isPowerVRDevice(const char* name, const uint32_t vendorID) {
+    const uint32_t ImaginationVendorID = 0x1010;
+    return vendorID == ImaginationVendorID || strncmp(name, "PowerVR", 7) == 0;
+}
+
 #define RETURN(x, ...)                                                         \
     cvk_info_fn(#x);                                                           \
     return std::make_unique<cvk_device_properties>(                            \
@@ -309,6 +320,8 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
         RETURN(cvk_device_properties_nvidia);
     } else if (isllvmpipeDevice(vendorID)) {
         RETURN(cvk_device_properties_llvmpipe);
+    } else if (isPowerVRDevice(name, vendorID)) {
+        RETURN(cvk_device_properties_powervr);
     } else {
         cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
                  "'0x%x'), some device properties will be "
