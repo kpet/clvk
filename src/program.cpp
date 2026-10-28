@@ -1402,6 +1402,7 @@ cl_build_status cvk_program::do_build_inner_online(
                    "build_options", TRACE_STRING(build_options.c_str()));
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
+    std::string il_ir;
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
         cvk_error_fn("Could not build from il because clvk has been built with "
@@ -1459,8 +1460,7 @@ cl_build_status cvk_program::do_build_inner_online(
             }
         }
 
-        m_source.clear();
-        llvm::raw_string_ostream spirv_stream(m_source);
+        llvm::raw_string_ostream spirv_stream(il_ir);
         llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
 #endif // ENABLE_SPIRV_IL
     }
@@ -1484,6 +1484,8 @@ cl_build_status cvk_program::do_build_inner_online(
                 programs.emplace_back(std::string{input_program->m_ir.begin(),
                                                   input_program->m_ir.end()});
             }
+        } else if (build_from_il) {
+            programs.emplace_back(std::move(il_ir));
         } else {
             if (m_source.empty() && !m_ir.empty()) {
                 programs.emplace_back(std::string{m_ir.begin(), m_ir.end()});
