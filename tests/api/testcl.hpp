@@ -243,6 +243,15 @@ protected:
         return program;
     }
 
+    holder<cl_program> CreateProgramWithIL(const void* il, size_t length) {
+        cl_int err;
+
+        auto program = clCreateProgramWithIL(m_context, il, length, &err);
+        EXPECT_CL_SUCCESS(err);
+
+        return program;
+    }
+
     void BuildProgram(cl_program program, const char* options = nullptr) {
         cl_int err =
             clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
@@ -383,6 +392,23 @@ protected:
             build_options.pop_back();
         }
         return build_options;
+    }
+
+    std::string GetProgramSource(cl_program program) {
+        size_t source_size;
+        cl_int err = clGetProgramInfo(program, CL_PROGRAM_SOURCE, 0, nullptr,
+                                      &source_size);
+        EXPECT_CL_SUCCESS(err);
+        std::string source;
+        source.resize(source_size);
+        auto data_ptr = const_cast<char*>(source.c_str());
+        err = clGetProgramInfo(program, CL_PROGRAM_SOURCE, source_size,
+                               data_ptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        if (!source.empty() && source.back() == '\0') {
+            source.pop_back();
+        }
+        return source;
     }
 
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {
