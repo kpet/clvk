@@ -73,14 +73,21 @@ struct cvk_executor_thread {
         }
     }
 
+    cl_int execute_cmds_required_by(bool only_non_batch_cmds,
+                                    cl_uint num_events,
+                                    _cl_event* const* event_list);
+
+private:
     cvk_command_group extract_cmds_required_by(bool only_non_batch_cmds,
                                                cl_uint num_events,
                                                _cl_event* const* event_list);
-
-private:
+    bool wait_for_groups();
+    std::unique_ptr<cvk_command_group> extract_next_group();
+    void execute_next_group();
     void executor();
 
     std::mutex m_lock;
+    std::mutex m_exec_lock;
     std::condition_variable m_cv;
     std::unique_ptr<std::thread> m_thread;
     bool m_shutdown;
@@ -466,7 +473,7 @@ struct cvk_command {
         return status;
     }
 
-    cvk_event_command* event() const { return m_event; }
+    virtual cvk_event_command* event() const { return m_event; }
 
     cl_command_type type() const { return m_type; }
 
@@ -929,6 +936,11 @@ struct cvk_command_batch : public cvk_command {
         for (auto& cmd : m_commands) {
             cmd->set_event_status(status);
         }
+    }
+
+    cvk_event_command* event() const override final {
+        CVK_ASSERT(m_commands.size() > 0);
+        return m_commands.back()->event();
     }
 
 private:
