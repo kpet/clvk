@@ -765,8 +765,9 @@ struct cvk_command_batchable : public cvk_command {
         }
     }
 
-private:
     CHECK_RETURN virtual cl_int do_post_action() { return CL_SUCCESS; }
+
+private:
     CHECK_RETURN cl_int do_action() override;
 
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
@@ -1015,6 +1016,8 @@ struct cvk_command_buffer_image_copy final : public cvk_command_batchable {
 
     CHECK_RETURN cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) override final;
+
+    CHECK_RETURN cl_int do_post_action() override final;
 
     const std::vector<cvk_mem*> memory_objects() const override final {
         return {m_buffer, m_image};

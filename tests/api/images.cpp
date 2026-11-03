@@ -806,6 +806,60 @@ TEST_F(WithCommandQueue, 1DBufferImageReleaseAfterUnmap) {
     EXPECT_TRUE(destructor_called);
 }
 
+TEST_F(WithCommandQueue, MapImageReadWriteSubregions) {
+    const size_t IMAGE_WIDTH = 256;
+    std::vector<cl_uchar4> init_data(IMAGE_WIDTH);
+    for (size_t i = 0; i < IMAGE_WIDTH; ++i) {
+        init_data[i] = {static_cast<cl_uchar>((i * 3 + 1) & 0xff),
+                        static_cast<cl_uchar>((i * 5 + 2) & 0xff),
+                        static_cast<cl_uchar>((i * 7 + 3) & 0xff),
+                        static_cast<cl_uchar>((i * 11 + 4) & 0xff)};
+    }
+
+    cl_image_format format = {CL_RGBA, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D, // image_type
+        IMAGE_WIDTH,           // image_width
+        1,                     // image_height
+        1,                     // image_depth
+        1,                     // image_array_size
+        0,                     // image_row_pitch
+        0,                     // image_slice_pitch
+        0,                     // num_mip_levels
+        0,                     // num_samples
+        nullptr,               // buffer
+    };
+
+    auto image =
+        CreateImage(CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, &format, &desc);
+    const size_t zero_origin[3] = {0, 0, 0};
+    const size_t full_region[3] = {IMAGE_WIDTH, 1, 1};
+    EnqueueWriteImage(image, CL_TRUE, zero_origin, full_region, 0, 0,
+                      init_data.data());
+
+    const size_t offsets[4] = {77, 173, 123, 38};
+    const size_t lengths[4] = {34, 27, 21, 180};
+    for (size_t iter = 0; iter < 4; ++iter) {
+        const size_t origin[3] = {offsets[iter], 0, 0};
+        const size_t region[3] = {lengths[iter], 1, 1};
+        size_t row_pitch = 0;
+        size_t slice_pitch = 0;
+        auto map_ptr = EnqueueMapImage<cl_uchar4>(
+            image, CL_TRUE, CL_MAP_READ | CL_MAP_WRITE, origin, region,
+            &row_pitch, &slice_pitch);
+        for (size_t x = 0; x < lengths[iter]; ++x) {
+            size_t idx = offsets[iter] + x;
+            for (size_t c = 0; c < 4; ++c) {
+                EXPECT_EQ(map_ptr[x].s[c], init_data[idx].s[c]);
+                map_ptr[x].s[c] = 0;
+                init_data[idx].s[c] = 0;
+            }
+        }
+        EnqueueUnmapMemObject(image, map_ptr);
+    }
+    Finish();
+}
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 TEST_F(WithCommandQueue, ImageInitAtCreation) {
