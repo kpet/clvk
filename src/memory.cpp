@@ -658,62 +658,62 @@ void cvk_image::prepare_fill_pattern(const void* input_pattern,
     size_t size = element_size();
     *size_ret = size;
 
-    auto saturate = [](float x, float min, float max) {
+    auto normalize = [](float x, float min, float max, float scale) {
         if (std::isnan(x)) {
             return 0.f;
         } else if (x < min) {
-            return min;
+            x = min;
         } else if (x > max) {
-            return max;
+            x = max;
         }
-        return x;
+        return std::rint(x * scale);
     };
     cl_uchar pat_unorm_int8[4] = {
-        static_cast<cl_uchar>(saturate(pat_float[0], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[1], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[2], 0.f, 1.f) * 255.0f),
-        static_cast<cl_uchar>(saturate(pat_float[3], 0.f, 1.f) * 255.0f)};
+        static_cast<cl_uchar>(normalize(pat_float[0], 0.f, 1.f, 255.0f)),
+        static_cast<cl_uchar>(normalize(pat_float[1], 0.f, 1.f, 255.0f)),
+        static_cast<cl_uchar>(normalize(pat_float[2], 0.f, 1.f, 255.0f)),
+        static_cast<cl_uchar>(normalize(pat_float[3], 0.f, 1.f, 255.0f))};
     cl_char pat_snorm_int8[4] = {
-        static_cast<cl_char>(saturate(pat_float[0], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[1], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[2], -1.f, 1.f) * 127.0f),
-        static_cast<cl_char>(saturate(pat_float[3], -1.f, 1.f) * 127.0f)};
+        static_cast<cl_char>(normalize(pat_float[0], -1.f, 1.f, 127.0f)),
+        static_cast<cl_char>(normalize(pat_float[1], -1.f, 1.f, 127.0f)),
+        static_cast<cl_char>(normalize(pat_float[2], -1.f, 1.f, 127.0f)),
+        static_cast<cl_char>(normalize(pat_float[3], -1.f, 1.f, 127.0f))};
     cl_ushort pat_unorm_int16[4] = {
-        static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 65535.0f),
-        static_cast<cl_ushort>(saturate(pat_float[3], 0.f, 1.f) * 65535.0f)};
+        static_cast<cl_ushort>(normalize(pat_float[0], 0.f, 1.f, 65535.0f)),
+        static_cast<cl_ushort>(normalize(pat_float[1], 0.f, 1.f, 65535.0f)),
+        static_cast<cl_ushort>(normalize(pat_float[2], 0.f, 1.f, 65535.0f)),
+        static_cast<cl_ushort>(normalize(pat_float[3], 0.f, 1.f, 65535.0f))};
     cl_short pat_snorm_int16[4] = {
-        static_cast<cl_short>(saturate(pat_float[0], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[1], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[2], -1.f, 1.f) * 32767.0f),
-        static_cast<cl_short>(saturate(pat_float[3], -1.f, 1.f) * 32767.0f)};
-    cl_short pat_unorm_short_565 =
-        (static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 31.0f)
+        static_cast<cl_short>(normalize(pat_float[0], -1.f, 1.f, 32767.0f)),
+        static_cast<cl_short>(normalize(pat_float[1], -1.f, 1.f, 32767.0f)),
+        static_cast<cl_short>(normalize(pat_float[2], -1.f, 1.f, 32767.0f)),
+        static_cast<cl_short>(normalize(pat_float[3], -1.f, 1.f, 32767.0f))};
+    cl_ushort pat_unorm_short_565 =
+        (static_cast<cl_ushort>(normalize(pat_float[0], 0.f, 1.f, 31.0f))
          << 11) |
-        (static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 63.0f)
+        (static_cast<cl_ushort>(normalize(pat_float[1], 0.f, 1.f, 63.0f))
          << 5) |
-        (static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 31.0f));
-    cl_short pat_unorm_short_555 =
-        (static_cast<cl_ushort>(saturate(pat_float[0], 0.f, 1.f) * 31.0f)
+        (static_cast<cl_ushort>(normalize(pat_float[2], 0.f, 1.f, 31.0f)));
+    cl_ushort pat_unorm_short_555 =
+        (static_cast<cl_ushort>(normalize(pat_float[0], 0.f, 1.f, 31.0f))
          << 10) |
-        (static_cast<cl_ushort>(saturate(pat_float[1], 0.f, 1.f) * 31.0f)
+        (static_cast<cl_ushort>(normalize(pat_float[1], 0.f, 1.f, 31.0f))
          << 5) |
-        (static_cast<cl_ushort>(saturate(pat_float[2], 0.f, 1.f) * 31.0f));
-    cl_short pat_unorm_int_101010 =
-        (static_cast<cl_uint>(saturate(pat_float[0], 0.f, 1.f) * 1023.0f)
+        (static_cast<cl_ushort>(normalize(pat_float[2], 0.f, 1.f, 31.0f)));
+    cl_uint pat_unorm_int_101010 =
+        (static_cast<cl_uint>(normalize(pat_float[0], 0.f, 1.f, 1023.0f))
          << 20) |
-        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+        (static_cast<cl_uint>(normalize(pat_float[1], 0.f, 1.f, 1023.0f))
          << 10) |
-        (static_cast<cl_uint>(saturate(pat_float[2], 0.f, 1.f) * 1023.0f));
-    cl_short pat_unorm_int_101010_2 =
-        (static_cast<cl_uint>(saturate(pat_float[0], 0.f, 1.f) * 1023.0f)
+        (static_cast<cl_uint>(normalize(pat_float[2], 0.f, 1.f, 1023.0f)));
+    cl_uint pat_unorm_int_101010_2 =
+        (static_cast<cl_uint>(normalize(pat_float[0], 0.f, 1.f, 1023.0f))
          << 22) |
-        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+        (static_cast<cl_uint>(normalize(pat_float[1], 0.f, 1.f, 1023.0f))
          << 12) |
-        (static_cast<cl_uint>(saturate(pat_float[1], 0.f, 1.f) * 1023.0f)
+        (static_cast<cl_uint>(normalize(pat_float[2], 0.f, 1.f, 1023.0f))
          << 2) |
-        (static_cast<cl_uint>(saturate(pat_float[3], 0.f, 1.f) * 3.0f));
+        (static_cast<cl_uint>(normalize(pat_float[3], 0.f, 1.f, 3.0f)));
 
     const void* cast_pattern = nullptr;
     switch (format().image_channel_data_type) {
