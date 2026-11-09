@@ -198,7 +198,7 @@ jobs:
         shell: bash
         run: df -h
       - name: Download Mesa artifacts
-        uses: dawidd6/action-download-artifact@v27
+        uses: dawidd6/action-download-artifact@v28
         with:
           workflow: build-mesa.yml
           workflow_conclusion: success
