@@ -195,4 +195,37 @@ TEST_F(WithCommandQueueAndPrintf, VectorLen16) {
     ASSERT_STREQ(m_printf_output.c_str(), message);
 }
 
+TEST_F(WithCommandQueueAndPrintf, RebuildProgramWithoutPrintf) {
+    static const char* source = R"(
+        kernel void test_printf() {
+#ifdef USE_PRINTF
+            printf("Hello World!");
+#endif
+        }
+    )";
+
+    auto program = CreateProgram(source);
+    BuildProgram(program, "-DUSE_PRINTF");
+    auto kernel = CreateKernel(program, "test_printf");
+
+    size_t gws = 1;
+    size_t lws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 0, nullptr, nullptr);
+    Finish();
+    ASSERT_STREQ(m_printf_output.c_str(), "Hello World!");
+    m_printf_output.clear();
+
+    auto user_event = CreateUserEvent();
+    cl_event wait_event = user_event;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, &lws, 1, &wait_event,
+                         nullptr);
+    clReleaseKernel(kernel.release());
+
+    BuildProgram(program);
+
+    SetUserEventStatus(user_event, CL_COMPLETE);
+    Finish();
+    ASSERT_STREQ(m_printf_output.c_str(), "Hello World!");
+}
+
 #endif

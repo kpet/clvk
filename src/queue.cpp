@@ -1148,7 +1148,7 @@ cl_int cvk_command_kernel::do_post_action() {
             return CL_OUT_OF_RESOURCES;
         }
 
-        return cvk_printf(buffer, m_kernel->program()->printf_descriptors(),
+        return cvk_printf(buffer, m_kernel->printf_descriptors(),
                           m_queue->context()->get_printf_callback(),
                           m_queue->context()->get_printf_userdata());
     }
