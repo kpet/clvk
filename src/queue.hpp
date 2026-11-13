@@ -382,6 +382,23 @@ struct cvk_command_buffer {
             return false;
         }
 #endif
+        VkMemoryBarrier memoryBarrier = {
+            VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+            VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
+
+        vkCmdPipelineBarrier(m_command_buffer,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_HOST_BIT,
+                             0, // dependencyFlags
+                             1, // memoryBarrierCount
+                             &memoryBarrier,
+                             0,        // bufferMemoryBarrierCount
+                             nullptr,  // pBufferMemoryBarriers
+                             0,        // imageMemoryBarrierCount
+                             nullptr); // pImageMemoryBarriers
+
         auto res = vkEndCommandBuffer(m_command_buffer);
         return res == VK_SUCCESS;
     }
