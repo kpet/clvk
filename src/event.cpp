@@ -32,15 +32,25 @@ cvk_event_command::cvk_event_command(cvk_context* ctx, cvk_command* cmd,
         m_status = CL_QUEUED;
         m_command_type = cmd->type();
     }
+    if (m_command_type == CL_COMMAND_USER || !queue->use_timeline_semaphore()) {
+        m_cv = std::make_unique<cvk_std_condition_variable>();
+    } else {
+        cvk_semaphore* sem;
+        uint64_t value;
+        queue->get_next_semaphore_and_value(&sem, &value, m_command_type);
+        m_cv = std::make_unique<cvk_semaphore_condition_variable>(sem, value);
+    }
 }
 
-void cvk_event_command::set_status(cl_int status) {
+void cvk_event_command::set_status_no_lock(cl_int status,
+                                           std::unique_lock<std::mutex>& lock) {
+    if (status >= m_status) {
+        return;
+    }
+
     cvk_debug_group(loggroup::event,
                     "cvk_event::set_status: event = %p, status = %d", this,
                     status);
-    std::lock_guard<std::mutex> lock(m_lock);
-
-    CVK_ASSERT(status < m_status);
     m_status = status;
 
     if (m_queue && m_queue->has_property(CL_QUEUE_PROFILING_ENABLE) && m_cmd &&
@@ -56,14 +66,14 @@ void cvk_event_command::set_status(cl_int status) {
         }
     }
 
-    if (completed() || terminated()) {
+    if (m_status <= 0) {
 
         for (auto& type_cb : m_callbacks) {
             for (auto& cb : type_cb.second) {
-                execute_callback(cb);
+                execute_callback(cb, lock);
             }
         }
 
-        m_cv.notify_all();
+        m_cv->notify();
     }
 }
