@@ -471,7 +471,6 @@ struct cvk_buffer : public cvk_mem {
         auto mapping = m_mappings.at(ptr);
         m_mappings.erase(ptr);
         mapping.buffer->unmap();
-        mapping.image.reset(nullptr);
         return mapping;
     }
 
