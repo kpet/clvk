@@ -438,6 +438,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_integer_dot_product_capabilities_khr val_int_dot_product;
     cl_device_integer_dot_product_acceleration_properties_khr
         val_int_dot_product_props;
+    cl_device_fp_atomic_capabilities_ext val_fp_atomic_capabilities;
     std::vector<size_t> val_subgroup_sizes;
 
     auto device = icd_downcast(dev);
@@ -937,6 +938,21 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
             device->dot_product_4x8bit_packed_properties();
         copy_ptr = &val_int_dot_product_props;
         size_ret = sizeof(val_int_dot_product_props);
+        break;
+    case CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->single_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
+        break;
+    case CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->double_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
+        break;
+    case CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->half_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
         break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
