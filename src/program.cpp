@@ -1710,7 +1710,7 @@ void cvk_program::do_build() {
         m_binary = std::make_unique<spir_binary>(device->vulkan_spirv_env());
         m_binary_type = CL_PROGRAM_BINARY_TYPE_NONE;
     }
-    if (!m_source.empty() || !m_il.empty()) {
+    if (!loaded_from_binary()) {
         m_ir.clear();
     }
     m_stripped_binary.clear();
@@ -1878,6 +1878,9 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
         auto merged_preserved = cvk_preserved_options::merge(input_preserved);
         m_build_options = cvk_build_options(options != nullptr ? options : "",
                                             merged_preserved);
+    } else if (loaded_from_binary()) {
+        m_build_options = cvk_build_options(options != nullptr ? options : "",
+                                            m_build_options.preserved());
     } else {
         m_build_options = cvk_build_options(options != nullptr ? options : "");
     }
