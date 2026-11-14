@@ -1023,24 +1023,29 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     // Denorm options
     std::vector<std::string> denormPreserve;
     std::vector<std::string> denormFlushToZero;
-    if (device->supports_fp16() && !denorms_are_zero &&
-        device->supports_denorm_preserve_16()) {
-        denormPreserve.push_back("16");
-    } else if (device->supports_fp16() && denorms_are_zero &&
-               device->supports_denorm_ftz_16()) {
-        denormFlushToZero.push_back("16");
+    if (device->supports_fp16()) {
+        if ((denorms_are_zero ||
+             config.denorm_support_masked().count("16") > 0) &&
+            device->supports_denorm_ftz_16()) {
+            denormFlushToZero.push_back("16");
+        } else if (device->supports_denorm_preserve_16()) {
+            denormPreserve.push_back("16");
+        }
     }
-    if (!denorms_are_zero && device->supports_denorm_preserve_32()) {
-        denormPreserve.push_back("32");
-    } else if (denorms_are_zero && device->supports_denorm_ftz_32()) {
+    if ((denorms_are_zero || config.denorm_support_masked().count("32") > 0) &&
+        device->supports_denorm_ftz_32()) {
         denormFlushToZero.push_back("32");
+    } else if (device->supports_denorm_preserve_32()) {
+        denormPreserve.push_back("32");
     }
-    if (device->supports_fp64() && !denorms_are_zero &&
-        device->supports_denorm_preserve_64()) {
-        denormPreserve.push_back("64");
-    } else if (device->supports_fp64() && denorms_are_zero &&
-               device->supports_denorm_ftz_64()) {
-        denormFlushToZero.push_back("64");
+    if (device->supports_fp64()) {
+        if ((denorms_are_zero ||
+             config.denorm_support_masked().count("64") > 0) &&
+            device->supports_denorm_ftz_64()) {
+            denormFlushToZero.push_back("64");
+        } else if (device->supports_denorm_preserve_64()) {
+            denormPreserve.push_back("64");
+        }
     }
     // If those options are already specified, let the user choose its
     // configuration
@@ -1122,6 +1127,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return quoted_options;
 }
 
+#if COMPILER_AVAILABLE && defined(CLSPV_ONLINE_COMPILER)
+static std::mutex g_llvm_compile_mutex;
+#endif
+
 cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
 #ifndef CLSPV_ONLINE_COMPILER
@@ -1186,8 +1195,7 @@ cl_int cvk_program::parse_user_spec_constants() {
     SPIRV::TranslatorOpts translator_opts;
     // We don't need llvm-spirv to validate extensions for us.
     translator_opts.enableAllExtensions();
-    static std::mutex llvmspirv_compile_mutex;
-    std::lock_guard<std::mutex> llvmspirv_compile_lock(llvmspirv_compile_mutex);
+    std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
 
     std::vector<llvm::SpecConstInfoTy> spec_const_info;
 
@@ -1397,6 +1405,7 @@ cl_build_status cvk_program::do_build_inner_online(
                    "build_options", TRACE_STRING(build_options.c_str()));
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
+    std::string il_ir;
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
         cvk_error_fn("Could not build from il because clvk has been built with "
@@ -1438,9 +1447,7 @@ cl_build_status cvk_program::do_build_inner_online(
         // global variable that are not thread safe. Thus, we need to lock call
         // to llvm-spirv in order to ensure a thread safe execution.
         {
-            static std::mutex llvmspirv_compile_mutex;
-            std::lock_guard<std::mutex> llvmspirv_compile_lock(
-                llvmspirv_compile_mutex);
+            std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
             std::vector<const char*> llvmArgv{
                 "llvm-spirv(online)",
             };
@@ -1454,8 +1461,7 @@ cl_build_status cvk_program::do_build_inner_online(
             }
         }
 
-        m_source.clear();
-        llvm::raw_string_ostream spirv_stream(m_source);
+        llvm::raw_string_ostream spirv_stream(il_ir);
         llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
 #endif // ENABLE_SPIRV_IL
     }
@@ -1465,8 +1471,7 @@ cl_build_status cvk_program::do_build_inner_online(
     // variable that are not thread safe. Thus, we need to lock call to clspv in
     // order to ensure a thread safe execution.
     {
-        static std::mutex clspv_compile_mutex;
-        std::lock_guard<std::mutex> clspv_compile_lock(clspv_compile_mutex);
+        std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
         std::vector<std::string> programs;
         if (m_operation == build_operation::link) {
             for (auto input_program : m_input_programs) {
@@ -1479,6 +1484,8 @@ cl_build_status cvk_program::do_build_inner_online(
                 programs.emplace_back(std::string{input_program->m_ir.begin(),
                                                   input_program->m_ir.end()});
             }
+        } else if (build_from_il) {
+            programs.emplace_back(std::move(il_ir));
         } else {
             if (m_source.empty() && !m_ir.empty()) {
                 programs.emplace_back(std::string{m_ir.begin(), m_ir.end()});
@@ -1935,10 +1942,10 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
-      m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0),
-      m_first_allocation_failure(true) {
+      m_has_pod_buffer_arguments(false), m_uses_printf(false),
+      m_sampler_metadata(nullptr), m_image_metadata(nullptr),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+      m_nb_descriptor_set_allocated(0), m_first_allocation_failure(true) {
     TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
                        "clvk-entry_point_" + std::to_string((uintptr_t)this),
                        dev->track());
@@ -2180,6 +2187,12 @@ cl_int cvk_entry_point::init() {
     std::sort(
         m_args.begin(), m_args.end(),
         [](kernel_argument a, kernel_argument b) { return a.pos < b.pos; });
+
+    m_uses_printf = m_program->kernel_flags(m_name) &
+                    NonSemanticClspvReflectionMayUsePrintf;
+    if (m_uses_printf) {
+        m_printf_descriptors = m_program->printf_descriptors();
+    }
 
     // Create Descriptor Sets Layout
     std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
@@ -2434,9 +2447,4 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
     }
 
     return buffer;
-}
-
-bool cvk_entry_point::uses_printf() const {
-    return m_program->kernel_flags(m_name) &
-           NonSemanticClspvReflectionMayUsePrintf;
 }

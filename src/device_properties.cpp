@@ -243,16 +243,31 @@ struct cvk_device_properties_nvidia : public cvk_device_properties_virtual {
             "isequal",     "isfinite", "isgreater",   "isgreaterequal",
             "isinf",       "isless",   "islessequal", "islessgreater",
             "isnan",       "isnormal", "isnotequal",  "isordered",
-            "isunordered", "ldexp",    "mad",         "rint",
-            "round",       "rsqrt",    "signbit",     "sqrt",
-            "tanh",        "trunc",
+            "isunordered", "mad",      "rint",        "round",
+            "rsqrt",       "signbit",  "sqrt",        "tanh",
+            "trunc",
         });
+    }
+    std::string clspv_options() const override final {
+        return "-hack-clamp-width -hack-convert-to-float "
+               "-hack-fmul-flush-to-zero=32";
     }
 };
 
 static bool isNVIDIADevice(const uint32_t vendorID) {
     const uint32_t NVIDIAVendorID = 0x10de;
     return vendorID == NVIDIAVendorID;
+}
+
+struct cvk_device_properties_powervr : public cvk_device_properties_virtual {
+    std::string vendor() const override final {
+        return "Imagination Technologies";
+    }
+};
+
+static bool isPowerVRDevice(const char* name, const uint32_t vendorID) {
+    const uint32_t ImaginationVendorID = 0x1010;
+    return vendorID == ImaginationVendorID || strncmp(name, "PowerVR", 7) == 0;
 }
 
 #define RETURN(x, ...)                                                         \
@@ -305,6 +320,8 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
         RETURN(cvk_device_properties_nvidia);
     } else if (isllvmpipeDevice(vendorID)) {
         RETURN(cvk_device_properties_llvmpipe);
+    } else if (isPowerVRDevice(name, vendorID)) {
+        RETURN(cvk_device_properties_powervr);
     } else {
         cvk_warn("Unrecognized device '%s' (vendorID '0x%x' - deviceID "
                  "'0x%x'), some device properties will be "

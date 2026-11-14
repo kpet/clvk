@@ -187,6 +187,10 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
 
     bool uses_printf() const { return m_entry_point->uses_printf(); }
 
+    const printf_descriptor_map_t& printf_descriptors() const {
+        return m_entry_point->printf_descriptors();
+    }
+
     bool requires_serialized_execution() const { return uses_printf(); }
 
 private:

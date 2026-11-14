@@ -705,7 +705,11 @@ public:
 
     cvk_program* program() const { return m_program; }
 
-    bool uses_printf() const;
+    bool uses_printf() const { return m_uses_printf; }
+
+    const printf_descriptor_map_t& printf_descriptors() const {
+        return m_printf_descriptors;
+    }
 
 private:
     const uint32_t MAX_INSTANCES = config.max_entry_points_instances;
@@ -718,6 +722,8 @@ private:
     uint32_t m_pod_buffer_size;
     bool m_has_pod_arguments;
     bool m_has_pod_buffer_arguments;
+    bool m_uses_printf;
+    printf_descriptor_map_t m_printf_descriptors;
     std::vector<kernel_argument> m_args;
     const kernel_sampler_metadata_map* m_sampler_metadata;
     const kernel_image_metadata_map* m_image_metadata;
