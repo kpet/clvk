@@ -1942,10 +1942,10 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
-      m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0),
-      m_first_allocation_failure(true) {
+      m_has_pod_buffer_arguments(false), m_uses_printf(false),
+      m_sampler_metadata(nullptr), m_image_metadata(nullptr),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+      m_nb_descriptor_set_allocated(0), m_first_allocation_failure(true) {
     TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
                        "clvk-entry_point_" + std::to_string((uintptr_t)this),
                        dev->track());
@@ -2187,6 +2187,12 @@ cl_int cvk_entry_point::init() {
     std::sort(
         m_args.begin(), m_args.end(),
         [](kernel_argument a, kernel_argument b) { return a.pos < b.pos; });
+
+    m_uses_printf = m_program->kernel_flags(m_name) &
+                    NonSemanticClspvReflectionMayUsePrintf;
+    if (m_uses_printf) {
+        m_printf_descriptors = m_program->printf_descriptors();
+    }
 
     // Create Descriptor Sets Layout
     std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
@@ -2441,9 +2447,4 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
     }
 
     return buffer;
-}
-
-bool cvk_entry_point::uses_printf() const {
-    return m_program->kernel_flags(m_name) &
-           NonSemanticClspvReflectionMayUsePrintf;
 }
