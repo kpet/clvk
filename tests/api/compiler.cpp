@@ -756,3 +756,56 @@ TEST_F(WithContext, CompileProgramWithAttachedKernelsFails) {
                                   nullptr, nullptr, nullptr);
     EXPECT_EQ(err, CL_INVALID_OPERATION);
 }
+
+TEST_F(WithCommandQueue, RebuildILProgram) {
+    REQUIRE_EXTENSION("cl_khr_il_program");
+
+    cl_uint address_bits = 0;
+    GetDeviceInfo(CL_DEVICE_ADDRESS_BITS, sizeof(address_bits), &address_bits,
+                  nullptr);
+    uint32_t addressing_model = (address_bits == 64) ? 0x00000002 : 0x00000001;
+    // kernel void write_kernel(global uint* out) { *out = 42; }
+    const uint32_t spirv[] = {
+        0x07230203,       0x00010000, 0x00070000, 0x00000009, 0x00000000,
+        0x00020011,       0x00000004, 0x00020011, 0x00000006, 0x0003000e,
+        addressing_model, 0x00000002, 0x0007000f, 0x00000006, 0x00000001,
+        0x74697277,       0x656b5f65, 0x6c656e72, 0x00000000, 0x00040015,
+        0x00000002,       0x00000020, 0x00000000, 0x0004002b, 0x00000002,
+        0x00000003,       0x0000002a, 0x00020013, 0x00000004, 0x00040020,
+        0x00000005,       0x00000005, 0x00000002, 0x00040021, 0x00000006,
+        0x00000004,       0x00000005, 0x00050036, 0x00000004, 0x00000001,
+        0x00000000,       0x00000006, 0x00030037, 0x00000005, 0x00000007,
+        0x000200f8,       0x00000008, 0x0005003e, 0x00000007, 0x00000003,
+        0x00000002,       0x00000004, 0x000100fd, 0x00010038,
+    };
+
+    auto program = CreateProgramWithIL(spirv, sizeof(spirv));
+
+    // Build first time
+    BuildProgram(program);
+    EXPECT_TRUE(GetProgramSource(program).empty());
+
+    auto kernel = CreateKernel(program, "write_kernel");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 42u);
+
+    // Release kernel and rebuild second time
+    clReleaseKernel(kernel.release());
+    BuildProgram(program);
+    EXPECT_TRUE(GetProgramSource(program).empty());
+
+    auto kernel2 = CreateKernel(program, "write_kernel");
+    SetKernelArg(kernel2, 0, buffer);
+
+    result = 0;
+    EnqueueWriteBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EnqueueNDRangeKernel(kernel2, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 42u);
+}
