@@ -784,6 +784,7 @@ struct cvk_ndrange {
     cvk_ndrange(cl_uint work_dim, const size_t* global_work_offset,
                 const size_t* global_work_size, const size_t* local_work_size)
         : cvk_ndrange() {
+        CVK_ASSERT(work_dim <= 3);
         for (cl_uint dim = 0; dim < work_dim; dim++) {
             if (global_work_offset != nullptr) {
                 offset[dim] = global_work_offset[dim];
