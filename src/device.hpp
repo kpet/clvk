@@ -648,6 +648,7 @@ struct cvk_device : public _cl_device_id,
 
     CHECK_RETURN bool has_timer_support() const { return m_has_timer_support; }
 
+    CHECK_RETURN cl_int get_host_timer(cl_ulong* ts) const;
     CHECK_RETURN cl_int get_device_host_timer(cl_ulong* dev_ts,
                                               cl_ulong* host_ts) const;
     CHECK_RETURN cl_int update_device_host_timer();
