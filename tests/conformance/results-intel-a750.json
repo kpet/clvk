@@ -5,9 +5,9 @@
     "deviceName": "Intel(R) Arc(tm) A750 Graphics (DG2)",
     "deviceType": "VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU",
     "driverID": "VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA",
-    "driverInfo": "Mesa 26.2.2",
+    "driverInfo": "Mesa 26.2.6",
     "driverName": "Intel open-source Mesa driver",
-    "driverVersion": 109060098
+    "driverVersion": 109060102
   },
   "test-results": {
     "API": {
@@ -15,6 +15,7 @@
       "has_results": true,
       "results": {
         "binary_create": "pass",
+        "binary_create_with_header": "pass",
         "binary_get": "pass",
         "bool_type": "pass",
         "buffer_properties_queries": "pass",
@@ -83,7 +84,7 @@
         "local_arg_size_zero": "pass",
         "mem_object_destructor_callback": "pass",
         "min_data_type_align_size_alignment": "pass",
-        "min_image_formats": "fail",
+        "min_image_formats": "pass",
         "min_max_address_bits": "pass",
         "min_max_compute_units": "pass",
         "min_max_constant_args": "pass",
@@ -105,6 +106,7 @@
         "min_max_parameter_size": "pass",
         "min_max_queue_properties": "pass",
         "min_max_read_image_args": "pass",
+        "min_max_read_write_image_args": "pass",
         "min_max_samplers": "pass",
         "min_max_single_fp_config": "pass",
         "min_max_thread_dimensions": "pass",
@@ -119,8 +121,12 @@
         "negative_create_context": "pass",
         "negative_create_context_from_type": "pass",
         "negative_create_sub_devices": "skip",
+        "negative_enqueue_invalid_work_dim": "pass",
         "negative_enqueue_map_image": "skip",
         "negative_enqueue_marker_with_wait_list": "pass",
+        "negative_enqueue_non_uniform_work_group_size": "pass",
+        "negative_enqueue_work_group_size_exceeded": "pass",
+        "negative_enqueue_zero_work_group": "pass",
         "negative_get_command_queue_info": "pass",
         "negative_get_context_info": "pass",
         "negative_get_device_and_host_timer": "pass",
@@ -245,7 +251,7 @@
         "image_multipass_float_coord": "pass",
         "image_multipass_integer_coord": "pass",
         "image_param": "pass",
-        "image_r8": "skip",
+        "image_r8": "pass",
         "imagearraycopy": "pass",
         "imagearraycopy3d": "pass",
         "imagecopy": "pass",
@@ -521,6 +527,7 @@
         "get_program_info_kernel_names": "pass",
         "get_program_info_mult_devices": "skip",
         "get_program_source": "pass",
+        "get_program_source_from_binary": "pass",
         "image_macro": "pass",
         "kernel_name_size": "pass",
         "large_compile": "pass",
@@ -875,6 +882,7 @@
       "results": {
         "1D": "pass",
         "1Darray": "pass",
+        "1Dbuffer": "pass",
         "2D": "pass",
         "2Darray": "pass",
         "3D": "pass"
@@ -1536,7 +1544,7 @@
         "op_vector_float4_extract": "pass",
         "op_vector_float4_insert": "pass",
         "op_vector_half8_extract": "pass",
-        "op_vector_half8_insert": "fail",
+        "op_vector_half8_insert": "pass",
         "op_vector_int4_extract": "pass",
         "op_vector_int4_insert": "pass",
         "op_vector_long2_extract": "pass",
