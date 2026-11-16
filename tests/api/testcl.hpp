@@ -42,6 +42,8 @@
 #include "CL/cl.h"
 #include "CL/cl_ext.h"
 
+#include "spirv-tools/libspirv.hpp"
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
 
@@ -243,6 +245,20 @@ protected:
         return program;
     }
 
+    std::vector<uint32_t> AssembleSPIRV(const std::string& source) {
+        spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_0);
+        tools.SetMessageConsumer([](spv_message_level_t, const char*,
+                                    const spv_position_t& position,
+                                    const char* message) {
+            printf("SPIR-V assembly error at line %zu, col %zu: %s\n",
+                   position.line, position.column, message);
+        });
+        std::vector<uint32_t> binary;
+        bool success = tools.Assemble(source, &binary);
+        EXPECT_TRUE(success);
+        return binary;
+    }
+
     holder<cl_program> CreateProgramWithIL(const void* il, size_t length) {
         cl_int err;
 
@@ -250,6 +266,15 @@ protected:
         EXPECT_CL_SUCCESS(err);
 
         return program;
+    }
+
+    holder<cl_program> CreateProgramWithIL(const std::vector<uint32_t>& il) {
+        return CreateProgramWithIL(il.data(), il.size() * sizeof(uint32_t));
+    }
+
+    holder<cl_program> CreateProgramWithIL(const std::string& source) {
+        auto il = AssembleSPIRV(source);
+        return CreateProgramWithIL(il);
     }
 
     void BuildProgram(cl_program program, const char* options = nullptr) {
