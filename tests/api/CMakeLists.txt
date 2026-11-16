@@ -32,7 +32,10 @@ add_gtest_executable(api_tests
 
 target_include_directories(api_tests SYSTEM BEFORE PRIVATE
     ${SPIRV_HEADERS_SOURCE_DIR}/include
+    ${SPIRV_TOOLS_SOURCE_DIR}/include
 )
+
+target_link_libraries(api_tests SPIRV-Tools)
 
 if (${CLVK_VULKAN_IMPLEMENTATION} STREQUAL swiftshader)
   add_definitions(-DUSING_SWIFTSHADER)
