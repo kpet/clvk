@@ -310,9 +310,7 @@ struct cvk_device : public _cl_device_id,
         return m_clvk_properties->global_mem_cache_size();
     }
 
-    cl_uint max_compute_units() const {
-        return m_clvk_properties->max_compute_units();
-    }
+    cl_uint max_compute_units() const { return m_max_compute_units; }
 
     cl_uint max_samplers() const {
         // There are only 20 different possible samplers in OpenCL 1.2, cap the
@@ -844,6 +842,7 @@ private:
     CHECK_RETURN bool init_queues(uint32_t* num_queues, uint32_t* queue_family);
     CHECK_RETURN bool init_extensions();
     void init_clvk_runtime_behaviors();
+    void init_max_compute_units();
     void init_vulkan_properties(VkInstance instance);
     void init_driver_behaviors();
     void init_features(VkInstance instance);
@@ -874,6 +873,8 @@ private:
     VkPhysicalDevicePCIBusInfoPropertiesEXT m_pci_bus_info_properties;
     VkPhysicalDeviceShaderIntegerDotProductProperties
         m_integer_dot_product_properties{};
+    VkPhysicalDeviceShaderCoreBuiltinsPropertiesARM
+        m_shader_core_builtins_properties{};
     // Vulkan features
     VkPhysicalDeviceFeatures2 m_features{};
     VkPhysicalDeviceVariablePointerFeatures m_features_variable_pointer{};
@@ -947,6 +948,7 @@ private:
     spv_target_env m_vulkan_spirv_env;
 
     std::unique_ptr<cvk_device_properties> m_clvk_properties;
+    cl_uint m_max_compute_units{};
 
     TRACE_TRACK_VAR(device_track);
 };

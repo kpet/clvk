@@ -95,6 +95,25 @@ struct cvk_device_properties_adreno_640 : public cvk_device_properties_adreno {
     uint32_t max_compute_units() const override final { return 2; }
 };
 
+struct cvk_device_properties_adreno_x1_85
+    : public cvk_device_properties_adreno {
+    // 6 SPs (matches the number of CCUs, see Mesa's freedreno_devices.py).
+    uint32_t max_compute_units() const override final { return 6; }
+    uint32_t max_first_cmd_batch_size() const override final { return 10; }
+    uint32_t max_cmd_group_size() const override final { return 1; }
+};
+
+static bool isQualcommDevice(const uint32_t vendorID) {
+    const uint32_t QualcommVendorID = 0x5143;
+    return vendorID == QualcommVendorID;
+}
+
+static bool isAdrenoX1_85Device(const uint32_t vendorID,
+                                const uint32_t deviceID) {
+    const uint32_t AdrenoX1_85DeviceID = 0x43050c01;
+    return isQualcommDevice(vendorID) && deviceID == AdrenoX1_85DeviceID;
+}
+
 struct cvk_device_properties_intel : public cvk_device_properties_virtual {
     std::string vendor() const override final { return "Intel Corporation"; }
     uint32_t max_first_cmd_batch_size() const override final { return 10; }
@@ -308,6 +327,8 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
         RETURN(cvk_device_properties_adreno_630);
     } else if (strcmp(name, "Adreno (TM) 640") == 0) {
         RETURN(cvk_device_properties_adreno_640);
+    } else if (isAdrenoX1_85Device(vendorID, deviceID)) {
+        RETURN(cvk_device_properties_adreno_x1_85);
     } else if (isIntelDevice(name, vendorID)) {
         RETURN(cvk_device_properties_intel);
     } else if (isAMDDevice(name, vendorID)) {
