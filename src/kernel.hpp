@@ -139,14 +139,17 @@ struct cvk_kernel : public _cl_kernel, api_object<object_magic::kernel> {
     std::array<size_t, 3>
     local_size_for_sub_group_count(const cvk_device* device,
                                    size_t num_sub_groups) const {
-        std::array<size_t, 3> ret = {1, 1, 1};
-        size_t wgs = num_sub_groups * device->sub_group_size();
-        if (wgs > max_work_group_size(device)) {
-            ret = {0, 0, 0};
-        } else {
-            ret[0] = wgs;
+        if (num_sub_groups == 0 ||
+            num_sub_groups > device->max_num_sub_groups()) {
+            return {0, 0, 0};
         }
-        return ret;
+        uint32_t reqd = m_program->required_sub_group_size(m_name);
+        size_t sg_size = (reqd != 0) ? reqd : device->sub_group_size();
+        size_t wgs = num_sub_groups * sg_size;
+        if (wgs > max_work_group_size(device)) {
+            return {0, 0, 0};
+        }
+        return {wgs, 1, 1};
     }
 
     size_t max_num_sub_groups(const cvk_device* device) const {

@@ -94,6 +94,10 @@ PROPERTY(uint32_t, global_mem_cache_size, 0u)
 // Indicate whether the BGRA format is not supported for a 1D image buffer.
 PROPERTY(bool, bgra_format_not_supported_for_image1d_buffer, false)
 
+// Indicate whether subgroup independent forward progress is supported by the
+// device.
+PROPERTY(bool, subgroup_independent_forward_progress, false)
+
 // Specify a set of image formats that should be explicitly disabled.
 PROPERTY(image_format_set, disabled_image_formats, image_format_set())
 

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -459,6 +460,18 @@ struct cvk_device : public _cl_device_id,
 
     bool supports_subgroups() const { return m_has_subgroups_support; }
 
+    bool supports_subgroup_ifp() const { return m_has_subgroup_ifp_support; }
+
+    bool supports_subgroup_uniform_control_flow() const {
+        return vulkan_spirv_env() >= SPV_ENV_VULKAN_1_1 &&
+               is_vulkan_extension_enabled(
+                   VK_KHR_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_EXTENSION_NAME) &&
+               m_features_subgroup_uniform_control_flow
+                   .shaderSubgroupUniformControlFlow &&
+               (m_subgroup_properties.supportedStages &
+                VK_SHADER_STAGE_COMPUTE_BIT);
+    }
+
     bool supports_subgroup_rotate() const {
 #ifdef VK_VERSION_1_4
         return m_subgroup_properties.supportedOperations &
@@ -500,6 +513,12 @@ struct cvk_device : public _cl_device_id,
     }
     CHECK_RETURN const std::vector<cl_name_version>& extensions() const {
         return m_extensions;
+    }
+    bool is_extension_enabled(const char* ext) const {
+        return std::find_if(m_extensions.begin(), m_extensions.end(),
+                            [ext](const cl_name_version& v) {
+                                return strcmp(v.name, ext) == 0;
+                            }) != m_extensions.end();
     }
 
     /// Returns true if the device supports the given SPIR-V capability.
@@ -858,6 +877,8 @@ private:
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
     VkPhysicalDeviceShaderFmaFeaturesKHR m_features_shader_fma{};
+    VkPhysicalDeviceShaderSubgroupUniformControlFlowFeaturesKHR
+        m_features_subgroup_uniform_control_flow{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
@@ -898,6 +919,7 @@ private:
     bool m_has_fp16_support{};
     bool m_has_int8_support{};
     bool m_has_subgroups_support{};
+    bool m_has_subgroup_ifp_support{};
     bool m_has_subgroup_size_selection{};
 
     CHECK_RETURN cl_int update_device_host_timer_no_lock();
