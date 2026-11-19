@@ -45,6 +45,7 @@ enum class object_magic : uint32_t
     memory_object = 0x8899AABBU,
     sampler = 0x99AABBCCU,
     semaphore = 0xAABBCCDDU,
+    command_buffer = 0xBBCCDDEEU,
 };
 
 template <object_magic magic> struct object_magic_header {
