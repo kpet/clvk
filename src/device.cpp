@@ -401,6 +401,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
         VK_KHR_SHADER_FMA_EXTENSION_NAME,
         VK_ARM_SHADER_CORE_BUILTINS_EXTENSION_NAME,
+        VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -466,6 +467,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
     m_features_shader_fma.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR;
+    m_features_shader_atomic_float.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -504,6 +507,8 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_queue_global_priority),
             VER_EXT_FEAT(0, VK_KHR_SHADER_FMA_EXTENSION_NAME,
                          m_features_shader_fma),
+            VER_EXT_FEAT(0, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+                         m_features_shader_atomic_float),
 
 #undef VER_EXT_FEAT
         };
@@ -841,6 +846,12 @@ void cvk_device::build_extension_ils_list() {
             1, 0, 0, "cl_arm_integer_dot_product_accumulate_int16"));
     }
 
+    if (is_vulkan_extension_enabled(
+            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME)) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 0, CL_EXT_FLOAT_ATOMICS_EXTENSION_NAME));
+    }
+
     auto config_extensions = config.device_extensions();
     for (auto& config_extension : config_extensions) {
         cl_name_version extension;
@@ -934,6 +945,24 @@ void cvk_device::build_extension_ils_list() {
         }
         m_opencl_c_features.push_back(MAKE_NAME_VERSION(
             3, 0, 0, "__opencl_c_integer_dot_product_input_4x8bit_packed"));
+    }
+    if (m_features_shader_atomic_float.shaderBufferFloat32AtomicAdd) {
+        m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+            3, 0, 0, "__opencl_c_ext_fp32_global_atomic_add"));
+    }
+    if (m_features_shader_atomic_float.shaderSharedFloat32AtomicAdd) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_ext_fp32_local_atomic_add"));
+    }
+    if (supports_fp64()) {
+        if (m_features_shader_atomic_float.shaderBufferFloat64AtomicAdd) {
+            m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+                3, 0, 0, "__opencl_c_ext_fp64_global_atomic_add"));
+        }
+        if (m_features_shader_atomic_float.shaderSharedFloat64AtomicAdd) {
+            m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+                3, 0, 0, "__opencl_c_ext_fp64_local_atomic_add"));
+        }
     }
 }
 
@@ -1401,6 +1430,12 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityDotProductInput4x8Bit:
     case spv::CapabilityDotProductInputAll:
         return supports_dot_product() && supports_int8();
+    case spv::CapabilityAtomicFloat32AddEXT:
+        return m_features_shader_atomic_float.shaderBufferFloat32AtomicAdd ||
+               m_features_shader_atomic_float.shaderSharedFloat32AtomicAdd;
+    case spv::CapabilityAtomicFloat64AddEXT:
+        return m_features_shader_atomic_float.shaderBufferFloat64AtomicAdd ||
+               m_features_shader_atomic_float.shaderSharedFloat64AtomicAdd;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);
@@ -1456,6 +1491,25 @@ void cvk_device::select_work_group_size(
     } while (changed);
 }
 
+cl_int cvk_device::get_host_timer(cl_ulong* ts) const {
+    auto vkdev = vulkan_device();
+
+    uint64_t max_deviation;
+    uint64_t timestamp;
+    VkCalibratedTimestampInfoEXT timestamp_info = {
+        VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
+        VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT};
+    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(vkdev, 1, &timestamp_info,
+                                                    &timestamp, &max_deviation);
+    if (res != VK_SUCCESS) {
+        cvk_error_fn("vkGetCalibratedTimestampsEXT failed %d %s", res,
+                     vulkan_error_string(res));
+        return CL_OUT_OF_RESOURCES;
+    }
+    *ts = timestamp;
+    return CL_SUCCESS;
+}
+
 cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
                                          cl_ulong* host_timestamp) const {
     auto vkdev = vulkan_device();
@@ -1464,55 +1518,39 @@ cl_int cvk_device::get_device_host_timer(cl_ulong* device_timestamp,
     uint64_t max_deviation;
     VkCalibratedTimestampInfoEXT timestamp_infos[2] = {
         {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
-         VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT},
+         VK_TIME_DOMAIN_DEVICE_EXT},
         {VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT, nullptr,
-         VK_TIME_DOMAIN_DEVICE_EXT}};
+         VK_TIME_DOMAIN_CLOCK_MONOTONIC_EXT}};
 
-    uint32_t num_requested_timestamps;
-    if (device_timestamp == nullptr) {
-        num_requested_timestamps = 1;
-    } else {
-        num_requested_timestamps = 2;
-    }
-
-    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(
-        vkdev, num_requested_timestamps, timestamp_infos, timestamps,
-        &max_deviation);
+    auto res = m_vkfns.vkGetCalibratedTimestampsEXT(vkdev, 2, timestamp_infos,
+                                                    timestamps, &max_deviation);
     if (res != VK_SUCCESS) {
         cvk_error_fn("vkGetCalibratedTimestampsEXT failed %d %s", res,
                      vulkan_error_string(res));
         return CL_OUT_OF_RESOURCES;
     }
-
-    *host_timestamp = timestamps[0];
-    if (device_timestamp != nullptr) {
-        *device_timestamp = timestamp_to_ns(timestamps[1]);
-    }
+    *device_timestamp = timestamp_to_ns(timestamps[0]);
+    *host_timestamp = timestamps[1];
 
     return CL_SUCCESS;
 }
 
-cl_int cvk_device::update_device_host_timer_no_lock() {
-    return get_device_host_timer(&m_sync_dev, &m_sync_host);
-}
-
-cl_int cvk_device::update_device_host_timer() {
+cl_int cvk_device::device_timer_to_host(cl_ulong start_dev, cl_ulong end_dev,
+                                        cl_ulong& start_host,
+                                        cl_ulong& end_host) {
     std::lock_guard<std::mutex> lock(m_sync_mutex);
-    return update_device_host_timer_no_lock();
-}
-
-cl_int cvk_device::device_timer_to_host(cl_ulong dev, cl_ulong& host) {
-    std::lock_guard<std::mutex> lock(m_sync_mutex);
-    if (dev > m_sync_dev) {
-        cl_int err = update_device_host_timer_no_lock();
+    if (start_dev > m_sync_dev || end_dev > m_sync_dev) {
+        cl_int err = get_device_host_timer(&m_sync_dev, &m_sync_host);
         if (err != CL_SUCCESS) {
             return err;
         }
     }
     if (m_sync_host > m_sync_dev) {
-        host = (m_sync_host - m_sync_dev) + dev;
+        start_host = (m_sync_host - m_sync_dev) + start_dev;
+        end_host = (m_sync_host - m_sync_dev) + end_dev;
     } else {
-        host = dev - (m_sync_dev - m_sync_host);
+        start_host = start_dev - (m_sync_dev - m_sync_host);
+        end_host = end_dev - (m_sync_dev - m_sync_host);
     }
     return CL_SUCCESS;
 }

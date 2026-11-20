@@ -236,7 +236,7 @@ struct cvk_device_properties_llvmpipe : public cvk_device_properties_virtual {
             "mad",      "rint",        "round",          "rsqrt",
             "signbit",  "sqrt",        "trunc",          "half_cos",
             "half_exp", "half_exp2",   "half_exp10",     "half_rsqrt",
-            "half_sin", "half_sqrt",   "half_tan",
+            "half_sin", "half_sqrt",
         });
     }
     std::string clspv_options() const override final {
@@ -267,7 +267,7 @@ struct cvk_device_properties_nvidia : public cvk_device_properties_virtual {
     }
     std::string clspv_options() const override final {
         return "-hack-clamp-width -hack-convert-to-float "
-               "-hack-fmul-flush-to-zero=32";
+               "-hack-fmul-flush-to-zero=32 -hack-psb-volatile-as-atomic";
     }
 };
 
