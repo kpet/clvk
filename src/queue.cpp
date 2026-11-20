@@ -1117,17 +1117,18 @@ cvk_command_kernel::build_batchable_inner(cvk_command_buffer& command_buffer) {
     VkMemoryBarrier memoryBarrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER, // sType
                                      nullptr,                          // pNext
                                      VK_ACCESS_SHADER_WRITE_BIT,
-                                     VK_ACCESS_MEMORY_READ_BIT |
-                                         VK_ACCESS_MEMORY_WRITE_BIT};
+                                     VK_ACCESS_TRANSFER_READ_BIT |
+                                         VK_ACCESS_TRANSFER_WRITE_BIT};
 
-    // Workaround for a bug on some NVIDIA devices.
-    // This should already be covered by VK_ACCESS_MEMORY_READ_BIT.
-    memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT;
+    // Cover compute shader reads and writes in the same command buffer.
+    memoryBarrier.dstAccessMask |= VK_ACCESS_SHADER_READ_BIT |
+                                   VK_ACCESS_SHADER_WRITE_BIT |
+                                   VK_ACCESS_UNIFORM_READ_BIT;
 
     vkCmdPipelineBarrier(
         command_buffer,
         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // srcStageMask
-        VK_PIPELINE_STAGE_HOST_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT |
+        VK_PIPELINE_STAGE_TRANSFER_BIT |
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, // dstStageMask
         0,                                        // dependencyFlags
         1,                                        // memoryBarrierCount

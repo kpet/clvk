@@ -38,7 +38,7 @@ TESTS_QUICK = (
     ('Atomics', 'atomics/test_atomics'),
     ('Compute Info', 'computeinfo/test_computeinfo'),
     ('Common Functions', 'commonfns/test_commonfns'),
-    ('Compiler', 'compiler/test_compiler'),
+    ('Compiler', 'compiler/test_compiler', '--spirv-binaries-path', os.path.join(CTS_BUILD_DIR, 'test_conformance', 'compiler', 'spirv_bin')),
     ('Contractions', 'contractions/test_contractions'),
     ('Device Partitioning', 'device_partition/test_device_partition'),
     ('Events', 'events/test_events'),
@@ -51,7 +51,7 @@ TESTS_QUICK = (
 
 TESTS_MODE_WIMPY = (
     ('Conversions', 'conversions/test_conversions', '-w'),
-    ('Integer Ops', 'integer_ops/test_integer_ops', 'quick*', 'integer*', 'vector_scalar', 'popcount', 'unary_ops*'),
+    ('Integer Ops', 'integer_ops/test_integer_ops', '-w'),
     ('Half Ops', 'half/test_half', '-w'),
     ('Math', 'math_brute_force/test_bruteforce', '-1', '-w'),
     ('Relationals', 'relationals/test_relationals'),
@@ -80,7 +80,7 @@ TESTS_FOR_WIMPY = TESTS_QUICK + (
     ('Non-uniform work-group', 'non_uniform_work_group/test_non_uniform_work_group'),
     ('Pipes', 'pipes/test_pipes'),
     ('SPIR', 'spir/test_spir'),
-    ('SPIR-V', 'spirv_new/test_spirv_new', '--spirv-binaries-path', os.path.join(CTS_DIR, 'test_conformance', 'spirv_new', 'spirv_bin')),
+    ('SPIR-V', 'spirv_new/test_spirv_new', '--spirv-binaries-path', os.path.join(CTS_BUILD_DIR, 'test_conformance', 'spirv_new', 'spirv_bin')),
     ('SVM', 'SVM/test_svm'),
     ('Subgroups', 'subgroups/test_subgroups'),
     ('Workgroups', 'workgroups/test_workgroups'),
