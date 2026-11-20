@@ -255,6 +255,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
         VK_KHR_SHADER_FMA_EXTENSION_NAME,
+        VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -320,6 +321,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_KHR;
     m_features_shader_fma.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR;
+    m_features_shader_atomic_float.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -358,6 +361,8 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_queue_global_priority),
             VER_EXT_FEAT(0, VK_KHR_SHADER_FMA_EXTENSION_NAME,
                          m_features_shader_fma),
+            VER_EXT_FEAT(0, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+                         m_features_shader_atomic_float),
 
 #undef VER_EXT_FEAT
         };
@@ -695,6 +700,12 @@ void cvk_device::build_extension_ils_list() {
             1, 0, 0, "cl_arm_integer_dot_product_accumulate_int16"));
     }
 
+    if (is_vulkan_extension_enabled(
+            VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME)) {
+        m_extensions.push_back(
+            MAKE_NAME_VERSION(1, 0, 0, CL_EXT_FLOAT_ATOMICS_EXTENSION_NAME));
+    }
+
     auto config_extensions = config.device_extensions();
     for (auto& config_extension : config_extensions) {
         cl_name_version extension;
@@ -788,6 +799,24 @@ void cvk_device::build_extension_ils_list() {
         }
         m_opencl_c_features.push_back(MAKE_NAME_VERSION(
             3, 0, 0, "__opencl_c_integer_dot_product_input_4x8bit_packed"));
+    }
+    if (m_features_shader_atomic_float.shaderBufferFloat32AtomicAdd) {
+        m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+            3, 0, 0, "__opencl_c_ext_fp32_global_atomic_add"));
+    }
+    if (m_features_shader_atomic_float.shaderSharedFloat32AtomicAdd) {
+        m_opencl_c_features.push_back(
+            MAKE_NAME_VERSION(3, 0, 0, "__opencl_c_ext_fp32_local_atomic_add"));
+    }
+    if (supports_fp64()) {
+        if (m_features_shader_atomic_float.shaderBufferFloat64AtomicAdd) {
+            m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+                3, 0, 0, "__opencl_c_ext_fp64_global_atomic_add"));
+        }
+        if (m_features_shader_atomic_float.shaderSharedFloat64AtomicAdd) {
+            m_opencl_c_features.push_back(MAKE_NAME_VERSION(
+                3, 0, 0, "__opencl_c_ext_fp64_local_atomic_add"));
+        }
     }
 }
 
@@ -1253,6 +1282,12 @@ bool cvk_device::supports_capability(spv::Capability capability) const {
     case spv::CapabilityDotProductInput4x8Bit:
     case spv::CapabilityDotProductInputAll:
         return supports_dot_product() && supports_int8();
+    case spv::CapabilityAtomicFloat32AddEXT:
+        return m_features_shader_atomic_float.shaderBufferFloat32AtomicAdd ||
+               m_features_shader_atomic_float.shaderSharedFloat32AtomicAdd;
+    case spv::CapabilityAtomicFloat64AddEXT:
+        return m_features_shader_atomic_float.shaderBufferFloat64AtomicAdd ||
+               m_features_shader_atomic_float.shaderSharedFloat64AtomicAdd;
     // Capabilities that have not yet been mapped to Vulkan features:
     default:
         cvk_warn_fn("Capability %d not yet mapped to a feature.", capability);

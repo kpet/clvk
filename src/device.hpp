@@ -487,6 +487,43 @@ struct cvk_device : public _cl_device_id,
         return m_features_vulkan_memory_model.vulkanMemoryModelDeviceScope;
     }
 
+    cl_device_fp_atomic_capabilities_ext single_fp_atomic_capabilities() const {
+        cl_device_fp_atomic_capabilities_ext caps =
+            CL_DEVICE_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT |
+            CL_DEVICE_LOCAL_FP_ATOMIC_LOAD_STORE_EXT;
+        if (m_features_shader_atomic_float.shaderBufferFloat32AtomicAdd) {
+            caps |= CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT;
+        }
+        if (m_features_shader_atomic_float.shaderSharedFloat32AtomicAdd) {
+            caps |= CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT;
+        }
+        return caps;
+    }
+
+    cl_device_fp_atomic_capabilities_ext double_fp_atomic_capabilities() const {
+        if (!supports_fp64()) {
+            return 0;
+        }
+        cl_device_fp_atomic_capabilities_ext caps = 0;
+        if (m_features_shader_atomic_float.shaderBufferFloat64Atomics) {
+            caps |= CL_DEVICE_GLOBAL_FP_ATOMIC_LOAD_STORE_EXT;
+        }
+        if (m_features_shader_atomic_float.shaderSharedFloat64Atomics) {
+            caps |= CL_DEVICE_LOCAL_FP_ATOMIC_LOAD_STORE_EXT;
+        }
+        if (m_features_shader_atomic_float.shaderBufferFloat64AtomicAdd) {
+            caps |= CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT;
+        }
+        if (m_features_shader_atomic_float.shaderSharedFloat64AtomicAdd) {
+            caps |= CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT;
+        }
+        return caps;
+    }
+
+    cl_device_fp_atomic_capabilities_ext half_fp_atomic_capabilities() const {
+        return 0;
+    }
+
     bool compiler_available() const {
 #ifdef COMPILER_AVAILABLE
         return true;
@@ -858,6 +895,8 @@ private:
     VkPhysicalDeviceGlobalPriorityQueryFeaturesKHR
         m_features_queue_global_priority{};
     VkPhysicalDeviceShaderFmaFeaturesKHR m_features_shader_fma{};
+    VkPhysicalDeviceShaderAtomicFloatFeaturesEXT
+        m_features_shader_atomic_float{};
 
     VkDevice m_dev;
     std::vector<const char*> m_vulkan_device_extensions;
