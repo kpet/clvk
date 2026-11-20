@@ -807,6 +807,10 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_svmcaps);
         break;
     case CL_DEVICE_SUB_GROUP_INDEPENDENT_FORWARD_PROGRESS:
+        val_bool = device->supports_subgroup_ifp() ? CL_TRUE : CL_FALSE;
+        copy_ptr = &val_bool;
+        size_ret = sizeof(val_bool);
+        break;
     case CL_DEVICE_PIPE_SUPPORT:
     case CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT:
         val_bool = CL_FALSE;
@@ -3275,15 +3279,21 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
     size_t val_sizet, ret_size = 0;
     std::array<size_t, 3> val_lws;
 
-    auto device = icd_downcast(dev);
     auto kernel = icd_downcast(kern);
 
     if (!is_valid_kernel(kernel)) {
         return CL_INVALID_KERNEL;
     }
 
-    if (!is_valid_device(device)) {
+    auto device =
+        (dev == nullptr) ? kernel->context()->device() : icd_downcast(dev);
+
+    if (!is_valid_device(device) || device != kernel->context()->device()) {
         return CL_INVALID_DEVICE;
+    }
+
+    if (!device->supports_subgroups()) {
+        return CL_INVALID_OPERATION;
     }
 
     auto parse_lws = [&](std::array<uint32_t, 3>& lws) -> bool {
@@ -3330,15 +3340,22 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
         break;
     }
     case CL_KERNEL_LOCAL_SIZE_FOR_SUB_GROUP_COUNT: {
-        if (input_value_size % sizeof(size_t) != 0) {
+        if (input_value_size != sizeof(size_t) || input_value == nullptr) {
+            ret = CL_INVALID_VALUE;
+            break;
+        }
+        if (param_value != nullptr &&
+            (param_value_size == 0 || param_value_size > sizeof(val_lws) ||
+             (param_value_size % sizeof(size_t) != 0))) {
             ret = CL_INVALID_VALUE;
             break;
         }
         auto num_sub_groups = *static_cast<const size_t*>(input_value);
         val_lws =
             kernel->local_size_for_sub_group_count(device, num_sub_groups);
-        copy_ptr = &val_lws;
-        ret_size = param_value_size;
+        copy_ptr = val_lws.data();
+        ret_size =
+            (param_value != nullptr) ? param_value_size : sizeof(val_lws);
         break;
     }
     case CL_KERNEL_MAX_NUM_SUB_GROUPS:
@@ -3346,7 +3363,11 @@ cl_int CLVK_API_CALL clGetKernelSubGroupInfo(
         copy_ptr = &val_sizet;
         ret_size = sizeof(val_sizet);
         break;
-    case CL_KERNEL_COMPILE_NUM_SUB_GROUPS: // TODO
+    case CL_KERNEL_COMPILE_NUM_SUB_GROUPS:
+        val_sizet = 0;
+        copy_ptr = &val_sizet;
+        ret_size = sizeof(val_sizet);
+        break;
     default:
         ret = CL_INVALID_VALUE;
         break;

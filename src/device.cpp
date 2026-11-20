@@ -256,6 +256,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
         VK_KHR_SHADER_FMA_EXTENSION_NAME,
         VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+        VK_KHR_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -323,6 +324,8 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR;
     m_features_shader_atomic_float.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
+    m_features_subgroup_uniform_control_flow.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
         coreversion_extension_features = {
@@ -363,6 +366,9 @@ void cvk_device::init_features(VkInstance instance) {
                          m_features_shader_fma),
             VER_EXT_FEAT(0, VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
                          m_features_shader_atomic_float),
+            VER_EXT_FEAT(
+                0, VK_KHR_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_EXTENSION_NAME,
+                m_features_subgroup_uniform_control_flow),
 
 #undef VER_EXT_FEAT
         };
@@ -410,6 +416,9 @@ void cvk_device::init_features(VkInstance instance) {
     cvk_info(
         "subgroup extended types: %d",
         m_features_shader_subgroup_extended_types.shaderSubgroupExtendedTypes);
+    cvk_info("subgroup uniform control flow: %d",
+             m_features_subgroup_uniform_control_flow
+                 .shaderSubgroupUniformControlFlow);
 
     // Selectively enable core features.
     if (supported_features.features.shaderInt16) {
@@ -537,6 +546,9 @@ void cvk_device::init_compiler_options() {
     if (supports_dot_product()) {
         m_device_compiler_options += " -cl-arm-integer-dot-product ";
     }
+    if (supports_subgroup_uniform_control_flow()) {
+        m_device_compiler_options += " -subgroup-uniform-control-flow ";
+    }
 
     // Builtin options
     auto clspv_library_builtins = config.clspv_library_builtins();
@@ -617,7 +629,9 @@ void cvk_device::build_extension_ils_list() {
             MAKE_NAME_VERSION(1, 0, 0, "cl_khr_device_uuid"));
         VkSubgroupFeatureFlags required_subgroup_ops =
             VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
-        if ((m_subgroup_properties.supportedOperations &
+        if ((m_subgroup_properties.supportedStages &
+             VK_SHADER_STAGE_COMPUTE_BIT) &&
+            (m_subgroup_properties.supportedOperations &
              required_subgroup_ops) == required_subgroup_ops &&
             (m_features_shader_subgroup_extended_types
                  .shaderSubgroupExtendedTypes == VK_TRUE)) {
@@ -667,6 +681,27 @@ void cvk_device::build_extension_ils_list() {
         m_has_int8_support = true;
     }
 
+    VkSubgroupFeatureFlags required_khr_subgroup_ops =
+        VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT |
+        VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT;
+    bool can_support_khr_subgroups =
+        supports_subgroups() &&
+        ((m_subgroup_properties.supportedOperations &
+          required_khr_subgroup_ops) == required_khr_subgroup_ops) &&
+        (vulkan_spirv_env() >= SPV_ENV_VULKAN_1_2);
+    if (can_support_khr_subgroups) {
+        if (m_clvk_properties->subgroup_independent_forward_progress()) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroups"));
+        }
+        if (supports_int8() && m_features.features.shaderInt16 &&
+            m_features_16bit_storage.storageBuffer16BitAccess &&
+            m_features.features.shaderInt64) {
+            m_extensions.push_back(
+                MAKE_NAME_VERSION(1, 0, 0, "cl_khr_subgroup_extended_types"));
+        }
+    }
+
     // Report cl_khr_pci_bus_info if VK_EXT_pci_bus_info is supported
     if (is_vulkan_extension_enabled(VK_EXT_PCI_BUS_INFO_EXTENSION_NAME)) {
         m_extensions.push_back(
@@ -708,11 +743,13 @@ void cvk_device::build_extension_ils_list() {
 
     auto config_extensions = config.device_extensions();
     for (auto& config_extension : config_extensions) {
-        cl_name_version extension;
-        extension.version = CL_MAKE_VERSION(0, 0, 0);
-        memcpy(extension.name, config_extension.c_str(),
-               std::min(config_extension.size(),
-                        (size_t)CL_NAME_VERSION_MAX_NAME_SIZE));
+        if (is_extension_enabled(config_extension.c_str())) {
+            continue;
+        }
+        cl_name_version extension{};
+        extension.version = CL_MAKE_VERSION(1, 0, 0);
+        strncpy(extension.name, config_extension.c_str(),
+                CL_NAME_VERSION_MAX_NAME_SIZE - 1);
         m_extensions.push_back(extension);
     }
 
@@ -729,6 +766,11 @@ void cvk_device::build_extension_ils_list() {
             }
         }
     }
+
+    m_has_subgroup_ifp_support =
+        supports_subgroups() &&
+        (m_clvk_properties->subgroup_independent_forward_progress() ||
+         is_extension_enabled("cl_khr_subgroups"));
 
     // Build extension string
     for (auto& ext : m_extensions) {
@@ -1168,6 +1210,8 @@ bool cvk_device::init(VkInstance instance) {
 
     init_command_pointers(instance);
 
+    init_spirv_environment();
+
     build_extension_ils_list();
 
     if (!init_time_management(instance)) {
@@ -1177,8 +1221,6 @@ bool cvk_device::init(VkInstance instance) {
     if (!create_vulkan_queues_and_device(num_queues, queue_family)) {
         return false;
     }
-
-    init_spirv_environment();
 
     log_limits_and_memory_information();
 
