@@ -50,6 +50,9 @@ PROPERTY(bool, non_uniform_decoration_broken, false)
 // Provide additional options to pass to clspv.
 PROPERTY(std::string, clspv_options, "")
 
+// Comma separated list of build option prefixes to strip out.
+OPTION(std::set<std::string>, strip_build_options, std::set<std::string>())
+
 #if COMPILER_AVAILABLE
 #if !CLSPV_ONLINE_COMPILER
 

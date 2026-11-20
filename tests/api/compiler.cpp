@@ -585,6 +585,42 @@ TEST_F(WithContext, UnsupportedCapabilities) {
     ASSERT_TRUE(build_log.find("Device does not support SPIR-V capability") !=
                 std::string::npos);
 }
+
+TEST_F(WithContext, StripBuildOptions) {
+    static const char* source = R"(
+        #ifdef FAIL_BUILD
+        #error "FAIL_BUILD should have been stripped"
+        #endif
+        #ifndef KEEP_BUILD
+        #error "KEEP_BUILD should not have been stripped"
+        #endif
+        kernel void foo() {}
+    )";
+    // Avoid passing unknown CLI flags before strip_build_options is enabled,
+    // as clspv's online compiler calls llvm::cl::parseCommandLineOptions
+    // without an error stream and exits the process on unknown flags.
+    const char* fail_options[] = {"-DKEEP_BUILD -DFAIL_BUILD",
+                                  "-DKEEP_BUILD -DFAIL_BUILD=1"};
+
+    auto program = CreateProgram(source);
+    for (const char* options : fail_options) {
+        cl_int err =
+            clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
+        ASSERT_EQ(err, CL_BUILD_PROGRAM_FAILURE);
+    }
+
+    std::set<std::string> stripped = {"-DFAIL_BUILD", "-invalid-option"};
+    auto cfg = CLVK_CONFIG_SCOPED_OVERRIDE(
+        strip_build_options, std::set<std::string>, stripped, true);
+
+    const char* pass_options[] = {"-DKEEP_BUILD -DFAIL_BUILD",
+                                  "-DKEEP_BUILD -DFAIL_BUILD=1",
+                                  "-DKEEP_BUILD -invalid-option",
+                                  "-DKEEP_BUILD -invalid-option=something"};
+    for (const char* options : pass_options) {
+        BuildProgram(program, options);
+    }
+}
 #endif
 
 TEST_F(WithCommandQueue, RebuildProgramWithDifferentDefines) {
