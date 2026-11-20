@@ -324,7 +324,7 @@ void cvk_device::init_features(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FMA_FEATURES_KHR;
     m_features_shader_atomic_float.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_FLOAT_FEATURES_EXT;
-      m_features_subgroup_uniform_control_flow.sType =
+    m_features_subgroup_uniform_control_flow.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_FEATURES_KHR;
 
     std::vector<std::tuple<uint32_t, const char*, VkBaseOutStructure*>>
