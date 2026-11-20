@@ -25,7 +25,6 @@
 #include <vulkan/vulkan.h>
 
 #include "clspv/Sampler.h"
-#include "utils.hpp"
 
 #ifdef CLSPV_ONLINE_COMPILER
 #ifdef ENABLE_SPIRV_IL
