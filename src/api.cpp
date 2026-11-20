@@ -438,6 +438,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
     cl_device_integer_dot_product_capabilities_khr val_int_dot_product;
     cl_device_integer_dot_product_acceleration_properties_khr
         val_int_dot_product_props;
+    cl_device_fp_atomic_capabilities_ext val_fp_atomic_capabilities;
     std::vector<size_t> val_subgroup_sizes;
 
     auto device = icd_downcast(dev);
@@ -937,6 +938,21 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
             device->dot_product_4x8bit_packed_properties();
         copy_ptr = &val_int_dot_product_props;
         size_ret = sizeof(val_int_dot_product_props);
+        break;
+    case CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->single_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
+        break;
+    case CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->double_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
+        break;
+    case CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT:
+        val_fp_atomic_capabilities = device->half_fp_atomic_capabilities();
+        copy_ptr = &val_fp_atomic_capabilities;
+        size_ret = sizeof(val_fp_atomic_capabilities);
         break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
@@ -2390,7 +2406,7 @@ clBuildProgram(cl_program prog, cl_uint num_devices,
     // TODO CL_INVALID_BUILD_OPTIONS if the build options specified by options
     // are invalid.
     build_operation build_op = build_operation::build;
-    if (program->loaded_from_binary()) {
+    if (program->loaded_from_spirv_binary()) {
         build_op = build_operation::build_binary;
     } else if (!is_compiler_available(num_devices, device_list)) {
         return CL_COMPILER_NOT_AVAILABLE;
@@ -4094,12 +4110,11 @@ cl_int CLVK_API_CALL clEnqueueUnmapMemObject(cl_command_queue cq, cl_mem mem,
     }
 }
 
-cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
-                                  cvk_kernel* kernel, uint32_t dims,
-                                  const cvk_ndrange& ndrange,
-                                  cl_uint num_events_in_wait_list,
-                                  const cl_event* event_wait_list,
-                                  cl_event* event) {
+cl_int cvk_enqueue_ndrange_kernel(
+    cvk_command_queue* command_queue, cvk_kernel* kernel, uint32_t dims,
+    const size_t* global_work_offset, const size_t* global_work_size,
+    const size_t* local_work_size, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
 
     // TODO check that it's a host command queue
     if (!is_valid_command_queue(command_queue)) {
@@ -4138,6 +4153,28 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     if (!kernel->args_valid()) {
         return CL_INVALID_KERNEL_ARGS;
     }
+
+    static const size_t null_global_work_size[3] = {0};
+    if (global_work_size == nullptr) {
+        global_work_size = null_global_work_size;
+    }
+
+    cvk_ndrange ndrange(dims, global_work_offset, global_work_size,
+                        local_work_size);
+
+    // Try to pick a sensible work-group size if the user didn't specify one.
+    if (local_work_size == nullptr) {
+        device->select_work_group_size(kernel, ndrange.gws, ndrange.lws);
+        cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
+                    ndrange.lws[1], ndrange.lws[2]);
+    }
+
+    LOG_API_CALL("goff = {%u,%u,%u}", ndrange.offset[0], ndrange.offset[1],
+                 ndrange.offset[2]);
+    LOG_API_CALL("gws = {%u,%u,%u}", ndrange.gws[0], ndrange.gws[1],
+                 ndrange.gws[2]);
+    LOG_API_CALL("lws = {%u,%u,%u}", ndrange.lws[0], ndrange.lws[1],
+                 ndrange.lws[2]);
 
     // TODO CL_INVALID_GLOBAL_WORK_SIZE if any of the values specified in
     // global_work_size[0], … global_work_size[work_dim - 1] exceed the maximum
@@ -4187,6 +4224,14 @@ cl_int cvk_enqueue_ndrange_kernel(cvk_command_queue* command_queue,
     // passed as kernel arguments and the device does not support fine grain
     // system SVM allocations.
 
+    // Check work-group size is not zero
+    for (uint32_t dim = 0; dim < dims; dim++) {
+        if (ndrange.lws[dim] == 0) {
+            cvk_error_fn("work-group size cannot be zero");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
     // Check work-group size matches the required size if specified
     auto reqd_work_group_size = kernel->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
@@ -4223,12 +4268,11 @@ cl_int CLVK_API_CALL clEnqueueTask(cl_command_queue command_queue,
         " event_wait_list = %p, event = %p",
         command_queue, kernel, num_events_in_wait_list, event_wait_list, event);
 
-    cvk_ndrange ndrange;
-    ndrange.gws = {1, 1, 1};
+    static const size_t one = 1;
 
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), 1, ndrange,
-        num_events_in_wait_list, event_wait_list, event);
+        icd_downcast(command_queue), icd_downcast(kernel), 1, nullptr, &one,
+        &one, num_events_in_wait_list, event_wait_list, event);
 }
 
 cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
@@ -4246,33 +4290,9 @@ cl_int CLVK_API_CALL clEnqueueNDRangeKernel(
         command_queue, kernel, work_dim, num_events_in_wait_list,
         event_wait_list, event);
 
-    static const size_t null_global_work_size[3] = {0};
-    if (global_work_size == nullptr) {
-        global_work_size = null_global_work_size;
-    }
-
-    cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
-                        local_work_size);
-
-    // Try to pick a sensible work-group size if the user didn't specify one.
-    if (local_work_size == nullptr) {
-        icd_downcast(command_queue)
-            ->device()
-            ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
-                                     ndrange.lws);
-        cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
-                    ndrange.lws[1], ndrange.lws[2]);
-    }
-
-    LOG_API_CALL("goff = {%u,%u,%u}", ndrange.offset[0], ndrange.offset[1],
-                 ndrange.offset[2]);
-    LOG_API_CALL("gws = {%u,%u,%u}", ndrange.gws[0], ndrange.gws[1],
-                 ndrange.gws[2]);
-    LOG_API_CALL("lws = {%u,%u,%u}", ndrange.lws[0], ndrange.lws[1],
-                 ndrange.lws[2]);
-
     return cvk_enqueue_ndrange_kernel(
-        icd_downcast(command_queue), icd_downcast(kernel), work_dim, ndrange,
+        icd_downcast(command_queue), icd_downcast(kernel), work_dim,
+        global_work_offset, global_work_size, local_work_size,
         num_events_in_wait_list, event_wait_list, event);
 }
 
@@ -5735,6 +5755,12 @@ void* CLVK_API_CALL clEnqueueMapImage(
             blocking_map, origin[0] * img->element_size(),
             region[0] * img->element_size(), map_flags, num_events_in_wait_list,
             event_wait_list, event, &err, CL_COMMAND_MAP_IMAGE, img);
+        if (image_row_pitch != nullptr) {
+            *image_row_pitch = img->row_pitch();
+        }
+        if (image_slice_pitch != nullptr) {
+            *image_slice_pitch = img->slice_pitch();
+        }
     } else {
         err = cvk_enqueue_map_image(
             command_queue, image, true, blocking_map, map_flags, origin, region,
@@ -6034,7 +6060,7 @@ cl_int CLVK_API_CALL clGetHostTimer(cl_device_id device,
         return CL_INVALID_VALUE;
     }
 
-    return dev->get_device_host_timer(nullptr, host_timestamp);
+    return dev->get_host_timer(host_timestamp);
 }
 
 cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
@@ -6061,7 +6087,7 @@ cl_int CLVK_API_CALL clGetDeviceAndHostTimer(cl_device_id device,
 
     cl_ulong host;
 
-    cl_int err = dev->get_device_host_timer(nullptr, &host);
+    cl_int err = dev->get_host_timer(&host);
 
     *device_timestamp = host;
     *host_timestamp = host;

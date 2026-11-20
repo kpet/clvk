@@ -756,3 +756,62 @@ TEST_F(WithContext, CompileProgramWithAttachedKernelsFails) {
                                   nullptr, nullptr, nullptr);
     EXPECT_EQ(err, CL_INVALID_OPERATION);
 }
+
+TEST_F(WithCommandQueue, RebuildILProgram) {
+    REQUIRE_EXTENSION("cl_khr_il_program");
+
+    cl_uint address_bits = 0;
+    GetDeviceInfo(CL_DEVICE_ADDRESS_BITS, sizeof(address_bits), &address_bits,
+                  nullptr);
+    std::string addressing_model =
+        (address_bits == 64) ? "Physical64" : "Physical32";
+    // kernel void write_kernel(global uint* out) { *out = 42; }
+    std::string spirv = R"(
+               OpCapability Addresses
+               OpCapability Kernel
+               OpMemoryModel )" +
+                        addressing_model + R"( OpenCL
+               OpEntryPoint Kernel %1 "write_kernel"
+       %uint = OpTypeInt 32 0
+    %uint_42 = OpConstant %uint 42
+       %void = OpTypeVoid
+%_ptr_CrossWorkgroup_uint = OpTypePointer CrossWorkgroup %uint
+          %6 = OpTypeFunction %void %_ptr_CrossWorkgroup_uint
+          %1 = OpFunction %void None %6
+          %7 = OpFunctionParameter %_ptr_CrossWorkgroup_uint
+          %8 = OpLabel
+               OpStore %7 %uint_42 Aligned 4
+               OpReturn
+               OpFunctionEnd
+    )";
+
+    auto program = CreateProgramWithIL(spirv);
+
+    // Build first time
+    BuildProgram(program);
+    EXPECT_TRUE(GetProgramSource(program).empty());
+
+    auto kernel = CreateKernel(program, "write_kernel");
+    auto buffer = CreateBuffer(CL_MEM_WRITE_ONLY, sizeof(cl_uint));
+    SetKernelArg(kernel, 0, buffer);
+
+    size_t gws = 1;
+    EnqueueNDRangeKernel(kernel, 1, nullptr, &gws, nullptr);
+    cl_uint result = 0;
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 42u);
+
+    // Release kernel and rebuild second time
+    clReleaseKernel(kernel.release());
+    BuildProgram(program);
+    EXPECT_TRUE(GetProgramSource(program).empty());
+
+    auto kernel2 = CreateKernel(program, "write_kernel");
+    SetKernelArg(kernel2, 0, buffer);
+
+    result = 0;
+    EnqueueWriteBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EnqueueNDRangeKernel(kernel2, 1, nullptr, &gws, nullptr);
+    EnqueueReadBuffer(buffer, CL_BLOCKING, 0, sizeof(cl_uint), &result);
+    EXPECT_EQ(result, 42u);
+}

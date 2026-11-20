@@ -512,6 +512,10 @@ struct cvk_preserved_options {
 
     size_t size() const { return str().size(); }
 
+    bool supports_non_uniform_workgroup() const {
+        return source_language >= parse_source_language("-cl-std=CL2.0");
+    }
+
 private:
     static unsigned parse_source_language(const std::string& options) {
         std::string cl_std = "-cl-std=";
@@ -601,6 +605,9 @@ public:
     std::string::size_type size() const { return str().size(); }
 
     std::string preserved_options() const { return m_preserved_options.str(); }
+    const cvk_preserved_options& preserved() const {
+        return m_preserved_options;
+    }
 
 private:
     std::string m_build_options;
@@ -705,7 +712,11 @@ public:
 
     cvk_program* program() const { return m_program; }
 
-    bool uses_printf() const;
+    bool uses_printf() const { return m_uses_printf; }
+
+    const printf_descriptor_map_t& printf_descriptors() const {
+        return m_printf_descriptors;
+    }
 
 private:
     const uint32_t MAX_INSTANCES = config.max_entry_points_instances;
@@ -718,6 +729,8 @@ private:
     uint32_t m_pod_buffer_size;
     bool m_has_pod_arguments;
     bool m_has_pod_buffer_arguments;
+    bool m_uses_printf;
+    printf_descriptor_map_t m_printf_descriptors;
     std::vector<kernel_argument> m_args;
     const kernel_sampler_metadata_map* m_sampler_metadata;
     const kernel_image_metadata_map* m_image_metadata;
@@ -907,7 +920,10 @@ struct cvk_program : public _cl_program, api_object<object_magic::program> {
     }
 
     unsigned num_kernels() const { return m_binary->num_kernels(); }
-    bool loaded_from_binary() const { return m_binary->loaded_from_binary(); }
+    bool loaded_from_spirv_binary() const {
+        return m_binary->loaded_from_binary();
+    }
+    bool loaded_from_binary() const { return m_source.empty() && m_il.empty(); }
     bool uses_printf() { return !m_binary->printf_descriptors().empty(); }
     const std::unordered_map<uint32_t, printf_descriptor>&
     printf_descriptors() {
@@ -1066,13 +1082,20 @@ public:
             options.find("-cl-uniform-work-group-size") != std::string::npos) {
             return false;
         }
-        return true;
+        if (!m_il.empty()) {
+            return true;
+        }
+        if (options.find("-cl-arm-non-uniform-work-group-size") !=
+            std::string::npos) {
+            return true;
+        }
+        auto preserved = cvk_preserved_options::from_string(options);
+        return preserved.supports_non_uniform_workgroup();
     }
 
-    bool can_split_region() {
-        int status = options_allow_split_region(m_build_options.str());
-        status &= options_allow_split_region(config.clspv_options);
-        return status;
+    bool can_split_region() const {
+        return options_allow_split_region(m_build_options.str() + " " +
+                                          config.clspv_options());
     }
 
     CHECK_RETURN cl_int parse_user_spec_constants();

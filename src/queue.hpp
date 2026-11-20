@@ -382,6 +382,23 @@ struct cvk_command_buffer {
             return false;
         }
 #endif
+        VkMemoryBarrier memoryBarrier = {
+            VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+            VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+            VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
+
+        vkCmdPipelineBarrier(m_command_buffer,
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_HOST_BIT,
+                             0, // dependencyFlags
+                             1, // memoryBarrierCount
+                             &memoryBarrier,
+                             0,        // bufferMemoryBarrierCount
+                             nullptr,  // pBufferMemoryBarriers
+                             0,        // imageMemoryBarrierCount
+                             nullptr); // pImageMemoryBarriers
+
         auto res = vkEndCommandBuffer(m_command_buffer);
         return res == VK_SUCCESS;
     }
@@ -735,11 +752,8 @@ struct cvk_command_batchable : public cvk_command {
             return perr;
         }
         cl_ulong start_host, end_host;
-        perr = m_queue->device()->device_timer_to_host(start_dev, start_host);
-        if (perr != CL_SUCCESS) {
-            return perr;
-        }
-        perr = m_queue->device()->device_timer_to_host(end_dev, end_host);
+        perr = m_queue->device()->device_timer_to_host(start_dev, end_dev,
+                                                       start_host, end_host);
         if (perr != CL_SUCCESS) {
             return perr;
         }
@@ -758,7 +772,7 @@ struct cvk_command_batchable : public cvk_command {
             pinfo == CL_PROFILING_COMMAND_SUBMIT) {
             return cvk_command::set_profiling_info(pinfo);
         } else if (pinfo == CL_PROFILING_COMMAND_START) {
-            return m_queue->device()->update_device_host_timer();
+            return CL_SUCCESS;
         } else {
             CVK_ASSERT(pinfo == CL_PROFILING_COMMAND_END);
             return set_profiling_info_end();
@@ -784,6 +798,7 @@ struct cvk_ndrange {
     cvk_ndrange(cl_uint work_dim, const size_t* global_work_offset,
                 const size_t* global_work_size, const size_t* local_work_size)
         : cvk_ndrange() {
+        CVK_ASSERT(work_dim <= 3);
         for (cl_uint dim = 0; dim < work_dim; dim++) {
             if (global_work_offset != nullptr) {
                 offset[dim] = global_work_offset[dim];

@@ -887,6 +887,109 @@ TEST_F(WithCommandQueue, FillNormalizedIntegerImages) {
     }
 }
 
+TEST_F(WithCommandQueue, 1DBufferImageMapPitches) {
+    const size_t IMAGE_WIDTH = 128;
+    const size_t ROW_PITCH = IMAGE_WIDTH * sizeof(cl_float4) + 64;
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, ROW_PITCH, nullptr);
+
+    cl_image_format format = {CL_RGBA, CL_FLOAT};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        ROW_PITCH,                    // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    size_t row_pitch = 0;
+    size_t slice_pitch = 0xdeadbeef;
+    auto map_ptr = EnqueueMapImage<cl_uchar>(
+        image, CL_TRUE, CL_MAP_READ, origin, region, &row_pitch, &slice_pitch);
+    EXPECT_EQ(row_pitch, ROW_PITCH);
+    EXPECT_EQ(slice_pitch, 0u);
+
+    EnqueueUnmapMemObject(image, map_ptr);
+    Finish();
+}
+
+struct host_buffer_cleanup_data {
+    void* ptr;
+    size_t size;
+    std::atomic<bool> called;
+};
+
+static void clear_and_free_host_buffer(cl_mem memobj, void* user_data) {
+    auto* data = static_cast<host_buffer_cleanup_data*>(user_data);
+    memset(data->ptr, 0, data->size);
+    free(data->ptr);
+    data->called.store(true);
+}
+
+TEST_F(WithCommandQueue, 1DBufferImageUseHostPtrReleaseAfterUnmap) {
+    const size_t IMAGE_WIDTH = 128;
+    auto buffer_size = IMAGE_WIDTH * sizeof(cl_uchar4);
+    void* host_ptr = malloc(buffer_size);
+    ASSERT_NE(host_ptr, nullptr);
+    memset(host_ptr, 0x42, buffer_size);
+
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+                               buffer_size, host_ptr);
+
+    cl_image_format format = {CL_RGBA, CL_UNSIGNED_INT8};
+    cl_image_desc desc = {
+        CL_MEM_OBJECT_IMAGE1D_BUFFER, // image_type
+        IMAGE_WIDTH,                  // image_width
+        1,                            // image_height
+        1,                            // image_depth
+        1,                            // image_array_size
+        0,                            // image_row_pitch
+        0,                            // image_slice_pitch
+        0,                            // num_mip_levels
+        0,                            // num_samples
+        buffer,                       // buffer
+    };
+
+    auto event = CreateUserEvent();
+
+    auto image = CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+
+    host_buffer_cleanup_data cleanup_data = {host_ptr, buffer_size, false};
+    clSetMemObjectDestructorCallback(image, clear_and_free_host_buffer,
+                                     &cleanup_data);
+
+    const size_t origin[3] = {0, 0, 0};
+    const size_t region[3] = {IMAGE_WIDTH, 1, 1};
+    auto map_ptr = EnqueueMapImage<cl_uchar>(image, CL_TRUE, CL_MAP_WRITE,
+                                             origin, region, nullptr, nullptr);
+    memset(map_ptr, 0x7F, buffer_size);
+
+    EnqueueUnmapMemObject(image, map_ptr, 1, (const cl_event*)&event, nullptr);
+    EXPECT_FALSE(cleanup_data.called);
+
+    cl_mem released_image = image.release();
+    clReleaseMemObject(released_image);
+    EXPECT_FALSE(cleanup_data.called);
+
+    SetUserEventStatus(event, CL_COMPLETE);
+    Finish();
+    EXPECT_TRUE(cleanup_data.called);
+
+    std::vector<cl_uchar> read_data(buffer_size, 0);
+    EnqueueReadBuffer(buffer, CL_TRUE, 0, buffer_size, read_data.data());
+    for (size_t i = 0; i < buffer_size; i++) {
+        EXPECT_EQ(read_data[i], 0x7F);
+    }
+}
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 
 TEST_F(WithCommandQueue, ImageInitAtCreation) {

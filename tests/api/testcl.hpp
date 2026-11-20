@@ -42,6 +42,8 @@
 #include "CL/cl.h"
 #include "CL/cl_ext.h"
 
+#include "spirv-tools/libspirv.hpp"
+
 #ifdef CLVK_UNIT_TESTING_ENABLED
 #include "unit.hpp"
 
@@ -243,6 +245,38 @@ protected:
         return program;
     }
 
+    std::vector<uint32_t> AssembleSPIRV(const std::string& source) {
+        spvtools::SpirvTools tools(SPV_ENV_UNIVERSAL_1_0);
+        tools.SetMessageConsumer([](spv_message_level_t, const char*,
+                                    const spv_position_t& position,
+                                    const char* message) {
+            printf("SPIR-V assembly error at line %zu, col %zu: %s\n",
+                   position.line, position.column, message);
+        });
+        std::vector<uint32_t> binary;
+        bool success = tools.Assemble(source, &binary);
+        EXPECT_TRUE(success);
+        return binary;
+    }
+
+    holder<cl_program> CreateProgramWithIL(const void* il, size_t length) {
+        cl_int err;
+
+        auto program = clCreateProgramWithIL(m_context, il, length, &err);
+        EXPECT_CL_SUCCESS(err);
+
+        return program;
+    }
+
+    holder<cl_program> CreateProgramWithIL(const std::vector<uint32_t>& il) {
+        return CreateProgramWithIL(il.data(), il.size() * sizeof(uint32_t));
+    }
+
+    holder<cl_program> CreateProgramWithIL(const std::string& source) {
+        auto il = AssembleSPIRV(source);
+        return CreateProgramWithIL(il);
+    }
+
     void BuildProgram(cl_program program, const char* options = nullptr) {
         cl_int err =
             clBuildProgram(program, 1, &gDevice, options, nullptr, nullptr);
@@ -383,6 +417,23 @@ protected:
             build_options.pop_back();
         }
         return build_options;
+    }
+
+    std::string GetProgramSource(cl_program program) {
+        size_t source_size;
+        cl_int err = clGetProgramInfo(program, CL_PROGRAM_SOURCE, 0, nullptr,
+                                      &source_size);
+        EXPECT_CL_SUCCESS(err);
+        std::string source;
+        source.resize(source_size);
+        auto data_ptr = const_cast<char*>(source.c_str());
+        err = clGetProgramInfo(program, CL_PROGRAM_SOURCE, source_size,
+                               data_ptr, nullptr);
+        EXPECT_CL_SUCCESS(err);
+        if (!source.empty() && source.back() == '\0') {
+            source.pop_back();
+        }
+        return source;
     }
 
     holder<cl_kernel> CreateKernel(const char* source, const char* name) {

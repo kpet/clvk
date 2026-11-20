@@ -1127,6 +1127,10 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     return quoted_options;
 }
 
+#if COMPILER_AVAILABLE && defined(CLSPV_ONLINE_COMPILER)
+static std::mutex g_llvm_compile_mutex;
+#endif
+
 cl_int cvk_program::parse_user_spec_constants() {
 #if COMPILER_AVAILABLE && ENABLE_SPIRV_IL
 #ifndef CLSPV_ONLINE_COMPILER
@@ -1191,8 +1195,7 @@ cl_int cvk_program::parse_user_spec_constants() {
     SPIRV::TranslatorOpts translator_opts;
     // We don't need llvm-spirv to validate extensions for us.
     translator_opts.enableAllExtensions();
-    static std::mutex llvmspirv_compile_mutex;
-    std::lock_guard<std::mutex> llvmspirv_compile_lock(llvmspirv_compile_mutex);
+    std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
 
     std::vector<llvm::SpecConstInfoTy> spec_const_info;
 
@@ -1402,6 +1405,7 @@ cl_build_status cvk_program::do_build_inner_online(
                    "build_options", TRACE_STRING(build_options.c_str()));
     cvk_info_fn("build_from_il %u - build_to_ir %u", build_from_il,
                 build_to_ir);
+    std::string il_ir;
     if (build_from_il) {
 #ifndef ENABLE_SPIRV_IL
         cvk_error_fn("Could not build from il because clvk has been built with "
@@ -1443,9 +1447,7 @@ cl_build_status cvk_program::do_build_inner_online(
         // global variable that are not thread safe. Thus, we need to lock call
         // to llvm-spirv in order to ensure a thread safe execution.
         {
-            static std::mutex llvmspirv_compile_mutex;
-            std::lock_guard<std::mutex> llvmspirv_compile_lock(
-                llvmspirv_compile_mutex);
+            std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
             std::vector<const char*> llvmArgv{
                 "llvm-spirv(online)",
             };
@@ -1459,8 +1461,7 @@ cl_build_status cvk_program::do_build_inner_online(
             }
         }
 
-        m_source.clear();
-        llvm::raw_string_ostream spirv_stream(m_source);
+        llvm::raw_string_ostream spirv_stream(il_ir);
         llvm::WriteBitcodeToFile(*llvm_module, spirv_stream);
 #endif // ENABLE_SPIRV_IL
     }
@@ -1470,8 +1471,7 @@ cl_build_status cvk_program::do_build_inner_online(
     // variable that are not thread safe. Thus, we need to lock call to clspv in
     // order to ensure a thread safe execution.
     {
-        static std::mutex clspv_compile_mutex;
-        std::lock_guard<std::mutex> clspv_compile_lock(clspv_compile_mutex);
+        std::lock_guard<std::mutex> llvm_compile_lock(g_llvm_compile_mutex);
         std::vector<std::string> programs;
         if (m_operation == build_operation::link) {
             for (auto input_program : m_input_programs) {
@@ -1484,6 +1484,8 @@ cl_build_status cvk_program::do_build_inner_online(
                 programs.emplace_back(std::string{input_program->m_ir.begin(),
                                                   input_program->m_ir.end()});
             }
+        } else if (build_from_il) {
+            programs.emplace_back(std::move(il_ir));
         } else {
             if (m_source.empty() && !m_ir.empty()) {
                 programs.emplace_back(std::string{m_ir.begin(), m_ir.end()});
@@ -1710,7 +1712,7 @@ void cvk_program::do_build() {
         m_binary = std::make_unique<spir_binary>(device->vulkan_spirv_env());
         m_binary_type = CL_PROGRAM_BINARY_TYPE_NONE;
     }
-    if (!m_source.empty() || !m_il.empty()) {
+    if (!loaded_from_binary()) {
         m_ir.clear();
     }
     m_stripped_binary.clear();
@@ -1878,6 +1880,9 @@ cl_int cvk_program::build(build_operation operation, cl_uint num_devices,
         auto merged_preserved = cvk_preserved_options::merge(input_preserved);
         m_build_options = cvk_build_options(options != nullptr ? options : "",
                                             merged_preserved);
+    } else if (loaded_from_binary()) {
+        m_build_options = cvk_build_options(options != nullptr ? options : "",
+                                            m_build_options.preserved());
     } else {
         m_build_options = cvk_build_options(options != nullptr ? options : "");
     }
@@ -1940,10 +1945,10 @@ cvk_entry_point::cvk_entry_point(cvk_device* dev, cvk_program* program,
     : m_device(dev), m_context(program->context()), m_program(program),
       m_name(name), m_pod_descriptor_type(VK_DESCRIPTOR_TYPE_MAX_ENUM),
       m_pod_buffer_size(0u), m_has_pod_arguments(false),
-      m_has_pod_buffer_arguments(false), m_sampler_metadata(nullptr),
-      m_image_metadata(nullptr), m_descriptor_pool(VK_NULL_HANDLE),
-      m_pipeline_layout(VK_NULL_HANDLE), m_nb_descriptor_set_allocated(0),
-      m_first_allocation_failure(true) {
+      m_has_pod_buffer_arguments(false), m_uses_printf(false),
+      m_sampler_metadata(nullptr), m_image_metadata(nullptr),
+      m_descriptor_pool(VK_NULL_HANDLE), m_pipeline_layout(VK_NULL_HANDLE),
+      m_nb_descriptor_set_allocated(0), m_first_allocation_failure(true) {
     TRACE_CNT_VAR_INIT(descriptor_set_allocated_counter,
                        "clvk-entry_point_" + std::to_string((uintptr_t)this),
                        dev->track());
@@ -2036,7 +2041,14 @@ bool cvk_entry_point::build_descriptor_sets_layout_bindings_for_arguments(
         case kernel_argument_kind::pod_ubo:
         case kernel_argument_kind::pointer_ubo:
             if (!pod_found) {
-                if (arg.kind == kernel_argument_kind::pod) {
+                bool has_ssbo_pod = false;
+                for (auto const& a : m_args) {
+                    if (a.kind == kernel_argument_kind::pod) {
+                        has_ssbo_pod = true;
+                        break;
+                    }
+                }
+                if (has_ssbo_pod) {
                     dt = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 } else if (arg.kind == kernel_argument_kind::pod_ubo ||
                            arg.kind == kernel_argument_kind::pointer_ubo) {
@@ -2185,6 +2197,12 @@ cl_int cvk_entry_point::init() {
     std::sort(
         m_args.begin(), m_args.end(),
         [](kernel_argument a, kernel_argument b) { return a.pos < b.pos; });
+
+    m_uses_printf = m_program->kernel_flags(m_name) &
+                    NonSemanticClspvReflectionMayUsePrintf;
+    if (m_uses_printf) {
+        m_printf_descriptors = m_program->printf_descriptors();
+    }
 
     // Create Descriptor Sets Layout
     std::unordered_map<VkDescriptorType, uint32_t> bindingTypes;
@@ -2439,9 +2457,4 @@ std::unique_ptr<cvk_buffer> cvk_entry_point::allocate_pod_buffer() {
     }
 
     return buffer;
-}
-
-bool cvk_entry_point::uses_printf() const {
-    return m_program->kernel_flags(m_name) &
-           NonSemanticClspvReflectionMayUsePrintf;
 }
