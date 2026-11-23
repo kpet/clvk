@@ -976,6 +976,36 @@ size_t cvk_program::binary_size() const {
     return 0;
 }
 
+static std::vector<std::string>
+strip_build_options(const std::vector<std::string>& options) {
+    const auto& strip_prefixes = config.strip_build_options();
+    if (strip_prefixes.empty()) {
+        return options;
+    }
+
+    auto should_strip = [&strip_prefixes](const std::string& option) {
+        for (const auto& prefix : strip_prefixes) {
+            if (prefix.empty()) {
+                continue;
+            }
+            if (option.find(prefix) == 0) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    std::vector<std::string> filtered_options;
+    for (const auto& option : options) {
+        if (option.empty() || should_strip(option)) {
+            continue;
+        }
+        filtered_options.push_back(option);
+    }
+
+    return filtered_options;
+}
+
 std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     // Strip off a few options we can't handle
     std::string options;
@@ -1108,6 +1138,8 @@ std::string cvk_program::prepare_build_options(const cvk_device* device) const {
     while (std::getline(iss, token, ' ')) {
         vector_options.push_back(token);
     }
+
+    vector_options = strip_build_options(vector_options);
 
     // loop through the options and quote the ones that need it
     std::string quoted_options;
