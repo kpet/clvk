@@ -14,6 +14,8 @@
 
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 
+#include <array>
+
 #include "testcl.hpp"
 #include "utils.hpp"
 
@@ -907,6 +909,82 @@ TEST_F(WithCommandQueue, 1DBufferImageUseHostPtrReleaseAfterUnmap) {
     for (size_t i = 0; i < buffer_size; i++) {
         EXPECT_EQ(read_data[i], 0x7F);
     }
+}
+
+TEST_F(WithCommandQueue, CopyImageOverlap) {
+    using Vec3 = std::array<size_t, 3>;
+    cl_image_format format = {CL_RGBA, CL_UNSIGNED_INT8};
+    auto image = [&](cl_mem_object_type type, size_t width, size_t height,
+                     size_t depth, size_t array_size, cl_mem buffer) {
+        cl_image_desc desc = {type, width, height, depth, array_size};
+        desc.buffer = buffer;
+        return CreateImage(CL_MEM_READ_WRITE, &format, &desc);
+    };
+    auto copy = [&](cl_mem src, cl_mem dst, Vec3 src_origin, Vec3 dst_origin,
+                    Vec3 region) {
+        return clEnqueueCopyImage(m_queue, src, dst, src_origin.data(),
+                                  dst_origin.data(), region.data(), 0, nullptr,
+                                  nullptr);
+    };
+
+    // Same image: regions overlap only if they intersect in every dimension
+    // (the array index is the last dimension of image arrays).
+    struct {
+        cl_mem_object_type type;
+        size_t height, depth, array_size, dims;
+    } cases[] = {
+        {CL_MEM_OBJECT_IMAGE1D, 1, 1, 1, 1},
+        {CL_MEM_OBJECT_IMAGE1D_ARRAY, 1, 1, 4, 2},
+        {CL_MEM_OBJECT_IMAGE2D, 4, 1, 1, 2},
+        {CL_MEM_OBJECT_IMAGE2D_ARRAY, 4, 1, 4, 3},
+        {CL_MEM_OBJECT_IMAGE3D, 4, 4, 1, 3},
+    };
+    for (auto& c : cases) {
+        auto img = image(c.type, 8, c.height, c.depth, c.array_size, nullptr);
+        Vec3 region = {4, c.dims > 1 ? 2u : 1u, c.dims > 2 ? 2u : 1u};
+        EXPECT_EQ(copy(img, img, {0, 0, 0}, {2, region[1] - 1, region[2] - 1},
+                       region),
+                  CL_MEM_COPY_OVERLAP);
+        for (size_t d = 0; d < c.dims; d++) {
+            Vec3 adjacent = {0, 0, 0};
+            adjacent[d] = region[d];
+            EXPECT_CL_SUCCESS(copy(img, img, {0, 0, 0}, adjacent, region));
+        }
+    }
+
+    // 1D image buffers: overlap is checked on the backing buffer, including
+    // sub-buffer offsets. Sub-buffer offsets must also satisfy Vulkan's
+    // minTexelBufferOffsetAlignment (at most 256 bytes).
+    cl_uint align_bits;
+    GetDeviceInfo(CL_DEVICE_MEM_BASE_ADDR_ALIGN, sizeof(align_bits),
+                  &align_bits, nullptr);
+    const size_t align = align_bits / 8 < 256 ? 256 : align_bits / 8;
+    const size_t texels = align / sizeof(cl_uchar4);
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, 3 * align, nullptr);
+    auto other_buffer = CreateBuffer(CL_MEM_READ_WRITE, 2 * align, nullptr);
+    // sub0 covers texels [0, 2 * texels) and sub1 [texels, 3 * texels).
+    auto sub0 = CreateSubBuffer(buffer, CL_MEM_READ_WRITE, 0, 2 * align);
+    auto sub1 = CreateSubBuffer(buffer, CL_MEM_READ_WRITE, align, 2 * align);
+    auto sub0_img =
+        image(CL_MEM_OBJECT_IMAGE1D_BUFFER, 2 * texels, 1, 1, 1, sub0);
+    auto sub1_img =
+        image(CL_MEM_OBJECT_IMAGE1D_BUFFER, 2 * texels, 1, 1, 1, sub1);
+    auto other_img =
+        image(CL_MEM_OBJECT_IMAGE1D_BUFFER, 2 * texels, 1, 1, 1, other_buffer);
+    auto img_1d = image(CL_MEM_OBJECT_IMAGE1D, 8, 1, 1, 1, nullptr);
+    const Vec3 region = {3, 1, 1};
+
+    EXPECT_EQ(copy(sub0_img, sub0_img, {1, 0, 0}, {3, 0, 0}, region),
+              CL_MEM_COPY_OVERLAP);
+    EXPECT_EQ(copy(sub1_img, sub0_img, {0, 0, 0}, {texels - 1, 0, 0}, region),
+              CL_MEM_COPY_OVERLAP);
+    EXPECT_CL_SUCCESS(
+        copy(sub0_img, sub1_img, {texels - 3, 0, 0}, {0, 0, 0}, region));
+    EXPECT_CL_SUCCESS(copy(sub0_img, sub1_img, {0, 0, 0}, {0, 0, 0}, region));
+    EXPECT_CL_SUCCESS(copy(sub0_img, other_img, {0, 0, 0}, {0, 0, 0}, region));
+    EXPECT_CL_SUCCESS(copy(sub0_img, img_1d, {0, 0, 0}, {0, 0, 0}, region));
+
+    Finish();
 }
 
 #ifdef CLVK_UNIT_TESTING_ENABLED
