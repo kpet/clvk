@@ -6789,6 +6789,174 @@ bool is_valid_sync_point_wait_list(
     return true;
 }
 
+bool cmdbuf_regions_overlap_1d(size_t src_offset, size_t dst_offset,
+                               size_t size) {
+    if (size == 0) {
+        return false;
+    }
+    if (src_offset <= dst_offset) {
+        return dst_offset - src_offset < size;
+    }
+    return src_offset - dst_offset < size;
+}
+
+bool cmdbuf_image_regions_overlap(const cvk_image* src_image,
+                                  const cvk_image* dst_image,
+                                  const size_t* src_origin,
+                                  const size_t* dst_origin,
+                                  const size_t* region) {
+    if (src_image == dst_image) {
+        if (!cmdbuf_regions_overlap_1d(src_origin[0], dst_origin[0],
+                                       region[0])) {
+            return false;
+        }
+        switch (src_image->type()) {
+        case CL_MEM_OBJECT_IMAGE1D:
+        case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+            return true;
+        case CL_MEM_OBJECT_IMAGE2D:
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            return cmdbuf_regions_overlap_1d(src_origin[1], dst_origin[1],
+                                             region[1]);
+        case CL_MEM_OBJECT_IMAGE3D:
+        case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+            return cmdbuf_regions_overlap_1d(src_origin[1], dst_origin[1],
+                                             region[1]) &&
+                   cmdbuf_regions_overlap_1d(src_origin[2], dst_origin[2],
+                                             region[2]);
+        default:
+            CVK_ASSERT(false && "Unexpected image type");
+            return false;
+        }
+    }
+
+    if (src_image->is_backed_by_buffer_view() &&
+        dst_image->is_backed_by_buffer_view()) {
+        auto src_buf = static_cast<const cvk_buffer*>(src_image->buffer());
+        auto dst_buf = static_cast<const cvk_buffer*>(dst_image->buffer());
+        if (src_buf->vulkan_buffer() == dst_buf->vulkan_buffer()) {
+            size_t elem_size = src_image->element_size();
+            return cmdbuf_regions_overlap_1d(
+                src_buf->vulkan_buffer_offset() + src_origin[0] * elem_size,
+                dst_buf->vulkan_buffer_offset() + dst_origin[0] * elem_size,
+                region[0] * elem_size);
+        }
+    }
+
+    return false;
+}
+
+bool is_valid_buffer_rect_region(size_t buf_size, const size_t* origin,
+                                 const size_t* region, size_t row_pitch,
+                                 size_t slice_pitch) {
+    if (region[0] == 0 || region[1] == 0 || region[2] == 0) {
+        return false;
+    }
+    if (row_pitch != 0 && row_pitch < region[0]) {
+        return false;
+    }
+    size_t eff_row_pitch = row_pitch == 0 ? region[0] : row_pitch;
+    if (region[1] > SIZE_MAX / eff_row_pitch) {
+        return false;
+    }
+    size_t min_slice_pitch = region[1] * eff_row_pitch;
+    if (slice_pitch != 0 &&
+        (slice_pitch < min_slice_pitch || slice_pitch % eff_row_pitch != 0)) {
+        return false;
+    }
+    size_t eff_slice_pitch = slice_pitch == 0 ? min_slice_pitch : slice_pitch;
+
+    if (origin[0] > SIZE_MAX - region[0] ||
+        origin[1] > SIZE_MAX - (region[1] - 1) ||
+        origin[2] > SIZE_MAX - (region[2] - 1)) {
+        return false;
+    }
+    size_t end_x = origin[0] + region[0];
+    size_t last_row = origin[1] + (region[1] - 1);
+    size_t last_slice = origin[2] + (region[2] - 1);
+
+    if (last_row > SIZE_MAX / eff_row_pitch ||
+        last_slice > SIZE_MAX / eff_slice_pitch) {
+        return false;
+    }
+    size_t row_bytes = last_row * eff_row_pitch;
+    size_t slice_bytes = last_slice * eff_slice_pitch;
+
+    return slice_bytes <= buf_size && row_bytes <= buf_size - slice_bytes &&
+           end_x <= buf_size - slice_bytes - row_bytes;
+}
+
+bool is_valid_image_region(const cvk_image* image, const size_t* origin,
+                           const size_t* region) {
+    if (region[0] == 0 || region[1] == 0 || region[2] == 0) {
+        return false;
+    }
+    if (origin[0] > image->width() || region[0] > image->width() - origin[0]) {
+        return false;
+    }
+    switch (image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D:
+        return origin[1] == 0 && origin[2] == 0 && region[1] == 1 &&
+               region[2] == 1;
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER: {
+        if (origin[1] != 0 || origin[2] != 0 || region[1] != 1 ||
+            region[2] != 1) {
+            return false;
+        }
+        size_t elem_size = image->element_size();
+        if (elem_size != 0 && (origin[0] > SIZE_MAX / elem_size ||
+                               region[0] > SIZE_MAX / elem_size)) {
+            return false;
+        }
+        size_t byte_offset = origin[0] * elem_size;
+        size_t byte_size = region[0] * elem_size;
+        auto buf = static_cast<const cvk_buffer*>(image->buffer());
+        return byte_offset <= buf->size() &&
+               byte_size <= buf->size() - byte_offset;
+    }
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        return origin[2] == 0 && region[2] == 1 &&
+               origin[1] <= image->array_size() &&
+               region[1] <= image->array_size() - origin[1];
+    case CL_MEM_OBJECT_IMAGE2D:
+        return origin[2] == 0 && region[2] == 1 &&
+               origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1];
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        return origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1] &&
+               origin[2] <= image->array_size() &&
+               region[2] <= image->array_size() - origin[2];
+    case CL_MEM_OBJECT_IMAGE3D:
+        return origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1] &&
+               origin[2] <= image->depth() &&
+               region[2] <= image->depth() - origin[2];
+    default:
+        CVK_ASSERT(false && "Unexpected image type");
+        return false;
+    }
+}
+
+bool is_valid_buffer_image_copy_range(const cvk_buffer* buffer, size_t offset,
+                                      const cvk_image* image,
+                                      const size_t* region) {
+    size_t elem_size = image->element_size();
+    if (region[0] > SIZE_MAX / region[1]) {
+        return false;
+    }
+    size_t pixels_xy = region[0] * region[1];
+    if (pixels_xy > SIZE_MAX / region[2]) {
+        return false;
+    }
+    size_t pixels = pixels_xy * region[2];
+    if (elem_size != 0 && pixels > SIZE_MAX / elem_size) {
+        return false;
+    }
+    size_t total_bytes = pixels * elem_size;
+    return offset <= buffer->size() && total_bytes <= buffer->size() - offset;
+}
+
 } // namespace
 
 static cl_command_buffer_khr cvk_create_command_buffer_khr(
@@ -7096,6 +7264,10 @@ cl_int CLVK_API_CALL clCommandCopyBufferKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
@@ -7106,6 +7278,19 @@ cl_int CLVK_API_CALL clCommandCopyBufferKHR(
     if (queue->context() != ctx || src_buf->context() != ctx ||
         dst_buf->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (size == 0 || src_offset > src_buf->size() ||
+        size > src_buf->size() - src_offset || dst_offset > dst_buf->size() ||
+        size > dst_buf->size() - dst_offset) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (src_buf->vulkan_buffer() == dst_buf->vulkan_buffer() &&
+        cmdbuf_regions_overlap_1d(src_buf->vulkan_buffer_offset() + src_offset,
+                                  dst_buf->vulkan_buffer_offset() + dst_offset,
+                                  size)) {
+        return CL_MEM_COPY_OVERLAP;
     }
 
     auto cmd =
@@ -7145,6 +7330,10 @@ cl_int CLVK_API_CALL clCommandCopyBufferRectKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
@@ -7156,6 +7345,17 @@ cl_int CLVK_API_CALL clCommandCopyBufferRectKHR(
     if (queue->context() != ctx || srcbuf->context() != ctx ||
         dstbuf->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (src_origin == nullptr || dst_origin == nullptr || region == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_buffer_rect_region(srcbuf->size(), src_origin, region,
+                                     src_row_pitch, src_slice_pitch) ||
+        !is_valid_buffer_rect_region(dstbuf->size(), dst_origin, region,
+                                     dst_row_pitch, dst_slice_pitch)) {
+        return CL_INVALID_VALUE;
     }
 
     auto cmd = new cvk_command_copy_buffer_rect(
@@ -7211,27 +7411,62 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
         props += 2;
     }
 
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+    auto queue = cmdbuf->queues().at(0);
     auto kern = icd_downcast(kernel);
+
+    if (kern->context() != queue->context() ||
+        cmdbuf->context() != queue->context()) {
+        return CL_INVALID_CONTEXT;
+    }
+
     if (kern->uses_printf()) {
         return CL_INVALID_OPERATION;
+    }
+
+    auto device = queue->device();
+
+    if ((work_dim < 1) || (work_dim > device->max_work_item_dimensions())) {
+        return CL_INVALID_WORK_DIMENSION;
+    }
+
+    auto program = kern->program();
+    if (program->binary_type(device) != CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
+        return CL_INVALID_PROGRAM_EXECUTABLE;
+    }
+
+    if (!kern->args_valid()) {
+        return CL_INVALID_KERNEL_ARGS;
+    }
+
+    static const size_t null_global_work_size[3] = {0};
+    if (global_work_size == nullptr) {
+        global_work_size = null_global_work_size;
     }
 
     cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
                         local_work_size);
     // Try to pick a sensible work-group size if the user didn't specify one.
     if (local_work_size == nullptr) {
-        icd_downcast(command_buffer)
-            ->queues()
-            .front()
-            ->device()
-            ->select_work_group_size(icd_downcast(kernel), ndrange.gws,
-                                     ndrange.lws);
+        device->select_work_group_size(kern, ndrange.gws, ndrange.lws);
         cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
                     ndrange.lws[1], ndrange.lws[2]);
     }
+
+    // Check work-group size is not zero
+    for (cl_uint dim = 0; dim < work_dim; dim++) {
+        if (ndrange.lws[dim] == 0) {
+            cvk_error_fn("work-group size cannot be zero");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
     // Check work-group size matches the required size if specified
-    auto reqd_work_group_size =
-        icd_downcast(kernel)->required_work_group_size();
+    auto reqd_work_group_size = kern->required_work_group_size();
     if (reqd_work_group_size[0] != 0) {
         if (reqd_work_group_size != ndrange.lws) {
             cvk_error_fn("work-group size does not match the required size");
@@ -7239,12 +7474,12 @@ cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
         }
     }
 
-    auto cmdbuf = icd_downcast(command_buffer);
-
-    auto queue = cmdbuf->queues().at(0);
-
-    if (icd_downcast(kernel)->context() != queue->context()) {
-        return CL_INVALID_CONTEXT;
+    // Check uniformity of the NDRange if needed
+    if (!device->supports_non_uniform_workgroup()) {
+        if (!ndrange.is_uniform()) {
+            cvk_error_fn("non uniform workgroup not supported");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
     }
 
     auto cmd = new cvk_command_kernel(queue, kern, work_dim, ndrange);
@@ -7280,17 +7515,49 @@ cl_int CLVK_API_CALL clCommandFillBufferKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_buffer(buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
+    auto ctx = cmdbuf->context();
+    auto buf = static_cast<cvk_buffer*>(buffer);
 
-    if (icd_downcast(buffer)->context() != queue->context()) {
+    if (buf->context() != ctx || queue->context() != ctx) {
         return CL_INVALID_CONTEXT;
     }
 
-    auto cmd = new cvk_command_fill_buffer(
-        queue, static_cast<cvk_buffer*>(buffer), offset, size, pattern,
-        pattern_size, CL_COMMAND_FILL_BUFFER);
+    if (pattern == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    // Check the pattern size is valid
+    size_t valid_pattern_sizes[] = {1, 2, 4, 8, 16, 32, 64, 128};
+    bool pattern_size_valid = false;
+    for (auto valid_size : valid_pattern_sizes) {
+        if (valid_size == pattern_size) {
+            pattern_size_valid = true;
+            break;
+        }
+    }
+    if (!pattern_size_valid) {
+        return CL_INVALID_VALUE;
+    }
+
+    // Check that offset and size are a multiple of pattern_size
+    if ((offset % pattern_size != 0) || (size % pattern_size != 0)) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (size == 0 || offset > buf->size() || size > buf->size() - offset) {
+        return CL_INVALID_VALUE;
+    }
+
+    auto cmd =
+        new cvk_command_fill_buffer(queue, buf, offset, size, pattern,
+                                    pattern_size, CL_COMMAND_FILL_BUFFER);
 
     return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
                                sync_point_wait_list, sync_point);
@@ -7366,6 +7633,10 @@ cl_int clCommandCopyBufferToImageKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_buffer(src_buffer) || !is_valid_image(dst_image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
@@ -7377,6 +7648,20 @@ cl_int clCommandCopyBufferToImageKHR(
     if (image->context() != ctx || queue->context() != ctx ||
         buffer->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (image->is_backed_by_buffer_view() && image->buffer() == buffer) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (dst_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(image, dst_origin, region) ||
+        !is_valid_buffer_image_copy_range(buffer, src_offset, image, region)) {
+        return CL_INVALID_VALUE;
     }
 
     std::array<size_t, 3> origin = {dst_origin[0], dst_origin[1],
@@ -7427,6 +7712,10 @@ cl_int clCommandCopyImageKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_image(src_image) || !is_valid_image(dst_image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
@@ -7438,6 +7727,25 @@ cl_int clCommandCopyImageKHR(
     if (src_img->context() != ctx || dst_img->context() != ctx ||
         queue->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (!src_img->has_same_format(dst_img)) {
+        return CL_IMAGE_FORMAT_MISMATCH;
+    }
+
+    if (src_origin == nullptr || dst_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(src_img, src_origin, region) ||
+        !is_valid_image_region(dst_img, dst_origin, region)) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (cmdbuf_image_regions_overlap(src_img, dst_img, src_origin, dst_origin,
+                                     region)) {
+        return CL_MEM_COPY_OVERLAP;
     }
 
     std::array<size_t, 3> src_orig = {src_origin[0], src_origin[1],
@@ -7505,6 +7813,10 @@ cl_int clCommandCopyImageToBufferKHR(
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_image(src_image) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
 
     auto queue = cmdbuf->queues().at(0);
@@ -7516,6 +7828,20 @@ cl_int clCommandCopyImageToBufferKHR(
     if (image->context() != ctx || buffer->context() != ctx ||
         queue->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (image->is_backed_by_buffer_view() && image->buffer() == buffer) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (src_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(image, src_origin, region) ||
+        !is_valid_buffer_image_copy_range(buffer, dst_offset, image, region)) {
+        return CL_INVALID_VALUE;
     }
 
     std::array<size_t, 3> origin = {src_origin[0], src_origin[1],
@@ -7574,12 +7900,25 @@ cl_int clCommandFillImageKHR(cl_command_buffer_khr command_buffer,
         return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
     }
 
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
     auto cmdbuf = icd_downcast(command_buffer);
     auto queue = cmdbuf->queues().at(0);
     auto ctx = cmdbuf->context();
     auto img = static_cast<cvk_image*>(image);
     if (img->context() != ctx || queue->context() != ctx) {
         return CL_INVALID_CONTEXT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (fill_color == nullptr || origin == nullptr || region == nullptr ||
+        !is_valid_image_region(img, origin, region)) {
+        return CL_INVALID_VALUE;
     }
 
     cvk_command* cmd;
