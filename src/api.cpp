@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cl_headers.hpp"
+#include "command.hpp"
 #include "icd.hpp"
 #include "image_format.hpp"
 #include "init.hpp"
@@ -81,6 +82,10 @@ bool is_valid_semaphore(cl_semaphore_khr sem) {
     return sem != nullptr && icd_downcast(sem)->is_valid();
 }
 
+bool is_valid_command_buffer(cl_command_buffer_khr cmdbuf) {
+    return cmdbuf != nullptr && icd_downcast(cmdbuf)->is_valid();
+}
+
 bool is_valid_event_wait_list(cl_uint num_events_in_wait_list,
                               const cl_event* event_wait_list) {
 
@@ -106,16 +111,21 @@ bool is_same_context(cl_command_queue queue, cl_kernel kernel) {
     return icd_downcast(queue)->context() == icd_downcast(kernel)->context();
 }
 
-bool is_same_context(cl_command_queue queue, cl_uint num_events,
+bool is_same_context(cl_context context, cl_uint num_events,
                      const cl_event* event_list) {
     for (cl_uint i = 0; i < num_events; i++) {
-        if (icd_downcast(queue)->context() !=
-            icd_downcast(event_list[i])->context()) {
+        if (context != icd_downcast(event_list[i])->context()) {
             return false;
         }
     }
 
     return true;
+}
+
+bool is_same_context(cl_command_queue queue, cl_uint num_events,
+                     const cl_event* event_list) {
+    return is_same_context(icd_downcast(queue)->context(), num_events,
+                           event_list);
 }
 
 bool is_same_context(cl_command_queue queue, cl_uint num_semas,
@@ -309,6 +319,21 @@ static const std::unordered_map<std::string, void*> gExtensionEntrypoints = {
     EXTENSION_ENTRYPOINT(clGetSemaphoreInfoKHR),
     EXTENSION_ENTRYPOINT(clRetainSemaphoreKHR),
     EXTENSION_ENTRYPOINT(clReleaseSemaphoreKHR),
+    EXTENSION_ENTRYPOINT(clCreateCommandBufferKHR),
+    EXTENSION_ENTRYPOINT(clFinalizeCommandBufferKHR),
+    EXTENSION_ENTRYPOINT(clRetainCommandBufferKHR),
+    EXTENSION_ENTRYPOINT(clReleaseCommandBufferKHR),
+    EXTENSION_ENTRYPOINT(clEnqueueCommandBufferKHR),
+    EXTENSION_ENTRYPOINT(clCommandCopyBufferKHR),
+    EXTENSION_ENTRYPOINT(clCommandNDRangeKernelKHR),
+    EXTENSION_ENTRYPOINT(clCommandFillBufferKHR),
+    EXTENSION_ENTRYPOINT(clCommandCopyBufferRectKHR),
+    EXTENSION_ENTRYPOINT(clGetCommandBufferInfoKHR),
+    EXTENSION_ENTRYPOINT(clCommandBarrierWithWaitListKHR),
+    EXTENSION_ENTRYPOINT(clCommandCopyBufferToImageKHR),
+    EXTENSION_ENTRYPOINT(clCommandCopyImageToBufferKHR),
+    EXTENSION_ENTRYPOINT(clCommandCopyImageKHR),
+    EXTENSION_ENTRYPOINT(clCommandFillImageKHR),
 #undef EXTENSION_ENTRYPOINT
 #undef FUNC_PTR
 };
@@ -440,6 +465,7 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         val_int_dot_product_props;
     cl_device_fp_atomic_capabilities_ext val_fp_atomic_capabilities;
     std::vector<size_t> val_subgroup_sizes;
+    cl_device_command_buffer_capabilities_khr val_command_buffer_capabilities;
 
     auto device = icd_downcast(dev);
 
@@ -954,6 +980,32 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         copy_ptr = &val_fp_atomic_capabilities;
         size_ret = sizeof(val_fp_atomic_capabilities);
         break;
+    case CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR:
+        val_command_buffer_capabilities =
+            CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR;
+        copy_ptr = &val_command_buffer_capabilities;
+        size_ret = sizeof(val_command_buffer_capabilities);
+        break;
+    case CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR:
+        val_queue_properties = 0;
+        copy_ptr = &val_queue_properties;
+        size_ret = sizeof(val_queue_properties);
+        break;
+    case CL_DEVICE_COMMAND_BUFFER_NUM_SYNC_DEVICES_KHR:
+        val_uint = 0;
+        copy_ptr = &val_uint;
+        size_ret = sizeof(val_uint);
+        break;
+    case CL_DEVICE_COMMAND_BUFFER_SYNC_DEVICES_KHR:
+        val_deviceid = nullptr;
+        copy_ptr = &val_deviceid;
+        size_ret = sizeof(val_deviceid);
+        break;
+    case CL_DEVICE_COMMAND_BUFFER_SUPPORTED_QUEUE_PROPERTIES_KHR:
+        val_queue_properties = CL_QUEUE_PROFILING_ENABLE;
+        copy_ptr = &val_queue_properties;
+        size_ret = sizeof(val_queue_properties);
+        break;
     case CL_DEVICE_SUB_GROUP_SIZES_INTEL:
         if (device->supports_subgroup_size_selection()) {
             uint32_t size = device->min_sub_group_size();
@@ -1304,7 +1356,8 @@ cl_event CLVK_API_CALL clCreateUserEvent(cl_context context,
         }
     }
 
-    auto event = new cvk_event_command(icd_downcast(context), nullptr, nullptr);
+    auto event =
+        new cvk_event_command(icd_downcast(context), nullptr, CL_COMMAND_USER);
     TRACE_INSTANT("clCreateUserEvent-event", "event", (uintptr_t)event);
 
     if (errcode_ret != nullptr) {
@@ -5492,12 +5545,11 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
 
     auto img = static_cast<cvk_image*>(image);
 
-    // Fill
-    cvk_image::fill_pattern_array pattern;
-    size_t pattern_size;
-    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
-
     if (img->is_backed_by_buffer_view()) {
+        cvk_image::fill_pattern_array pattern;
+        size_t pattern_size;
+        img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
+
         auto cmd = new cvk_command_fill_buffer(
             command_queue, static_cast<cvk_buffer*>(img->buffer()),
             origin[0] * img->element_size(), region[0] * img->element_size(),
@@ -5509,6 +5561,23 @@ cl_int CLVK_API_CALL clEnqueueFillImage(
 
     // Create image map command
     std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    if (config.fill_image_on_device()) {
+        std::array<size_t, 3> org = {origin[0], origin[1], origin[2]};
+        cvk_image::fill_pattern_array pattern;
+        memcpy(pattern.data(), fill_color, sizeof(pattern));
+
+        auto cmd_fill_on_device = new cvk_command_fill_image_on_device(
+            command_queue, img, pattern, org, reg);
+        return command_queue->enqueue_command_with_deps(cmd_fill_on_device,
+                                                        num_events_in_wait_list,
+                                                        event_wait_list, event);
+    }
+
+    // Fill
+    cvk_image::fill_pattern_array pattern;
+    size_t pattern_size;
+    img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
 
     void* map_ptr;
     _cl_event* evt_map;
@@ -6690,4 +6759,1186 @@ cl_int CLVK_API_CALL clGetKernelSuggestedLocalWorkSizeKHR(
     }
 
     return CL_SUCCESS;
+}
+
+//
+// cl_khr_command_buffer
+//
+
+namespace {
+
+bool is_valid_sync_point(cl_sync_point_khr sync_point) {
+    return sync_point != 0;
+}
+
+bool is_valid_sync_point_wait_list(
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list) {
+    if (((sync_point_wait_list == nullptr) &&
+         (num_sync_points_in_wait_list > 0)) ||
+        (sync_point_wait_list != nullptr &&
+         num_sync_points_in_wait_list == 0)) {
+        return false;
+    }
+
+    for (cl_uint i = 0; i < num_sync_points_in_wait_list; i++) {
+        if (!is_valid_sync_point(sync_point_wait_list[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool cmdbuf_regions_overlap_1d(size_t src_offset, size_t dst_offset,
+                               size_t size) {
+    if (size == 0) {
+        return false;
+    }
+    if (src_offset <= dst_offset) {
+        return dst_offset - src_offset < size;
+    }
+    return src_offset - dst_offset < size;
+}
+
+bool cmdbuf_image_regions_overlap(const cvk_image* src_image,
+                                  const cvk_image* dst_image,
+                                  const size_t* src_origin,
+                                  const size_t* dst_origin,
+                                  const size_t* region) {
+    if (src_image == dst_image) {
+        if (!cmdbuf_regions_overlap_1d(src_origin[0], dst_origin[0],
+                                       region[0])) {
+            return false;
+        }
+        switch (src_image->type()) {
+        case CL_MEM_OBJECT_IMAGE1D:
+        case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+            return true;
+        case CL_MEM_OBJECT_IMAGE2D:
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            return cmdbuf_regions_overlap_1d(src_origin[1], dst_origin[1],
+                                             region[1]);
+        case CL_MEM_OBJECT_IMAGE3D:
+        case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+            return cmdbuf_regions_overlap_1d(src_origin[1], dst_origin[1],
+                                             region[1]) &&
+                   cmdbuf_regions_overlap_1d(src_origin[2], dst_origin[2],
+                                             region[2]);
+        default:
+            CVK_ASSERT(false && "Unexpected image type");
+            return false;
+        }
+    }
+
+    if (src_image->is_backed_by_buffer_view() &&
+        dst_image->is_backed_by_buffer_view()) {
+        auto src_buf = static_cast<const cvk_buffer*>(src_image->buffer());
+        auto dst_buf = static_cast<const cvk_buffer*>(dst_image->buffer());
+        if (src_buf->vulkan_buffer() == dst_buf->vulkan_buffer()) {
+            size_t elem_size = src_image->element_size();
+            return cmdbuf_regions_overlap_1d(
+                src_buf->vulkan_buffer_offset() + src_origin[0] * elem_size,
+                dst_buf->vulkan_buffer_offset() + dst_origin[0] * elem_size,
+                region[0] * elem_size);
+        }
+    }
+
+    return false;
+}
+
+bool is_valid_buffer_rect_region(size_t buf_size, const size_t* origin,
+                                 const size_t* region, size_t row_pitch,
+                                 size_t slice_pitch) {
+    if (region[0] == 0 || region[1] == 0 || region[2] == 0) {
+        return false;
+    }
+    if (row_pitch != 0 && row_pitch < region[0]) {
+        return false;
+    }
+    size_t eff_row_pitch = row_pitch == 0 ? region[0] : row_pitch;
+    if (region[1] > SIZE_MAX / eff_row_pitch) {
+        return false;
+    }
+    size_t min_slice_pitch = region[1] * eff_row_pitch;
+    if (slice_pitch != 0 &&
+        (slice_pitch < min_slice_pitch || slice_pitch % eff_row_pitch != 0)) {
+        return false;
+    }
+    size_t eff_slice_pitch = slice_pitch == 0 ? min_slice_pitch : slice_pitch;
+
+    if (origin[0] > SIZE_MAX - region[0] ||
+        origin[1] > SIZE_MAX - (region[1] - 1) ||
+        origin[2] > SIZE_MAX - (region[2] - 1)) {
+        return false;
+    }
+    size_t end_x = origin[0] + region[0];
+    size_t last_row = origin[1] + (region[1] - 1);
+    size_t last_slice = origin[2] + (region[2] - 1);
+
+    if (last_row > SIZE_MAX / eff_row_pitch ||
+        last_slice > SIZE_MAX / eff_slice_pitch) {
+        return false;
+    }
+    size_t row_bytes = last_row * eff_row_pitch;
+    size_t slice_bytes = last_slice * eff_slice_pitch;
+
+    return slice_bytes <= buf_size && row_bytes <= buf_size - slice_bytes &&
+           end_x <= buf_size - slice_bytes - row_bytes;
+}
+
+bool is_valid_image_region(const cvk_image* image, const size_t* origin,
+                           const size_t* region) {
+    if (region[0] == 0 || region[1] == 0 || region[2] == 0) {
+        return false;
+    }
+    if (origin[0] > image->width() || region[0] > image->width() - origin[0]) {
+        return false;
+    }
+    switch (image->type()) {
+    case CL_MEM_OBJECT_IMAGE1D:
+        return origin[1] == 0 && origin[2] == 0 && region[1] == 1 &&
+               region[2] == 1;
+    case CL_MEM_OBJECT_IMAGE1D_BUFFER: {
+        if (origin[1] != 0 || origin[2] != 0 || region[1] != 1 ||
+            region[2] != 1) {
+            return false;
+        }
+        size_t elem_size = image->element_size();
+        if (elem_size != 0 && (origin[0] > SIZE_MAX / elem_size ||
+                               region[0] > SIZE_MAX / elem_size)) {
+            return false;
+        }
+        size_t byte_offset = origin[0] * elem_size;
+        size_t byte_size = region[0] * elem_size;
+        auto buf = static_cast<const cvk_buffer*>(image->buffer());
+        return byte_offset <= buf->size() &&
+               byte_size <= buf->size() - byte_offset;
+    }
+    case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+        return origin[2] == 0 && region[2] == 1 &&
+               origin[1] <= image->array_size() &&
+               region[1] <= image->array_size() - origin[1];
+    case CL_MEM_OBJECT_IMAGE2D:
+        return origin[2] == 0 && region[2] == 1 &&
+               origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1];
+    case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+        return origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1] &&
+               origin[2] <= image->array_size() &&
+               region[2] <= image->array_size() - origin[2];
+    case CL_MEM_OBJECT_IMAGE3D:
+        return origin[1] <= image->height() &&
+               region[1] <= image->height() - origin[1] &&
+               origin[2] <= image->depth() &&
+               region[2] <= image->depth() - origin[2];
+    default:
+        CVK_ASSERT(false && "Unexpected image type");
+        return false;
+    }
+}
+
+bool is_valid_buffer_image_copy_range(const cvk_buffer* buffer, size_t offset,
+                                      const cvk_image* image,
+                                      const size_t* region) {
+    size_t elem_size = image->element_size();
+    if (region[0] > SIZE_MAX / region[1]) {
+        return false;
+    }
+    size_t pixels_xy = region[0] * region[1];
+    if (pixels_xy > SIZE_MAX / region[2]) {
+        return false;
+    }
+    size_t pixels = pixels_xy * region[2];
+    if (elem_size != 0 && pixels > SIZE_MAX / elem_size) {
+        return false;
+    }
+    size_t total_bytes = pixels * elem_size;
+    return offset <= buffer->size() && total_bytes <= buffer->size() - offset;
+}
+
+} // namespace
+
+static cl_command_buffer_khr cvk_create_command_buffer_khr(
+    cl_uint num_queues, const cl_command_queue* queues,
+    const cl_command_buffer_properties_khr* properties, cl_int* errcode_ret) {
+
+    if (num_queues != 1 || queues == nullptr) {
+        *errcode_ret = CL_INVALID_VALUE;
+        return nullptr;
+    }
+
+    std::vector<cl_command_buffer_properties_khr> properties_internal;
+    cl_command_buffer_flags_khr flags = 0;
+
+    const cl_command_buffer_properties_khr* props = properties;
+    std::map<cl_command_buffer_properties_khr, cl_command_buffer_properties_khr>
+        props_map;
+    if (props != nullptr) {
+        while (*props != 0) {
+            auto prop = props[0];
+            auto value = props[1];
+
+            if (props_map.count(prop) != 0) {
+                *errcode_ret = CL_INVALID_VALUE;
+                return nullptr;
+            }
+
+            props_map[prop] = value;
+            properties_internal.push_back(prop);
+            properties_internal.push_back(value);
+            props += 2;
+        }
+        properties_internal.push_back(0);
+    }
+    for (auto [prop, value] : props_map) {
+        switch (prop) {
+        case CL_COMMAND_BUFFER_FLAGS_KHR:
+            if (value & CL_COMMAND_BUFFER_DEVICE_SIDE_SYNC_KHR ||
+                value & CL_COMMAND_BUFFER_MUTABLE_KHR) {
+                *errcode_ret = CL_INVALID_PROPERTY;
+                return nullptr;
+            } else if ((value & ~CL_COMMAND_BUFFER_SIMULTANEOUS_USE_KHR) != 0) {
+                *errcode_ret = CL_INVALID_VALUE;
+                return nullptr;
+            }
+            flags = value;
+            break;
+        case CL_COMMAND_BUFFER_MUTABLE_DISPATCH_ASSERTS_KHR:
+            if (value != 0) {
+                *errcode_ret = CL_INVALID_VALUE;
+                return nullptr;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
+    for (unsigned i = 0; i < num_queues; i++) {
+        if (!is_valid_command_queue(queues[i])) {
+            *errcode_ret = CL_INVALID_COMMAND_QUEUE;
+            return nullptr;
+        }
+    }
+
+    std::vector<cvk_command_queue*> queues_internal;
+    queues_internal.reserve(num_queues);
+    for (cl_uint i = 0; i < num_queues; i++) {
+        queues_internal.push_back(icd_downcast(queues[i]));
+    }
+
+    auto cmdbuf = new cvk_api_command_buffer(queues_internal, flags,
+                                             std::move(properties_internal));
+    auto ctx = cmdbuf->context();
+    for (cl_uint i = 0; i < num_queues; i++) {
+        if (queues_internal[i]->context() != ctx) {
+            cmdbuf->release();
+            *errcode_ret = CL_INVALID_CONTEXT;
+            return nullptr;
+        }
+    }
+
+    *errcode_ret = CL_SUCCESS;
+    return cmdbuf;
+}
+
+cl_command_buffer_khr CLVK_API_CALL clCreateCommandBufferKHR(
+    cl_uint num_queues, const cl_command_queue* queues,
+    const cl_command_buffer_properties_khr* properties, cl_int* errcode_ret) {
+    TRACE_FUNCTION("num_queues", num_queues);
+    LOG_API_CALL(
+        "num_queues = %u, queues = %p, properties = %p, errcode_ret = %p",
+        num_queues, queues, properties, errcode_ret);
+
+    cl_int err;
+    auto buffer =
+        cvk_create_command_buffer_khr(num_queues, queues, properties, &err);
+
+    if (errcode_ret != nullptr) {
+        *errcode_ret = err;
+    }
+
+    return buffer;
+}
+
+cl_int CLVK_API_CALL
+clFinalizeCommandBufferKHR(cl_command_buffer_khr command_buffer) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    return icd_downcast(command_buffer)->finalize();
+}
+
+cl_int CLVK_API_CALL
+clRetainCommandBufferKHR(cl_command_buffer_khr command_buffer) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    icd_downcast(command_buffer)->retain();
+
+    return CL_SUCCESS;
+}
+
+cl_int CLVK_API_CALL
+clReleaseCommandBufferKHR(cl_command_buffer_khr command_buffer) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    icd_downcast(command_buffer)->release();
+
+    return CL_SUCCESS;
+}
+
+cl_int CLVK_API_CALL clEnqueueCommandBufferKHR(
+    cl_uint num_queues, cl_command_queue* queues,
+    cl_command_buffer_khr command_buffer, cl_uint num_events_in_wait_list,
+    const cl_event* event_wait_list, cl_event* event) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer, "num_queues",
+                   num_queues, "num_events_in_wait_list",
+                   num_events_in_wait_list);
+
+    LOG_API_CALL(
+        "num_queues = %u, queues = %p, command_buffer = %p, "
+        "num_events_in_wait_list = %u, event_wait_list = %p, event = %p",
+        num_queues, queues, command_buffer, num_events_in_wait_list,
+        event_wait_list, event);
+
+    if ((queues == nullptr && num_queues > 0) ||
+        (queues != nullptr && num_queues == 0)) {
+        return CL_INVALID_VALUE;
+    }
+
+    for (cl_uint i = 0; i < num_queues; i++) {
+        if (!is_valid_command_queue(queues[i])) {
+            return CL_INVALID_COMMAND_QUEUE;
+        }
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+    auto ctx = cmdbuf->context();
+
+    if (num_queues > 0 && num_queues != cmdbuf->queues().size()) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_event_wait_list(num_events_in_wait_list, event_wait_list)) {
+        return CL_INVALID_EVENT_WAIT_LIST;
+    }
+    if (!is_same_context(cmdbuf->context(), num_events_in_wait_list,
+                         event_wait_list)) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    std::vector<cvk_command_queue*> qs(num_queues);
+    for (cl_uint i = 0; i < num_queues; i++) {
+        qs[i] = icd_downcast(queues[i]);
+        if (qs[i]->context() != ctx) {
+            return CL_INVALID_CONTEXT;
+        }
+    }
+    auto ret =
+        cmdbuf->enqueue(qs, num_events_in_wait_list, event_wait_list, event);
+
+    return ret;
+}
+
+cl_int CLVK_API_CALL clGetCommandBufferInfoKHR(
+    cl_command_buffer_khr command_buffer, cl_command_buffer_info_khr param_name,
+    size_t param_value_size, void* param_value, size_t* param_value_size_ret) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer, "param_name",
+                   param_name);
+    LOG_API_CALL(
+        "command_buffer = %p, param_name = %x, param_value_size = %zu, "
+        "param_value = %p, param_value_size_ret = %p",
+        command_buffer, param_name, param_value_size, param_value,
+        param_value_size_ret);
+
+    cl_int ret = CL_SUCCESS;
+    size_t ret_size = 0;
+    const void* copy_ptr = nullptr;
+    cl_uint val_uint;
+    cl_command_buffer_state_khr val_state;
+    std::vector<cl_command_queue> val_queues;
+    cl_context val_context;
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    switch (param_name) {
+    case CL_COMMAND_BUFFER_REFERENCE_COUNT_KHR:
+        val_uint = cmdbuf->refcount();
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_COMMAND_BUFFER_STATE_KHR:
+        val_state = cmdbuf->state();
+        copy_ptr = &val_state;
+        ret_size = sizeof(val_state);
+        break;
+    case CL_COMMAND_BUFFER_PROPERTIES_ARRAY_KHR:
+        copy_ptr = cmdbuf->properties().data();
+        ret_size = cmdbuf->properties().size() *
+                   sizeof(cl_command_buffer_properties_khr);
+        break;
+    case CL_COMMAND_BUFFER_NUM_QUEUES_KHR:
+        val_uint = cmdbuf->queues().size();
+        copy_ptr = &val_uint;
+        ret_size = sizeof(val_uint);
+        break;
+    case CL_COMMAND_BUFFER_QUEUES_KHR: {
+        for (auto q : cmdbuf->queues()) {
+            val_queues.push_back(static_cast<cl_command_queue>(q));
+        }
+        copy_ptr = val_queues.data();
+        ret_size = val_queues.size() * sizeof(cl_command_queue);
+        break;
+    }
+    case CL_COMMAND_BUFFER_CONTEXT_KHR:
+        val_context = cmdbuf->context();
+        copy_ptr = &val_context;
+        ret_size = sizeof(val_context);
+        break;
+    default:
+        ret = CL_INVALID_VALUE;
+        break;
+    }
+
+    if ((param_value != nullptr) && (copy_ptr != nullptr)) {
+        if (param_value_size < ret_size) {
+            ret = CL_INVALID_VALUE;
+        }
+        memcpy(param_value, copy_ptr, std::min(param_value_size, ret_size));
+    }
+
+    if (param_value_size_ret != nullptr) {
+        *param_value_size_ret = ret_size;
+    }
+
+    return ret;
+}
+
+cl_int CLVK_API_CALL clCommandCopyBufferKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem src_buffer,
+    cl_mem dst_buffer, size_t src_offset, size_t dst_offset, size_t size,
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+
+    auto ctx = cmdbuf->context();
+    auto src_buf = static_cast<cvk_buffer*>(src_buffer);
+    auto dst_buf = static_cast<cvk_buffer*>(dst_buffer);
+    if (queue->context() != ctx || src_buf->context() != ctx ||
+        dst_buf->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (size == 0 || src_offset > src_buf->size() ||
+        size > src_buf->size() - src_offset || dst_offset > dst_buf->size() ||
+        size > dst_buf->size() - dst_offset) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (src_buf->vulkan_buffer() == dst_buf->vulkan_buffer() &&
+        cmdbuf_regions_overlap_1d(src_buf->vulkan_buffer_offset() + src_offset,
+                                  dst_buf->vulkan_buffer_offset() + dst_offset,
+                                  size)) {
+        return CL_MEM_COPY_OVERLAP;
+    }
+
+    auto cmd =
+        new cvk_command_copy_buffer(queue, CL_COMMAND_COPY_BUFFER, src_buf,
+                                    dst_buf, src_offset, dst_offset, size);
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int CLVK_API_CALL clCommandCopyBufferRectKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem src_buffer,
+    cl_mem dst_buffer, const size_t* src_origin, const size_t* dst_origin,
+    const size_t* region, size_t src_row_pitch, size_t src_slice_pitch,
+    size_t dst_row_pitch, size_t dst_slice_pitch,
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_buffer(src_buffer) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+
+    auto srcbuf = static_cast<cvk_buffer*>(src_buffer);
+    auto dstbuf = static_cast<cvk_buffer*>(dst_buffer);
+
+    auto ctx = cmdbuf->context();
+    if (queue->context() != ctx || srcbuf->context() != ctx ||
+        dstbuf->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (src_origin == nullptr || dst_origin == nullptr || region == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_buffer_rect_region(srcbuf->size(), src_origin, region,
+                                     src_row_pitch, src_slice_pitch) ||
+        !is_valid_buffer_rect_region(dstbuf->size(), dst_origin, region,
+                                     dst_row_pitch, dst_slice_pitch)) {
+        return CL_INVALID_VALUE;
+    }
+
+    auto cmd = new cvk_command_copy_buffer_rect(
+        queue, srcbuf, dstbuf, src_origin, dst_origin, region, src_row_pitch,
+        src_slice_pitch, dst_row_pitch, dst_slice_pitch);
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int CLVK_API_CALL clCommandNDRangeKernelKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_kernel kernel,
+    cl_uint work_dim, const size_t* global_work_offset,
+    const size_t* global_work_size, const size_t* local_work_size,
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer, "kernel",
+                   (uintptr_t)kernel);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    cl_command_properties_khr* props = (cl_command_properties_khr*)properties;
+    while (props != nullptr && *props != 0) {
+        auto prop = props[0];
+        auto value = props[1];
+
+        switch (prop) {
+        case CL_MUTABLE_DISPATCH_ASSERTS_KHR:
+        case CL_MUTABLE_DISPATCH_UPDATABLE_FIELDS_KHR:
+        default:
+            if (value != 0) {
+                return CL_INVALID_VALUE;
+            }
+            break;
+        }
+        props += 2;
+    }
+
+    if (!is_valid_kernel(kernel)) {
+        return CL_INVALID_KERNEL;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+    auto queue = cmdbuf->queues().at(0);
+    auto kern = icd_downcast(kernel);
+
+    if (kern->context() != queue->context() ||
+        cmdbuf->context() != queue->context()) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (kern->uses_printf()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    auto device = queue->device();
+
+    if ((work_dim < 1) || (work_dim > device->max_work_item_dimensions())) {
+        return CL_INVALID_WORK_DIMENSION;
+    }
+
+    auto program = kern->program();
+    if (program->binary_type(device) != CL_PROGRAM_BINARY_TYPE_EXECUTABLE) {
+        return CL_INVALID_PROGRAM_EXECUTABLE;
+    }
+
+    if (!kern->args_valid()) {
+        return CL_INVALID_KERNEL_ARGS;
+    }
+
+    static const size_t null_global_work_size[3] = {0};
+    if (global_work_size == nullptr) {
+        global_work_size = null_global_work_size;
+    }
+
+    cvk_ndrange ndrange(work_dim, global_work_offset, global_work_size,
+                        local_work_size);
+    // Try to pick a sensible work-group size if the user didn't specify one.
+    if (local_work_size == nullptr) {
+        device->select_work_group_size(kern, ndrange.gws, ndrange.lws);
+        cvk_info_fn("selected local work size: {%u,%u,%u}", ndrange.lws[0],
+                    ndrange.lws[1], ndrange.lws[2]);
+    }
+
+    // Check work-group size is not zero
+    for (cl_uint dim = 0; dim < work_dim; dim++) {
+        if (ndrange.lws[dim] == 0) {
+            cvk_error_fn("work-group size cannot be zero");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
+    // Check work-group size matches the required size if specified
+    auto reqd_work_group_size = kern->required_work_group_size();
+    if (reqd_work_group_size[0] != 0) {
+        if (reqd_work_group_size != ndrange.lws) {
+            cvk_error_fn("work-group size does not match the required size");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
+    // Check uniformity of the NDRange if needed
+    if (!device->supports_non_uniform_workgroup()) {
+        if (!ndrange.is_uniform()) {
+            cvk_error_fn("non uniform workgroup not supported");
+            return CL_INVALID_WORK_GROUP_SIZE;
+        }
+    }
+
+    auto cmd = new cvk_command_kernel(queue, kern, work_dim, ndrange);
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int CLVK_API_CALL clCommandFillBufferKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem buffer,
+    const void* pattern, size_t pattern_size, size_t offset, size_t size,
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_buffer(buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+    auto ctx = cmdbuf->context();
+    auto buf = static_cast<cvk_buffer*>(buffer);
+
+    if (buf->context() != ctx || queue->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (pattern == nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    // Check the pattern size is valid
+    size_t valid_pattern_sizes[] = {1, 2, 4, 8, 16, 32, 64, 128};
+    bool pattern_size_valid = false;
+    for (auto valid_size : valid_pattern_sizes) {
+        if (valid_size == pattern_size) {
+            pattern_size_valid = true;
+            break;
+        }
+    }
+    if (!pattern_size_valid) {
+        return CL_INVALID_VALUE;
+    }
+
+    // Check that offset and size are a multiple of pattern_size
+    if ((offset % pattern_size != 0) || (size % pattern_size != 0)) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (size == 0 || offset > buf->size() || size > buf->size() - offset) {
+        return CL_INVALID_VALUE;
+    }
+
+    auto cmd =
+        new cvk_command_fill_buffer(queue, buf, offset, size, pattern,
+                                    pattern_size, CL_COMMAND_FILL_BUFFER);
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int clCommandBarrierWithWaitListKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties,
+    cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL(
+        "command_buffer = %p, command_queue = %p, num_sync_points_in_wait_list "
+        "= %u, "
+        "sync_point_wait_list = %p, sync_point = %p, mutable_handle = %p",
+        command_buffer, command_queue, num_sync_points_in_wait_list,
+        sync_point_wait_list, sync_point, mutable_handle);
+    UNUSED(properties);
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+
+    auto cmd = new cvk_command_dep(queue, CL_COMMAND_BARRIER);
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int clCommandCopyBufferToImageKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem src_buffer,
+    cl_mem dst_image, size_t src_offset, const size_t* dst_origin,
+    const size_t* region, cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_buffer(src_buffer) || !is_valid_image(dst_image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+    cvk_command* cmd;
+    auto image = static_cast<cvk_image*>(dst_image);
+    auto buffer = static_cast<cvk_buffer*>(src_buffer);
+
+    auto ctx = cmdbuf->context();
+    if (image->context() != ctx || queue->context() != ctx ||
+        buffer->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (image->is_backed_by_buffer_view() && image->buffer() == buffer) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (dst_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(image, dst_origin, region) ||
+        !is_valid_buffer_image_copy_range(buffer, src_offset, image, region)) {
+        return CL_INVALID_VALUE;
+    }
+
+    std::array<size_t, 3> origin = {dst_origin[0], dst_origin[1],
+                                    dst_origin[2]};
+    std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    if (image->is_backed_by_buffer_view()) {
+        cmd = new cvk_command_copy_buffer(
+            queue, CL_COMMAND_COPY_BUFFER_TO_IMAGE, buffer,
+            static_cast<cvk_buffer*>(image->buffer()), src_offset,
+            dst_origin[0] * image->element_size(),
+            region[0] * image->element_size());
+
+    } else {
+        cmd = new cvk_command_buffer_image_copy(CL_COMMAND_COPY_BUFFER_TO_IMAGE,
+                                                queue, buffer, image,
+                                                src_offset, origin, reg);
+    }
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int clCommandCopyImageKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem src_image,
+    cl_mem dst_image, const size_t* src_origin, const size_t* dst_origin,
+    const size_t* region, cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_image(src_image) || !is_valid_image(dst_image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+
+    auto ctx = cmdbuf->context();
+    auto src_img = static_cast<cvk_image*>(src_image);
+    auto dst_img = static_cast<cvk_image*>(dst_image);
+
+    if (src_img->context() != ctx || dst_img->context() != ctx ||
+        queue->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (!src_img->has_same_format(dst_img)) {
+        return CL_IMAGE_FORMAT_MISMATCH;
+    }
+
+    if (src_origin == nullptr || dst_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(src_img, src_origin, region) ||
+        !is_valid_image_region(dst_img, dst_origin, region)) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (cmdbuf_image_regions_overlap(src_img, dst_img, src_origin, dst_origin,
+                                     region)) {
+        return CL_MEM_COPY_OVERLAP;
+    }
+
+    std::array<size_t, 3> src_orig = {src_origin[0], src_origin[1],
+                                      src_origin[2]};
+    std::array<size_t, 3> dst_orig = {dst_origin[0], dst_origin[1],
+                                      dst_origin[2]};
+    std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    cvk_command* cmd;
+    if (src_img->is_backed_by_buffer_view() &&
+        dst_img->is_backed_by_buffer_view()) {
+        cmd = new cvk_command_copy_buffer(
+            queue, CL_COMMAND_COPY_IMAGE,
+            static_cast<cvk_buffer*>(src_img->buffer()),
+            static_cast<cvk_buffer*>(dst_img->buffer()),
+            src_origin[0] * src_img->element_size(),
+            dst_origin[0] * dst_img->element_size(),
+            region[0] * src_img->element_size());
+
+    } else if (src_img->is_backed_by_buffer_view()) {
+        cmd = new cvk_command_buffer_image_copy(
+            CL_COMMAND_COPY_IMAGE, CL_COMMAND_COPY_BUFFER_TO_IMAGE, queue,
+            static_cast<cvk_buffer*>(src_img->buffer()), dst_img,
+            src_origin[0] * src_img->element_size(), dst_orig, reg);
+
+    } else if (dst_img->is_backed_by_buffer_view()) {
+        cmd = new cvk_command_buffer_image_copy(
+            CL_COMMAND_COPY_IMAGE, CL_COMMAND_COPY_IMAGE_TO_BUFFER, queue,
+            static_cast<cvk_buffer*>(dst_img->buffer()), src_img,
+            dst_origin[0] * dst_img->element_size(), src_orig, reg);
+    } else {
+        cmd = new cvk_command_image_image_copy(queue, src_img, dst_img,
+                                               src_orig, dst_orig, reg);
+    }
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int clCommandCopyImageToBufferKHR(
+    cl_command_buffer_khr command_buffer, cl_command_queue command_queue,
+    const cl_command_properties_khr* properties, cl_mem src_image,
+    cl_mem dst_buffer, const size_t* src_origin, const size_t* region,
+    size_t dst_offset, cl_uint num_sync_points_in_wait_list,
+    const cl_sync_point_khr* sync_point_wait_list,
+    cl_sync_point_khr* sync_point, cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL("command_buffer = %p", command_buffer);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_image(src_image) || !is_valid_buffer(dst_buffer)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+
+    auto queue = cmdbuf->queues().at(0);
+
+    auto ctx = cmdbuf->context();
+    auto image = static_cast<cvk_image*>(src_image);
+    auto buffer = static_cast<cvk_buffer*>(dst_buffer);
+
+    if (image->context() != ctx || buffer->context() != ctx ||
+        queue->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (image->is_backed_by_buffer_view() && image->buffer() == buffer) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (src_origin == nullptr || region == nullptr ||
+        !is_valid_image_region(image, src_origin, region) ||
+        !is_valid_buffer_image_copy_range(buffer, dst_offset, image, region)) {
+        return CL_INVALID_VALUE;
+    }
+
+    std::array<size_t, 3> origin = {src_origin[0], src_origin[1],
+                                    src_origin[2]};
+    std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+
+    cvk_command* cmd;
+    if (image->is_backed_by_buffer_view()) {
+        cmd = new cvk_command_copy_buffer(
+            queue, CL_COMMAND_COPY_IMAGE_TO_BUFFER,
+            static_cast<cvk_buffer*>(image->buffer()), buffer,
+            src_origin[0] * image->element_size(), dst_offset,
+            region[0] * image->element_size());
+    } else {
+        cmd = new cvk_command_buffer_image_copy(CL_COMMAND_COPY_IMAGE_TO_BUFFER,
+                                                queue, buffer, image,
+                                                dst_offset, origin, reg);
+    }
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
+}
+
+cl_int clCommandFillImageKHR(cl_command_buffer_khr command_buffer,
+                             cl_command_queue command_queue,
+                             const cl_command_properties_khr* properties,
+                             cl_mem image, const void* fill_color,
+                             const size_t* origin, const size_t* region,
+                             cl_uint num_sync_points_in_wait_list,
+                             const cl_sync_point_khr* sync_point_wait_list,
+                             cl_sync_point_khr* sync_point,
+                             cl_mutable_command_khr* mutable_handle) {
+    TRACE_FUNCTION("command_buffer", (uintptr_t)command_buffer);
+    LOG_API_CALL(
+        "command_buffer = %p, command_queue = %p, image = %p, fill_color = %p, "
+        "origin = %p, region = %p, num_sync_points_in_wait_list = %u, "
+        "sync_point_wait_list = %p, sync_point = %p, mutable_handle = %p",
+        command_buffer, command_queue, image, fill_color, origin, region,
+        num_sync_points_in_wait_list, sync_point_wait_list, sync_point,
+        mutable_handle);
+    UNUSED(properties);
+
+    if (command_queue != nullptr) {
+        return CL_INVALID_COMMAND_QUEUE;
+    }
+    if (mutable_handle != nullptr) {
+        return CL_INVALID_VALUE;
+    }
+
+    if (!is_valid_command_buffer(command_buffer)) {
+        return CL_INVALID_COMMAND_BUFFER_KHR;
+    }
+
+    if (!is_valid_sync_point_wait_list(num_sync_points_in_wait_list,
+                                       sync_point_wait_list)) {
+        return CL_INVALID_SYNC_POINT_WAIT_LIST_KHR;
+    }
+
+    if (!is_valid_image(image)) {
+        return CL_INVALID_MEM_OBJECT;
+    }
+
+    auto cmdbuf = icd_downcast(command_buffer);
+    auto queue = cmdbuf->queues().at(0);
+    auto ctx = cmdbuf->context();
+    auto img = static_cast<cvk_image*>(image);
+    if (img->context() != ctx || queue->context() != ctx) {
+        return CL_INVALID_CONTEXT;
+    }
+
+    if (!queue->device()->supports_images()) {
+        return CL_INVALID_OPERATION;
+    }
+
+    if (fill_color == nullptr || origin == nullptr || region == nullptr ||
+        !is_valid_image_region(img, origin, region)) {
+        return CL_INVALID_VALUE;
+    }
+
+    cvk_command* cmd;
+    if (img->is_backed_by_buffer_view()) {
+        cvk_image::fill_pattern_array pattern;
+        size_t pattern_size;
+        img->prepare_fill_pattern(fill_color, pattern, &pattern_size);
+        cmd = new cvk_command_fill_buffer(
+            queue, static_cast<cvk_buffer*>(img->buffer()),
+            origin[0] * img->element_size(), region[0] * img->element_size(),
+            pattern.data(), pattern_size, CL_COMMAND_FILL_IMAGE);
+    } else {
+        std::array<size_t, 3> org = {origin[0], origin[1], origin[2]};
+        std::array<size_t, 3> reg = {region[0], region[1], region[2]};
+        cvk_image::fill_pattern_array pattern;
+        memcpy(pattern.data(), fill_color, sizeof(pattern));
+        cmd =
+            new cvk_command_fill_image_on_device(queue, img, pattern, org, reg);
+    }
+
+    return cmdbuf->add_command(cmd, num_sync_points_in_wait_list,
+                               sync_point_wait_list, sync_point);
 }

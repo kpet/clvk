@@ -13,6 +13,7 @@
 # limitations under the License.
 
 add_gtest_executable(api_tests
+    command_buffer.cpp
     compiler.cpp
     dependencies.cpp
     enqueue.cpp
