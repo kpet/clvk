@@ -118,7 +118,9 @@ struct cvk_command_pool {
                                    nullptr, &m_command_pool);
     }
 
-    VkResult allocate_command_buffer(VkCommandBuffer* buf);
+    VkResult allocate_command_buffer(
+        VkCommandBuffer* buf,
+        VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     void free_command_buffer(VkCommandBuffer buf);
 
     void lock() { m_lock.lock(); }
@@ -167,8 +169,11 @@ struct cvk_command_queue : public _cl_command_queue,
                config.queue_profiling_use_timestamp_queries;
     }
 
-    CHECK_RETURN bool allocate_command_buffer(VkCommandBuffer* cmdbuf) {
-        return m_command_pool.allocate_command_buffer(cmdbuf) == VK_SUCCESS;
+    CHECK_RETURN bool allocate_command_buffer(
+        VkCommandBuffer* cmdbuf,
+        VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+        return m_command_pool.allocate_command_buffer(cmdbuf, level) ==
+               VK_SUCCESS;
     }
 
     void free_command_buffer(VkCommandBuffer cmdbuf) {
@@ -365,8 +370,10 @@ private:
 };
 
 struct cvk_command_buffer {
-    cvk_command_buffer(cvk_command_queue* queue)
-        : m_queue(queue), m_command_buffer(VK_NULL_HANDLE) {}
+    cvk_command_buffer(
+        cvk_command_queue* queue,
+        VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY)
+        : m_queue(queue), m_level(level), m_command_buffer(VK_NULL_HANDLE) {}
 
     ~cvk_command_buffer() {
         if (m_command_buffer != VK_NULL_HANDLE) {
@@ -374,7 +381,8 @@ struct cvk_command_buffer {
         }
     }
 
-    CHECK_RETURN bool begin();
+    CHECK_RETURN bool begin(VkCommandBufferUsageFlags usage =
+                                VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
     CHECK_RETURN bool end() {
 #ifdef CLVK_UNIT_TESTING_ENABLED
@@ -382,22 +390,24 @@ struct cvk_command_buffer {
             return false;
         }
 #endif
-        VkMemoryBarrier memoryBarrier = {
-            VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
-            VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
-            VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
+        if (m_level == VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
+            VkMemoryBarrier memoryBarrier = {
+                VK_STRUCTURE_TYPE_MEMORY_BARRIER, nullptr,
+                VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT};
 
-        vkCmdPipelineBarrier(m_command_buffer,
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
-                             VK_PIPELINE_STAGE_HOST_BIT,
-                             0, // dependencyFlags
-                             1, // memoryBarrierCount
-                             &memoryBarrier,
-                             0,        // bufferMemoryBarrierCount
-                             nullptr,  // pBufferMemoryBarriers
-                             0,        // imageMemoryBarrierCount
-                             nullptr); // pImageMemoryBarriers
+            vkCmdPipelineBarrier(m_command_buffer,
+                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT |
+                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_HOST_BIT,
+                                 0, // dependencyFlags
+                                 1, // memoryBarrierCount
+                                 &memoryBarrier,
+                                 0,        // bufferMemoryBarrierCount
+                                 nullptr,  // pBufferMemoryBarriers
+                                 0,        // imageMemoryBarrierCount
+                                 nullptr); // pImageMemoryBarriers
+        }
 
         auto res = vkEndCommandBuffer(m_command_buffer);
         return res == VK_SUCCESS;
@@ -405,10 +415,11 @@ struct cvk_command_buffer {
 
     CHECK_RETURN bool submit_and_wait();
 
-    operator VkCommandBuffer() { return m_command_buffer; }
+    operator VkCommandBuffer() const { return m_command_buffer; }
 
 protected:
     cvk_command_queue_holder m_queue;
+    VkCommandBufferLevel m_level;
     VkCommandBuffer m_command_buffer;
 };
 
@@ -774,8 +785,12 @@ struct cvk_command_batchable : public cvk_command {
     CHECK_RETURN virtual cl_int
     build_batchable_inner(cvk_command_buffer& cmdbuf) = 0;
 
-private:
     CHECK_RETURN virtual cl_int do_post_action() { return CL_SUCCESS; }
+
+protected:
+    void reset_command_buffer() { m_command_buffer.reset(); }
+
+private:
     CHECK_RETURN cl_int do_action() override;
 
     std::unique_ptr<cvk_command_buffer> m_command_buffer;
@@ -828,6 +843,17 @@ struct cvk_command_kernel final : public cvk_command_batchable {
         }
     }
 
+    cvk_command_kernel(cvk_command_queue* q, cvk_kernel* kernel, uint32_t dims,
+                       const cvk_ndrange& ndrange,
+                       std::shared_ptr<cvk_kernel_argument_values> arg_values)
+        : cvk_command_batchable(CL_COMMAND_NDRANGE_KERNEL, q), m_kernel(kernel),
+          m_dimensions(dims), m_ndrange(ndrange), m_pipeline(VK_NULL_HANDLE),
+          m_argument_values(std::move(arg_values)) {
+        if (m_argument_values) {
+            m_argument_values->retain_resources();
+        }
+    }
+
     ~cvk_command_kernel() {
         if (m_argument_values) {
             m_argument_values->release_resources();
@@ -852,6 +878,10 @@ struct cvk_command_kernel final : public cvk_command_batchable {
     }
 
     cvk_command* clone(cvk_command_queue* queue) override final {
+        if (m_argument_values != nullptr) {
+            return new cvk_command_kernel(queue, m_kernel, m_dimensions,
+                                          m_ndrange, m_argument_values);
+        }
         return new cvk_command_kernel(queue, m_kernel, m_dimensions, m_ndrange);
     }
 
@@ -883,6 +913,7 @@ struct cvk_command_batch : public cvk_command {
         : cvk_command(CLVK_COMMAND_BATCH, queue) {}
 
     ~cvk_command_batch() {
+        m_command_buffer.reset();
         for (auto cmd : m_commands) {
             cmd->release();
         }

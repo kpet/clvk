@@ -981,7 +981,8 @@ cl_int CLVK_API_CALL clGetDeviceInfo(cl_device_id dev,
         size_ret = sizeof(val_fp_atomic_capabilities);
         break;
     case CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR:
-        val_command_buffer_capabilities = 0;
+        val_command_buffer_capabilities =
+            CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR;
         copy_ptr = &val_command_buffer_capabilities;
         size_ret = sizeof(val_command_buffer_capabilities);
         break;
@@ -6799,34 +6800,41 @@ static cl_command_buffer_khr cvk_create_command_buffer_khr(
         return nullptr;
     }
 
-    cl_command_buffer_properties_khr* props =
-        (cl_command_buffer_properties_khr*)properties;
+    std::vector<cl_command_buffer_properties_khr> properties_internal;
+    cl_command_buffer_flags_khr flags = 0;
+
+    const cl_command_buffer_properties_khr* props = properties;
     std::map<cl_command_buffer_properties_khr, cl_command_buffer_properties_khr>
         props_map;
-    while (props != nullptr && *props != 0) {
-        auto prop = props[0];
-        auto value = props[1];
+    if (props != nullptr) {
+        while (*props != 0) {
+            auto prop = props[0];
+            auto value = props[1];
 
-        if (props_map.count(prop) != 0) {
-            *errcode_ret = CL_INVALID_VALUE;
-            return nullptr;
+            if (props_map.count(prop) != 0) {
+                *errcode_ret = CL_INVALID_VALUE;
+                return nullptr;
+            }
+
+            props_map[prop] = value;
+            properties_internal.push_back(prop);
+            properties_internal.push_back(value);
+            props += 2;
         }
-
-        props_map[prop] = value;
-        props += 2;
+        properties_internal.push_back(0);
     }
     for (auto [prop, value] : props_map) {
         switch (prop) {
         case CL_COMMAND_BUFFER_FLAGS_KHR:
-            if (value & CL_COMMAND_BUFFER_SIMULTANEOUS_USE_KHR ||
-                value & CL_COMMAND_BUFFER_DEVICE_SIDE_SYNC_KHR ||
+            if (value & CL_COMMAND_BUFFER_DEVICE_SIDE_SYNC_KHR ||
                 value & CL_COMMAND_BUFFER_MUTABLE_KHR) {
                 *errcode_ret = CL_INVALID_PROPERTY;
                 return nullptr;
-            } else if (value != 0) {
+            } else if ((value & ~CL_COMMAND_BUFFER_SIMULTANEOUS_USE_KHR) != 0) {
                 *errcode_ret = CL_INVALID_VALUE;
                 return nullptr;
             }
+            flags = value;
             break;
         case CL_COMMAND_BUFFER_MUTABLE_DISPATCH_ASSERTS_KHR:
             if (value != 0) {
@@ -6852,13 +6860,12 @@ static cl_command_buffer_khr cvk_create_command_buffer_khr(
         queues_internal.push_back(icd_downcast(queues[i]));
     }
 
-    std::vector<cl_command_buffer_properties_khr> properties_internal;
-
-    auto cmdbuf = new cvk_api_command_buffer(queues_internal,
+    auto cmdbuf = new cvk_api_command_buffer(queues_internal, flags,
                                              std::move(properties_internal));
     auto ctx = cmdbuf->context();
     for (cl_uint i = 0; i < num_queues; i++) {
         if (queues_internal[i]->context() != ctx) {
+            cmdbuf->release();
             *errcode_ret = CL_INVALID_CONTEXT;
             return nullptr;
         }

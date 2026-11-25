@@ -553,13 +553,14 @@ cl_int cvk_command_queue::finish() {
     return CL_SUCCESS;
 }
 
-VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf) {
+VkResult cvk_command_pool::allocate_command_buffer(VkCommandBuffer* cmdbuf,
+                                                   VkCommandBufferLevel level) {
 
     std::lock_guard<std::mutex> lock(m_lock);
 
     VkCommandBufferAllocateInfo commandBufferAllocateInfo = {
         VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, 0, m_command_pool,
-        VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        level,
         1 // commandBufferCount
     };
 
@@ -572,7 +573,7 @@ void cvk_command_pool::free_command_buffer(VkCommandBuffer buf) {
     vkFreeCommandBuffers(m_device->vulkan_device(), m_command_pool, 1, &buf);
 }
 
-bool cvk_command_buffer::begin() {
+bool cvk_command_buffer::begin(VkCommandBufferUsageFlags usage) {
 #ifdef CLVK_UNIT_TESTING_ENABLED
     if (config.force_cvk_command_buffer_begin_error()) {
         return false;
@@ -580,17 +581,27 @@ bool cvk_command_buffer::begin() {
 #endif
 
     CVK_ASSERT(m_command_buffer == VK_NULL_HANDLE);
-    if (!m_queue->allocate_command_buffer(&m_command_buffer)) {
+    if (!m_queue->allocate_command_buffer(&m_command_buffer, m_level)) {
         return false;
     }
 
     cvk_command_pool_lock_holder lock(m_queue);
 
-    VkCommandBufferBeginInfo beginInfo = {
-        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-        nullptr // pInheritanceInfo
+    VkCommandBufferInheritanceInfo inheritanceInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO,
+        nullptr,
+        VK_NULL_HANDLE, // renderPass
+        0,              // subpass
+        VK_NULL_HANDLE, // framebuffer
+        VK_FALSE,       // occlusionQueryEnable
+        0,              // queryFlags
+        0,              // pipelineStatistics
     };
+
+    VkCommandBufferBeginInfo beginInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, nullptr, usage,
+        m_level == VK_COMMAND_BUFFER_LEVEL_SECONDARY ? &inheritanceInfo
+                                                     : nullptr};
 
     VkResult res = vkBeginCommandBuffer(m_command_buffer, &beginInfo);
     if (res != VK_SUCCESS) {
