@@ -171,12 +171,12 @@ static bool isPostGen12IntelDevice(const uint32_t deviceID) {
 }
 
 struct cvk_device_properties_intel : public cvk_device_properties_virtual {
+    explicit cvk_device_properties_intel(const uint32_t deviceID)
+        : m_deviceID(deviceID) {}
+
     std::string vendor() const override final { return "Intel Corporation"; }
     uint32_t max_first_cmd_batch_size() const override final { return 10; }
     uint32_t max_cmd_group_size() const override final { return 1; }
-    /* Keep the PCI device ID to select a generation-appropriate subgroup. */
-    explicit cvk_device_properties_intel(const uint32_t deviceID)
-        : m_deviceID(deviceID) {}
     std::set<std::string> clspv_native_builtins() const override final {
         return std::set<std::string>({
             "ceil",        "copysign",  "exp2",        "floor",
