@@ -95,7 +95,85 @@ struct cvk_device_properties_adreno_640 : public cvk_device_properties_adreno {
     uint32_t max_compute_units() const override final { return 2; }
 };
 
+/* Prefer wider subgroups on Intel architectures newer than Gen12.
+ * PCI IDs are intentionally enumerated from Mesa's current Intel PCI table:
+ * PCI IDs are not monotonic by generation, and unknown devices remain on 16.
+ */
+static bool isPostGen12IntelDevice(const uint32_t deviceID) {
+    if ((deviceID >= 0x5690 && deviceID <= 0x5697) ||
+        (deviceID >= 0x56a0 && deviceID <= 0x56a6) ||
+        (deviceID >= 0x56b0 && deviceID <= 0x56b3) ||
+        (deviceID >= 0x56ba && deviceID <= 0x56bf) ||
+        (deviceID >= 0x56c0 && deviceID <= 0x56c2)) {
+        return true;
+    }
+
+    switch (deviceID) {
+    case 0x6420:
+    case 0x64a0:
+    case 0x64b0:
+    case 0x7d40:
+    case 0x7d41:
+    case 0x7d45:
+    case 0x7d51:
+    case 0x7d55:
+    case 0x7d60:
+    case 0x7d67:
+    case 0x7dd1:
+    case 0x7dd5:
+    case 0xb080:
+    case 0xb081:
+    case 0xb082:
+    case 0xb083:
+    case 0xb084:
+    case 0xb085:
+    case 0xb086:
+    case 0xb087:
+    case 0xb08f:
+    case 0xb090:
+    case 0xb0a0:
+    case 0xb0b0:
+    case 0xb640:
+    case 0xe202:
+    case 0xe209:
+    case 0xe20b:
+    case 0xe20c:
+    case 0xe20d:
+    case 0xe210:
+    case 0xe211:
+    case 0xe212:
+    case 0xe215:
+    case 0xe216:
+    case 0xe220:
+    case 0xe221:
+    case 0xe222:
+    case 0xe223:
+    case 0xfd80:
+    case 0xfd81:
+    case 0xd740:
+    case 0xd741:
+    case 0xd742:
+    case 0xd743:
+    case 0xd745:
+    case 0xd750:
+    case 0xd751:
+    case 0xd752:
+    case 0xd753:
+    case 0xd754:
+    case 0xd755:
+    case 0xd756:
+    case 0xd757:
+    case 0xd75f:
+        return true;
+    default:
+        return false;
+    }
+}
+
 struct cvk_device_properties_intel : public cvk_device_properties_virtual {
+    explicit cvk_device_properties_intel(const uint32_t deviceID)
+        : m_deviceID(deviceID) {}
+
     std::string vendor() const override final { return "Intel Corporation"; }
     uint32_t max_first_cmd_batch_size() const override final { return 10; }
     uint32_t max_cmd_group_size() const override final { return 1; }
@@ -116,7 +194,10 @@ struct cvk_device_properties_intel : public cvk_device_properties_virtual {
         return "-hack-mul-extended -hack-convert-to-float "
                "-hack-image1d-buffer-bgra";
     }
-    uint32_t preferred_subgroup_size() const override final { return 16; }
+    uint32_t preferred_subgroup_size() const override final {
+        /* Gen12 and unknown IDs retain the conservative 16-wide default. */
+        return isPostGen12IntelDevice(m_deviceID) ? 32 : 16;
+    }
     bool bgra_format_not_supported_for_image1d_buffer() const override final {
         return true;
     }
@@ -124,6 +205,9 @@ struct cvk_device_properties_intel : public cvk_device_properties_virtual {
     image_format_set disabled_image_formats() const override final {
         return image_format_set{{CL_RGB, CL_UNORM_SHORT_565}};
     }
+
+private:
+    const uint32_t m_deviceID;
 };
 
 static bool isIntelDevice(const char* name, const uint32_t vendorID) {
@@ -309,7 +393,7 @@ std::unique_ptr<cvk_device_properties> create_cvk_device_properties(
     } else if (strcmp(name, "Adreno (TM) 640") == 0) {
         RETURN(cvk_device_properties_adreno_640);
     } else if (isIntelDevice(name, vendorID)) {
-        RETURN(cvk_device_properties_intel);
+        RETURN(cvk_device_properties_intel, deviceID);
     } else if (isAMDDevice(name, vendorID)) {
         RETURN(cvk_device_properties_amd);
     } else if (strcmp(name, "Samsung Xclipse 920") == 0) {
