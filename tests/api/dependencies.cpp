@@ -185,3 +185,32 @@ TEST_F(WithCommandQueue, InOrderQueueStopsExecutionAfterFailedCommand) {
     GetEventInfo(mapev, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
     ASSERT_NE(status, CL_COMPLETE);
 }
+
+TEST_F(WithCommandQueue, WaitForEventWhileLaterCommandBlockedOnUserEvent) {
+    auto buffer = CreateBuffer(CL_MEM_READ_WRITE, BUFFER_SIZE, nullptr);
+    auto uevent = CreateUserEvent();
+
+    std::vector<cl_uchar> data(BUFFER_SIZE, 0x42);
+
+    holder<cl_event> ev0;
+    EnqueueWriteBuffer(buffer, CL_FALSE, 0, BUFFER_SIZE, data.data(), 0,
+                       nullptr, &ev0);
+
+    cl_event dep = uevent;
+    holder<cl_event> ev1;
+    EnqueueWriteBuffer(buffer, CL_FALSE, 0, BUFFER_SIZE, data.data(), 1, &dep,
+                       &ev1);
+
+    Flush();
+
+    cl_int status = CL_QUEUED;
+    do {
+        GetEventInfo(ev0, CL_EVENT_COMMAND_EXECUTION_STATUS, &status);
+    } while (status != CL_COMPLETE && status >= 0);
+    ASSERT_EQ(status, CL_COMPLETE);
+
+    WaitForEvent(ev0);
+
+    SetUserEventStatus(uevent, CL_COMPLETE);
+    WaitForEvent(ev1);
+}
