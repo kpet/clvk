@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstddef>
+
 #include "cl_headers.hpp"
 #include "icd.hpp"
 #include "image_format.hpp"
@@ -24,6 +26,7 @@
 #include "queue.hpp"
 #include "semaphore.hpp"
 #include "tracing.hpp"
+#include "utils.hpp"
 
 #define LOG_API_CALL(fmt, ...)                                                 \
     cvk_debug_group_fn(loggroup::api, fmt, __VA_ARGS__)
@@ -128,6 +131,57 @@ bool is_same_context(cl_command_queue queue, cl_uint num_semas,
     }
 
     return true;
+}
+
+bool regions_overlap_1d(size_t src_offset, size_t dst_offset, size_t size) {
+    if (size == 0) {
+        return false;
+    }
+    if (src_offset <= dst_offset) {
+        return dst_offset - src_offset < size;
+    }
+    return src_offset - dst_offset < size;
+}
+
+bool image_regions_overlap(const cvk_image* src_image,
+                           const cvk_image* dst_image, const size_t* src_origin,
+                           const size_t* dst_origin, const size_t* region) {
+    if (src_image == dst_image) {
+        if (!regions_overlap_1d(src_origin[0], dst_origin[0], region[0])) {
+            return false;
+        }
+        switch (src_image->type()) {
+        case CL_MEM_OBJECT_IMAGE1D:
+        case CL_MEM_OBJECT_IMAGE1D_BUFFER:
+            return true;
+        case CL_MEM_OBJECT_IMAGE2D:
+        case CL_MEM_OBJECT_IMAGE1D_ARRAY:
+            return regions_overlap_1d(src_origin[1], dst_origin[1], region[1]);
+        case CL_MEM_OBJECT_IMAGE3D:
+        case CL_MEM_OBJECT_IMAGE2D_ARRAY:
+            return regions_overlap_1d(src_origin[1], dst_origin[1],
+                                      region[1]) &&
+                   regions_overlap_1d(src_origin[2], dst_origin[2], region[2]);
+        default:
+            CVK_ASSERT(false && "Unexpected image type");
+            return false;
+        }
+    }
+
+    if (src_image->is_backed_by_buffer_view() &&
+        dst_image->is_backed_by_buffer_view()) {
+        auto src_buf = static_cast<const cvk_buffer*>(src_image->buffer());
+        auto dst_buf = static_cast<const cvk_buffer*>(dst_image->buffer());
+        if (src_buf->vulkan_buffer() == dst_buf->vulkan_buffer()) {
+            size_t elem_size = src_image->element_size();
+            return regions_overlap_1d(
+                src_buf->vulkan_buffer_offset() + src_origin[0] * elem_size,
+                dst_buf->vulkan_buffer_offset() + dst_origin[0] * elem_size,
+                region[0] * elem_size);
+        }
+    }
+
+    return false;
 }
 
 bool is_valid_device_type(cl_device_type type) {
@@ -5388,11 +5442,13 @@ clEnqueueCopyImage(cl_command_queue cq, cl_mem src_image, cl_mem dst_image,
         return CL_INVALID_OPERATION;
     }
 
-    // TODO CL_MEM_COPY_OVERLAP if src_image and dst_image are the same image
-    // object and the source and destination regions overlap.
-
     if (!src_img->has_same_format(dst_img)) {
         return CL_IMAGE_FORMAT_MISMATCH;
+    }
+
+    if (image_regions_overlap(src_img, dst_img, src_origin, dst_origin,
+                              region)) {
+        return CL_MEM_COPY_OVERLAP;
     }
 
     std::array<size_t, 3> src_orig = {src_origin[0], src_origin[1],
