@@ -26,6 +26,16 @@
 #include "memory.hpp"
 #include "utils.hpp"
 
+#if (defined(__ANDROID__) || defined(__linux__)) && __has_include(<drm/xe_drm.h>)
+#include <drm/xe_drm.h>
+#ifdef DRM_XE_TOPO_SIMD16_EU_PER_DSS
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#define CLVK_XE_GT_TOPOLOGY_SUPPORTED
+#endif
+#endif
+
 constexpr VkMemoryPropertyFlags cvk_device::buffer_supported_memory_types[];
 constexpr VkMemoryPropertyFlags cvk_device::image_supported_memory_types[];
 
@@ -59,6 +69,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
     m_integer_dot_product_properties.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_PROPERTIES;
+    m_shader_core_builtins_properties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_BUILTINS_PROPERTIES_ARM;
 
     //--- Get maxMemoryAllocationSize for figuring out the  max single buffer
     // allocation size and default init when the extension is not supported
@@ -89,6 +101,8 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
                          m_float_controls_properties),
             VER_EXT_PROP(VK_MAKE_VERSION(1, 3, 0), nullptr,
                          m_integer_dot_product_properties),
+            VER_EXT_PROP(0, VK_ARM_SHADER_CORE_BUILTINS_EXTENSION_NAME,
+                         m_shader_core_builtins_properties),
         };
 #undef VER_EXT_PROP
 
@@ -116,6 +130,137 @@ void cvk_device::init_vulkan_properties(VkInstance instance) {
             "Failed to get pointer to vkGetPhysicalDeviceProperties2KHR()");
     }
     func(m_pdev, &properties);
+}
+
+#ifdef CLVK_XE_GT_TOPOLOGY_SUPPORTED
+static bool get_drm_render_node_path(VkPhysicalDevice pdev,
+                                     std::string& render_path) {
+    if (pdev == VK_NULL_HANDLE) {
+        return false;
+    }
+
+    VkPhysicalDeviceDrmPropertiesEXT drm_props{};
+    drm_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRM_PROPERTIES_EXT;
+    VkPhysicalDeviceProperties2 props{};
+    props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    props.pNext = &drm_props;
+    vkGetPhysicalDeviceProperties2(pdev, &props);
+    if (!drm_props.hasRender) {
+        return false;
+    }
+
+    render_path = "/dev/dri/renderD" + std::to_string(drm_props.renderMinor);
+    return true;
+}
+
+static bool query_xe_gt_topology(const std::string& render_path,
+                                 std::vector<uint8_t>& topology) {
+    int fd = open(render_path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return false;
+    }
+
+    drm_xe_device_query query{};
+    query.query = DRM_XE_DEVICE_QUERY_GT_TOPOLOGY;
+    query.size = 0;
+    if (ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query) != 0 || query.size == 0) {
+        close(fd);
+        return false;
+    }
+
+    topology.resize(query.size);
+    query.data = reinterpret_cast<uintptr_t>(topology.data());
+    if (ioctl(fd, DRM_IOCTL_XE_DEVICE_QUERY, &query) != 0) {
+        close(fd);
+        return false;
+    }
+    close(fd);
+    return true;
+}
+
+static uint32_t count_set_bits(const uint8_t* mask, size_t num_bytes) {
+    uint32_t count = 0;
+    for (size_t i = 0; i < num_bytes; i++) {
+        count += __builtin_popcount(mask[i]);
+    }
+    return count;
+}
+
+static void merge_dss_mask(std::vector<uint8_t>& dss_mask,
+                           const drm_xe_query_topology_mask* topo) {
+    if (dss_mask.size() < topo->num_bytes) {
+        dss_mask.resize(topo->num_bytes, 0);
+    }
+    for (uint32_t i = 0; i < topo->num_bytes; i++) {
+        dss_mask[i] |= topo->mask[i];
+    }
+}
+
+static bool parse_xe_gt_topology_compute_units(const std::vector<uint8_t>& buf,
+                                               uint32_t& compute_units) {
+    std::vector<uint8_t> dss_mask;
+    uint32_t eu_per_dss = 0;
+    size_t offset = 0;
+    while (offset + sizeof(drm_xe_query_topology_mask) <= buf.size()) {
+        auto* topo = reinterpret_cast<const drm_xe_query_topology_mask*>(
+            buf.data() + offset);
+        size_t entry_size =
+            sizeof(drm_xe_query_topology_mask) + topo->num_bytes;
+        if (offset + entry_size > buf.size()) {
+            return false;
+        }
+        if (topo->gt_id == 0) {
+            switch (topo->type) {
+            case DRM_XE_TOPO_DSS_GEOMETRY:
+            case DRM_XE_TOPO_DSS_COMPUTE:
+                merge_dss_mask(dss_mask, topo);
+                break;
+            case DRM_XE_TOPO_EU_PER_DSS:
+            case DRM_XE_TOPO_SIMD16_EU_PER_DSS:
+                eu_per_dss = count_set_bits(topo->mask, topo->num_bytes);
+                break;
+            default:
+                break;
+            }
+        }
+        offset += entry_size;
+    }
+
+    uint32_t active_dss = count_set_bits(dss_mask.data(), dss_mask.size());
+    compute_units = active_dss * eu_per_dss;
+    return compute_units > 0;
+}
+
+static uint32_t get_xe_max_compute_units(VkPhysicalDevice pdev) {
+    std::string render_path;
+    if (!get_drm_render_node_path(pdev, render_path)) {
+        return 0;
+    }
+    std::vector<uint8_t> topology;
+    if (!query_xe_gt_topology(render_path, topology)) {
+        return 0;
+    }
+    uint32_t compute_units = 0;
+    if (!parse_xe_gt_topology_compute_units(topology, compute_units)) {
+        return 0;
+    }
+    return compute_units;
+}
+#endif
+
+void cvk_device::init_max_compute_units() {
+    m_max_compute_units = 1u;
+    if (m_clvk_properties->max_compute_units() != 0) {
+        m_max_compute_units = m_clvk_properties->max_compute_units();
+    } else if (m_shader_core_builtins_properties.shaderCoreCount != 0) {
+        m_max_compute_units = m_shader_core_builtins_properties.shaderCoreCount;
+    }
+#ifdef CLVK_XE_GT_TOPOLOGY_SUPPORTED
+    else if (uint32_t xe_cu = get_xe_max_compute_units(m_pdev); xe_cu != 0) {
+        m_max_compute_units = xe_cu;
+    }
+#endif
+    cvk_info_fn("%u", m_max_compute_units);
 }
 
 void cvk_device::init_clvk_runtime_behaviors() {
@@ -256,6 +401,7 @@ bool cvk_device::init_extensions() {
         VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME,
         VK_KHR_SHADER_FMA_EXTENSION_NAME,
         VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
+        VK_ARM_SHADER_CORE_BUILTINS_EXTENSION_NAME,
     };
 
     if (m_properties.apiVersion < VK_MAKE_VERSION(1, 2, 0)) {
@@ -1161,6 +1307,8 @@ bool cvk_device::init(VkInstance instance) {
     init_vulkan_properties(instance);
 
     init_clvk_runtime_behaviors();
+
+    init_max_compute_units();
 
     init_driver_behaviors();
 

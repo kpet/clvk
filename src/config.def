@@ -86,7 +86,7 @@ OPTION(std::string, device_name, "")
 
 // Specify the default number of compute units to expose through
 // `CL_DEVICE_MAX_COMPUTE_UNITS` if nothing is set in the device properties.
-PROPERTY(uint32_t, max_compute_units, 1u)
+PROPERTY(uint32_t, max_compute_units, 0u)
 
 // Specify the size of the global memory cache in bytes.
 PROPERTY(uint32_t, global_mem_cache_size, 0u)
